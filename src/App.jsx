@@ -5,6 +5,7 @@ import Login from './components/Login'
 import Header from './components/Header'
 import Dashboard from './components/Dashboard'
 import HabitsDashboard from './components/habits/HabitsDashboard'
+import MoodDashboard from './components/mood/MoodDashboard'
 import SettingsDrawer from './components/SettingsDrawer'
 
 const DEV_USER = { uid: 'dev-user', displayName: 'Laura', photoURL: null }
@@ -13,6 +14,7 @@ const DEV_MODE = import.meta.env.DEV
 export const MODULES = [
   { id: 'budget',  label: 'Budżet',   icon: '💰' },
   { id: 'habits',  label: 'Nawyki',   icon: '✅' },
+  { id: 'mood',    label: 'Nastrój',  icon: '💭' },
   { id: 'todo',    label: 'To-do',    icon: '📋', soon: true },
   { id: 'calendar',label: 'Kalendarz',icon: '📅', soon: true },
   { id: 'prayer',  label: 'Modlitwa', icon: '🙏', soon: true },
@@ -57,6 +59,7 @@ export default function App() {
       <main className="main-content">
         {activeModule === 'budget'  && <Dashboard user={user} />}
         {activeModule === 'habits'  && <HabitsDashboard user={user} />}
+        {activeModule === 'mood'    && <MoodDashboard user={user} />}
       </main>
 
       {/* Bottom nav mobile */}

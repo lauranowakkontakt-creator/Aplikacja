@@ -79,10 +79,11 @@ export default function HabitsDashboard({ user }) {
   const [showForm, setShowForm]     = useState(false)
   const [showPause, setShowPause]   = useState(false)
   const [editHabit, setEditHabit]   = useState(null)
-  const [view, setView]             = useState('week')
+  const [view, setView]             = useState('today')
   const [compact, setCompact]       = useState(false)
   const [filterCat, setFilterCat]   = useState('all')
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedDay, setSelectedDay] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [showArchived, setShowArchived] = useState(false)
 
   const TODAY = format(new Date(), 'yyyy-MM-dd')
@@ -160,13 +161,13 @@ export default function HabitsDashboard({ user }) {
 
       {/* View tabs */}
       <div className="habit-view-tabs">
-        {[['week','Tydzień'],['month','Miesiąc'],['stats','Statystyki']].map(([id, label]) => (
+        {[['today','Dziś'],['week','Tydzień'],['month','Miesiąc'],['stats','Statystyki']].map(([id, label]) => (
           <button key={id} className={`habit-view-tab ${view === id ? 'active' : ''}`} onClick={() => setView(id)}>{label}</button>
         ))}
       </div>
 
       {/* Progress bar */}
-      {view === 'week' && todayDue.length > 0 && !todayIsPaused && (
+      {(view === 'week' || view === 'today') && todayDue.length > 0 && !todayIsPaused && (
         <div className="progress-bar-wrap">
           <div className="progress-bar" style={{ width: `${(doneToday / todayDue.length) * 100}%` }} />
         </div>
@@ -183,6 +184,82 @@ export default function HabitsDashboard({ user }) {
           ))}
         </div>
       )}
+
+      {/* ===== DZIŚ (karty) ===== */}
+      {view === 'today' && (() => {
+        const dayStrip = Array.from({ length: 7 }, (_, i) => {
+          const d = subDays(new Date(), 6 - i)
+          return { date: format(d, 'yyyy-MM-dd'), label: format(d, 'EEE', { locale: pl }), dayNum: format(d, 'd') }
+        })
+        const selDue = filtered.filter(h => {
+          const s = isHabitDue(h, selectedDay, pauses)
+          return s !== 'before-start' && s !== 'after-end'
+        })
+        return (
+          <>
+            {/* Pasek dni */}
+            <div className="day-strip">
+              {dayStrip.map(d => (
+                <button key={d.date}
+                  className={`day-strip-item ${d.date === selectedDay ? 'active' : ''}`}
+                  onClick={() => setSelectedDay(d.date)}
+                >
+                  <span className="day-strip-lbl">{d.label}</span>
+                  <span className="day-strip-num">{d.dayNum}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Category filter */}
+            {activeHabits.length > 0 && (
+              <div className="habit-cat-filter">
+                <button className={`habit-cat-chip ${filterCat === 'all' ? 'active' : ''}`} onClick={() => setFilterCat('all')}>Wszystkie</button>
+                {HABIT_CATEGORIES.filter(c => activeHabits.some(h => h.category === c.id)).map(c => (
+                  <button key={c.id} className={`habit-cat-chip ${filterCat === c.id ? 'active' : ''}`} onClick={() => setFilterCat(c.id)}>
+                    {c.icon} {c.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {selDue.length === 0 ? (
+              <div className="list-empty"><p>Brak nawyków</p><p className="list-empty-hint">Kliknij "+ Nowy" aby dodać</p></div>
+            ) : (
+              <div className="habit-cards">
+                {selDue.map(habit => {
+                  const status = isHabitDue(habit, selectedDay, pauses)
+                  const done   = habit.completedDates?.includes(selectedDay)
+                  const streak = getStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)
+                  const isFut  = selectedDay > TODAY
+                  return (
+                    <div key={habit.id}
+                      className={`habit-card ${done ? 'done' : ''} ${status === 'paused' ? 'paused' : ''}`}
+                      style={done ? { background: (habit.color || 'var(--primary)') + '18', borderColor: (habit.color || 'var(--primary)') + '50' } : {}}
+                    >
+                      <div className="habit-card-icon" style={{ background: (habit.color || '#C94B28') + '30' }}
+                        onClick={() => { setEditHabit(habit); setShowForm(true) }}>
+                        <span>{habit.emoji}</span>
+                      </div>
+                      <div className="habit-card-body" onClick={() => { setEditHabit(habit); setShowForm(true) }}>
+                        <span className="habit-card-name">{habit.name}</span>
+                        {streak > 0 && <span className="habit-card-streak">🔥 {streak} dni</span>}
+                      </div>
+                      <button
+                        className={`habit-card-btn ${done ? 'done' : ''} ${status === 'paused' ? 'paused' : ''}`}
+                        style={done ? { background: habit.color || 'var(--primary)', borderColor: habit.color || 'var(--primary)' } : {}}
+                        onClick={() => !isFut && status === 'due' && toggleDay(habit, selectedDay)}
+                        disabled={isFut || status !== 'due'}
+                      >
+                        {done ? '✓' : status === 'paused' ? getPauseIcon(pauses, selectedDay) : ''}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {/* ===== TYDZIEŃ ===== */}
       {view === 'week' && (
