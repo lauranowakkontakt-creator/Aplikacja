@@ -1,128 +1,331 @@
 import { useState, useEffect } from 'react'
 import { collection, onSnapshot, orderBy, query, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { format, startOfWeek, addDays, subDays } from 'date-fns'
+import { format, startOfWeek, addDays, subDays, subWeeks, addWeeks, startOfMonth, getDaysInMonth, getDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import HabitForm from './HabitForm'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import HabitForm, { HABIT_CATEGORIES } from './HabitForm'
 
-const TODAY = format(new Date(), 'yyyy-MM-dd')
+function isHabitDue(habit, dateStr) {
+  const days = habit.frequencyDays || [0,1,2,3,4,5,6]
+  return days.includes(new Date(dateStr + 'T12:00:00').getDay())
+}
 
-function getStreak(completedDates) {
+function getStreak(completedDates, frequencyDays = [0,1,2,3,4,5,6]) {
   if (!completedDates?.length) return 0
+  const today = format(new Date(), 'yyyy-MM-dd')
   let streak = 0
-  let day = new Date()
-  if (!completedDates.includes(format(day, 'yyyy-MM-dd'))) {
-    day = subDays(day, 1)
-  }
-  while (completedDates.includes(format(day, 'yyyy-MM-dd'))) {
-    streak++
-    day = subDays(day, 1)
+  let check = new Date()
+  for (let i = 0; i < 365; i++) {
+    const dateStr = format(check, 'yyyy-MM-dd')
+    const dow = check.getDay()
+    if (!frequencyDays.includes(dow)) { check = subDays(check, 1); continue }
+    if (completedDates.includes(dateStr)) { streak++; check = subDays(check, 1) }
+    else if (dateStr === today) { check = subDays(check, 1) }
+    else break
   }
   return streak
 }
 
-export default function HabitsDashboard({ user }) {
-  const [habits, setHabits] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [editHabit, setEditHabit] = useState(null)
+function getBestStreak(completedDates, frequencyDays = [0,1,2,3,4,5,6]) {
+  if (!completedDates?.length) return 0
+  const sorted = [...completedDates].sort().filter(d => frequencyDays.includes(new Date(d + 'T12:00:00').getDay()))
+  if (!sorted.length) return 0
+  let best = 1, current = 1
+  for (let i = 1; i < sorted.length; i++) {
+    let next = new Date(sorted[i-1] + 'T12:00:00')
+    next = addDays(next, 1)
+    while (!frequencyDays.includes(next.getDay())) next = addDays(next, 1)
+    if (format(next, 'yyyy-MM-dd') === sorted[i]) { current++; if (current > best) best = current }
+    else current = 1
+  }
+  return best
+}
 
-  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 })
+function getWeeklyStats(habits, weeksBack = 4) {
+  return Array.from({ length: weeksBack }, (_, i) => {
+    const ws = startOfWeek(subWeeks(new Date(), weeksBack - 1 - i), { weekStartsOn: 1 })
+    const days = Array.from({ length: 7 }, (_, j) => format(addDays(ws, j), 'yyyy-MM-dd'))
+    let exp = 0, done = 0
+    habits.forEach(h => days.forEach(d => {
+      if (isHabitDue(h, d)) { exp++; if (h.completedDates?.includes(d)) done++ }
+    }))
+    return { week: format(ws, 'd.MM', { locale: pl }), pct: exp > 0 ? Math.round((done / exp) * 100) : 0 }
+  })
+}
+
+export default function HabitsDashboard({ user }) {
+  const [habits, setHabits]       = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [showForm, setShowForm]   = useState(false)
+  const [editHabit, setEditHabit] = useState(null)
+  const [view, setView]           = useState('week')
+  const [compact, setCompact]     = useState(false)
+  const [filterCat, setFilterCat] = useState('all')
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [showArchived, setShowArchived] = useState(false)
+
+  const TODAY = format(new Date(), 'yyyy-MM-dd')
+
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(weekStart, i)
     return { date: format(d, 'yyyy-MM-dd'), label: format(d, 'EEE', { locale: pl }), dayNum: format(d, 'd') }
   })
 
+  const monthDays = (() => {
+    const start = startOfMonth(currentDate)
+    return Array.from({ length: getDaysInMonth(currentDate) }, (_, i) => {
+      const d = addDays(start, i)
+      return { date: format(d, 'yyyy-MM-dd'), dayNum: format(d, 'd'), dow: getDay(d) }
+    })
+  })()
+
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habits'), orderBy('createdAt', 'asc'))
-    const unsub = onSnapshot(q, (snap) => {
+    return onSnapshot(q, snap => {
       setHabits(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
     })
-    return unsub
   }, [user.uid])
 
   const toggleDay = async (habit, date) => {
     const ref = doc(db, 'users', user.uid, 'habits', habit.id)
     const done = habit.completedDates?.includes(date)
-    await updateDoc(ref, {
-      completedDates: done ? arrayRemove(date) : arrayUnion(date)
-    })
+    await updateDoc(ref, { completedDates: done ? arrayRemove(date) : arrayUnion(date) })
   }
 
-  const doneToday = habits.filter(h => h.completedDates?.includes(TODAY)).length
-  const totalToday = habits.length
+  const activeHabits   = habits.filter(h => !h.archived)
+  const archivedHabits = habits.filter(h => h.archived)
+  const filtered = activeHabits.filter(h => filterCat === 'all' || h.category === filterCat)
+
+  const todayDue  = filtered.filter(h => isHabitDue(h, TODAY))
+  const doneToday = todayDue.filter(h => h.completedDates?.includes(TODAY)).length
+  const weekPct   = (() => {
+    let exp = 0, done = 0
+    filtered.forEach(h => weekDays.forEach(d => {
+      if (isHabitDue(h, d.date)) { exp++; if (h.completedDates?.includes(d.date)) done++ }
+    }))
+    return exp > 0 ? Math.round((done / exp) * 100) : 0
+  })()
+
+  const weeklyStats = getWeeklyStats(filtered)
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   return (
     <div className="habits-dashboard">
-      {/* Nagłówek */}
+      {/* Header */}
       <div className="habits-header">
         <div>
           <h2 className="habits-title">Nawyki</h2>
           <p className="habits-subtitle">
-            {totalToday === 0 ? 'Dodaj swój pierwszy nawyk' : `Dziś: ${doneToday} / ${totalToday}`}
+            {activeHabits.length === 0
+              ? 'Dodaj swój pierwszy nawyk'
+              : `Dziś: ${doneToday}/${todayDue.length} · Tydzień: ${weekPct}%`}
           </p>
         </div>
-        <button className="btn-add-habit" onClick={() => setShowForm(true)}>+ Nowy</button>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button className={`habit-compact-btn ${compact ? 'active' : ''}`} onClick={() => setCompact(v => !v)} title="Tryb kompaktowy">⊟</button>
+          <button className="btn-add-habit" onClick={() => { setEditHabit(null); setShowForm(true) }}>+ Nowy</button>
+        </div>
       </div>
 
-      {/* Pasek postępu */}
-      {totalToday > 0 && (
+      {/* View tabs */}
+      <div className="habit-view-tabs">
+        {[['week','Tydzień'],['month','Miesiąc'],['stats','Statystyki']].map(([id, label]) => (
+          <button key={id} className={`habit-view-tab ${view === id ? 'active' : ''}`} onClick={() => setView(id)}>{label}</button>
+        ))}
+      </div>
+
+      {/* Progress bar */}
+      {view === 'week' && todayDue.length > 0 && (
         <div className="progress-bar-wrap">
-          <div className="progress-bar" style={{ width: `${(doneToday / totalToday) * 100}%` }} />
+          <div className="progress-bar" style={{ width: `${(doneToday / todayDue.length) * 100}%` }} />
         </div>
       )}
 
-      {/* Lista nawyków */}
-      {habits.length === 0 ? (
-        <div className="list-empty">
-          <p>Brak nawyków</p>
-          <p className="list-empty-hint">Kliknij "+ Nowy" aby dodać pierwszy nawyk</p>
+      {/* Category filter */}
+      {activeHabits.length > 0 && (
+        <div className="habit-cat-filter">
+          <button className={`habit-cat-chip ${filterCat === 'all' ? 'active' : ''}`} onClick={() => setFilterCat('all')}>Wszystkie</button>
+          {HABIT_CATEGORIES.filter(c => activeHabits.some(h => h.category === c.id)).map(c => (
+            <button key={c.id} className={`habit-cat-chip ${filterCat === c.id ? 'active' : ''}`} onClick={() => setFilterCat(c.id)}>
+              {c.icon} {c.label}
+            </button>
+          ))}
         </div>
-      ) : (
-        <div className="habits-list">
-          {/* Nagłówek tygodnia */}
-          <div className="week-header">
-            <div className="habit-name-col" />
-            {weekDays.map(d => (
-              <div key={d.date} className={`week-day-col ${d.date === TODAY ? 'today' : ''}`}>
-                <span className="week-day-name">{d.label}</span>
-                <span className="week-day-num">{d.dayNum}</span>
-              </div>
-            ))}
+      )}
+
+      {/* ===== WIDOK TYGODNIA ===== */}
+      {view === 'week' && (
+        <>
+          <div className="habit-week-nav">
+            <button className="month-btn" onClick={() => setCurrentDate(d => subWeeks(d, 1))}>‹</button>
+            <span className="habit-period-label">
+              {format(weekStart, 'd MMM', { locale: pl })} – {format(addDays(weekStart, 6), 'd MMM', { locale: pl })}
+            </span>
+            <button className="month-btn" onClick={() => setCurrentDate(d => addWeeks(d, 1))}>›</button>
           </div>
 
-          {/* Wiersze nawyków */}
-          {habits.map(habit => {
-            const streak = getStreak(habit.completedDates)
-            return (
-              <div key={habit.id} className="habit-row">
-                <div className="habit-name-col" onClick={() => { setEditHabit(habit); setShowForm(true) }}>
-                  <span className="habit-emoji">{habit.emoji}</span>
-                  <div className="habit-info">
-                    <span className="habit-name">{habit.name}</span>
-                    {streak > 0 && <span className="habit-streak">🔥 {streak}</span>}
+          {filtered.length === 0 ? (
+            <div className="list-empty"><p>Brak nawyków</p><p className="list-empty-hint">Kliknij "+ Nowy" aby dodać</p></div>
+          ) : (
+            <div className={`habits-list ${compact ? 'compact' : ''}`}>
+              <div className="week-header">
+                <div className="habit-name-col" />
+                {weekDays.map(d => (
+                  <div key={d.date} className={`week-day-col ${d.date === TODAY ? 'today' : ''}`}>
+                    <span className="week-day-name">{d.label}</span>
+                    <span className="week-day-num">{d.dayNum}</span>
+                  </div>
+                ))}
+              </div>
+              {filtered.map(habit => {
+                const streak = getStreak(habit.completedDates, habit.frequencyDays)
+                const best   = getBestStreak(habit.completedDates, habit.frequencyDays)
+                return (
+                  <div key={habit.id} className="habit-row">
+                    <div className="habit-name-col" onClick={() => { setEditHabit(habit); setShowForm(true) }}>
+                      <span className="habit-emoji">{habit.emoji}</span>
+                      <div className="habit-info">
+                        <span className="habit-name">{habit.name}</span>
+                        {!compact && streak > 0 && <span className="habit-streak">🔥 {streak}</span>}
+                        {!compact && best > streak && best > 1 && <span className="habit-streak best">⭐ {best}</span>}
+                      </div>
+                    </div>
+                    {weekDays.map(d => {
+                      const done  = habit.completedDates?.includes(d.date)
+                      const isDue = isHabitDue(habit, d.date)
+                      const isFut = d.date > TODAY
+                      return (
+                        <button key={d.date}
+                          className={`habit-check ${done ? 'done' : ''} ${isFut ? 'future' : ''} ${d.date === TODAY ? 'today' : ''} ${!isDue ? 'not-due' : ''}`}
+                          style={done && habit.color ? { background: habit.color, borderColor: habit.color } : {}}
+                          onClick={() => !isFut && isDue && toggleDay(habit, d.date)}
+                          disabled={isFut || !isDue}
+                        >{done ? '✓' : !isDue ? '–' : ''}</button>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ===== WIDOK MIESIĄCA ===== */}
+      {view === 'month' && (
+        <>
+          <div className="habit-week-nav">
+            <button className="month-btn" onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}>‹</button>
+            <span className="habit-period-label">{format(currentDate, 'LLLL yyyy', { locale: pl })}</span>
+            <button className="month-btn" onClick={() => setCurrentDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}>›</button>
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="list-empty"><p>Brak nawyków</p></div>
+          ) : (
+            <div className="habits-month-view">
+              {filtered.map(habit => (
+                <div key={habit.id} className="habit-month-row">
+                  <div className="habit-month-name" onClick={() => { setEditHabit(habit); setShowForm(true) }}>
+                    <span>{habit.emoji}</span>
+                    <span>{habit.name}</span>
+                  </div>
+                  <div className="habit-month-dots">
+                    {monthDays.map(d => {
+                      const done  = habit.completedDates?.includes(d.date)
+                      const isDue = isHabitDue(habit, d.date)
+                      const isFut = d.date > TODAY
+                      return (
+                        <button key={d.date}
+                          className={`habit-dot ${done ? 'done' : ''} ${!isDue ? 'not-due' : ''} ${d.date === TODAY ? 'today' : ''}`}
+                          style={done && habit.color ? { background: habit.color } : {}}
+                          onClick={() => !isFut && isDue && toggleDay(habit, d.date)}
+                          disabled={isFut || !isDue}
+                          title={d.date}
+                        ><span className="habit-dot-num">{d.dayNum}</span></button>
+                      )
+                    })}
                   </div>
                 </div>
-                {weekDays.map(d => {
-                  const done = habit.completedDates?.includes(d.date)
-                  const isFuture = d.date > TODAY
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ===== STATYSTYKI ===== */}
+      {view === 'stats' && (
+        <div className="habit-stats-view">
+          {filtered.length === 0 ? (
+            <div className="list-empty"><p>Brak nawyków</p></div>
+          ) : (
+            <>
+              <div className="habit-chart-wrap">
+                <p className="habit-chart-title">Wykonanie % — ostatnie 4 tygodnie</p>
+                <ResponsiveContainer width="100%" height={150}>
+                  <BarChart data={weeklyStats} barSize={36}>
+                    <XAxis dataKey="week" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0,100]} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} width={34} />
+                    <Tooltip formatter={v => [`${v}%`, 'Wykonanie']} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }} />
+                    <Bar dataKey="pct" radius={[4,4,0,0]}>
+                      {weeklyStats.map((_, i) => (
+                        <Cell key={i} fill={i === weeklyStats.length - 1 ? 'var(--primary)' : '#333'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="habit-stats-list">
+                {filtered.map(habit => {
+                  const streak = getStreak(habit.completedDates, habit.frequencyDays)
+                  const best   = getBestStreak(habit.completedDates, habit.frequencyDays)
+                  const total  = habit.completedDates?.length || 0
+                  const cat    = HABIT_CATEGORIES.find(c => c.id === habit.category)
                   return (
-                    <button
-                      key={d.date}
-                      className={`habit-check ${done ? 'done' : ''} ${isFuture ? 'future' : ''} ${d.date === TODAY ? 'today' : ''}`}
-                      onClick={() => !isFuture && toggleDay(habit, d.date)}
-                      disabled={isFuture}
-                    >
-                      {done ? '✓' : ''}
-                    </button>
+                    <div key={habit.id} className="habit-stat-row" onClick={() => { setEditHabit(habit); setShowForm(true) }}>
+                      <div className="habit-stat-name">
+                        <span style={{ fontSize: 22 }}>{habit.emoji}</span>
+                        <div>
+                          <p className="habit-name">{habit.name}</p>
+                          {cat && <p className="habit-cat-badge">{cat.icon} {cat.label}</p>}
+                        </div>
+                      </div>
+                      <div className="habit-stat-nums">
+                        <div className="habit-stat-num"><span>🔥</span><strong>{streak}</strong><span>seria</span></div>
+                        <div className="habit-stat-num"><span>⭐</span><strong>{best}</strong><span>rekord</span></div>
+                        <div className="habit-stat-num"><span>✓</span><strong>{total}</strong><span>łącznie</span></div>
+                      </div>
+                    </div>
                   )
                 })}
               </div>
-            )
-          })}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Archiwum */}
+      {archivedHabits.length > 0 && (
+        <button className="btn-show-archived" onClick={() => setShowArchived(v => !v)}>
+          📦 Archiwum ({archivedHabits.length}) {showArchived ? '▲' : '▼'}
+        </button>
+      )}
+      {showArchived && (
+        <div className="habits-list">
+          {archivedHabits.map(h => (
+            <div key={h.id} className="habit-row archived-row" onClick={() => { setEditHabit(h); setShowForm(true) }}>
+              <div className="habit-name-col">
+                <span className="habit-emoji" style={{ opacity: .4 }}>{h.emoji}</span>
+                <span className="habit-name" style={{ opacity: .4 }}>{h.name}</span>
+              </div>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', gridColumn: '2 / -1', textAlign: 'right' }}>zarchiwizowany</span>
+            </div>
+          ))}
         </div>
       )}
 
