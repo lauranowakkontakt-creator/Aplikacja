@@ -2,6 +2,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
+  color-scheme: dark;
   --bg: #080808;
   --surface: #111111;
   --surface2: #1a1a1a;
@@ -430,7 +431,9 @@ body {
   transition: border-color 0.15s;
 }
 .form-input:focus { border-color: var(--primary); }
-.form-input[type="date"] { color-scheme: dark; }
+.form-input[type="date"],
+.form-input[type="date"]::-webkit-calendar-picker-indicator { color-scheme: dark; filter: invert(0.7); }
+select.form-input, select.form-input option { background: var(--bg); color: var(--text); }
 
 .category-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 .category-chip {
