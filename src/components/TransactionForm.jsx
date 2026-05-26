@@ -130,7 +130,7 @@ export default function TransactionForm({ user, onClose, editData }) {
                 <button type="button"
                   className={`account-chip ${!accountId ? 'active' : ''}`}
                   onClick={() => setAccountId('')}
-                >Wszystkie</button>
+                >Bez konta</button>
                 {accounts.map(acc => (
                   <button key={acc.id} type="button"
                     className={`account-chip ${accountId === acc.id ? 'active' : ''}`}
