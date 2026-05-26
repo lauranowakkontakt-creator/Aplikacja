@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import { format } from 'date-fns'
 
 export const HABIT_CATEGORIES = [
   { id: 'health',  label: 'Zdrowie',   icon: '❤️' },
@@ -27,6 +28,9 @@ export default function HabitForm({ user, onClose, editData }) {
   const [category, setCategory]   = useState(editData?.category || 'health')
   const [frequency, setFrequency] = useState(editData?.frequency || 'daily')
   const [freqDays, setFreqDays]   = useState(editData?.frequencyDays || [1,2,3,4,5,6,0])
+  const [startDate, setStartDate] = useState(editData?.startDate || format(new Date(), 'yyyy-MM-dd'))
+  const [hasEnd, setHasEnd]       = useState(!!editData?.endDate)
+  const [endDate, setEndDate]     = useState(editData?.endDate || '')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
 
@@ -45,7 +49,11 @@ export default function HabitForm({ user, onClose, editData }) {
     if (!name.trim()) { setError('Wpisz nazwę'); return }
     if (frequency === 'custom' && freqDays.length === 0) { setError('Wybierz co najmniej 1 dzień'); return }
     setSaving(true)
-    const data = { name: name.trim(), emoji, color, category, frequency, frequencyDays: getFreqDays(), updatedAt: Timestamp.now() }
+    const data = {
+      name: name.trim(), emoji, color, category, frequency, frequencyDays: getFreqDays(),
+      startDate, endDate: hasEnd && endDate ? endDate : null,
+      updatedAt: Timestamp.now()
+    }
     try {
       if (editData) {
         await updateDoc(doc(db, 'users', user.uid, 'habits', editData.id), data)
@@ -149,6 +157,22 @@ export default function HabitForm({ user, onClose, editData }) {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Daty */}
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Data rozpoczęcia</label>
+              <input type="date" className="form-input" value={startDate} onChange={e => setStartDate(e.target.value)} />
+            </div>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Data zakończenia</label>
+              <select className="form-input" value={hasEnd ? 'yes' : 'no'} onChange={e => setHasEnd(e.target.value === 'yes')}>
+                <option value="no">Bez końca</option>
+                <option value="yes">Ustaw datę</option>
+              </select>
+              {hasEnd && <input type="date" className="form-input" style={{ marginTop: 6 }} value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} />}
+            </div>
           </div>
 
           {error && <p className="form-error">{error}</p>}
