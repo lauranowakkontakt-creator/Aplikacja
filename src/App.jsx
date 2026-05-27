@@ -6,6 +6,9 @@ import Header from './components/Header'
 import Dashboard from './components/Dashboard'
 import HabitsDashboard from './components/habits/HabitsDashboard'
 import MoodDashboard from './components/mood/MoodDashboard'
+import TodoDashboard from './components/todo/TodoDashboard'
+import CalendarDashboard from './components/calendar/CalendarDashboard'
+import PrayerDashboard from './components/prayer/PrayerDashboard'
 import SettingsDrawer from './components/SettingsDrawer'
 
 const DEV_USER = { uid: 'dev-user', displayName: 'Laura', photoURL: null }
@@ -15,9 +18,9 @@ export const MODULES = [
   { id: 'budget',  label: 'Budżet',   icon: '💰' },
   { id: 'habits',  label: 'Nawyki',   icon: '✅' },
   { id: 'mood',    label: 'Nastrój',  icon: '💭', hidden: true },
-  { id: 'todo',    label: 'To-do',    icon: '📋', soon: true },
-  { id: 'calendar',label: 'Kalendarz',icon: '📅', soon: true },
-  { id: 'prayer',  label: 'Modlitwa', icon: '🙏', soon: true },
+  { id: 'todo',    label: 'To-do',    icon: '📋' },
+  { id: 'calendar',label: 'Kalendarz',icon: '📅' },
+  { id: 'prayer',  label: 'Modlitwa', icon: '🙏' },
 ]
 
 export default function App() {
@@ -60,6 +63,9 @@ export default function App() {
         {activeModule === 'budget'  && <Dashboard user={user} />}
         {activeModule === 'habits'  && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} />}
         {activeModule === 'mood'    && <MoodDashboard user={user} />}
+        {activeModule === 'todo'    && <TodoDashboard user={user} />}
+        {activeModule === 'calendar' && <CalendarDashboard user={user} />}
+        {activeModule === 'prayer'   && <PrayerDashboard user={user} />}
       </main>
 
       {/* Bottom nav mobile */}

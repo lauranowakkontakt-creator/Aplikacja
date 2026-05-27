@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, orderBy, query, deleteDoc, doc, updateDoc, arrayUnion, addDoc, Timestamp } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, deleteDoc, doc, updateDoc, arrayUnion, addDoc, Timestamp, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { format } from 'date-fns'
+import { format, parseISO, isAfter, isBefore, startOfDay } from 'date-fns'
+import { pl } from 'date-fns/locale'
 import { fmt } from '../../utils/currency'
 import RegularPaymentForm from './RegularPaymentForm'
 
@@ -49,6 +50,15 @@ export default function RegularPayments({ user }) {
         date: Timestamp.now(), createdAt: Timestamp.now(), updatedAt: Timestamp.now(),
         fromRegular: p.id
       })
+      if (p.accountId) {
+        const accSnap = await getDoc(doc(db, 'users', user.uid, 'accounts', p.accountId))
+        if (accSnap.exists()) {
+          const delta = p.type === 'expense' ? -p.amount : p.amount
+          await updateDoc(doc(db, 'users', user.uid, 'accounts', p.accountId), {
+            balance: (accSnap.data().balance || 0) + delta
+          })
+        }
+      }
       await updateDoc(doc(db, 'users', user.uid, 'regularPayments', p.id), {
         donePeriods: arrayUnion(THIS_PERIOD)
       })
@@ -56,13 +66,7 @@ export default function RegularPayments({ user }) {
   }
 
   const markDone = async (p) => {
-    if (p.autoAdd) {
-      await addTransactionForPayment(p)
-    } else {
-      await updateDoc(doc(db, 'users', user.uid, 'regularPayments', p.id), {
-        donePeriods: arrayUnion(THIS_PERIOD)
-      })
-    }
+    await addTransactionForPayment(p)
   }
 
   const markUndone = async (p) => {
@@ -80,6 +84,15 @@ export default function RegularPayments({ user }) {
     .reduce((s, p) => s + p.amount, 0)
 
   const getAccount = (id) => accounts.find(a => a.id === id)
+
+  const isActive = (p) => {
+    const today = startOfDay(new Date())
+    if (p.dateFrom && isBefore(today, startOfDay(parseISO(p.dateFrom)))) return false
+    if (p.dateTo   && isAfter(today,  startOfDay(parseISO(p.dateTo))))   return false
+    return true
+  }
+
+  const fmtDate = (d) => format(parseISO(d), 'd MMM yyyy', { locale: pl })
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -104,13 +117,15 @@ export default function RegularPayments({ user }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {payments.map(p => {
-            const done  = p.donePeriods?.includes(THIS_PERIOD)
-            const acc   = getAccount(p.accountId)
+            const done    = p.donePeriods?.includes(THIS_PERIOD)
+            const active  = isActive(p)
+            const acc     = getAccount(p.accountId)
+            const hasRange = p.dateFrom || p.dateTo
             return (
               <div key={p.id} style={{
                 background: 'var(--surface)', border: `1px solid ${done ? '#27AE6040' : 'var(--border)'}`,
-                borderLeft: `3px solid ${done ? '#27AE60' : p.type === 'income' ? '#27AE60' : 'var(--expense)'}`,
-                borderRadius: 12, padding: '12px 14px', opacity: done ? 0.75 : 1
+                borderLeft: `3px solid ${!active ? 'var(--border)' : done ? '#27AE60' : p.type === 'income' ? '#27AE60' : 'var(--expense)'}`,
+                borderRadius: 12, padding: '12px 14px', opacity: !active ? 0.45 : done ? 0.75 : 1
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontSize: 22 }}>{p.categoryIcon || '🔄'}</span>
@@ -119,23 +134,30 @@ export default function RegularPayments({ user }) {
                       <span style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</span>
                       {p.autoAdd && <span style={{ fontSize: 9, background: 'rgba(201,75,40,0.2)', color: 'var(--primary)', padding: '2px 5px', borderRadius: 4, fontWeight: 700 }}>AUTO</span>}
                       {done && <span style={{ fontSize: 9, background: 'rgba(39,174,96,0.2)', color: '#27AE60', padding: '2px 5px', borderRadius: 4, fontWeight: 700 }}>ZROBIONE</span>}
+                      {!active && <span style={{ fontSize: 9, background: 'rgba(150,150,150,0.2)', color: 'var(--text-muted)', padding: '2px 5px', borderRadius: 4, fontWeight: 700 }}>NIEAKTYWNA</span>}
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                       {p.category} · {FREQ_LABELS[p.frequency]}{p.frequency === 'monthly' ? ` (${p.dayOfMonth}.)` : ''}
                       {acc ? ` · ${acc.name}` : ''}
                     </span>
+                    {hasRange && (
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginTop: 2 }}>
+                        📅 {p.dateFrom ? fmtDate(p.dateFrom) : '—'} → {p.dateTo ? fmtDate(p.dateTo) : 'bezterminowo'}
+                      </span>
+                    )}
                   </div>
                   <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                     <span style={{ fontSize: 15, fontWeight: 700, color: p.type === 'income' ? '#27AE60' : 'var(--expense)' }}>
                       {p.type === 'income' ? '+' : '-'}{fmt(p.amount)}
                     </span>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      {!done ? (
+                      {active && !done && (
                         <button style={{ fontSize: 11, padding: '3px 8px', background: 'rgba(39,174,96,0.15)', border: '1px solid #27AE6060', borderRadius: 6, color: '#27AE60', cursor: 'pointer', fontWeight: 600 }}
                           onClick={() => markDone(p)}>
-                          {p.autoAdd ? '⚡ Dodaj' : '✓ Zrobione'}
+                          ✓ Zrobione
                         </button>
-                      ) : (
+                      )}
+                      {done && (
                         <button style={{ fontSize: 11, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer' }}
                           onClick={() => markUndone(p)}>
                           ↩ Cofnij

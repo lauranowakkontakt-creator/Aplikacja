@@ -1,23 +1,15 @@
 import { useState, useEffect } from 'react'
-import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
+import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { fmt, getCurrencyCode } from '../../utils/currency'
+import { EXPENSE_CATEGORIES } from '../TransactionForm'
 
 const COLORS = ['#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
 
-const SHOP_CATEGORIES = [
-  { id: 'spozywcze',   label: 'Spożywcze',    icon: '🍎' },
-  { id: 'elektronika', label: 'Elektronika',   icon: '📱' },
-  { id: 'ubrania',     label: 'Ubrania',       icon: '👕' },
-  { id: 'dom',         label: 'Dom',           icon: '🏠' },
-  { id: 'zdrowie',     label: 'Zdrowie',       icon: '💊' },
-  { id: 'sport',       label: 'Sport',         icon: '⚽' },
-  { id: 'hobby',       label: 'Hobby',         icon: '🎨' },
-  { id: 'inne',        label: 'Inne',          icon: '📦' },
-]
+const SHOP_CATEGORIES = EXPENSE_CATEGORIES
 
 export default function ShoppingList({ user }) {
   const [items, setItems]       = useState([])
@@ -245,16 +237,23 @@ function BuyModal({ item, user, onBuy, onClose }) {
   const handleConfirm = async () => {
     setSaving(true)
     const actualPrice = parseFloat(price) || 0
-    // Create expense transaction
     if (actualPrice > 0) {
-      const cat = SHOP_CATEGORIES.find(c => c.id === item.category)
+      const cat = SHOP_CATEGORIES.find(c => c.id === item.category) || { label: 'Zakupy', id: 'zakupy', icon: '🛒' }
       await addDoc(collection(db, 'users', user.uid, 'transactions'), {
         type: 'expense', amount: actualPrice,
-        category: 'Zakupy', categoryId: 'zakupy', categoryIcon: '🛒',
+        category: cat.label, categoryId: cat.id, categoryIcon: cat.icon,
         description: item.name,
         date: Timestamp.now(), accountId: accountId || null,
         createdAt: Timestamp.now(), updatedAt: Timestamp.now()
       })
+      if (accountId) {
+        const accSnap = await getDoc(doc(db, 'users', user.uid, 'accounts', accountId))
+        if (accSnap.exists()) {
+          await updateDoc(doc(db, 'users', user.uid, 'accounts', accountId), {
+            balance: (accSnap.data().balance || 0) - actualPrice
+          })
+        }
+      }
     }
     await onBuy(item, price)
     onClose()

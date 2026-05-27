@@ -19,6 +19,8 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
   const [dayOfMonth, setDay]      = useState(editData?.dayOfMonth?.toString() || '1')
   const [accountId, setAccountId] = useState(editData?.accountId || '')
   const [autoAdd, setAutoAdd]     = useState(editData?.autoAdd ?? false)
+  const [dateFrom, setDateFrom]   = useState(editData?.dateFrom || '')
+  const [dateTo, setDateTo]       = useState(editData?.dateTo || '')
   const [accounts, setAccounts]   = useState([])
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
@@ -44,6 +46,8 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
       frequency, dayOfMonth: parseInt(dayOfMonth) || 1,
       accountId: accountId || null,
       autoAdd,
+      dateFrom: dateFrom || null,
+      dateTo: dateTo || null,
       updatedAt: Timestamp.now()
     }
     try {
@@ -125,6 +129,17 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
                 <input type="number" min="1" max="31" className="form-input" value={dayOfMonth} onChange={e => setDay(e.target.value)} />
               </div>
             )}
+          </div>
+
+          <div className="form-row">
+            <div className="form-group" style={{flex:1}}>
+              <label>Obowiązuje od</label>
+              <input type="date" className="form-input" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+            </div>
+            <div className="form-group" style={{flex:1}}>
+              <label>Do (opcjonalnie)</label>
+              <input type="date" className="form-input" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+            </div>
           </div>
 
           {/* Auto-add toggle */}

@@ -1291,3 +1291,104 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
   .mood-btn-label { font-size: 7px; }
   .habit-card-icon { width: 40px; height: 40px; font-size: 20px; }
 }
+
+/* ── To-do ── */
+.todo-dashboard { display: flex; flex-direction: column; gap: 12px; }
+
+.todo-lists {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.todo-list-chip {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 20px; font-size: 13px; font-weight: 500;
+  border: 1px solid var(--border); background: transparent; color: var(--text-muted);
+  cursor: pointer; transition: all .15s;
+}
+.todo-list-chip.active { border-color: var(--primary); background: rgba(201,75,40,.12); color: var(--text); }
+.todo-list-chip:hover:not(.active) { border-color: var(--text-muted); color: var(--text); }
+.todo-list-chip.todo-list-add { border-style: dashed; font-size: 12px; }
+.todo-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px;
+  background: var(--primary); color: #fff; font-size: 10px; font-weight: 700;
+}
+
+.todo-done-toggle {
+  background: none; border: none; color: var(--text-muted); font-size: 13px;
+  cursor: pointer; padding: 4px 0; font-weight: 600;
+}
+.todo-done-toggle:hover { color: var(--text); }
+
+/* ── Kalendarz ── */
+.calendar-dashboard { display: flex; flex-direction: column; gap: 12px; }
+
+.cal-nav-btn {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 17px; line-height: 1;
+  transition: border-color .15s;
+}
+.cal-nav-btn:hover { border-color: var(--text-muted); }
+
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
+}
+
+.cal-day {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: 5px 2px 6px; min-height: 52px;
+  background: none; border: none; cursor: pointer; border-radius: 8px;
+  gap: 4px; transition: background .12s;
+}
+.cal-day:hover { background: rgba(255,255,255,.05); }
+
+.cal-day-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 500; color: var(--text);
+}
+.cal-day-num.today   { background: var(--primary); color: #fff; font-weight: 700; }
+.cal-day-num.selected { border: 2px solid var(--primary); color: var(--primary); font-weight: 600; }
+
+.cal-dots { display: flex; gap: 3px; flex-wrap: wrap; justify-content: center; max-width: 32px; }
+.cal-dot  { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+.cal-day-detail {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px;
+}
+
+.cal-event-row {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 9px 12px; background: var(--surface2, var(--surface));
+  border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: 10px;
+}
+
+.cal-cat-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+}
+.cal-cat-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 4px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent; color: var(--text-muted);
+  transition: all .15s;
+}
+.cal-cat-btn:hover { border-color: var(--text-muted); color: var(--text); }
+.cal-cat-btn.active { color: var(--text); }
+.cal-cat-icon {
+  width: 32px; height: 32px; border-radius: 8px; background: var(--surface2, rgba(255,255,255,.05));
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+}
+.cal-cat-label { font-size: 10px; font-weight: 500; text-align: center; line-height: 1.2; }
+
+/* ── Modlitwa ── */
+.prayer-dashboard { display: flex; flex-direction: column; gap: 12px; }
+
+.cal-agenda-date {
+  margin: 0 0 6px; font-size: 11px; font-weight: 700;
+  color: var(--text-muted); text-transform: capitalize; letter-spacing: .04em;
+}
+
+@media (max-width: 480px) {
+  .cal-day { min-height: 44px; padding: 4px 1px 5px; }
+  .cal-day-num { width: 24px; height: 24px; font-size: 12px; }
+  .cal-dot { width: 4px; height: 4px; }
+}
