@@ -6,6 +6,7 @@ import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import HabitForm, { HABIT_CATEGORIES } from './HabitForm'
 import PauseForm from './PauseForm'
+import MoodDashboard from '../mood/MoodDashboard'
 
 function isPausedDay(dateStr, pauses) {
   return pauses.some(p => dateStr >= p.from && dateStr <= p.to)
@@ -72,7 +73,12 @@ function getWeeklyStats(habits, pauses, weeksBack = 4) {
   })
 }
 
-export default function HabitsDashboard({ user }) {
+export default function HabitsDashboard({ user, onMoodClick }) {
+  const [showMood, setShowMood] = useState(false)
+
+  if (showMood) {
+    return <MoodDashboard user={user} onBack={() => setShowMood(false)} />
+  }
   const [habits, setHabits]         = useState([])
   const [pauses, setPauses]         = useState([])
   const [loading, setLoading]       = useState(true)
@@ -155,6 +161,7 @@ export default function HabitsDashboard({ user }) {
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <button className={`habit-compact-btn ${todayIsPaused ? 'paused' : ''}`} onClick={() => setShowPause(true)} title="Pauza (wakacje/choroba)">⏸️</button>
           <button className={`habit-compact-btn ${compact ? 'active' : ''}`} onClick={() => setCompact(v => !v)} title="Tryb kompaktowy">⊟</button>
+          <button className="habit-compact-btn" onClick={() => setShowMood(true)} title="Nastrój">💭</button>
           <button className="btn-add-habit" onClick={() => { setEditHabit(null); setShowForm(true) }}>+ Nowy</button>
         </div>
       </div>

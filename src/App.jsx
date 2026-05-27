@@ -14,7 +14,7 @@ const DEV_MODE = import.meta.env.DEV
 export const MODULES = [
   { id: 'budget',  label: 'Budżet',   icon: '💰' },
   { id: 'habits',  label: 'Nawyki',   icon: '✅' },
-  { id: 'mood',    label: 'Nastrój',  icon: '💭' },
+  { id: 'mood',    label: 'Nastrój',  icon: '💭', hidden: true },
   { id: 'todo',    label: 'To-do',    icon: '📋', soon: true },
   { id: 'calendar',label: 'Kalendarz',icon: '📅', soon: true },
   { id: 'prayer',  label: 'Modlitwa', icon: '🙏', soon: true },
@@ -58,13 +58,13 @@ export default function App() {
       />
       <main className="main-content">
         {activeModule === 'budget'  && <Dashboard user={user} />}
-        {activeModule === 'habits'  && <HabitsDashboard user={user} />}
+        {activeModule === 'habits'  && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} />}
         {activeModule === 'mood'    && <MoodDashboard user={user} />}
       </main>
 
       {/* Bottom nav mobile */}
       <nav className="bottom-nav">
-        {MODULES.filter(m => !m.soon).map(m => (
+        {MODULES.filter(m => !m.soon && !m.hidden).map(m => (
           <button
             key={m.id}
             className={`bottom-nav-item ${activeModule === m.id ? 'active' : ''}`}

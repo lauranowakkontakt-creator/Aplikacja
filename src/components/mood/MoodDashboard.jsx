@@ -43,7 +43,7 @@ export const EMOTIONS_EXTENDED = [
 
 export const EMOTIONS = [...EMOTIONS_BASIC, ...EMOTIONS_EXTENDED]
 
-export default function MoodDashboard({ user }) {
+export default function MoodDashboard({ user, onBack }) {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
   const [view, setView]       = useState('today')
@@ -66,9 +66,14 @@ export default function MoodDashboard({ user }) {
   return (
     <div className="mood-dashboard">
       <div className="habits-header">
-        <div>
-          <h2 className="habits-title">Nastrój</h2>
-          <p className="habits-subtitle">{format(new Date(), 'EEEE, d MMMM', { locale: pl })}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {onBack && (
+            <button className="habit-compact-btn" onClick={onBack} title="Wróć do nawyków" style={{ fontSize: 18 }}>←</button>
+          )}
+          <div>
+            <h2 className="habits-title">Nastrój 💭</h2>
+            <p className="habits-subtitle">{format(new Date(), 'EEEE, d MMMM', { locale: pl })}</p>
+          </div>
         </div>
       </div>
 

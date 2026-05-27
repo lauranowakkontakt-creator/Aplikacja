@@ -12,7 +12,7 @@ export default function Header({ user, modules, activeModule, onModuleChange, on
 
       {/* Ikony modułów — centrum headera */}
       <nav className="header-modules">
-        {modules.map(m => (
+        {modules.filter(m => !m.hidden).map(m => (
           <button
             key={m.id}
             className={`module-btn ${activeModule === m.id ? 'active' : ''} ${m.soon ? 'soon' : ''}`}

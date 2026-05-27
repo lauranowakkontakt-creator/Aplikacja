@@ -24,7 +24,7 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
         <div className="drawer-section">
           <p className="drawer-section-title">Aplikacje</p>
           <div className="drawer-apps-grid">
-            {modules.map(m => (
+            {modules.filter(m => !m.hidden).map(m => (
               <button
                 key={m.id}
                 className={`drawer-app-btn ${activeModule?.id === m.id ? 'active' : ''} ${m.soon ? 'soon' : ''}`}
