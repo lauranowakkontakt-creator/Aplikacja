@@ -13,6 +13,8 @@ import BudgetMenu from './budget/BudgetMenu'
 import TransferForm from './budget/TransferForm'
 import SearchPanel from './budget/SearchPanel'
 import TitheView from './budget/TitheView'
+import SavingsGoals from './budget/SavingsGoals'
+import Reminders from './budget/Reminders'
 
 const TABS = [
   { id: 'transactions', label: 'Transakcje', icon: '↕️' },
@@ -103,7 +105,7 @@ export default function Dashboard({ user }) {
         </>
       )}
       {activeTab === 'accounts' && <AccountsView user={user} privateMode={privateMode} />}
-      {activeTab === 'charts'   && <Charts transactions={transactions} />}
+      {activeTab === 'charts'   && <Charts user={user} />}
       {activeTab === 'regular'  && <RegularPayments user={user} />}
 
       {/* Przycisk + */}
@@ -114,10 +116,10 @@ export default function Dashboard({ user }) {
       {/* Modale z menu */}
       {modal === 'transfer'  && <TransferForm user={user} onClose={() => setModal(null)} />}
       {modal === 'search'    && <SearchPanel  user={user} onClose={() => setModal(null)} />}
-      {modal === 'tithe'     && <TitheView    user={user} onClose={() => setModal(null)} />}
-      {modal === 'goals'     && <ComingSoon title="🎯 Cele oszczędnościowe" onClose={() => setModal(null)} />}
-      {modal === 'stats'     && <ComingSoon title="📊 Statystyki roczne"    onClose={() => setModal(null)} />}
-      {modal === 'reminders' && <ComingSoon title="🔔 Przypomnienia"        onClose={() => setModal(null)} />}
+      {modal === 'tithe'     && <TitheView   user={user} onClose={() => setModal(null)} />}
+      {modal === 'goals'     && <SavingsGoals user={user} onClose={() => setModal(null)} />}
+      {modal === 'reminders' && <Reminders   user={user} onClose={() => setModal(null)} />}
+      {modal === 'stats'     && <ComingSoon title="📊 Statystyki roczne" onClose={() => setModal(null)} />}
 
       {/* Formularz transakcji */}
       {showForm && (

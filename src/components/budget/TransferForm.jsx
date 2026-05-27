@@ -3,7 +3,7 @@ import { collection, addDoc, onSnapshot, orderBy, query, Timestamp, doc, updateD
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 
-const fmt = (n) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(n)
+import { fmt } from '../../utils/currency'
 
 export default function TransferForm({ user, onClose }) {
   const [accounts, setAccounts] = useState([])

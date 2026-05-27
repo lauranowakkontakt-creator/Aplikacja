@@ -2,6 +2,7 @@ import { deleteDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
+import { fmt } from '../utils/currency'
 
 // Fallback dla starych transakcji bez categoryIcon
 const LEGACY_ICONS = {
@@ -12,8 +13,6 @@ const LEGACY_ICONS = {
   Przyjemności: '🎬', Dziesięcina: '⛪', Ofiara: '🕊️', Oszczędności: '🐷',
   Przelew: '💸', Inne: '📌'
 }
-
-const fmt = (n) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(n)
 const hide = '••••'
 
 export default function TransactionList({ transactions, loading, onEdit, user, privateMode }) {

@@ -1,4 +1,4 @@
-const fmt = (n) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(n)
+import { fmt } from '../utils/currency'
 const hide = '••••'
 
 export default function Summary({ income, expenses, balance, privateMode }) {

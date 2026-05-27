@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
+import { getCurrencyCode } from '../utils/currency'
 
 export const EXPENSE_CATEGORIES = [
   { id: 'jedzenie',      label: 'Jedzenie',      icon: '🍕', color: '#4CAF50' },
@@ -98,7 +99,7 @@ export default function TransactionForm({ user, onClose, editData }) {
 
           {/* Kwota */}
           <div className="form-group">
-            <label>Kwota (PLN)</label>
+            <label>Kwota ({getCurrencyCode()})</label>
             <input type="number" step="0.01" min="0" placeholder="0,00"
               value={amount} onChange={e => setAmount(e.target.value)}
               className="form-input amount-input" autoFocus />

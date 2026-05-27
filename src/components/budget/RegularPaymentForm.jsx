@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../TransactionForm'
+import { getCurrencyCode } from '../../utils/currency'
 
 const FREQUENCIES = [
   { id: 'monthly', label: 'Co miesiąc' },
@@ -64,7 +65,7 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
           </div>
 
           <div className="form-group">
-            <label>Kwota (PLN)</label>
+            <label>Kwota ({getCurrencyCode()})</label>
             <input type="number" step="0.01" min="0" className="form-input" value={amount} onChange={e => setAmount(e.target.value)} />
           </div>
 

@@ -4,7 +4,7 @@ import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 
-const fmt = (n) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(n)
+import { fmt } from '../../utils/currency'
 
 export default function SearchPanel({ user, onClose }) {
   const [all, setAll]           = useState([])

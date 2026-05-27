@@ -3,7 +3,7 @@ import { collection, onSnapshot, orderBy, query, deleteDoc, doc } from 'firebase
 import { db } from '../../firebase/config'
 import RegularPaymentForm from './RegularPaymentForm'
 
-const fmt = (n) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(n)
+import { fmt } from '../../utils/currency'
 
 const FREQ_LABELS = { monthly: 'miesięcznie', weekly: 'tygodniowo', yearly: 'rocznie' }
 

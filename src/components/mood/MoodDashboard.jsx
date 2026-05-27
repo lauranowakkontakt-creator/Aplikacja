@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { collection, doc, setDoc, deleteDoc, onSnapshot, Timestamp, query, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { format, subDays, startOfMonth, getDaysInMonth, addDays, subMonths, addMonths } from 'date-fns'
+import { format, subDays, startOfMonth, getDaysInMonth, addDays, subMonths, addMonths, startOfYear } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, ReferenceLine } from 'recharts'
 
 export const MOODS = [
   { id: 'awful',     label: 'Fatalnie',  emoji: '😣', value: 1, color: '#C0392B' },
@@ -15,24 +15,33 @@ export const MOODS = [
   { id: 'excellent', label: 'Doskonale', emoji: '😄', value: 7, color: '#F39C12' },
 ]
 
-export const EMOTIONS = [
-  { id: 'joy',        label: 'Radość',      emoji: '✨', positive: true },
-  { id: 'peace',      label: 'Spokój',      emoji: '🕊️', positive: true },
-  { id: 'gratitude',  label: 'Wdzięczność', emoji: '🙏', positive: true },
-  { id: 'love',       label: 'Miłość',      emoji: '❤️', positive: true },
-  { id: 'pride',      label: 'Duma',        emoji: '🌟', positive: true },
-  { id: 'hope',       label: 'Nadzieja',    emoji: '🌅', positive: true },
-  { id: 'excitement', label: 'Ekscytacja',  emoji: '⚡', positive: true },
-  { id: 'curiosity',  label: 'Ciekawość',   emoji: '🔍', positive: true },
-  { id: 'relief',     label: 'Ulga',        emoji: '😌', positive: true },
-  { id: 'sadness',    label: 'Smutek',      emoji: '💧', positive: false },
-  { id: 'anger',      label: 'Złość',       emoji: '😠', positive: false },
-  { id: 'fear',       label: 'Strach',      emoji: '😨', positive: false },
-  { id: 'anxiety',    label: 'Niepokój',    emoji: '😰', positive: false },
-  { id: 'fatigue',    label: 'Zmęczenie',   emoji: '😴', positive: false },
-  { id: 'longing',    label: 'Tęsknota',    emoji: '💭', positive: false },
-  { id: 'loneliness', label: 'Samotność',   emoji: '🌙', positive: false },
+export const EMOTIONS_BASIC = [
+  { id: 'joy',       label: 'Radość',      emoji: '✨', positive: true },
+  { id: 'peace',     label: 'Spokój',      emoji: '🕊️', positive: true },
+  { id: 'gratitude', label: 'Wdzięczność', emoji: '🙏', positive: true },
+  { id: 'love',      label: 'Miłość',      emoji: '❤️', positive: true },
+  { id: 'sadness',   label: 'Smutek',      emoji: '💧', positive: false },
+  { id: 'anger',     label: 'Złość',       emoji: '😠', positive: false },
+  { id: 'fear',      label: 'Strach',      emoji: '😨', positive: false },
+  { id: 'anxiety',   label: 'Niepokój',    emoji: '😰', positive: false },
 ]
+
+export const EMOTIONS_EXTENDED = [
+  { id: 'pride',      label: 'Duma',       emoji: '🌟', positive: true },
+  { id: 'hope',       label: 'Nadzieja',   emoji: '🌅', positive: true },
+  { id: 'excitement', label: 'Ekscytacja', emoji: '⚡', positive: true },
+  { id: 'curiosity',  label: 'Ciekawość',  emoji: '🔍', positive: true },
+  { id: 'relief',     label: 'Ulga',       emoji: '😌', positive: true },
+  { id: 'fatigue',    label: 'Zmęczenie',  emoji: '😴', positive: false },
+  { id: 'longing',    label: 'Tęsknota',   emoji: '💭', positive: false },
+  { id: 'loneliness', label: 'Samotność',  emoji: '🌙', positive: false },
+  { id: 'shame',      label: 'Wstyd',      emoji: '😶', positive: false },
+  { id: 'frustration',label: 'Frustracja', emoji: '😤', positive: false },
+  { id: 'envy',       label: 'Zazdrość',   emoji: '💚', positive: false },
+  { id: 'surprise',   label: 'Zdziwienie', emoji: '😮', positive: true },
+]
+
+export const EMOTIONS = [...EMOTIONS_BASIC, ...EMOTIONS_EXTENDED]
 
 export default function MoodDashboard({ user }) {
   const [entries, setEntries] = useState([])
@@ -50,8 +59,7 @@ export default function MoodDashboard({ user }) {
     })
   }, [user.uid])
 
-  const getEntry = (date) => entries.find(e => e.date === date)
-  const todayEntry = getEntry(TODAY)
+  const todayEntry = entries.find(e => e.date === TODAY)
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -70,40 +78,21 @@ export default function MoodDashboard({ user }) {
         ))}
       </div>
 
-      {/* ===== DZIŚ ===== */}
-      {view === 'today' && (
-        <MoodTodayView
-          user={user}
-          entry={todayEntry}
-          today={TODAY}
-          entries={entries}
-        />
-      )}
-
-      {/* ===== KALENDARZ ===== */}
-      {view === 'calendar' && (
-        <MoodCalendarView
-          user={user}
-          entries={entries}
-          calMonth={calMonth}
-          setCalMonth={setCalMonth}
-          today={TODAY}
-        />
-      )}
-
-      {/* ===== TRENDY ===== */}
-      {view === 'trends' && (
-        <MoodTrendsView entries={entries} today={TODAY} />
-      )}
+      {view === 'today'    && <MoodTodayView user={user} entry={todayEntry} today={TODAY} entries={entries} />}
+      {view === 'calendar' && <MoodCalendarView user={user} entries={entries} calMonth={calMonth} setCalMonth={setCalMonth} today={TODAY} />}
+      {view === 'trends'   && <MoodTrendsView entries={entries} today={TODAY} />}
     </div>
   )
 }
 
-/* ---- TODAY VIEW ---- */
+/* ============================================================
+   TODAY VIEW
+   ============================================================ */
 function MoodTodayView({ user, entry, today, entries }) {
   const [mood, setMood]         = useState(entry?.mood || null)
   const [emotions, setEmotions] = useState(entry?.emotions || [])
   const [note, setNote]         = useState(entry?.note || '')
+  const [showExt, setShowExt]   = useState(false)
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(!!entry)
 
@@ -114,8 +103,10 @@ function MoodTodayView({ user, entry, today, entries }) {
     setSaved(!!entry)
   }, [entry?.mood, entry?.id])
 
-  const toggleEmotion = (id) =>
+  const toggleEmotion = (id) => {
     setEmotions(prev => prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id])
+    setSaved(false)
+  }
 
   const handleSave = async () => {
     if (!mood) return
@@ -129,8 +120,6 @@ function MoodTodayView({ user, entry, today, entries }) {
     setSaved(true)
   }
 
-  const currentMood = MOODS.find(m => m.id === mood)
-
   const recent7 = Array.from({ length: 7 }, (_, i) => {
     const d = format(subDays(new Date(), 6 - i), 'yyyy-MM-dd')
     const e = entries.find(en => en.date === d)
@@ -140,26 +129,24 @@ function MoodTodayView({ user, entry, today, entries }) {
 
   return (
     <div className="mood-today">
-      {/* Ostatnie 7 dni */}
+      {/* Pasek ostatnich 7 dni */}
       <div className="mood-week-strip">
         {recent7.map(({ date, mood: m }) => (
           <div key={date} className={`mood-week-day ${date === today ? 'today' : ''}`}>
-            <span className="mood-week-emoji" style={m ? { opacity: 1 } : {}}>
-              {m ? m.emoji : '·'}
-            </span>
+            <span className="mood-week-emoji" style={m ? { opacity: 1 } : {}}>{m ? m.emoji : '·'}</span>
             <span className="mood-week-label">{format(new Date(date + 'T12:00:00'), 'EEE', { locale: pl })}</span>
           </div>
         ))}
       </div>
 
-      {/* Picker nastroju */}
-      <div className="mood-section">
-        <p className="mood-question">Jak się dziś czujesz?</p>
+      {/* 1. RANKING */}
+      <div className="mood-block">
+        <p className="mood-block-title">Jak się dziś czujesz?</p>
         <div className="mood-picker">
           {MOODS.map(m => (
             <button key={m.id}
               className={`mood-btn ${mood === m.id ? 'active' : ''}`}
-              style={mood === m.id ? { background: m.color + '22', borderColor: m.color, transform: 'scale(1.15)' } : {}}
+              style={mood === m.id ? { background: m.color + '22', borderColor: m.color, transform: 'scale(1.12)' } : {}}
               onClick={() => { setMood(m.id); setSaved(false) }}
             >
               <span className="mood-btn-emoji">{m.emoji}</span>
@@ -169,31 +156,57 @@ function MoodTodayView({ user, entry, today, entries }) {
         </div>
       </div>
 
-      {/* Emocje */}
+      {/* 2. EMOCJE PODSTAWOWE */}
       {mood && (
-        <div className="mood-section">
-          <p className="mood-section-title">Co teraz czujesz?</p>
+        <div className="mood-block">
+          <p className="mood-block-title">Podstawowe emocje</p>
           <div className="mood-emotions">
-            {EMOTIONS.map(e => (
+            {EMOTIONS_BASIC.map(e => (
               <button key={e.id}
-                className={`mood-emotion-btn ${emotions.includes(e.id) ? 'active' : ''} ${e.positive ? 'pos' : 'neg'}`}
-                style={emotions.includes(e.id) ? { borderColor: e.positive ? '#27AE60' : '#E74C3C', background: e.positive ? '#27AE6020' : '#E74C3C20' } : {}}
+                className={`mood-emotion-btn ${emotions.includes(e.id) ? 'active' : ''}`}
+                style={emotions.includes(e.id) ? {
+                  borderColor: e.positive ? '#27AE60' : '#E74C3C',
+                  background:  e.positive ? '#27AE6020' : '#E74C3C20',
+                  color: 'var(--text)'
+                } : {}}
                 onClick={() => toggleEmotion(e.id)}
-              >
-                {e.emoji} {e.label}
-              </button>
+              >{e.emoji} {e.label}</button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Notatka */}
+      {/* 3. EMOCJE ROZSZERZONE */}
       {mood && (
-        <div className="mood-section">
-          <p className="mood-section-title">Notatka (opcjonalna)</p>
+        <div className="mood-block">
+          <button className="mood-expand-btn" onClick={() => setShowExt(v => !v)}>
+            {showExt ? '▲' : '▼'} Rozszerzone emocje
+          </button>
+          {showExt && (
+            <div className="mood-emotions" style={{ marginTop: 10 }}>
+              {EMOTIONS_EXTENDED.map(e => (
+                <button key={e.id}
+                  className={`mood-emotion-btn ${emotions.includes(e.id) ? 'active' : ''}`}
+                  style={emotions.includes(e.id) ? {
+                    borderColor: e.positive ? '#27AE60' : '#E74C3C',
+                    background:  e.positive ? '#27AE6020' : '#E74C3C20',
+                    color: 'var(--text)'
+                  } : {}}
+                  onClick={() => toggleEmotion(e.id)}
+                >{e.emoji} {e.label}</button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. NOTATKA */}
+      {mood && (
+        <div className="mood-block">
+          <p className="mood-block-title">Notatka</p>
           <textarea className="mood-note-input form-input"
             placeholder="Co się dziś wydarzyło? O czym myślisz?"
-            value={note} onChange={e => setNote(e.target.value)}
+            value={note} onChange={e => { setNote(e.target.value); setSaved(false) }}
             rows={3} maxLength={500}
           />
         </div>
@@ -201,22 +214,22 @@ function MoodTodayView({ user, entry, today, entries }) {
 
       {mood && (
         <button className="btn-save" onClick={handleSave} disabled={saving}>
-          {saving ? 'Zapisywanie...' : saved ? '✓ Zaktualizuj wpis' : 'Zapisz nastrój'}
+          {saving ? 'Zapisywanie...' : saved ? '✓ Zapisano' : 'Zapisz wpis'}
         </button>
       )}
     </div>
   )
 }
 
-/* ---- CALENDAR VIEW ---- */
+/* ============================================================
+   CALENDAR VIEW
+   ============================================================ */
 function MoodCalendarView({ user, entries, calMonth, setCalMonth, today }) {
   const [selected, setSelected] = useState(null)
 
-  const start = startOfMonth(calMonth)
-  const daysCount = getDaysInMonth(calMonth)
+  const start    = startOfMonth(calMonth)
   const firstDow = ((start.getDay() + 6) % 7)
-
-  const monthDays = Array.from({ length: daysCount }, (_, i) => {
+  const monthDays = Array.from({ length: getDaysInMonth(calMonth) }, (_, i) => {
     const d = addDays(start, i)
     const dateStr = format(d, 'yyyy-MM-dd')
     const entry = entries.find(e => e.date === dateStr)
@@ -235,9 +248,7 @@ function MoodCalendarView({ user, entries, calMonth, setCalMonth, today }) {
       </div>
 
       <div className="mood-cal-grid">
-        {['Pn','Wt','Śr','Cz','Pt','So','Nd'].map(d => (
-          <div key={d} className="mood-cal-header">{d}</div>
-        ))}
+        {['Pn','Wt','Śr','Cz','Pt','So','Nd'].map(d => <div key={d} className="mood-cal-header">{d}</div>)}
         {Array.from({ length: firstDow }, (_, i) => <div key={'e'+i} />)}
         {monthDays.map(({ date, dayNum, mood: m }) => (
           <button key={date}
@@ -251,18 +262,14 @@ function MoodCalendarView({ user, entries, calMonth, setCalMonth, today }) {
         ))}
       </div>
 
-      {selectedEntry && (
-        <MoodEntryCard entry={selectedEntry} user={user} />
-      )}
+      {selectedEntry && <MoodEntryCard entry={selectedEntry} user={user} />}
     </div>
   )
 }
 
-/* ---- ENTRY CARD (in calendar) ---- */
 function MoodEntryCard({ entry, user }) {
   const m = MOODS.find(mo => mo.id === entry.mood)
   const emotionObjs = EMOTIONS.filter(e => entry.emotions?.includes(e.id))
-  const fmtDate = format(new Date(entry.date + 'T12:00:00'), 'd MMMM yyyy', { locale: pl })
 
   const handleDelete = async () => {
     if (!confirm('Usunąć ten wpis?')) return
@@ -276,7 +283,7 @@ function MoodEntryCard({ entry, user }) {
           <span style={{ fontSize: 28 }}>{m?.emoji}</span>
           <div>
             <p className="mood-entry-label">{m?.label}</p>
-            <p className="mood-entry-date">{fmtDate}</p>
+            <p className="mood-entry-date">{format(new Date(entry.date + 'T12:00:00'), 'd MMMM yyyy', { locale: pl })}</p>
           </div>
         </div>
         <button className="t-btn delete" onClick={handleDelete}>🗑️</button>
@@ -291,66 +298,147 @@ function MoodEntryCard({ entry, user }) {
   )
 }
 
-/* ---- TRENDS VIEW ---- */
+/* ============================================================
+   TRENDS VIEW
+   ============================================================ */
 function MoodTrendsView({ entries, today }) {
-  const chartData = Array.from({ length: 14 }, (_, i) => {
-    const d = format(subDays(new Date(), 13 - i), 'yyyy-MM-dd')
+  const [period, setPeriod] = useState('14d')
+
+  const days = period === '14d' ? 14 : period === '30d' ? 30 : 90
+  const chartData = Array.from({ length: days }, (_, i) => {
+    const d = format(subDays(new Date(), days - 1 - i), 'yyyy-MM-dd')
     const e = entries.find(en => en.date === d)
-    return { day: format(new Date(d + 'T12:00:00'), 'd.MM', { locale: pl }), value: e?.moodValue || null }
+    return { day: format(new Date(d + 'T12:00:00'), days <= 14 ? 'd.MM' : 'd', { locale: pl }), value: e?.moodValue || null, entry: e }
   })
 
+  // Statystyki ogólne
+  const total  = entries.length
+  const avg    = total ? (entries.reduce((s,e) => s + (e.moodValue||0), 0) / total) : 0
+  const avgMood = avg ? MOODS.reduce((p,c) => Math.abs(c.value-avg) < Math.abs(p.value-avg) ? c : p) : null
+
+  // Streak wpisów
+  let streak = 0
+  for (let i = 0; i < 365; i++) {
+    const d = format(subDays(new Date(), i), 'yyyy-MM-dd')
+    if (entries.find(e => e.date === d)) streak++
+    else if (i > 0) break
+  }
+
+  // Rozkład nastrojów
+  const moodDist = MOODS.map(m => ({
+    ...m,
+    count: entries.filter(e => e.mood === m.id).length
+  })).filter(m => m.count > 0)
+
+  // Top emocje
   const emotionCount = {}
   entries.forEach(e => e.emotions?.forEach(em => { emotionCount[em] = (emotionCount[em] || 0) + 1 }))
   const topEmotions = Object.entries(emotionCount).sort((a,b) => b[1]-a[1]).slice(0, 8)
 
-  const avg = entries.length ? (entries.reduce((s,e) => s + (e.moodValue||0), 0) / entries.length).toFixed(1) : null
-  const avgMood = avg ? MOODS.reduce((prev, curr) => Math.abs(curr.value - avg) < Math.abs(prev.value - avg) ? curr : prev) : null
+  // Porównanie: ten miesiąc vs poprzedni
+  const thisMonth = format(new Date(), 'yyyy-MM')
+  const lastMonth = format(subMonths(new Date(), 1), 'yyyy-MM')
+  const thisMonthEntries = entries.filter(e => e.date.startsWith(thisMonth))
+  const lastMonthEntries = entries.filter(e => e.date.startsWith(lastMonth))
+  const thisAvg = thisMonthEntries.length ? (thisMonthEntries.reduce((s,e) => s + e.moodValue, 0) / thisMonthEntries.length).toFixed(1) : null
+  const lastAvg = lastMonthEntries.length ? (lastMonthEntries.reduce((s,e) => s + e.moodValue, 0) / lastMonthEntries.length).toFixed(1) : null
+  const diff = thisAvg && lastAvg ? (thisAvg - lastAvg).toFixed(1) : null
+
+  if (!total) return <div className="list-empty"><p>Brak wpisów</p><p className="list-empty-hint">Zacznij od zakładki Dziś</p></div>
 
   return (
     <div className="mood-trends">
-      {/* Average card */}
-      {avg && (
-        <div className="mood-avg-card" style={{ borderLeftColor: avgMood?.color }}>
-          <span style={{ fontSize: 36 }}>{avgMood?.emoji}</span>
-          <div>
-            <p className="mood-avg-label">Średni nastrój</p>
-            <p className="mood-avg-value">{avgMood?.label} ({avg}/7)</p>
-            <p className="mood-avg-sub">{entries.length} wpisów</p>
+      {/* Karty podsumowania */}
+      <div className="mood-stats-grid">
+        <div className="mood-stat-card">
+          <span className="mood-stat-card-icon" style={{ color: avgMood?.color }}>{avgMood?.emoji}</span>
+          <p className="mood-stat-card-val">{avg.toFixed(1)}<span>/7</span></p>
+          <p className="mood-stat-card-lbl">Średni nastrój</p>
+        </div>
+        <div className="mood-stat-card">
+          <span className="mood-stat-card-icon">📅</span>
+          <p className="mood-stat-card-val">{total}</p>
+          <p className="mood-stat-card-lbl">Wpisów łącznie</p>
+        </div>
+        <div className="mood-stat-card">
+          <span className="mood-stat-card-icon">🔥</span>
+          <p className="mood-stat-card-val">{streak}</p>
+          <p className="mood-stat-card-lbl">Dni z rzędu</p>
+        </div>
+        {diff !== null && (
+          <div className="mood-stat-card">
+            <span className="mood-stat-card-icon">{Number(diff) >= 0 ? '📈' : '📉'}</span>
+            <p className="mood-stat-card-val" style={{ color: Number(diff) >= 0 ? '#27AE60' : '#E74C3C' }}>
+              {Number(diff) >= 0 ? '+' : ''}{diff}
+            </p>
+            <p className="mood-stat-card-lbl">vs poprz. miesiąc</p>
+          </div>
+        )}
+      </div>
+
+      {/* Wykres liniowy */}
+      <div className="habit-chart-wrap">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <p className="habit-chart-title" style={{ margin: 0 }}>Nastrój w czasie</p>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[['14d','14 dni'],['30d','30 dni'],['90d','90 dni']].map(([id, lbl]) => (
+              <button key={id}
+                className={`type-btn ${period === id ? 'active expense' : ''}`}
+                style={{ padding: '4px 10px', fontSize: 11 }}
+                onClick={() => setPeriod(id)}
+              >{lbl}</button>
+            ))}
+          </div>
+        </div>
+        <ResponsiveContainer width="100%" height={150}>
+          <LineChart data={chartData}>
+            <XAxis dataKey="day" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} interval={days <= 14 ? 0 : 'preserveStartEnd'} />
+            <YAxis domain={[1,7]} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={22}
+              tickFormatter={v => MOODS.find(m => m.value === v)?.emoji || ''} />
+            <Tooltip
+              formatter={v => [MOODS.find(m => m.value === v)?.label || v, 'Nastrój']}
+              contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }}
+            />
+            <ReferenceLine y={4} stroke="var(--border)" strokeDasharray="3 3" />
+            <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2}
+              dot={{ fill: 'var(--primary)', r: 3 }} connectNulls={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Rozkład nastrojów */}
+      {moodDist.length > 0 && (
+        <div className="mood-block">
+          <p className="mood-block-title">Rozkład nastrojów</p>
+          <div className="mood-dist">
+            {moodDist.sort((a,b) => b.count - a.count).map(m => (
+              <div key={m.id} className="mood-dist-row">
+                <span className="mood-dist-emoji">{m.emoji}</span>
+                <span className="mood-dist-label">{m.label}</span>
+                <div className="mood-dist-bar-wrap">
+                  <div className="mood-dist-bar" style={{ width: `${(m.count / Math.max(...moodDist.map(x=>x.count))) * 100}%`, background: m.color }} />
+                </div>
+                <span className="mood-dist-count">{m.count}×</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Chart */}
-      {entries.length > 1 && (
-        <div className="habit-chart-wrap">
-          <p className="habit-chart-title">Nastrój — ostatnie 14 dni</p>
-          <ResponsiveContainer width="100%" height={150}>
-            <LineChart data={chartData}>
-              <XAxis dataKey="day" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis domain={[1,7]} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} width={20}
-                tickFormatter={v => MOODS.find(m => m.value === v)?.emoji || ''} />
-              <Tooltip
-                formatter={(v) => [MOODS.find(m => m.value === v)?.label || v, 'Nastrój']}
-                contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8 }}
-              />
-              <ReferenceLine y={4} stroke="var(--border)" strokeDasharray="3 3" />
-              <Line type="monotone" dataKey="value" stroke="var(--primary)" strokeWidth={2}
-                dot={{ fill: 'var(--primary)', r: 4 }} connectNulls={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      {/* Top emotions */}
+      {/* Top emocje */}
       {topEmotions.length > 0 && (
-        <div className="mood-section">
-          <p className="mood-section-title">Najczęstsze emocje</p>
+        <div className="mood-block">
+          <p className="mood-block-title">Najczęstsze emocje</p>
           <div className="mood-top-emotions">
             {topEmotions.map(([id, count]) => {
               const e = EMOTIONS.find(em => em.id === id)
               return e ? (
                 <div key={id} className="mood-top-emotion">
                   <span className="mood-top-emotion-name">{e.emoji} {e.label}</span>
+                  <div className="mood-top-emotion-bar-wrap">
+                    <div className="mood-top-emotion-bar"
+                      style={{ width: `${(count / topEmotions[0][1]) * 100}%`, background: e.positive ? '#27AE60' : '#E74C3C' }} />
+                  </div>
                   <span className="mood-top-emotion-count">{count}×</span>
                 </div>
               ) : null
@@ -358,8 +446,6 @@ function MoodTrendsView({ entries, today }) {
           </div>
         </div>
       )}
-
-      {entries.length === 0 && <div className="list-empty"><p>Brak wpisów</p></div>}
     </div>
   )
 }
