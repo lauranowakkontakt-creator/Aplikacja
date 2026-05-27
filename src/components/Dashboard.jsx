@@ -15,12 +15,15 @@ import SearchPanel from './budget/SearchPanel'
 import TitheView from './budget/TitheView'
 import SavingsGoals from './budget/SavingsGoals'
 import Reminders from './budget/Reminders'
+import CategoriesView from './budget/CategoriesView'
+import ShoppingList from './budget/ShoppingList'
 
 const TABS = [
   { id: 'transactions', label: 'Transakcje', icon: '↕️' },
   { id: 'accounts',     label: 'Konta',       icon: '🏦' },
   { id: 'charts',       label: 'Wykresy',      icon: '📊' },
   { id: 'regular',      label: 'Regularne',    icon: '🔄' },
+  { id: 'shopping',     label: 'Zakupy',       icon: '🛒' },
 ]
 
 export default function Dashboard({ user }) {
@@ -31,7 +34,7 @@ export default function Dashboard({ user }) {
   const [activeTab, setActiveTab] = useState('transactions')
   const [loading, setLoading] = useState(true)
   const [privateMode, setPrivateMode] = useState(false)
-  const [modal, setModal] = useState(null) // 'transfer' | 'search' | 'tithe' | null
+  const [modal, setModal] = useState(null)
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd   = endOfMonth(currentMonth)
@@ -43,7 +46,7 @@ export default function Dashboard({ user }) {
       where('date', '<=', Timestamp.fromDate(monthEnd)),
       orderBy('date', 'desc')
     )
-    return onSnapshot(q, (snap) => {
+    return onSnapshot(q, snap => {
       setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() })))
       setLoading(false)
     })
@@ -55,20 +58,20 @@ export default function Dashboard({ user }) {
   const monthLabel = format(currentMonth, 'LLLL yyyy', { locale: pl })
 
   const handleMenuAction = (id) => {
-    if (id === 'private')   return setPrivateMode(m => !m)
-    if (id === 'transfer')  return setModal('transfer')
-    if (id === 'search')    return setModal('search')
-    if (id === 'tithe')     return setModal('tithe')
-    if (id === 'goals')     return setModal('goals')
-    if (id === 'stats')     return setModal('stats')
-    if (id === 'reminders') return setModal('reminders')
+    if (id === 'private')    return setPrivateMode(m => !m)
+    if (id === 'transfer')   return setModal('transfer')
+    if (id === 'search')     return setModal('search')
+    if (id === 'tithe')      return setModal('tithe')
+    if (id === 'goals')      return setModal('goals')
+    if (id === 'reminders')  return setModal('reminders')
+    if (id === 'categories') return setModal('categories')
   }
 
   return (
     <div className="dashboard">
-      {/* Pasek zakładek + menu */}
+      {/* Tabs + menu */}
       <div className="budget-header-row">
-        <div className="budget-tabs">
+        <div className="budget-tabs" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
           {TABS.map(t => (
             <button key={t.id}
               className={`budget-tab ${activeTab === t.id ? 'active' : ''}`}
@@ -82,8 +85,8 @@ export default function Dashboard({ user }) {
         <BudgetMenu onAction={handleMenuAction} privateMode={privateMode} />
       </div>
 
-      {/* Nawigacja miesiąca */}
-      {(activeTab === 'transactions' || activeTab === 'charts') && (
+      {/* Month navigation */}
+      {activeTab === 'transactions' && (
         <div className="month-nav">
           <button className="month-btn" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>‹</button>
           <h2 className="month-label">{monthLabel}</h2>
@@ -91,7 +94,6 @@ export default function Dashboard({ user }) {
         </div>
       )}
 
-      {/* Zawartość */}
       {activeTab === 'transactions' && (
         <>
           <Summary income={income} expenses={expenses} balance={balance} privateMode={privateMode} />
@@ -104,24 +106,23 @@ export default function Dashboard({ user }) {
           />
         </>
       )}
-      {activeTab === 'accounts' && <AccountsView user={user} privateMode={privateMode} />}
-      {activeTab === 'charts'   && <Charts user={user} />}
-      {activeTab === 'regular'  && <RegularPayments user={user} />}
+      {activeTab === 'accounts'  && <AccountsView user={user} privateMode={privateMode} />}
+      {activeTab === 'charts'    && <Charts user={user} />}
+      {activeTab === 'regular'   && <RegularPayments user={user} />}
+      {activeTab === 'shopping'  && <ShoppingList user={user} />}
 
-      {/* Przycisk + */}
       {activeTab === 'transactions' && (
         <button className="btn-add" onClick={() => setShowForm(true)}>+</button>
       )}
 
-      {/* Modale z menu */}
-      {modal === 'transfer'  && <TransferForm user={user} onClose={() => setModal(null)} />}
-      {modal === 'search'    && <SearchPanel  user={user} onClose={() => setModal(null)} />}
-      {modal === 'tithe'     && <TitheView   user={user} onClose={() => setModal(null)} />}
-      {modal === 'goals'     && <SavingsGoals user={user} onClose={() => setModal(null)} />}
-      {modal === 'reminders' && <Reminders   user={user} onClose={() => setModal(null)} />}
-      {modal === 'stats'     && <ComingSoon title="📊 Statystyki roczne" onClose={() => setModal(null)} />}
+      {modal === 'transfer'    && <TransferForm   user={user} onClose={() => setModal(null)} />}
+      {modal === 'search'      && <SearchPanel    user={user} onClose={() => setModal(null)} />}
+      {modal === 'tithe'       && <TitheView      user={user} onClose={() => setModal(null)} />}
+      {modal === 'goals'       && <SavingsGoals   user={user} onClose={() => setModal(null)} />}
+      {modal === 'reminders'   && <Reminders      user={user} onClose={() => setModal(null)} />}
+      {modal === 'categories'  && <CategoriesView user={user} onClose={() => setModal(null)} />}
+      {modal === 'stats'       && <ComingSoon title="📊 Statystyki roczne" onClose={() => setModal(null)} />}
 
-      {/* Formularz transakcji */}
       {showForm && (
         <TransactionForm
           user={user}
@@ -144,7 +145,6 @@ function ComingSoon({ title, onClose }) {
         <div style={{ padding: '32px 20px', color: 'var(--text-muted)' }}>
           <p style={{ fontSize: 40, marginBottom: 16 }}>🚧</p>
           <p>Ta funkcja jest w przygotowaniu.</p>
-          <p style={{ fontSize: 13, marginTop: 8 }}>Dodamy ją wkrótce!</p>
         </div>
       </div>
     </div>

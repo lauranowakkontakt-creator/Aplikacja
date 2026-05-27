@@ -1,56 +1,41 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { getCurrencyCode } from '../utils/currency'
+import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../utils/categories'
 
-export const EXPENSE_CATEGORIES = [
-  { id: 'jedzenie',      label: 'Jedzenie',      icon: '🍕', color: '#4CAF50' },
-  { id: 'miasto',        label: 'Miasto',         icon: '☕', color: '#4CAF50' },
-  { id: 'dom',           label: 'Dom',            icon: '🏠', color: '#4CAF50' },
-  { id: 'zakupy',        label: 'Zakupy',         icon: '🛒', color: '#4CAF50' },
-  { id: 'auto',          label: 'Auto',           icon: '🚗', color: '#2196F3' },
-  { id: 'prezenty',      label: 'Prezenty',       icon: '🎁', color: '#2196F3' },
-  { id: 'studia',        label: 'Studia',         icon: '📚', color: '#2196F3' },
-  { id: 'firma',         label: 'Firma',          icon: '💻', color: '#2196F3' },
-  { id: 'zdrowie',       label: 'Zdrowie',        icon: '❤️', color: '#F44336' },
-  { id: 'wyjazdy',       label: 'Wyjazdy',        icon: '✈️', color: '#F44336' },
-  { id: 'przyjemnosci',  label: 'Przyjemności',   icon: '🎬', color: '#F44336' },
-  { id: 'edukacja',      label: 'Edukacja',       icon: '📖', color: '#F44336' },
-  { id: 'dziesiecina',   label: 'Dziesięcina',    icon: '⛪', color: '#FF9800' },
-  { id: 'ofiara',        label: 'Ofiara',         icon: '🕊️', color: '#FF9800' },
-  { id: 'ubrania',       label: 'Ubrania',        icon: '👕', color: '#9C27B0' },
-  { id: 'subskrypcje',   label: 'Subskrypcje',    icon: '📱', color: '#9C27B0' },
-  { id: 'oszczednosci',  label: 'Oszczędności',   icon: '🐷', color: '#00BCD4' },
-  { id: 'inne',          label: 'Inne',           icon: '📌', color: '#607D8B' },
-]
+export const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_CATEGORIES
+export const INCOME_CATEGORIES  = DEFAULT_INCOME_CATEGORIES
 
-export const INCOME_CATEGORIES = [
-  { id: 'wynagrodzenie', label: 'Wynagrodzenie', icon: '💼', color: '#4CAF50' },
-  { id: 'freelance',     label: 'Freelance',     icon: '💻', color: '#4CAF50' },
-  { id: 'premia',        label: 'Premia',        icon: '⭐', color: '#FF9800' },
-  { id: 'zwrot',         label: 'Zwrot',         icon: '↩️', color: '#2196F3' },
-  { id: 'prezent',       label: 'Prezent',       icon: '🎀', color: '#E91E63' },
-  { id: 'inwestycje',    label: 'Inwestycje',    icon: '📈', color: '#00BCD4' },
-  { id: 'inne',          label: 'Inne',          icon: '📌', color: '#607D8B' },
-]
-
-export default function TransactionForm({ user, onClose, editData }) {
-  const [type, setType]             = useState(editData?.type || 'expense')
+export default function TransactionForm({ user, onClose, editData, defaultType, defaultAccountId }) {
+  const [type, setType]             = useState(editData?.type || defaultType || 'expense')
   const [amount, setAmount]         = useState(editData?.amount?.toString() || '')
   const [category, setCategory]     = useState(editData?.categoryId || '')
   const [description, setDescription] = useState(editData?.description || '')
   const [date, setDate]             = useState(editData?.date ? format(editData.date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
-  const [accountId, setAccountId]   = useState(editData?.accountId || '')
+  const [accountId, setAccountId]   = useState(editData?.accountId || defaultAccountId || '')
   const [accounts, setAccounts]     = useState([])
+  const [expCats, setExpCats]       = useState(DEFAULT_EXPENSE_CATEGORIES)
+  const [incCats, setIncCats]       = useState(DEFAULT_INCOME_CATEGORIES)
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
 
-  const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+  const categories = type === 'expense' ? expCats : incCats
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
+
+  // Load custom categories
+  useEffect(() => {
+    getDoc(doc(db, 'users', user.uid, 'settings', 'categories')).then(d => {
+      if (d.exists()) {
+        if (d.data().expense?.length) setExpCats(d.data().expense)
+        if (d.data().income?.length)  setIncCats(d.data().income)
+      }
+    })
   }, [user.uid])
 
   useEffect(() => {
@@ -91,13 +76,11 @@ export default function TransactionForm({ user, onClose, editData }) {
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <form onSubmit={handleSubmit} className="form">
-          {/* Typ */}
           <div className="type-toggle">
             <button type="button" className={`type-btn ${type === 'expense' ? 'active expense' : ''}`} onClick={() => setType('expense')}>Wydatek</button>
             <button type="button" className={`type-btn ${type === 'income' ? 'active income' : ''}`} onClick={() => setType('income')}>Przychód</button>
           </div>
 
-          {/* Kwota */}
           <div className="form-group">
             <label>Kwota ({getCurrencyCode()})</label>
             <input type="number" step="0.01" min="0" placeholder="0,00"
@@ -105,7 +88,6 @@ export default function TransactionForm({ user, onClose, editData }) {
               className="form-input amount-input" autoFocus />
           </div>
 
-          {/* Kategorie — kolorowe ikony */}
           <div className="form-group">
             <label>Kategoria</label>
             <div className="category-icons-grid">
@@ -123,15 +105,11 @@ export default function TransactionForm({ user, onClose, editData }) {
             </div>
           </div>
 
-          {/* Konto */}
           {accounts.length > 0 && (
             <div className="form-group">
               <label>Konto</label>
               <div className="account-chips">
-                <button type="button"
-                  className={`account-chip ${!accountId ? 'active' : ''}`}
-                  onClick={() => setAccountId('')}
-                >Bez konta</button>
+                <button type="button" className={`account-chip ${!accountId ? 'active' : ''}`} onClick={() => setAccountId('')}>Bez konta</button>
                 {accounts.map(acc => (
                   <button key={acc.id} type="button"
                     className={`account-chip ${accountId === acc.id ? 'active' : ''}`}
@@ -143,7 +121,6 @@ export default function TransactionForm({ user, onClose, editData }) {
             </div>
           )}
 
-          {/* Opis */}
           <div className="form-group">
             <label>Opis (opcjonalny)</label>
             <input type="text" placeholder="np. Biedronka, Spotify..."
@@ -151,7 +128,6 @@ export default function TransactionForm({ user, onClose, editData }) {
               className="form-input" maxLength={100} />
           </div>
 
-          {/* Data */}
           <div className="form-group">
             <label>Data</label>
             <input type="date" value={date} onChange={e => setDate(e.target.value)} className="form-input" />

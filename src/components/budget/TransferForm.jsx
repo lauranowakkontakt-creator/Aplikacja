@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, addDoc, onSnapshot, orderBy, query, Timestamp, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
-
-import { fmt } from '../../utils/currency'
+import { fmt, getCurrencyCode } from '../../utils/currency'
 
 export default function TransferForm({ user, onClose }) {
   const [accounts, setAccounts] = useState([])
@@ -11,6 +10,7 @@ export default function TransferForm({ user, onClose }) {
   const [toId, setToId]         = useState('')
   const [amount, setAmount]     = useState('')
   const [date, setDate]         = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [comment, setComment]   = useState('')
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
 
@@ -32,17 +32,22 @@ export default function TransferForm({ user, onClose }) {
     setSaving(true)
     const amt = parseFloat(amount)
     const d = Timestamp.fromDate(new Date(date))
+    const fromAcc = accounts.find(a => a.id === fromId)
+    const toAcc   = accounts.find(a => a.id === toId)
+    const desc = comment.trim() || undefined
     try {
-      const fromAcc = accounts.find(a => a.id === fromId)
-      const toAcc   = accounts.find(a => a.id === toId)
       await addDoc(collection(db, 'users', user.uid, 'transactions'), {
         type: 'expense', amount: amt, category: 'Przelew', categoryId: 'transfer',
-        categoryIcon: '💸', description: `→ ${toAcc?.name}`,
+        categoryIcon: '💸',
+        description: `→ ${toAcc?.name}${desc ? ` · ${desc}` : ''}`,
+        transferTo: toId, transferComment: desc || '',
         date: d, accountId: fromId, createdAt: Timestamp.now(), updatedAt: Timestamp.now()
       })
       await addDoc(collection(db, 'users', user.uid, 'transactions'), {
         type: 'income', amount: amt, category: 'Przelew', categoryId: 'transfer',
-        categoryIcon: '💸', description: `← ${fromAcc?.name}`,
+        categoryIcon: '💸',
+        description: `← ${fromAcc?.name}${desc ? ` · ${desc}` : ''}`,
+        transferFrom: fromId, transferComment: desc || '',
         date: d, accountId: toId, createdAt: Timestamp.now(), updatedAt: Timestamp.now()
       })
       await updateDoc(doc(db, 'users', user.uid, 'accounts', fromId), { balance: (fromAcc.balance || 0) - amt })
@@ -78,13 +83,18 @@ export default function TransferForm({ user, onClose }) {
               </select>
             </div>
             <div className="form-group">
-              <label>Kwota (PLN)</label>
+              <label>Kwota ({getCurrencyCode()})</label>
               <input type="number" step="0.01" min="0" className="form-input amount-input"
                 value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
             </div>
             <div className="form-group">
               <label>Data</label>
               <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>Komentarz (opcjonalny)</label>
+              <input type="text" className="form-input" value={comment}
+                onChange={e => setComment(e.target.value)} placeholder="np. rata kredytu, zasilenie..." maxLength={80} />
             </div>
             {error && <p className="form-error">{error}</p>}
             <button type="submit" className="btn-save" disabled={saving}>

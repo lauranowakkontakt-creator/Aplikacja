@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore'
+import { useState, useEffect } from 'react'
+import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../TransactionForm'
 import { getCurrencyCode } from '../../utils/currency'
@@ -17,10 +17,18 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
   const [category, setCategory]   = useState(editData?.categoryId || '')
   const [frequency, setFrequency] = useState(editData?.frequency || 'monthly')
   const [dayOfMonth, setDay]      = useState(editData?.dayOfMonth?.toString() || '1')
+  const [accountId, setAccountId] = useState(editData?.accountId || '')
+  const [autoAdd, setAutoAdd]     = useState(editData?.autoAdd ?? false)
+  const [accounts, setAccounts]   = useState([])
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
 
   const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -34,13 +42,15 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
       category: cat?.label || category, categoryId: category,
       categoryIcon: cat?.icon || '🔄',
       frequency, dayOfMonth: parseInt(dayOfMonth) || 1,
+      accountId: accountId || null,
+      autoAdd,
       updatedAt: Timestamp.now()
     }
     try {
       if (editData) {
         await updateDoc(doc(db, 'users', user.uid, 'regularPayments', editData.id), data)
       } else {
-        await addDoc(collection(db, 'users', user.uid, 'regularPayments'), { ...data, createdAt: Timestamp.now() })
+        await addDoc(collection(db, 'users', user.uid, 'regularPayments'), { ...data, createdAt: Timestamp.now(), donePeriods: [] })
       }
       onClose()
     } catch { setError('Błąd zapisu'); setSaving(false) }
@@ -86,6 +96,22 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
             </div>
           </div>
 
+          {accounts.length > 0 && (
+            <div className="form-group">
+              <label>Konto</label>
+              <div className="account-chips">
+                <button type="button" className={`account-chip ${!accountId ? 'active' : ''}`} onClick={() => setAccountId('')}>Bez konta</button>
+                {accounts.map(acc => (
+                  <button key={acc.id} type="button"
+                    className={`account-chip ${accountId === acc.id ? 'active' : ''}`}
+                    style={accountId === acc.id ? { borderColor: acc.color, background: acc.color + '22' } : {}}
+                    onClick={() => setAccountId(acc.id)}
+                  >{acc.name}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="form-row">
             <div className="form-group" style={{flex:1}}>
               <label>Częstotliwość</label>
@@ -95,10 +121,21 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
             </div>
             {frequency === 'monthly' && (
               <div className="form-group" style={{width:100}}>
-                <label>Dzień miesiąca</label>
+                <label>Dzień mies.</label>
                 <input type="number" min="1" max="31" className="form-input" value={dayOfMonth} onChange={e => setDay(e.target.value)} />
               </div>
             )}
+          </div>
+
+          {/* Auto-add toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface2)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>Automatyczne dodawanie</p>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+                {autoAdd ? 'Transakcja tworzona automatycznie przy otworzeniu zakładki' : 'Ręczne odznaczenie czy płatność wykonana'}
+              </p>
+            </div>
+            <button type="button" className={`bmi-toggle ${autoAdd ? 'on' : ''}`} onClick={() => setAutoAdd(v => !v)} />
           </div>
 
           {error && <p className="form-error">{error}</p>}

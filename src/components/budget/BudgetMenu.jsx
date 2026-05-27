@@ -20,6 +20,7 @@ export default function BudgetMenu({ onAction, privateMode }) {
     { id: 'tithe',      icon: '⛪', label: 'Dziesięcina' },
     { id: 'goals',      icon: '🎯', label: 'Cele oszczędnościowe' },
     { id: 'reminders',  icon: '🔔', label: 'Przypomnienia' },
+    { id: 'categories', icon: '🏷️', label: 'Zarządzaj kategoriami' },
     { id: 'currency',   icon: '💱', label: `Waluta (${currentCurrency})` },
   ]
 
