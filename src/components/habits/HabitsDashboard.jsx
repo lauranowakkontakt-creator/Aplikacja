@@ -6,6 +6,7 @@ import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import HabitForm, { HABIT_CATEGORIES } from './HabitForm'
 import PauseForm from './PauseForm'
+import { CatIcon, IconFlame, IconStar, IconCheck } from '../Icons'
 import MoodDashboard from '../mood/MoodDashboard'
 
 function isPausedDay(dateStr, pauses) {
@@ -144,10 +145,36 @@ export default function HabitsDashboard({ user, onMoodClick }) {
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
+  const subtitleText = todayIsPaused
+    ? 'Pauza'
+    : activeHabits.length === 0
+      ? 'Dodaj nawyk'
+      : view === 'today'
+        ? `${doneToday} / ${todayDue.length} dziś`
+        : `Tydzień · ${weekPct}%`
+
+  const todayLabel = format(new Date(), 'EEEE, d LLL', { locale: pl })
+  const kickerText = view === 'today' ? 'Nawyki · Dziś' : view === 'week' ? 'Nawyki · Tydzień' : view === 'month' ? 'Nawyki · Miesiąc' : 'Nawyki · Statystyki'
+  const headerTitle = view === 'today' ? todayLabel : view === 'week' ? `${format(weekStart, 'd MMM', { locale: pl })} – ${format(addDays(weekStart, 6), 'd MMM', { locale: pl })}` : format(currentDate, 'LLLL yyyy', { locale: pl })
+
   return (
     <div className="habits-dashboard">
-      {/* Header */}
-      <div className="habits-header">
+      {/* Mobile module header */}
+      <div className="mod-header">
+        <div>
+          <div className="mod-header-kicker">{kickerText}</div>
+          <div className="mod-header-title" style={{ textTransform: 'capitalize' }}>{headerTitle}</div>
+        </div>
+        <div className="mod-header-right">
+          <button className="icon-btn" title="Pauza" onClick={() => setShowPause(true)}>⏸️</button>
+          <button className="icon-btn" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk" style={{ background: 'var(--primary)', color: 'var(--bg)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+            +
+          </button>
+        </div>
+      </div>
+
+      {/* Header — desktop */}
+      <div className="habits-header desktop-only">
         <div>
           <h2 className="habits-title">Nawyki</h2>
           <p className="habits-subtitle">
@@ -172,25 +199,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           <button key={id} className={`habit-view-tab ${view === id ? 'active' : ''}`} onClick={() => setView(id)}>{label}</button>
         ))}
       </div>
-
-      {/* Progress bar */}
-      {(view === 'week' || view === 'today') && todayDue.length > 0 && !todayIsPaused && (
-        <div className="progress-bar-wrap">
-          <div className="progress-bar" style={{ width: `${(doneToday / todayDue.length) * 100}%` }} />
-        </div>
-      )}
-
-      {/* Category filter */}
-      {activeHabits.length > 0 && (
-        <div className="habit-cat-filter">
-          <button className={`habit-cat-chip ${filterCat === 'all' ? 'active' : ''}`} onClick={() => setFilterCat('all')}>Wszystkie</button>
-          {HABIT_CATEGORIES.filter(c => activeHabits.some(h => h.category === c.id)).map(c => (
-            <button key={c.id} className={`habit-cat-chip ${filterCat === c.id ? 'active' : ''}`} onClick={() => setFilterCat(c.id)}>
-              {c.icon} {c.label}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* ===== DZIŚ (karty) ===== */}
       {view === 'today' && (() => {
@@ -229,6 +237,23 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               </div>
             )}
 
+            {/* POSTĘP DNIA */}
+            {selDue.length > 0 && !todayIsPaused && selectedDay === TODAY && (
+              <div className="postep-dnia">
+                <div className="postep-kicker">Postęp dnia</div>
+                <div className="postep-count">
+                  <span className="postep-num">{doneToday}</span>
+                  <span className="postep-den"> / {todayDue.length}</span>
+                  {todayDue.length - doneToday > 0 && (
+                    <span className="postep-rest">zostały {todayDue.length - doneToday} nawyki</span>
+                  )}
+                </div>
+                <div className="progress-bar-wrap" style={{ marginTop: 10 }}>
+                  <div className="progress-bar" style={{ width: `${(doneToday / Math.max(todayDue.length, 1)) * 100}%`, background: 'var(--income)' }} />
+                </div>
+              </div>
+            )}
+
             {selDue.length === 0 ? (
               <div className="list-empty"><p>Brak nawyków</p><p className="list-empty-hint">Kliknij "+ Nowy" aby dodać</p></div>
             ) : (
@@ -247,13 +272,17 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                       className={`habit-card ${done ? 'done' : ''} ${status === 'paused' ? 'paused' : ''}`}
                       style={done ? { background: (habit.color || 'var(--primary)') + '18', borderColor: (habit.color || 'var(--primary)') + '50' } : {}}
                     >
-                      <div className="habit-card-icon" style={{ background: (habit.color || '#C94B28') + '30' }}
+                      <div className="habit-card-icon" style={{
+                        background: (habit.color || 'var(--primary)') + '1A',
+                        border: `1px solid ${(habit.color || 'var(--primary)') + '40'}`,
+                        color: habit.color || 'var(--primary)',
+                      }}
                         onClick={() => { setEditHabit(habit); setShowForm(true) }}>
-                        <span>{habit.emoji}</span>
+                        <CatIcon categoryId={habit.category} emoji={habit.emoji} size={18} />
                       </div>
                       <div className="habit-card-body" onClick={() => { setEditHabit(habit); setShowForm(true) }}>
                         <span className="habit-card-name">{habit.name}</span>
-                        {streak > 0 && <span className="habit-card-streak">🔥 {streak} dni</span>}
+                        {streak > 0 && <span className="habit-card-streak"><IconFlame size={13} /> {streak} dni</span>}
                       </div>
                       <button
                         className={`habit-card-btn ${done ? 'done' : ''} ${status === 'paused' ? 'paused' : ''}`}
@@ -261,7 +290,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                         onClick={() => !isFut && status === 'due' && toggleDay(habit, selectedDay)}
                         disabled={isFut || status !== 'due'}
                       >
-                        {done ? '✓' : status === 'paused' ? getPauseIcon(pauses, selectedDay) : ''}
+                        {done ? <IconCheck size={16} /> : status === 'paused' ? getPauseIcon(pauses, selectedDay) : ''}
                       </button>
                     </div>
                   )
@@ -302,11 +331,17 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                 return (
                   <div key={habit.id} className="habit-row">
                     <div className="habit-name-col" onClick={() => { setEditHabit(habit); setShowForm(true) }}>
-                      <span className="habit-emoji">{habit.emoji}</span>
+                      <span className="habit-emoji" style={{
+                        background: (habit.color || 'var(--primary)') + '1A',
+                        border: `1px solid ${(habit.color || 'var(--primary)') + '40'}`,
+                        color: habit.color || 'var(--primary)',
+                      }}>
+                        <CatIcon categoryId={habit.category} emoji={habit.emoji} size={14} />
+                      </span>
                       <div className="habit-info">
                         <span className="habit-name">{habit.name}</span>
-                        {!compact && streak > 0 && <span className="habit-streak">🔥 {streak}</span>}
-                        {!compact && best > streak && best > 1 && <span className="habit-streak best">⭐ {best}</span>}
+                        {!compact && streak > 0 && <span className="habit-streak"><IconFlame size={12} /> {streak}</span>}
+                        {!compact && best > streak && best > 1 && <span className="habit-streak best"><IconStar size={12} /> {best}</span>}
                       </div>
                     </div>
                     {weekDays.map(d => {
@@ -321,7 +356,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                           onClick={() => !isFut && status === 'due' && toggleDay(habit, d.date)}
                           disabled={isFut || status !== 'due'}
                         >
-                          {done ? '✓' : pauseIcon || (status === 'off' ? '–' : status === 'after-end' ? '✕' : '')}
+                          {done ? <IconCheck size={13} /> : pauseIcon || (status === 'off' ? '–' : status === 'after-end' ? '✕' : '')}
                         </button>
                       )
                     })}
@@ -422,10 +457,18 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                     <div key={habit.id} className="habit-stat-card" onClick={() => { setEditHabit(habit); setShowForm(true) }}>
                       <div className="habit-stat-card-top">
                         <div className="habit-stat-card-info">
-                          <span style={{ fontSize: 28 }}>{habit.emoji}</span>
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: (habit.color || 'var(--primary)') + '1A',
+                            border: `1px solid ${(habit.color || 'var(--primary)') + '40'}`,
+                            color: habit.color || 'var(--primary)',
+                          }}>
+                            <CatIcon categoryId={habit.category} emoji={habit.emoji} size={18} />
+                          </div>
                           <div>
                             <p className="habit-name" style={{ fontSize: 15 }}>{habit.name}</p>
-                            {cat && <p className="habit-cat-badge">{cat.icon} {cat.label}</p>}
+                            {cat && <p className="habit-cat-badge"><CatIcon categoryId={cat.id} emoji={cat.icon} size={13} /> {cat.label}</p>}
                           </div>
                         </div>
                         <div className="habit-stat-big">
@@ -434,9 +477,9 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                         </div>
                       </div>
                       <div className="habit-stat-row-nums">
-                        <div className="habit-stat-pill"><span>🔥</span><strong>{streak}</strong><span>seria</span></div>
-                        <div className="habit-stat-pill"><span>⭐</span><strong>{best}</strong><span>rekord</span></div>
-                        <div className="habit-stat-pill"><span>✓</span><strong>{total}</strong><span>łącznie</span></div>
+                        <div className="habit-stat-pill"><span><IconFlame size={14} /></span><strong>{streak}</strong><span>seria</span></div>
+                        <div className="habit-stat-pill"><span><IconStar size={14} /></span><strong>{best}</strong><span>rekord</span></div>
+                        <div className="habit-stat-pill"><span><IconCheck size={14} /></span><strong>{total}</strong><span>łącznie</span></div>
                       </div>
                     </div>
                   )
@@ -450,7 +493,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       {/* Archiwum */}
       {archivedHabits.length > 0 && (
         <button className="btn-show-archived" onClick={() => setShowArchived(v => !v)}>
-          📦 Archiwum ({archivedHabits.length}) {showArchived ? '▲' : '▼'}
+          Archiwum ({archivedHabits.length}) {showArchived ? '▲' : '▼'}
         </button>
       )}
       {showArchived && (
@@ -458,7 +501,14 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           {archivedHabits.map(h => (
             <div key={h.id} className="habit-row archived-row" onClick={() => { setEditHabit(h); setShowForm(true) }}>
               <div className="habit-name-col">
-                <span className="habit-emoji" style={{ opacity: .4 }}>{h.emoji}</span>
+                <span className="habit-emoji" style={{
+                  background: (h.color || 'var(--primary)') + '1A',
+                  border: `1px solid ${(h.color || 'var(--primary)') + '40'}`,
+                  color: h.color || 'var(--primary)',
+                  opacity: 0.4,
+                }}>
+                  <CatIcon categoryId={h.category} emoji={h.emoji} size={14} />
+                </span>
                 <span className="habit-name" style={{ opacity: .4 }}>{h.name}</span>
               </div>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', gridColumn: '2 / -1', textAlign: 'right' }}>zarchiwizowany</span>

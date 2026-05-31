@@ -3,6 +3,7 @@ import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format, getDaysInMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
+import { CatIcon, IconBell } from '../Icons'
 import { fmt } from '../../utils/currency'
 
 export default function Reminders({ user, onClose }) {
@@ -33,8 +34,8 @@ export default function Reminders({ user, onClose }) {
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-tall">
         <div className="modal-header">
-          <h3>🔔 Przypomnienia płatności</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <h3><IconBell size={18} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Przypomnienia płatności</h3>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
 
         {loading ? <div className="list-loading">Ładowanie...</div> : (
@@ -66,7 +67,7 @@ export default function Reminders({ user, onClose }) {
                             border: `1px solid ${isToday ? 'var(--primary)' : 'var(--border)'}`,
                             borderRadius: 12, padding: '10px 14px'
                           }}>
-                            <span style={{ fontSize: 22 }}>{p.categoryIcon || '🔄'}</span>
+                            <CatIcon categoryId={p.categoryId} emoji={p.categoryIcon} size={20} />
                             <div style={{ flex: 1 }}>
                               <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{p.name}</p>
                               <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -100,7 +101,7 @@ export default function Reminders({ user, onClose }) {
                           background: 'var(--surface)', border: '1px solid var(--border)',
                           borderRadius: 12, padding: '10px 14px', opacity: 0.6
                         }}>
-                          <span style={{ fontSize: 22 }}>{p.categoryIcon || '🔄'}</span>
+                          <CatIcon categoryId={p.categoryId} emoji={p.categoryIcon} size={20} />
                           <div style={{ flex: 1 }}>
                             <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{p.name}</p>
                             <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -128,7 +129,7 @@ export default function Reminders({ user, onClose }) {
                           background: 'var(--surface)', border: '1px solid var(--border)',
                           borderRadius: 12, padding: '10px 14px'
                         }}>
-                          <span style={{ fontSize: 22 }}>{p.categoryIcon || '🔄'}</span>
+                          <CatIcon categoryId={p.categoryId} emoji={p.categoryIcon} size={20} />
                           <div style={{ flex: 1 }}>
                             <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{p.name}</p>
                             <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>

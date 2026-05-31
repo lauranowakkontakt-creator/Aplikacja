@@ -61,7 +61,7 @@ export default function TransferForm({ user, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>💸 Przelew między kontami</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         {accounts.length < 2 ? (
           <p style={{ color: 'var(--text-muted)', padding: '20px', textAlign: 'center' }}>

@@ -1,5 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { CURRENCIES, getCurrencyCode, setCurrencyCode } from '../../utils/currency'
+import { IconClose, IconSearch, IconTransfer, IconPrayer, IconStar, IconBell, IconTag, IconEye, IconEyeOff, IconCheck } from '../Icons'
+
+const IconCurrency = (p) => (
+  <svg width={p.size || 18} height={p.size || 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="1" x2="12" y2="23" />
+    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+  </svg>
+)
 
 export default function BudgetMenu({ onAction, privateMode }) {
   const [open, setOpen]         = useState(false)
@@ -14,14 +22,14 @@ export default function BudgetMenu({ onAction, privateMode }) {
   }, [])
 
   const items = [
-    { id: 'private',    icon: privateMode ? '🔓' : '🔒', label: privateMode ? 'Pokaż salda' : 'Tryb prywatny', toggle: true },
-    { id: 'search',     icon: '🔍', label: 'Szukaj transakcji' },
-    { id: 'transfer',   icon: '💸', label: 'Przelew między kontami' },
-    { id: 'tithe',      icon: '⛪', label: 'Dziesięcina' },
-    { id: 'goals',      icon: '🎯', label: 'Cele oszczędnościowe' },
-    { id: 'reminders',  icon: '🔔', label: 'Przypomnienia' },
-    { id: 'categories', icon: '🏷️', label: 'Zarządzaj kategoriami' },
-    { id: 'currency',   icon: '💱', label: `Waluta (${currentCurrency})` },
+    { id: 'private',    Icon: privateMode ? IconEye : IconEyeOff, label: privateMode ? 'Pokaż salda' : 'Tryb prywatny', toggle: true },
+    { id: 'search',     Icon: IconSearch,   label: 'Szukaj transakcji' },
+    { id: 'transfer',   Icon: IconTransfer, label: 'Przelew między kontami' },
+    { id: 'tithe',      Icon: IconPrayer,   label: 'Dziesięcina' },
+    { id: 'goals',      Icon: IconStar,     label: 'Cele oszczędnościowe' },
+    { id: 'reminders',  Icon: IconBell,     label: 'Przypomnienia' },
+    { id: 'categories', Icon: IconTag,      label: 'Zarządzaj kategoriami' },
+    { id: 'currency',   Icon: IconCurrency, label: `Waluta (${currentCurrency})` },
   ]
 
   const handle = (id) => {
@@ -48,23 +56,23 @@ export default function BudgetMenu({ onAction, privateMode }) {
           {showCurrency ? (
             <>
               <div className="budget-menu-item" style={{ cursor: 'default', fontSize: 12, color: 'var(--text-muted)' }}>
-                <span className="bmi-icon">💱</span>
+                <span className="bmi-icon"><IconCurrency size={16} /></span>
                 <span className="bmi-label">Wybierz walutę</span>
-                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14 }}
-                  onClick={() => setShowCurrency(false)}>✕</button>
+                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                  onClick={() => setShowCurrency(false)}><IconClose size={14} /></button>
               </div>
               {CURRENCIES.map(c => (
                 <button key={c.code} className="budget-menu-item" onClick={() => selectCurrency(c.code)}>
                   <span className="bmi-icon" style={{ fontSize: 14, width: 22 }}>{c.symbol}</span>
                   <span className="bmi-label">{c.name}</span>
-                  {c.code === currentCurrency && <span style={{ fontSize: 16, color: 'var(--primary)' }}>✓</span>}
+                  {c.code === currentCurrency && <IconCheck size={16} style={{ color: 'var(--primary)' }} />}
                 </button>
               ))}
             </>
           ) : (
             items.map(item => (
               <button key={item.id} className="budget-menu-item" onClick={() => handle(item.id)}>
-                <span className="bmi-icon">{item.icon}</span>
+                <span className="bmi-icon"><item.Icon size={16} /></span>
                 <span className="bmi-label">{item.label}</span>
                 {item.toggle && <span className={`bmi-toggle ${item.id === 'private' && privateMode ? 'on' : ''}`} />}
               </button>

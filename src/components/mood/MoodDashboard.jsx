@@ -4,6 +4,7 @@ import { db } from '../../firebase/config'
 import { format, subDays, startOfMonth, getDaysInMonth, addDays, subMonths, addMonths, startOfYear } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, ReferenceLine } from 'recharts'
+import { IconTrash, IconCalendar, IconFlame } from '../Icons'
 
 export const MOODS = [
   { id: 'awful',     label: 'Fatalnie',  emoji: '😣', value: 1, color: '#C0392B' },
@@ -291,7 +292,7 @@ function MoodEntryCard({ entry, user }) {
             <p className="mood-entry-date">{format(new Date(entry.date + 'T12:00:00'), 'd MMMM yyyy', { locale: pl })}</p>
           </div>
         </div>
-        <button className="t-btn delete" onClick={handleDelete}>🗑️</button>
+        <button className="t-btn delete" onClick={handleDelete}><IconTrash size={13} /></button>
       </div>
       {emotionObjs.length > 0 && (
         <div className="mood-entry-emotions">
@@ -361,12 +362,12 @@ function MoodTrendsView({ entries, today }) {
           <p className="mood-stat-card-lbl">Średni nastrój</p>
         </div>
         <div className="mood-stat-card">
-          <span className="mood-stat-card-icon">📅</span>
+          <span className="mood-stat-card-icon"><IconCalendar size={24} /></span>
           <p className="mood-stat-card-val">{total}</p>
           <p className="mood-stat-card-lbl">Wpisów łącznie</p>
         </div>
         <div className="mood-stat-card">
-          <span className="mood-stat-card-icon">🔥</span>
+          <span className="mood-stat-card-icon"><IconFlame size={24} /></span>
           <p className="mood-stat-card-val">{streak}</p>
           <p className="mood-stat-card-lbl">Dni z rzędu</p>
         </div>

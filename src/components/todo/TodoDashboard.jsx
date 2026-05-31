@@ -8,6 +8,7 @@ import {
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag } from '../Icons'
 
 const PRIORITY = [
   { id: 'high',   label: 'Wysoki',  color: '#E53935' },
@@ -65,12 +66,31 @@ export default function TodoDashboard({ user }) {
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
+  const activeListObj = lists.find(l => l.id === activeList)
+  const headerTitle = activeListObj ? `${activeListObj.icon || ''} ${activeListObj.name}` : 'Zadania'
+
+  // Today count
+  const dueToday = active.filter(t => t.dueDate && isToday(parseISO(t.dueDate)))
+  const highCount = dueToday.filter(t => t.priority === 'high').length
+
   return (
     <div className="todo-dashboard">
+      {/* Mobile module header */}
+      <div className="mod-header">
+        <div>
+          <div className="mod-header-kicker">To-do</div>
+          <div className="mod-header-title">{headerTitle}</div>
+        </div>
+        <div className="mod-header-right">
+          <button className="icon-btn"><IconSearch size={16} /></button>
+          <button className="icon-btn"><IconMore size={16} /></button>
+        </div>
+      </div>
+
       {/* Główne zakładki */}
       <div className="habit-view-tabs">
-        <button className={`habit-view-tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}>📋 Zadania</button>
-        <button className={`habit-view-tab ${tab === 'stats' ? 'active' : ''}`} onClick={() => setTab('stats')}>📊 Statystyki</button>
+        <button className={`habit-view-tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}><IconEdit size={14} /> Zadania</button>
+        <button className={`habit-view-tab ${tab === 'stats' ? 'active' : ''}`} onClick={() => setTab('stats')}><IconChart size={14} /> Statystyki</button>
       </div>
 
       {tab === 'stats' ? (
@@ -97,6 +117,21 @@ export default function TodoDashboard({ user }) {
             })}
             <button className="todo-list-chip todo-list-add" onClick={() => setShowListForm(true)}>+ Lista</button>
           </div>
+
+          {/* Today summary card */}
+          {dueToday.length > 0 && (
+            <div className="todo-today-card">
+              <div className="todo-today-icon">
+                <IconFlag size={18} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 600 }}>{dueToday.length} {dueToday.length === 1 ? 'zadanie' : 'zadania'} na dziś</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.04em', marginTop: 2 }}>
+                  {highCount > 0 ? `${highCount} z priorytetem · ` : ''}{dueToday.length - highCount} standardowe
+                </div>
+              </div>
+            </div>
+          )}
 
           <button className="btn-add-habit" onClick={() => { setEditTodo(null); setShowForm(true) }}>
             + Dodaj zadanie
@@ -366,7 +401,7 @@ function TodoItem({ todo, lists, onToggle, onEdit, onDelete }) {
         border: `2px solid ${todo.done ? '#27AE60' : priority?.color || 'var(--border)'}`,
         background: todo.done ? '#27AE60' : 'transparent', cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11
-      }}>{todo.done ? '✓' : ''}</button>
+      }}>{todo.done ? <IconCheck size={11} /> : ''}</button>
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
@@ -391,8 +426,8 @@ function TodoItem({ todo, lists, onToggle, onEdit, onDelete }) {
       </div>
 
       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-        <button className="t-btn" onClick={onEdit}>✏️</button>
-        <button className="t-btn delete" onClick={() => onDelete(todo.id)}>🗑️</button>
+        <button className="t-btn" onClick={onEdit}><IconEdit size={13} /></button>
+        <button className="t-btn delete" onClick={() => onDelete(todo.id)}><IconTrash size={13} /></button>
       </div>
     </div>
   )
@@ -434,7 +469,7 @@ function TodoForm({ user, lists, editData, defaultListId, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>{editData ? 'Edytuj zadanie' : 'Nowe zadanie'}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
           <div className="form-group">
@@ -510,7 +545,7 @@ function ListForm({ user, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>Nowa lista</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
           <div className="form-group">

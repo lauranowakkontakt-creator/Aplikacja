@@ -3,6 +3,7 @@ import { collection, addDoc, deleteDoc, doc, onSnapshot, Timestamp, orderBy, que
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
+import { IconClose, IconTrash } from '../Icons'
 
 const REASONS = [
   { id: 'vacation', label: 'Wakacje', icon: '✈️' },
@@ -45,7 +46,7 @@ export default function PauseForm({ user, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>⏸️ Pauza nawyków</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div className="form">
           <p className="pause-info">W podanym czasie żaden nawyk nie jest wymagany — seria nie jest przerywana, ale dni przerwy nie liczą się do streaka.</p>
@@ -84,7 +85,7 @@ export default function PauseForm({ user, onClose }) {
                 <div key={p.id} className="pause-item">
                   <span className="pause-reason">{p.reasonIcon} {p.reasonLabel}</span>
                   <span className="pause-dates">{fmtDate(p.from)} – {fmtDate(p.to)}</span>
-                  <button className="t-btn delete" onClick={() => handleDelete(p.id)}>🗑️</button>
+                  <button className="t-btn delete" onClick={() => handleDelete(p.id)}><IconTrash size={13} /></button>
                 </div>
               ))}
             </div>

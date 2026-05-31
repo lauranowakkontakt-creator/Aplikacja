@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 
 import { fmt } from '../../utils/currency'
+import { CatIcon, IconClose } from '../Icons'
 
 export default function SearchPanel({ user, onClose }) {
   const [all, setAll]           = useState([])
@@ -30,7 +31,7 @@ export default function SearchPanel({ user, onClose }) {
       <div className="modal modal-tall">
         <div className="modal-header">
           <h3>🔍 Szukaj transakcji</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div className="search-filters">
           <input type="text" className="form-input" placeholder="Szukaj po opisie lub kategorii..."
@@ -49,7 +50,7 @@ export default function SearchPanel({ user, onClose }) {
           {results.length === 0 && <p className="list-empty">Brak wyników</p>}
           {results.map(t => (
             <div key={t.id} className={`transaction-item ${t.type}`}>
-              <div className="t-icon">{t.categoryIcon || '📌'}</div>
+              <div className="t-icon"><CatIcon categoryId={t.categoryId} emoji={t.categoryIcon} size={20} /></div>
               <div className="t-details">
                 <span className="t-category">{t.category}</span>
                 {t.description && <span className="t-desc">{t.description}</span>}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { CatIcon } from './Icons'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line } from 'recharts'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, subMonths, addMonths, eachDayOfInterval, eachMonthOfInterval, subWeeks, addWeeks, subYears, addYears, subDays, addDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -159,7 +160,7 @@ function CategoryTab({ transactions, total, chartType, label }) {
   const byCat = {}
   transactions.forEach(t => {
     const key = t.category || 'Inne'
-    if (!byCat[key]) byCat[key] = { name: key, icon: t.categoryIcon || '📌', value: 0 }
+    if (!byCat[key]) byCat[key] = { name: key, icon: t.categoryIcon || '📌', categoryId: t.categoryId, value: 0 }
     byCat[key].value += t.amount
   })
   const data = Object.values(byCat).sort((a, b) => b.value - a.value)
@@ -202,7 +203,7 @@ function CategoryTab({ transactions, total, chartType, label }) {
           return (
             <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 10, height: 10, borderRadius: 2, background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-              <span style={{ fontSize: 14 }}>{item.icon}</span>
+              <CatIcon categoryId={item.categoryId} emoji={item.icon} size={16} />
               <span style={{ flex: 1, fontSize: 13, color: 'var(--text)' }}>{item.name}</span>
               <span style={{ fontSize: 13, fontWeight: 600 }}>{fmt(item.value)}</span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 38, textAlign: 'right' }}>{pct.toFixed(1)}%</span>

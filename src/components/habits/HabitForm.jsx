@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
+import { CatIcon, IconClose, IconTrash } from '../Icons'
 
 export const HABIT_CATEGORIES = [
   { id: 'health',  label: 'Zdrowie',   icon: '❤️' },
@@ -80,7 +81,7 @@ export default function HabitForm({ user, onClose, editData }) {
       <div className="modal">
         <div className="modal-header">
           <h3>{editData ? 'Edytuj nawyk' : 'Nowy nawyk'}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
 
@@ -110,7 +111,7 @@ export default function HabitForm({ user, onClose, editData }) {
                   className={`habit-cat-btn ${category === cat.id ? 'active' : ''}`}
                   onClick={() => setCategory(cat.id)}
                 >
-                  <span>{cat.icon}</span>
+                  <CatIcon categoryId={cat.id} emoji={cat.icon} size={16} />
                   <span>{cat.label}</span>
                 </button>
               ))}
@@ -186,7 +187,7 @@ export default function HabitForm({ user, onClose, editData }) {
                 {editData.archived ? '📤 Przywróć' : '📦 Archiwizuj'}
               </button>
               <button type="button" className="btn-outline danger" style={{ flex: 1 }} onClick={handleDelete}>
-                🗑️ Usuń
+                <IconTrash size={14} /> Usuń
               </button>
             </div>
           )}

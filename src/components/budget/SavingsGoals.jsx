@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { fmt } from '../../utils/currency'
+import { IconEdit, IconTrash } from '../Icons'
 
 const GOAL_EMOJIS = ['🎯', '🏠', '✈️', '🚗', '💍', '📱', '🎓', '💻', '🏖️', '🐷', '💰', '🛍️']
 
@@ -32,7 +33,7 @@ export default function SavingsGoals({ user, onClose }) {
       <div className="modal modal-tall">
         <div className="modal-header">
           <h3>🎯 Cele oszczędnościowe</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
 
         {loading ? <div className="list-loading">Ładowanie...</div> : (
@@ -74,8 +75,8 @@ export default function SavingsGoals({ user, onClose }) {
                           {goal.notes && <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{goal.notes}</p>}
                         </div>
                         <div style={{ display: 'flex', gap: 6 }}>
-                          <button className="t-btn" onClick={() => { setEditGoal(goal); setShowForm(true) }}>✏️</button>
-                          <button className="t-btn delete" onClick={() => handleDelete(goal.id)}>🗑️</button>
+                          <button className="t-btn" onClick={() => { setEditGoal(goal); setShowForm(true) }}><IconEdit size={13} /></button>
+                          <button className="t-btn delete" onClick={() => handleDelete(goal.id)}><IconTrash size={13} /></button>
                         </div>
                       </div>
 
@@ -145,7 +146,7 @@ function GoalForm({ user, editData, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>{editData ? 'Edytuj cel' : 'Nowy cel'}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
           <div className="form-group">

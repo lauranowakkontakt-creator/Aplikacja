@@ -6,6 +6,7 @@ import { pl } from 'date-fns/locale'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { fmt, getCurrencyCode } from '../../utils/currency'
 import { EXPENSE_CATEGORIES } from '../TransactionForm'
+import { IconTrash } from '../Icons'
 
 const COLORS = ['#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
 
@@ -93,7 +94,7 @@ export default function ShoppingList({ user }) {
                         style={{ fontSize: 12, padding: '5px 10px', background: 'rgba(39,174,96,0.15)', border: '1px solid #27AE6060', borderRadius: 8, color: '#27AE60', cursor: 'pointer', fontWeight: 700 }}>
                         Kup ✓
                       </button>
-                      <button className="t-btn delete" onClick={() => handleDelete(item.id)}>🗑️</button>
+                      <button className="t-btn delete" onClick={() => handleDelete(item.id)}><IconTrash size={13} /></button>
                     </div>
                   </div>
                 )
@@ -142,7 +143,7 @@ export default function ShoppingList({ user }) {
                       {item.boughtDate} · zapłacono {fmt(item.boughtPrice || 0)}
                     </p>
                   </div>
-                  <button className="t-btn delete" onClick={() => handleDelete(item.id)}>🗑️</button>
+                  <button className="t-btn delete" onClick={() => handleDelete(item.id)}><IconTrash size={13} /></button>
                 </div>
               )
             })}
@@ -182,7 +183,7 @@ function AddItemModal({ user, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>🛒 Dodaj do listy</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleAdd} className="form">
           <div className="form-group">
@@ -264,7 +265,7 @@ function BuyModal({ item, user, onBuy, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>✓ Kupione: {item.name}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div className="form">
           <div className="form-group">

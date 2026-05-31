@@ -4,6 +4,7 @@ import { db } from '../../firebase/config'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { INCOME_CATEGORIES } from '../TransactionForm'
 import { fmt } from '../../utils/currency'
+import { CatIcon, IconPrayer, IconSettings } from '../Icons'
 
 const DEFAULT_TITHE_CATS = INCOME_CATEGORIES.map(c => c.id)
 
@@ -81,10 +82,10 @@ export default function TitheView({ user, onClose }) {
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>⛪ Dziesięcina</h3>
+          <h3><IconPrayer size={18} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Dziesięcina</h3>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="t-btn" onClick={() => setShowSettings(v => !v)} title="Ustawienia kategorii" style={{ fontSize: 18 }}>⚙️</button>
-            <button className="modal-close" onClick={onClose}>✕</button>
+            <button className="t-btn" onClick={() => setShowSettings(v => !v)} title="Ustawienia kategorii"><IconSettings size={16} /></button>
+            <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
           </div>
         </div>
 
@@ -100,7 +101,7 @@ export default function TitheView({ user, onClose }) {
                   style={titheCats.includes(cat.id) ? { borderColor: '#27AE60', background: '#27AE6020', color: 'var(--text)' } : {}}
                   onClick={() => toggleCat(cat.id)}
                 >
-                  {cat.icon} {cat.label}
+                  <CatIcon categoryId={cat.id} emoji={cat.icon} size={15} /> {cat.label}
                 </button>
               ))}
             </div>

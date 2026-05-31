@@ -1,16 +1,25 @@
 import { signOut } from 'firebase/auth'
 import { auth } from '../firebase/config'
+import { IconLogo, IconSettings } from './Icons'
 
 export default function Header({ user, modules, activeModule, onModuleChange, onSettingsOpen }) {
   const handleLogout = () => signOut(auth)
+  const displayName = user.displayName?.split(' ')[0] || 'Laura'
 
   return (
     <header className="header">
+      {/* Logo mark */}
       <div className="header-left">
-        <span className="header-logo">Mój Świat</span>
+        <div className="header-logo-mark">
+          <IconLogo size={15} stroke={1.8} />
+        </div>
+        <div className="header-logo-text">
+          <span className="header-logo-name">Mój Świat</span>
+          <span className="header-logo-sub">{displayName.toLowerCase()}</span>
+        </div>
       </div>
 
-      {/* Ikony modułów — centrum headera */}
+      {/* Module nav — center */}
       <nav className="header-modules">
         {modules.filter(m => !m.hidden).map(m => (
           <button
@@ -19,17 +28,22 @@ export default function Header({ user, modules, activeModule, onModuleChange, on
             onClick={() => !m.soon && onModuleChange(m.id)}
             title={m.soon ? `${m.label} — wkrótce` : m.label}
           >
-            <span className="module-icon">{m.icon}</span>
+            <m.Icon size={18} />
             <span className="module-label">{m.label}</span>
             {m.soon && <span className="soon-badge">wkrótce</span>}
           </button>
         ))}
       </nav>
 
+      {/* Right: avatar + settings */}
       <div className="header-right">
-        {user.photoURL && <img src={user.photoURL} alt="" className="avatar" />}
-        <button className="settings-btn" onClick={onSettingsOpen} title="Ustawienia">⚙️</button>
-        <button className="btn-logout" onClick={handleLogout}>Wyloguj</button>
+        <button className="settings-btn" onClick={onSettingsOpen} title="Ustawienia">
+          <IconSettings size={17} />
+        </button>
+        {user.photoURL
+          ? <img src={user.photoURL} alt="" className="avatar" />
+          : <div className="avatar-placeholder">{displayName[0]}</div>
+        }
       </div>
     </header>
   )

@@ -5,12 +5,14 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import AccountForm from './AccountForm'
 import { fmt } from '../../utils/currency'
+import { CatIcon, IconBank, IconCash, IconCard, IconSavings, IconEdit, IconTrash } from '../Icons'
 
 const fmtAcc = (n, currency = 'PLN') =>
   new Intl.NumberFormat('pl-PL', { style: 'currency', currency }).format(n)
 
-const ACCOUNT_ICONS = {
-  bank: '🏦', cash: '💵', card: '💳', revolut: '📱', savings: '🐷', investment: '📈'
+const ACCOUNT_ICON_COMPS = {
+  bank: IconBank, cash: IconCash, card: IconCard,
+  revolut: IconCard, savings: IconSavings, investment: IconSavings
 }
 
 export default function AccountsView({ user, privateMode }) {
@@ -67,8 +69,8 @@ export default function AccountsView({ user, privateMode }) {
         <div className="accounts-list">
           {accounts.map(acc => (
             <div key={acc.id} className="account-item" onClick={() => setSelected(acc)}>
-              <div className="account-icon-wrap" style={{ background: acc.color + '22', borderColor: acc.color + '44' }}>
-                <span className="account-icon">{ACCOUNT_ICONS[acc.type] || '🏦'}</span>
+              <div className="account-icon-wrap" style={{ background: acc.color + '1A', borderColor: acc.color + '40', color: acc.color }}>
+                {(() => { const Ic = ACCOUNT_ICON_COMPS[acc.type] || IconBank; return <Ic size={22} /> })()}
               </div>
               <div className="account-info">
                 <span className="account-name">{acc.name}</span>
@@ -76,8 +78,8 @@ export default function AccountsView({ user, privateMode }) {
               </div>
               <div className="account-right">
                 <span className="account-balance">{privateMode ? '••••' : fmtAcc(acc.balance || 0, acc.currency || 'PLN')}</span>
-                <button className="t-btn" onClick={(e) => { e.stopPropagation(); setEditAccount(acc); setShowForm(true) }}>✏️</button>
-                <button className="t-btn delete" onClick={(e) => handleDelete(acc.id, e)}>🗑️</button>
+                <button className="t-btn" onClick={(e) => { e.stopPropagation(); setEditAccount(acc); setShowForm(true) }}><IconEdit size={13} /></button>
+                <button className="t-btn delete" onClick={(e) => handleDelete(acc.id, e)}><IconTrash size={13} /></button>
               </div>
             </div>
           ))}
@@ -140,7 +142,7 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
         <div style={{ textAlign: 'right' }}>
           <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{privateMode ? '••••' : fmtAcc(account.balance || 0, account.currency || 'PLN')}</p>
         </div>
-        <button className="t-btn" onClick={onEdit} style={{ fontSize: 16 }}>✏️</button>
+        <button className="t-btn" onClick={onEdit}><IconEdit size={16} /></button>
       </div>
 
       {/* Period filter */}
@@ -172,7 +174,7 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
         <div className="transaction-list">
           {transactions.map(t => (
             <div key={t.id} className={`transaction-item ${t.type}`}>
-              <div className="t-icon">{t.categoryIcon || '💸'}</div>
+              <div className="t-icon"><CatIcon categoryId={t.categoryId} emoji={t.categoryIcon} size={20} /></div>
               <div className="t-details">
                 <span className="t-category">{t.category}</span>
                 {t.description && <span className="t-desc">{t.description}</span>}

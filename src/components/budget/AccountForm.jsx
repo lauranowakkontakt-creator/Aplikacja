@@ -47,7 +47,7 @@ export default function AccountForm({ user, onClose, editData }) {
       <div className="modal">
         <div className="modal-header">
           <h3>{editData ? 'Edytuj konto' : 'Nowe konto'}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
           {/* Typ konta */}

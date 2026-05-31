@@ -3,6 +3,7 @@ import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Times
 import { db } from '../../firebase/config'
 import { format, parseISO, isToday, isBefore, startOfDay, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
+import { CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconBook, IconChart, IconFlame, IconCheck } from '../Icons'
 
 const PRAYER_CATS = [
   { id: 'personal',  label: 'Osobiste',      icon: '🙏', color: '#8b5cf6' },
@@ -66,13 +67,67 @@ export default function PrayerDashboard({ user }) {
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
+  const TAB_TITLES = { intentions: 'Intencje', people: 'Osoby', journal: 'Dziennik', stats: 'Statystyki' }
+
+  // Stats for tiles
+  const activeIntentions = intentions.filter(i => i.status === 'active').length
+  const totalSessions = sessions.length
+  const streak = (() => {
+    let s = 0
+    const today = format(new Date(), 'yyyy-MM-dd')
+    for (let i = 0; i < 365; i++) {
+      const d = format(subDays(new Date(), i), 'yyyy-MM-dd')
+      if (d > today) continue
+      if (sessions.some(s => s.date === d)) s++
+      else if (d < today) break
+    }
+    return s
+  })()
+
   return (
     <div className="prayer-dashboard">
+      {/* Mobile module header */}
+      <div className="mod-header">
+        <div>
+          <div className="mod-header-kicker">Modlitwa</div>
+          <div className="mod-header-title">{TAB_TITLES[tab]}</div>
+        </div>
+        <div className="mod-header-right">
+          <button className="icon-btn" onClick={() => setTab('journal')} title="Dziennik"><IconBook size={16} /></button>
+        </div>
+      </div>
+
+      {/* Verse card */}
+      <div className="prayer-verse-card">
+        <div className="prayer-verse-kicker">Werset dnia · {format(new Date(), 'd.MM', { locale: pl })}</div>
+        <p className="prayer-verse-text">"Bądź cicho przed Panem<br />i czekaj cierpliwie na Niego."</p>
+        <div className="prayer-verse-ref">— Psalm 37,7</div>
+      </div>
+
+      {/* Stat tiles */}
+      <div className="prayer-stat-tiles">
+        <div className="prayer-stat-tile">
+          <IconFlame size={16} style={{ color: 'var(--primary)' }} />
+          <div className="prayer-stat-num">{streak}</div>
+          <div className="prayer-stat-lbl">Dni z rzędu</div>
+        </div>
+        <div className="prayer-stat-tile">
+          <IconCheck size={16} style={{ color: 'var(--expense)' }} />
+          <div className="prayer-stat-num">{totalSessions}</div>
+          <div className="prayer-stat-lbl">Modlitw</div>
+        </div>
+        <div className="prayer-stat-tile">
+          <IconPrayer size={16} style={{ color: 'var(--warn)' }} />
+          <div className="prayer-stat-num">{activeIntentions}</div>
+          <div className="prayer-stat-lbl">Intencji</div>
+        </div>
+      </div>
+
       <div className="habit-view-tabs">
-        <button className={`habit-view-tab ${tab === 'intentions' ? 'active' : ''}`} onClick={() => setTab('intentions')}>🙏 Intencje</button>
-        <button className={`habit-view-tab ${tab === 'people'     ? 'active' : ''}`} onClick={() => setTab('people')}>👥 Osoby</button>
-        <button className={`habit-view-tab ${tab === 'journal'    ? 'active' : ''}`} onClick={() => setTab('journal')}>📖 Dziennik</button>
-        <button className={`habit-view-tab ${tab === 'stats'      ? 'active' : ''}`} onClick={() => setTab('stats')}>📊 Statystyki</button>
+        <button className={`habit-view-tab ${tab === 'intentions' ? 'active' : ''}`} onClick={() => setTab('intentions')}><IconPrayer size={14} /> Intencje</button>
+        <button className={`habit-view-tab ${tab === 'people'     ? 'active' : ''}`} onClick={() => setTab('people')}><IconUsers size={14} /> Osoby</button>
+        <button className={`habit-view-tab ${tab === 'journal'    ? 'active' : ''}`} onClick={() => setTab('journal')}><IconBook size={14} /> Dziennik</button>
+        <button className={`habit-view-tab ${tab === 'stats'      ? 'active' : ''}`} onClick={() => setTab('stats')}><IconChart size={14} /> Statystyki</button>
       </div>
 
       {tab === 'intentions' && <IntentionsView user={user} intentions={intentions} people={people} />}
@@ -206,7 +261,7 @@ function IntentionsView({ user, intentions, people }) {
                         {item.endedNote && <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>"{item.endedNote}"</p>}
                         {item.endedAt && <p style={{ margin: '3px 0 0', fontSize: 10, color: 'var(--text-muted)' }}>{format(item.endedAt?.toDate?.() || new Date(), 'd MMM yyyy', { locale: pl })}</p>}
                       </div>
-                      <button className="t-btn delete" onClick={() => handleDelete(item.id)}>🗑️</button>
+                      <button className="t-btn delete" onClick={() => handleDelete(item.id)}><IconTrash size={13} /></button>
                     </div>
                   </div>
                 )
@@ -238,8 +293,8 @@ function IntentionCard({ item, people, onTogglePrayed, onEnd, onEdit, onDelete }
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         {cat && (
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-            {cat.icon}
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color, flexShrink: 0 }}>
+            <CatIcon categoryId={cat.id} emoji={cat.icon} size={16} />
           </div>
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -267,8 +322,8 @@ function IntentionCard({ item, people, onTogglePrayed, onEnd, onEdit, onDelete }
           </div>
         </div>
         <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-          <button className="t-btn" onClick={onEdit}>✏️</button>
-          <button className="t-btn delete" onClick={() => onDelete(item.id)}>🗑️</button>
+          <button className="t-btn" onClick={onEdit}><IconEdit size={13} /></button>
+          <button className="t-btn delete" onClick={() => onDelete(item.id)}><IconTrash size={13} /></button>
         </div>
       </div>
 
@@ -280,7 +335,7 @@ function IntentionCard({ item, people, onTogglePrayed, onEnd, onEdit, onDelete }
           background: prayedToday ? 'rgba(39,174,96,0.15)' : 'transparent',
           color: prayedToday ? '#27AE60' : 'var(--text-muted)'
         }}>
-          {prayedToday ? '✓ Pomodlone dziś' : '🙏 Módl się'}
+          {prayedToday ? <><IconCheck size={12} /> Pomodlone dziś</> : <><IconPrayer size={12} /> Módl się</>}
         </button>
         <button onClick={onEnd} style={{
           padding: '7px 12px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
@@ -331,8 +386,8 @@ function PeopleView({ user, people, intentions }) {
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  <button className="t-btn" onClick={() => { setEditPerson(p); setShowForm(true) }}>✏️</button>
-                  <button className="t-btn delete" onClick={() => handleDelete(p.id)}>🗑️</button>
+                  <button className="t-btn" onClick={() => { setEditPerson(p); setShowForm(true) }}><IconEdit size={13} /></button>
+                  <button className="t-btn delete" onClick={() => handleDelete(p.id)}><IconTrash size={13} /></button>
                 </div>
               </div>
             )
@@ -376,7 +431,7 @@ function JournalView({ user, sessions }) {
 
       {streak > 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 28 }}>🔥</span>
+          <IconFlame size={28} style={{ color: 'var(--warn)', flexShrink: 0 }} />
           <div>
             <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{streak} dni z rzędu</p>
             <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>Nieprzerwaną passę</p>
@@ -401,7 +456,7 @@ function JournalView({ user, sessions }) {
                   </p>
                 )}
               </div>
-              <button className="t-btn delete" onClick={() => handleDelete(s.id)}>🗑️</button>
+              <button className="t-btn delete" onClick={() => handleDelete(s.id)}><IconTrash size={13} /></button>
             </div>
           ))}
         </div>
@@ -449,7 +504,7 @@ function StatsView({ sessions, intentions, people }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px', textAlign: 'center' }}>
-        <p style={{ margin: 0, fontSize: 36 }}>🔥</p>
+        <IconFlame size={36} style={{ color: 'var(--warn)' }} />
         <p style={{ margin: '6px 0 2px', fontSize: 28, fontWeight: 700 }}>{streak}</p>
         <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>dni z rzędu</p>
       </div>
@@ -542,7 +597,7 @@ function IntentionForm({ user, editData, people, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>{editData ? 'Edytuj intencję' : 'Nowa intencja'}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
           <div className="form-group">
@@ -591,7 +646,7 @@ function IntentionForm({ user, editData, people, onClose }) {
                   className={`cal-cat-btn ${categoryId === cat.id ? 'active' : ''}`}
                   style={categoryId === cat.id ? { borderColor: cat.color, background: cat.color + '22' } : {}}
                   onClick={() => setCatId(categoryId === cat.id ? '' : cat.id)}>
-                  <span className="cal-cat-icon" style={categoryId === cat.id ? { background: cat.color + '33' } : {}}>{cat.icon}</span>
+                  <span className="cal-cat-icon" style={categoryId === cat.id ? { background: cat.color + '33' } : {}}><CatIcon categoryId={cat.id} emoji={cat.icon} size={15} /></span>
                   <span className="cal-cat-label">{cat.label}</span>
                 </button>
               ))}
@@ -634,7 +689,7 @@ function EndModal({ item, onConfirm, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>Zakończ modlitwę</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div className="form">
           <p style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--text-muted)' }}>"{item.title}"</p>
@@ -677,7 +732,7 @@ function PersonForm({ user, editData, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>{editData ? 'Edytuj osobę' : 'Nowa osoba'}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
           <div className="form-group">
@@ -732,7 +787,7 @@ function SessionForm({ user, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>🙏 Zaloguj modlitwę</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
           <div className="form-group">

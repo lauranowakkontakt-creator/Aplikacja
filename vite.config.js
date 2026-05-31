@@ -2,18 +2,21 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const isDev = process.env.NODE_ENV !== 'production'
+
 export default defineConfig({
   base: '/Aplikacja/',
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      devOptions: { enabled: false },
       manifest: {
-        name: 'Mój Budżet',
-        short_name: 'Budżet',
-        description: 'Aplikacja do zarządzania budżetem osobistym',
-        theme_color: '#6366f1',
-        background_color: '#0f172a',
+        name: 'Mój Świat',
+        short_name: 'Mój Świat',
+        description: 'Budżet, nawyki, modlitwa i więcej',
+        theme_color: '#D4A574',
+        background_color: '#14110D',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/Aplikacja/',

@@ -7,6 +7,7 @@ import {
   addMonths, subMonths, getDate
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
+import { CatIcon, IconEdit, IconTrash, IconCalendar, IconBook, IconTag, IconClose, IconChevronLeft, IconChevronRight } from '../Icons'
 
 const DEFAULT_CATEGORIES = [
   { slug: 'work',     label: 'Praca',     icon: '💼', color: '#3b82f6' },
@@ -91,15 +92,30 @@ export default function CalendarDashboard({ user }) {
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
+  const calMonthLabel = format(currentMonth, 'LLLL yyyy', { locale: pl })
+
   return (
     <div className="calendar-dashboard">
+      {/* Mobile module header */}
+      <div className="mod-header">
+        <div>
+          <div className="mod-header-kicker">Kalendarz</div>
+          <div className="mod-header-title" style={{ textTransform: 'capitalize' }}>{calMonthLabel}</div>
+        </div>
+        <div className="mod-header-right">
+          <button className="icon-btn"><IconChevronLeft size={16} onClick={() => setCurrentMonth(m => subMonths(m, 1))} /></button>
+          <button className="icon-btn"><IconChevronRight size={16} onClick={() => setCurrentMonth(m => addMonths(m, 1))} /></button>
+          <button className="icon-btn" onClick={() => { setEditEvent(null); setShowForm(true) }} style={{ background: 'var(--primary)', color: 'var(--bg)', border: 'none' }}><span style={{ fontSize: 18 }}>+</span></button>
+        </div>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <div className="habit-view-tabs" style={{ flex: 1 }}>
-          <button className={`habit-view-tab ${tab === 'month'  ? 'active' : ''}`} onClick={() => setTab('month')}>📅 Miesiąc</button>
-          <button className={`habit-view-tab ${tab === 'agenda' ? 'active' : ''}`} onClick={() => setTab('agenda')}>📋 Agenda</button>
+          <button className={`habit-view-tab ${tab === 'month'  ? 'active' : ''}`} onClick={() => setTab('month')}><IconCalendar size={14} /> Miesiąc</button>
+          <button className={`habit-view-tab ${tab === 'agenda' ? 'active' : ''}`} onClick={() => setTab('agenda')}><IconBook size={14} /> Agenda</button>
         </div>
         <button className="cal-nav-btn" style={{ fontSize: 13, padding: '5px 10px', whiteSpace: 'nowrap' }}
-          onClick={() => setShowCatMgr(true)}>🏷 Kategorie</button>
+          onClick={() => setShowCatMgr(true)}><IconTag size={14} /> Kategorie</button>
       </div>
 
       {tab === 'month' ? (
@@ -202,14 +218,23 @@ function MonthView({ currentMonth, selectedDay, categories, onDayClick, onPrev, 
 
 /* ─── DayDetail ─── */
 function DayDetail({ day, events, todos, payments, categories, onAdd, onEdit, onDelete }) {
+  const total = events.length + todos.length + payments.length
   return (
     <div className="cal-day-detail">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>
-          <span style={{ textTransform: 'capitalize' }}>{format(day, 'EEEE, d MMMM', { locale: pl })}</span>
-          {isToday(day) && <span style={{ marginLeft: 8, fontSize: 10, background: 'var(--primary)', color: '#fff', padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>DZIŚ</span>}
-        </p>
-        <button className="btn-add-habit" style={{ padding: '5px 12px', fontSize: 12 }} onClick={onAdd}>+ Dodaj</button>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.14em' }}>
+            {format(day, 'EEEE', { locale: pl })}
+            {isToday(day) && <span style={{ marginLeft: 8, background: 'var(--primary)', color: 'var(--bg)', padding: '1px 5px', borderRadius: 3, fontSize: 8, fontWeight: 700, verticalAlign: 'middle' }}>DZIŚ</span>}
+          </div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 26, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.15, textTransform: 'capitalize', marginTop: 2 }}>
+            {format(day, 'd MMMM', { locale: pl })}
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>{total > 0 ? `1 / ${total}` : ''}</span>
+          <button className="icon-btn" onClick={onAdd} style={{ background: 'var(--primary)', color: 'var(--bg)', border: 'none' }}><span style={{ fontSize: 18 }}>+</span></button>
+        </div>
       </div>
 
       {events.length === 0 && todos.length === 0 && payments.length === 0 ? (
@@ -227,7 +252,7 @@ function DayDetail({ day, events, todos, payments, categories, onAdd, onEdit, on
           ))}
           {payments.map(p => (
             <div key={p.id} className="cal-event-row" style={{ borderLeftColor: '#f59e0b', opacity: 0.8 }}>
-              <span style={{ fontSize: 14 }}>{p.categoryIcon || '🔄'}</span>
+              <CatIcon categoryId={p.categoryId} emoji={p.categoryIcon} size={14} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>{p.name}</p>
                 <p style={{ margin: '1px 0 0', fontSize: 10, color: '#f59e0b', fontWeight: 600 }}>REGULARNA PŁATNOŚĆ</p>
@@ -283,7 +308,7 @@ function AgendaView({ events, categories, onAdd, onEdit, onDelete }) {
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{e.title}</p>
                   <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{format(parseISO(e.date), 'd MMM yyyy', { locale: pl })}</p>
                 </div>
-                <button className="t-btn delete" onClick={() => onDelete(e.id)}>🗑️</button>
+                <button className="t-btn delete" onClick={() => onDelete(e.id)}><IconTrash size={13} /></button>
               </div>
             ))}
           </div>
@@ -295,22 +320,29 @@ function AgendaView({ events, categories, onAdd, onEdit, onDelete }) {
 
 /* ─── EventRow (shared) ─── */
 function EventRow({ e, categories, onEdit, onDelete }) {
-  const cat = findCat(categories, e.categoryId)
+  const cat   = findCat(categories, e.categoryId)
+  const color = getCatColor(categories, e)
   return (
-    <div className="cal-event-row" style={{ borderLeftColor: getCatColor(categories, e) }}>
-      {cat && (
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: cat.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>
-          {cat.icon}
+    <div className="cal-event-row" style={{ borderLeftColor: color }}>
+      {e.startTime && (
+        <div style={{ minWidth: 44, flexShrink: 0 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{e.startTime}</div>
+          {e.endTime && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>–{e.endTime}</div>}
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{e.title}</p>
-        {cat && <p style={{ margin: '1px 0 0', fontSize: 10, color: cat.color, fontWeight: 600 }}>{cat.label}</p>}
-        {e.startTime && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>🕐 {e.startTime}{e.endTime ? ` – ${e.endTime}` : ''}</p>}
-        {e.note && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{e.note}</p>}
+        <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{e.title}</p>
+        {cat && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '2px 8px', background: color + '1A', color, borderRadius: 99, fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
+            {cat.label}
+          </div>
+        )}
+        {e.note && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{e.note}</p>}
       </div>
-      <button className="t-btn" onClick={() => onEdit(e)}>✏️</button>
-      <button className="t-btn delete" onClick={() => onDelete(e.id)}>🗑️</button>
+      <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+        <button className="t-btn" onClick={() => onEdit(e)}><IconEdit size={13} /></button>
+        <button className="t-btn delete" onClick={() => onDelete(e.id)}><IconTrash size={13} /></button>
+      </div>
     </div>
   )
 }
@@ -357,7 +389,7 @@ function EventForm({ user, editData, defaultDate, categories, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>{editData ? 'Edytuj wydarzenie' : 'Nowe wydarzenie'}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
           <div className="form-group">
@@ -374,7 +406,7 @@ function EventForm({ user, editData, defaultDate, categories, onClose }) {
                   className={`cal-cat-btn ${categoryId === cat.id ? 'active' : ''}`}
                   style={categoryId === cat.id ? { borderColor: cat.color, background: cat.color + '22' } : {}}
                   onClick={() => setCategoryId(cat.id)}>
-                  <span className="cal-cat-icon" style={categoryId === cat.id ? { background: cat.color + '33' } : {}}>{cat.icon}</span>
+                  <span className="cal-cat-icon" style={categoryId === cat.id ? { background: cat.color + '33' } : {}}><CatIcon categoryId={cat.slug} emoji={cat.icon} size={15} /></span>
                   <span className="cal-cat-label">{cat.label}</span>
                 </button>
               ))}
@@ -437,17 +469,17 @@ function CategoryManager({ user, categories, onClose }) {
       <div className="modal">
         <div className="modal-header">
           <h3>Kategorie</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div className="form">
           {/* Existing categories */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>
             {categories.map(cat => (
               <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--surface2, rgba(255,255,255,.04))', borderRadius: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 17 }}>{cat.icon}</div>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color }}><CatIcon categoryId={cat.slug} emoji={cat.icon} size={17} /></div>
                 <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{cat.label}</span>
                 <div style={{ width: 14, height: 14, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
-                <button className="t-btn delete" onClick={() => handleDelete(cat.id)}>🗑️</button>
+                <button className="t-btn delete" onClick={() => handleDelete(cat.id)}><IconTrash size={13} /></button>
               </div>
             ))}
           </div>

@@ -10,17 +10,18 @@ import TodoDashboard from './components/todo/TodoDashboard'
 import CalendarDashboard from './components/calendar/CalendarDashboard'
 import PrayerDashboard from './components/prayer/PrayerDashboard'
 import SettingsDrawer from './components/SettingsDrawer'
+import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconSettings } from './components/Icons'
 
 const DEV_USER = { uid: 'dev-user', displayName: 'Laura', photoURL: null }
 const DEV_MODE = import.meta.env.DEV
 
 export const MODULES = [
-  { id: 'budget',  label: 'Budżet',   icon: '💰' },
-  { id: 'habits',  label: 'Nawyki',   icon: '✅' },
-  { id: 'mood',    label: 'Nastrój',  icon: '💭', hidden: true },
-  { id: 'todo',    label: 'To-do',    icon: '📋' },
-  { id: 'calendar',label: 'Kalendarz',icon: '📅' },
-  { id: 'prayer',  label: 'Modlitwa', icon: '🙏' },
+  { id: 'budget',   label: 'Budżet',    Icon: IconBudget },
+  { id: 'habits',   label: 'Nawyki',    Icon: IconHabits },
+  { id: 'mood',     label: 'Nastrój',   Icon: IconMood,     hidden: true },
+  { id: 'todo',     label: 'To-do',     Icon: IconTodo },
+  { id: 'calendar', label: 'Kalendarz', Icon: IconCalendar },
+  { id: 'prayer',   label: 'Modlitwa',  Icon: IconPrayer },
 ]
 
 export default function App() {
@@ -31,10 +32,10 @@ export default function App() {
 
   useEffect(() => {
     if (DEV_MODE) return
-    const timeout = setTimeout(() => setLoading(false), 5000)
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const timeout = setTimeout(() => setLoading(false), 8000)
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
       clearTimeout(timeout)
-      setUser(user)
+      setUser(u)
       setLoading(false)
     }, () => { clearTimeout(timeout); setLoading(false) })
     return () => { unsubscribe(); clearTimeout(timeout) }
@@ -69,25 +70,33 @@ export default function App() {
       </main>
 
       {/* Bottom nav mobile */}
-      <nav className="bottom-nav">
-        {MODULES.filter(m => !m.soon && !m.hidden).map(m => (
-          <button
-            key={m.id}
-            className={`bottom-nav-item ${activeModule === m.id ? 'active' : ''}`}
-            onClick={() => setActiveModule(m.id)}
-          >
-            <span>{m.icon}</span>
-            <span>{m.label}</span>
-          </button>
-        ))}
-        <button
-          className={`bottom-nav-item ${drawerOpen ? 'active' : ''}`}
-          onClick={() => setDrawerOpen(true)}
-        >
-          <span>⚙️</span>
-          <span>Więcej</span>
-        </button>
-      </nav>
+      {(() => {
+        const navItems = [...MODULES.filter(m => !m.soon && !m.hidden), { id: '__settings', label: 'Więcej', Icon: IconSettings }]
+        const activeId = drawerOpen ? '__settings' : activeModule
+        const activeIdx = navItems.findIndex(m => m.id === activeId)
+        const pct = navItems.length > 0 ? (activeIdx + 0.5) * (100 / navItems.length) : 0
+        return (
+          <nav className="bottom-nav">
+            <div className="bottom-nav-indicator" style={{ left: `calc(${pct}% - 15px)` }} />
+            {navItems.map(m => {
+              const isActive = activeId === m.id
+              return (
+                <button
+                  key={m.id}
+                  className={`bottom-nav-item ${isActive ? 'active' : ''}`}
+                  onClick={() => {
+                    if (m.id === '__settings') setDrawerOpen(true)
+                    else { setActiveModule(m.id); setDrawerOpen(false) }
+                  }}
+                >
+                  <m.Icon size={22} />
+                  <span>{m.label}</span>
+                </button>
+              )
+            })}
+          </nav>
+        )
+      })()}
 
       {/* Settings drawer */}
       <SettingsDrawer

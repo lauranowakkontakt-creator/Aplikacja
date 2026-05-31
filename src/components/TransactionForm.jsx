@@ -4,6 +4,7 @@ import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { getCurrencyCode } from '../utils/currency'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../utils/categories'
+import { CatIcon, IconClose } from './Icons'
 
 export const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_CATEGORIES
 export const INCOME_CATEGORIES  = DEFAULT_INCOME_CATEGORIES
@@ -73,7 +74,7 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
       <div className="modal">
         <div className="modal-header">
           <h3>{editData ? 'Edytuj transakcję' : 'Nowa transakcja'}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
           <div className="type-toggle">
@@ -96,8 +97,8 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
                   className={`cat-icon-btn ${category === cat.id ? 'active' : ''}`}
                   onClick={() => setCategory(cat.id)}
                 >
-                  <div className="cat-circle" style={{ background: category === cat.id ? cat.color : cat.color + '33', borderColor: category === cat.id ? cat.color : 'transparent' }}>
-                    <span>{cat.icon}</span>
+                  <div className="cat-circle" style={{ background: category === cat.id ? cat.color : cat.color + '33', borderColor: category === cat.id ? cat.color : 'transparent', color: category === cat.id ? '#fff' : cat.color }}>
+                    <CatIcon categoryId={cat.id} emoji={cat.icon} size={18} />
                   </div>
                   <span className="cat-label">{cat.label}</span>
                 </button>

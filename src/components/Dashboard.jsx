@@ -17,13 +17,14 @@ import SavingsGoals from './budget/SavingsGoals'
 import Reminders from './budget/Reminders'
 import CategoriesView from './budget/CategoriesView'
 import ShoppingList from './budget/ShoppingList'
+import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore } from './Icons'
 
 const TABS = [
-  { id: 'transactions', label: 'Transakcje', icon: '↕️' },
-  { id: 'accounts',     label: 'Konta',       icon: '🏦' },
-  { id: 'charts',       label: 'Wykresy',      icon: '📊' },
-  { id: 'regular',      label: 'Regularne',    icon: '🔄' },
-  { id: 'shopping',     label: 'Zakupy',       icon: '🛒' },
+  { id: 'transactions', label: 'Transakcje', Icon: IconTransfer },
+  { id: 'accounts',     label: 'Konta',       Icon: IconBank },
+  { id: 'charts',       label: 'Wykresy',      Icon: IconChart },
+  { id: 'regular',      label: 'Regularne',    Icon: IconStar },
+  { id: 'shopping',     label: 'Zakupy',       Icon: IconShopping },
 ]
 
 export default function Dashboard({ user }) {
@@ -67,8 +68,37 @@ export default function Dashboard({ user }) {
     if (id === 'categories') return setModal('categories')
   }
 
+  const fmtHero = (n) => {
+    const abs = Math.abs(n)
+    const parts = abs.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).split(',')
+    return { int: (n >= 0 ? '+' : '−') + parts[0], dec: ',' + (parts[1] ?? '00') }
+  }
+
   return (
     <div className="dashboard">
+      {/* Mobile module header */}
+      <div className="mod-header">
+        <div>
+          <div className="mod-header-kicker">Budżet</div>
+          <div className="mod-header-title" style={{ textTransform: 'capitalize' }}>{monthLabel}</div>
+        </div>
+        <div className="mod-header-right">
+          <button className="icon-btn" onClick={() => handleMenuAction('search')}><IconSearch size={16} /></button>
+          <BudgetMenu onAction={handleMenuAction} privateMode={privateMode} mobile />
+        </div>
+      </div>
+
+      {/* Month range row — mobile */}
+      {activeTab === 'transactions' && (
+        <div className="month-range-row mobile-only">
+          <button className="icon-btn" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}><IconChevronLeft size={16} /></button>
+          <span className="month-range-label">
+            {format(monthStart, 'd', { locale: pl })} — {format(monthEnd, 'd LLLL', { locale: pl }).toUpperCase()}
+          </span>
+          <button className="icon-btn" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}><IconChevronRight size={16} /></button>
+        </div>
+      )}
+
       {/* Tabs + menu */}
       <div className="budget-header-row">
         <div className="budget-tabs" style={{ overflowX: 'auto', scrollbarWidth: 'none' }}>
@@ -77,26 +107,50 @@ export default function Dashboard({ user }) {
               className={`budget-tab ${activeTab === t.id ? 'active' : ''}`}
               onClick={() => setActiveTab(t.id)}
             >
-              <span className="budget-tab-icon">{t.icon}</span>
+              <span className="desktop-only"><t.Icon size={14} /></span>
               <span>{t.label}</span>
             </button>
           ))}
         </div>
-        <BudgetMenu onAction={handleMenuAction} privateMode={privateMode} />
+        <span className="desktop-only"><BudgetMenu onAction={handleMenuAction} privateMode={privateMode} /></span>
       </div>
 
-      {/* Month navigation */}
+      {/* Month navigation — desktop only */}
       {activeTab === 'transactions' && (
-        <div className="month-nav">
-          <button className="month-btn" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>‹</button>
+        <div className="month-nav desktop-only">
+          <button className="month-btn" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}><IconChevronLeft size={16} /></button>
           <h2 className="month-label">{monthLabel}</h2>
-          <button className="month-btn" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>›</button>
+          <button className="month-btn" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}><IconChevronRight size={16} /></button>
         </div>
       )}
 
       {activeTab === 'transactions' && (
         <>
-          <Summary income={income} expenses={expenses} balance={balance} privateMode={privateMode} />
+          {/* Balance hero — mobile */}
+          {!privateMode && (
+            <div className="balance-hero mobile-only">
+              <div className="balance-hero-label">Saldo miesiąca</div>
+              <div className="balance-hero-amount">
+                <span className="balance-hero-main" style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(balance).int}</span>
+                <span className="balance-hero-cents" style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(balance).dec} zł</span>
+              </div>
+              <div className="balance-hero-row">
+                <div className="balance-hero-stat">
+                  <span className="balance-hero-stat-label">Przychody</span>
+                  <span className="balance-hero-stat-value" style={{ color: 'var(--income)' }}>+{income.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł</span>
+                </div>
+                <div className="balance-hero-stat-sep" />
+                <div className="balance-hero-stat">
+                  <span className="balance-hero-stat-label">Wydatki</span>
+                  <span className="balance-hero-stat-value" style={{ color: 'var(--expense)' }}>−{expenses.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* Summary grid — desktop */}
+          <div className="desktop-only">
+            <Summary income={income} expenses={expenses} balance={balance} privateMode={privateMode} />
+          </div>
           <TransactionList
             transactions={transactions}
             loading={loading}
@@ -112,7 +166,7 @@ export default function Dashboard({ user }) {
       {activeTab === 'shopping'  && <ShoppingList user={user} />}
 
       {activeTab === 'transactions' && (
-        <button className="btn-add" onClick={() => setShowForm(true)}>+</button>
+        <button className="btn-add" onClick={() => setShowForm(true)}><IconPlus size={22} /></button>
       )}
 
       {modal === 'transfer'    && <TransferForm   user={user} onClose={() => setModal(null)} />}
@@ -140,7 +194,7 @@ function ComingSoon({ title, onClose }) {
       <div className="modal" style={{ textAlign: 'center' }}>
         <div className="modal-header">
           <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div style={{ padding: '32px 20px', color: 'var(--text-muted)' }}>
           <p style={{ fontSize: 40, marginBottom: 16 }}>🚧</p>

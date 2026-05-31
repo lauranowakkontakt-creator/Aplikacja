@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, CAT_COLORS } from '../../utils/categories'
+import { CatIcon, IconClose, IconTrash, IconTag } from '../Icons'
 
 const EMOJI_PRESETS = ['🍕','☕','🏠','🛒','🚗','🎁','📚','💻','❤️','✈️','🎬','📖','⛪','🕊️','👕','📱','🐷','📌','💼','⭐','↩️','🎀','📈','🏦','💵','💳','🔧','🎮','🍔','🌿','💊','📦','🎵','🏋️','🐾','🌊','⚽','🎓','🛍️','💐']
 
@@ -61,8 +62,8 @@ export default function CategoriesView({ user, onClose }) {
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-tall">
         <div className="modal-header">
-          <h3>🏷️ Kategorie</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <h3><IconTag size={18} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Kategorie</h3>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
 
         <div className="habit-view-tabs" style={{ marginBottom: 12 }}>
@@ -78,14 +79,14 @@ export default function CategoriesView({ user, onClose }) {
                 background: 'var(--surface)', border: '1px solid var(--border)',
                 borderRadius: 10, padding: '8px 12px'
               }}>
-                <div style={{ width: 36, height: 36, borderRadius: 9, background: cat.color + '33', border: `1.5px solid ${cat.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-                  {cat.icon}
+                <div style={{ width: 36, height: 36, borderRadius: 9, background: cat.color + '33', border: `1.5px solid ${cat.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color, flexShrink: 0 }}>
+                  <CatIcon categoryId={cat.id} emoji={cat.icon} size={18} />
                 </div>
                 <span style={{ flex: 1, fontSize: 14, color: 'var(--text)' }}>{cat.label}</span>
                 <div style={{ display: 'flex', gap: 4 }}>
                   <button className="t-btn" onClick={() => move(cat.id, -1)} disabled={i === 0} style={{ opacity: i === 0 ? 0.3 : 1 }}>↑</button>
                   <button className="t-btn" onClick={() => move(cat.id, +1)} disabled={i === cats.length - 1} style={{ opacity: i === cats.length - 1 ? 0.3 : 1 }}>↓</button>
-                  <button className="t-btn delete" onClick={() => deleteCat(cat.id)}>🗑️</button>
+                  <button className="t-btn delete" onClick={() => deleteCat(cat.id)}><IconTrash size={13} /></button>
                 </div>
               </div>
             ))}

@@ -4,6 +4,7 @@ import { db } from '../../firebase/config'
 import { format, parseISO, isAfter, isBefore, startOfDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../../utils/currency'
+import { CatIcon, IconEdit, IconTrash, IconCheck, IconCalendar } from '../Icons'
 import RegularPaymentForm from './RegularPaymentForm'
 
 const FREQ_LABELS = { monthly: 'miesięcznie', weekly: 'tygodniowo', yearly: 'rocznie' }
@@ -128,7 +129,15 @@ export default function RegularPayments({ user }) {
                 borderRadius: 12, padding: '12px 14px', opacity: !active ? 0.45 : done ? 0.75 : 1
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 22 }}>{p.categoryIcon || '🔄'}</span>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 11, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: p.type === 'income' ? 'rgba(98,195,156,0.15)' : 'rgba(224,101,60,0.15)',
+                    border: `1px solid ${p.type === 'income' ? 'rgba(98,195,156,0.35)' : 'rgba(224,101,60,0.35)'}`,
+                    color: p.type === 'income' ? 'var(--income)' : 'var(--expense)',
+                  }}>
+                    <CatIcon categoryId={p.categoryId} emoji={p.categoryIcon} size={18} />
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</span>
@@ -142,7 +151,7 @@ export default function RegularPayments({ user }) {
                     </span>
                     {hasRange && (
                       <span style={{ fontSize: 11, color: 'var(--text-muted)', display: 'block', marginTop: 2 }}>
-                        📅 {p.dateFrom ? fmtDate(p.dateFrom) : '—'} → {p.dateTo ? fmtDate(p.dateTo) : 'bezterminowo'}
+                        <IconCalendar size={10} /> {p.dateFrom ? fmtDate(p.dateFrom) : '—'} → {p.dateTo ? fmtDate(p.dateTo) : 'bezterminowo'}
                       </span>
                     )}
                   </div>
@@ -154,7 +163,7 @@ export default function RegularPayments({ user }) {
                       {active && !done && (
                         <button style={{ fontSize: 11, padding: '3px 8px', background: 'rgba(39,174,96,0.15)', border: '1px solid #27AE6060', borderRadius: 6, color: '#27AE60', cursor: 'pointer', fontWeight: 600 }}
                           onClick={() => markDone(p)}>
-                          ✓ Zrobione
+                          <IconCheck size={10} /> Zrobione
                         </button>
                       )}
                       {done && (
@@ -163,8 +172,8 @@ export default function RegularPayments({ user }) {
                           ↩ Cofnij
                         </button>
                       )}
-                      <button className="t-btn" onClick={() => { setEditPayment(p); setShowForm(true) }}>✏️</button>
-                      <button className="t-btn delete" onClick={() => handleDelete(p.id)}>🗑️</button>
+                      <button className="t-btn" onClick={() => { setEditPayment(p); setShowForm(true) }}><IconEdit size={13} /></button>
+                      <button className="t-btn delete" onClick={() => handleDelete(p.id)}><IconTrash size={13} /></button>
                     </div>
                   </div>
                 </div>
