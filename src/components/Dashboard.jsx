@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'
+import { collection, query, where, orderBy, onSnapshot, Timestamp, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -29,6 +29,7 @@ const TABS = [
 
 export default function Dashboard({ user }) {
   const [transactions, setTransactions] = useState([])
+  const [accounts, setAccounts]         = useState([])
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [showForm, setShowForm] = useState(false)
   const [editTransaction, setEditTransaction] = useState(null)
@@ -39,6 +40,11 @@ export default function Dashboard({ user }) {
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd   = endOfMonth(currentMonth)
+
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
 
   useEffect(() => {
     const q = query(
@@ -56,6 +62,7 @@ export default function Dashboard({ user }) {
   const income   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const expenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const balance  = income - expenses
+  const totalAccountBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0)
   const monthLabel = format(currentMonth, 'LLLL yyyy', { locale: pl })
 
   const handleMenuAction = (id) => {
@@ -145,6 +152,14 @@ export default function Dashboard({ user }) {
                   <span className="balance-hero-stat-value" style={{ color: 'var(--expense)' }}>−{expenses.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł</span>
                 </div>
               </div>
+              {accounts.length > 0 && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Saldo wszystkich kont</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: totalAccountBalance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
+                    {totalAccountBalance >= 0 ? '+' : '−'}{Math.abs(totalAccountBalance).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł
+                  </span>
+                </div>
+              )}
             </div>
           )}
           {/* Summary grid — desktop */}

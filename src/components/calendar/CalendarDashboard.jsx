@@ -49,6 +49,7 @@ export default function CalendarDashboard({ user }) {
   const [todos, setTodos]         = useState([])
   const [payments, setPayments]   = useState([])
   const [categories, setCategories] = useState([])
+  const [people, setPeople]       = useState([])
   const [loading, setLoading]     = useState(true)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDay, setSelectedDay]   = useState(new Date())
@@ -72,6 +73,11 @@ export default function CalendarDashboard({ user }) {
       }
       setCategories(snap.docs.map(d => ({ id: d.id, ...d.data() })))
     })
+  }, [user.uid])
+
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'prayerPeople'), orderBy('name', 'asc'))
+    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
 
   useEffect(() => {
@@ -159,7 +165,7 @@ export default function CalendarDashboard({ user }) {
       )}
 
       {showForm && (
-        <EventForm user={user} editData={editEvent} categories={categories}
+        <EventForm user={user} editData={editEvent} categories={categories} people={people}
           defaultDate={format(selectedDay, 'yyyy-MM-dd')}
           onClose={() => { setShowForm(false); setEditEvent(null) }} />
       )}
@@ -345,11 +351,18 @@ function EventRow({ e, categories, onEdit, onDelete }) {
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{e.title}</p>
-        {cat && (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '2px 8px', background: color + '1A', color, borderRadius: 99, fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
-            {cat.label}
-          </div>
-        )}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: cat || e.personName ? 4 : 0 }}>
+          {cat && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', background: color + '1A', color, borderRadius: 99, fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
+              {cat.label}
+            </div>
+          )}
+          {e.personName && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 8px', background: 'rgba(255,255,255,0.06)', borderRadius: 99, fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>
+              👤 {e.personName}
+            </div>
+          )}
+        </div>
         {e.note && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{e.note}</p>}
       </div>
       <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
@@ -361,17 +374,19 @@ function EventRow({ e, categories, onEdit, onDelete }) {
 }
 
 /* ─── EventForm ─── */
-function EventForm({ user, editData, defaultDate, categories, onClose }) {
+function EventForm({ user, editData, defaultDate, categories, people, onClose }) {
   const [title, setTitle]           = useState(editData?.title || '')
   const [date, setDate]             = useState(editData?.date || defaultDate)
   const [startTime, setStartTime]   = useState(editData?.startTime || '')
   const [endTime, setEndTime]       = useState(editData?.endTime || '')
   const [note, setNote]             = useState(editData?.note || '')
   const [categoryId, setCategoryId] = useState(editData?.categoryId || '')
+  const [personId, setPersonId]     = useState(editData?.personId || '')
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
 
-  const selectedCat = findCat(categories, categoryId)
+  const selectedCat    = findCat(categories, categoryId)
+  const selectedPerson = people?.find(p => p.id === personId)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -385,6 +400,8 @@ function EventForm({ user, editData, defaultDate, categories, onClose }) {
       categoryId: categoryId || null,
       categoryIcon: selectedCat?.icon || null,
       color: selectedCat?.color || '#607D8B',
+      personId: personId || null,
+      personName: selectedPerson?.name || null,
       updatedAt: Timestamp.now()
     }
     try {
@@ -440,6 +457,21 @@ function EventForm({ user, editData, defaultDate, categories, onClose }) {
               <input type="time" className="form-input" value={endTime} onChange={e => setEndTime(e.target.value)} />
             </div>
           </div>
+          {people?.length > 0 && (
+            <div className="form-group">
+              <label>Osoba (opcjonalnie)</label>
+              <div className="account-chips">
+                <button type="button" className={`account-chip ${!personId ? 'active' : ''}`} onClick={() => setPersonId('')}>Brak</button>
+                {people.map(p => (
+                  <button key={p.id} type="button"
+                    className={`account-chip ${personId === p.id ? 'active' : ''}`}
+                    onClick={() => setPersonId(p.id)}
+                  >{p.name}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="form-group">
             <label>Notatka (opcjonalnie)</label>
             <input type="text" className="form-input" value={note} onChange={e => setNote(e.target.value)}

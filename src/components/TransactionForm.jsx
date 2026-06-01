@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query, getDoc } from 'firebase/firestore'
+import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query, getDoc, increment } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { getCurrencyCode } from '../utils/currency'
@@ -62,8 +62,20 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
     try {
       if (editData) {
         await updateDoc(doc(db, 'users', user.uid, 'transactions', editData.id), data)
+        if (editData.accountId) {
+          const reversal = editData.type === 'income' ? -editData.amount : editData.amount
+          await updateDoc(doc(db, 'users', user.uid, 'accounts', editData.accountId), { balance: increment(reversal) })
+        }
+        if (accountId) {
+          const delta = type === 'income' ? parseFloat(amount) : -parseFloat(amount)
+          await updateDoc(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(delta) })
+        }
       } else {
         await addDoc(collection(db, 'users', user.uid, 'transactions'), { ...data, createdAt: Timestamp.now() })
+        if (accountId) {
+          const delta = type === 'income' ? parseFloat(amount) : -parseFloat(amount)
+          await updateDoc(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(delta) })
+        }
       }
       onClose()
     } catch { setError('Błąd zapisu. Spróbuj ponownie.'); setSaving(false) }

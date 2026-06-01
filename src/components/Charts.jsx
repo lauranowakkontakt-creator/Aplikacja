@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { CatIcon } from './Icons'
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart, Line } from 'recharts'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart } from 'recharts'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, subMonths, addMonths, eachDayOfInterval, eachMonthOfInterval, subWeeks, addWeeks, subYears, addYears, subDays, addDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../utils/currency'
@@ -144,9 +144,13 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
               <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} width={52} tickFormatter={v => fmt(v).replace(/[\s,].*/,'')} />
               <Tooltip formatter={(v, name) => [fmt(v), name === 'income' ? 'Przychód' : name === 'expense' ? 'Wydatek' : 'Bilans']}
                 contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }} />
-              <Bar dataKey="income"  fill="#27AE60"         radius={[3,3,0,0]} name="income" />
-              <Bar dataKey="expense" fill="var(--expense)"  radius={[3,3,0,0]} name="expense" />
-              <Line dataKey="balance" stroke="var(--primary)" strokeWidth={2} dot={{ r: 3, fill: 'var(--primary)' }} name="balance" />
+              <Bar dataKey="income"  fill="#27AE60"        radius={[3,3,0,0]} name="income" />
+              <Bar dataKey="expense" fill="var(--expense)" radius={[3,3,0,0]} name="expense" />
+              <Bar dataKey="balance" radius={[3,3,0,0]} name="balance">
+                {timeline.map((entry, i) => (
+                  <Cell key={i} fill={entry.balance >= 0 ? '#3b82f6' : '#f97316'} />
+                ))}
+              </Bar>
             </ComposedChart>
           </ResponsiveContainer>
         </div>

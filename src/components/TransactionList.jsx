@@ -1,4 +1,4 @@
-import { deleteDoc, doc } from 'firebase/firestore'
+import { deleteDoc, doc, updateDoc, increment } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -8,9 +8,13 @@ import { CatIcon, IconEdit, IconTrash } from './Icons'
 const hide = '••••'
 
 export default function TransactionList({ transactions, loading, onEdit, user, privateMode }) {
-  const handleDelete = async (id) => {
+  const handleDelete = async (t) => {
     if (!confirm('Usunąć tę transakcję?')) return
-    await deleteDoc(doc(db, 'users', user.uid, 'transactions', id))
+    await deleteDoc(doc(db, 'users', user.uid, 'transactions', t.id))
+    if (t.accountId) {
+      const reversal = t.type === 'income' ? -t.amount : t.amount
+      await updateDoc(doc(db, 'users', user.uid, 'accounts', t.accountId), { balance: increment(reversal) })
+    }
   }
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
@@ -77,7 +81,7 @@ export default function TransactionList({ transactions, loading, onEdit, user, p
                     </span>
                     <div className="t-actions">
                       <button className="t-btn edit" onClick={() => onEdit(t)}><IconEdit size={13} /></button>
-                      <button className="t-btn delete" onClick={() => handleDelete(t.id)}><IconTrash size={13} /></button>
+                      <button className="t-btn delete" onClick={() => handleDelete(t)}><IconTrash size={13} /></button>
                     </div>
                   </div>
                 </div>
