@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { fmt } from '../../utils/currency'
-import { IconEdit, IconTrash } from '../Icons'
+import { IconEdit, IconTrash, IconClose } from '../Icons'
 
-const GOAL_EMOJIS = ['🎯', '🏠', '✈️', '🚗', '💍', '📱', '🎓', '💻', '🏖️', '🐷', '💰', '🛍️']
+const GOAL_EMOJIS = [
+  '🎯','🏠','✈️','🚗','💍','📱','🎓','💻','🏖️','🐷',
+  '💰','🛍️','🎁','🏆','🚀','🎸','🌍','🏋️','💎','🔑',
+  '🎪','🐾','🌺','⭐','🔥','🧠','🌊','🏔️','🎨','🎬',
+]
 
 export default function SavingsGoals({ user, onClose }) {
   const [goals, setGoals]     = useState([])
@@ -118,6 +122,7 @@ function GoalForm({ user, editData, onClose }) {
   const [notes, setNotes]       = useState(editData?.notes || '')
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
+  const [emojiExpanded, setEmojiExpanded] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -151,8 +156,16 @@ function GoalForm({ user, editData, onClose }) {
         <form onSubmit={handleSubmit} className="form">
           <div className="form-group">
             <label>Emoji</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 28 }}>{emoji}</span>
+              <input type="text" className="form-input" value={emoji}
+                onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setEmoji(v) }}
+                placeholder="emoji" maxLength={4}
+                style={{ width: 72, textAlign: 'center', fontSize: 18, margin: 0 }} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
+            </div>
             <div className="mood-emotions">
-              {GOAL_EMOJIS.map(e => (
+              {(emojiExpanded ? GOAL_EMOJIS : GOAL_EMOJIS.slice(0, 15)).map(e => (
                 <button key={e} type="button"
                   className={`mood-emotion-btn ${emoji === e ? 'active' : ''}`}
                   style={emoji === e ? { borderColor: 'var(--primary)', background: 'rgba(201,75,40,0.1)', color: 'var(--text)' } : {}}
@@ -160,6 +173,10 @@ function GoalForm({ user, editData, onClose }) {
                 >{e}</button>
               ))}
             </div>
+            <button type="button" onClick={() => setEmojiExpanded(v => !v)}
+              style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+              {emojiExpanded ? '▲ Mniej' : `▼ Więcej (${GOAL_EMOJIS.length - 15})`}
+            </button>
           </div>
 
           <div className="form-group">

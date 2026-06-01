@@ -15,8 +15,21 @@ const PRIORITY = [
   { id: 'medium', label: 'Średni',  color: '#FB8C00' },
   { id: 'low',    label: 'Niski',   color: '#43A047' },
 ]
-const LIST_ICONS  = ['📁','🏠','💼','📚','🛒','💪','✈️','🎯','❤️','🌱','💡','🎨','🔧','📝','🎵']
-const LIST_COLORS = ['#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#ef4444','#84cc16']
+const LIST_ICONS  = [
+  '📁','🏠','💼','📚','🛒','💪','✈️','🎯','❤️','🌱',
+  '💡','🎨','🔧','📝','🎵','🌍','🏋️','🍕','☕','🐾',
+  '💰','🎮','🎬','📷','🚗','🧘','🏃','🧹','💊','🌺',
+  '⭐','🔑','📅','💌','🏆','🎁','🌙','☀️','🔥','💎',
+  '🧠','⚽','🎸','📱','💻','🏠','🌿','🦋','🍀','🎉',
+  '🙏','✝️','🕊️','📖','⚡','🎭','🌊','🏔️','🦁','🌸',
+]
+const LIST_COLORS = [
+  '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',
+  '#22C55E','#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1',
+  '#8B5CF6','#A855F7','#EC4899','#F43F5E','#64748B','#6B7280',
+  '#059669','#0EA5E9','#DC2626','#7C3AED','#0D9488','#4F46E5',
+  '#BE185D','#6B9E72','#4A90D9','#1ABC9C','#E74C3C','#92400E',
+]
 const pOrder      = { high: 0, medium: 1, low: 2 }
 
 export default function TodoDashboard({ user }) {
@@ -29,6 +42,9 @@ export default function TodoDashboard({ user }) {
   const [editTodo, setEditTodo]     = useState(null)
   const [showDone, setShowDone]     = useState(false)
   const [showListForm, setShowListForm] = useState(false)
+  const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showMenu, setShowMenu]     = useState(false)
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc'))
@@ -60,7 +76,9 @@ export default function TodoDashboard({ user }) {
     return (pOrder[a.priority] ?? 3) - (pOrder[b.priority] ?? 3)
   })
 
-  const filtered = activeList ? todos.filter(t => t.listId === activeList) : todos
+  const byList   = activeList ? todos.filter(t => t.listId === activeList) : todos
+  const bySearch = searchQuery.trim() ? byList.filter(t => t.title.toLowerCase().includes(searchQuery.toLowerCase())) : byList
+  const filtered = bySearch
   const active   = sortActive(filtered.filter(t => !t.done))
   const done     = filtered.filter(t => t.done)
 
@@ -81,11 +99,37 @@ export default function TodoDashboard({ user }) {
           <div className="mod-header-kicker">To-do</div>
           <div className="mod-header-title">{headerTitle}</div>
         </div>
-        <div className="mod-header-right">
-          <button className="icon-btn"><IconSearch size={16} /></button>
-          <button className="icon-btn"><IconMore size={16} /></button>
+        <div className="mod-header-right" style={{ position: 'relative' }}>
+          <button className="icon-btn" onClick={() => { setShowSearch(s => !s); setSearchQuery('') }}
+            style={showSearch ? { color: 'var(--primary)' } : {}}>
+            <IconSearch size={16} />
+          </button>
+          <button className="icon-btn" onClick={() => setShowMenu(m => !m)}><IconMore size={16} /></button>
+          {showMenu && (
+            <div style={{
+              position: 'absolute', top: '110%', right: 0, background: 'var(--surface)',
+              border: '1px solid var(--border)', borderRadius: 10, padding: '6px 0',
+              minWidth: 180, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
+            }} onClick={() => setShowMenu(false)}>
+              <button style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
+                onClick={() => { setShowDone(v => !v); setShowMenu(false) }}>
+                {showDone ? '✓ ' : ''}Ukończone zadania
+              </button>
+              <button style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
+                onClick={() => { setShowListForm(true); setShowMenu(false) }}>
+                + Nowa lista
+              </button>
+            </div>
+          )}
         </div>
       </div>
+      {showSearch && (
+        <div style={{ padding: '0 0 12px' }}>
+          <input autoFocus className="form-input" placeholder="Szukaj zadań..." value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{ margin: 0 }} />
+        </div>
+      )}
 
       {/* Główne zakładki */}
       <div className="habit-view-tabs">
@@ -529,6 +573,7 @@ function ListForm({ user, onClose }) {
   const [icon, setIcon]     = useState('📁')
   const [color, setColor]   = useState('#6366f1')
   const [saving, setSaving] = useState(false)
+  const [emojiExpanded, setEmojiExpanded] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -555,8 +600,16 @@ function ListForm({ user, onClose }) {
           </div>
           <div className="form-group">
             <label>Ikona</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 28 }}>{icon}</span>
+              <input type="text" className="form-input" value={icon}
+                onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setIcon(v) }}
+                placeholder="emoji" maxLength={4}
+                style={{ width: 72, textAlign: 'center', fontSize: 18, margin: 0 }} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {LIST_ICONS.map(i => (
+              {(emojiExpanded ? LIST_ICONS : LIST_ICONS.slice(0, 15)).map(i => (
                 <button key={i} type="button" onClick={() => setIcon(i)} style={{
                   width: 36, height: 36, borderRadius: 8, fontSize: 18, cursor: 'pointer',
                   border: `2px solid ${icon === i ? 'var(--primary)' : 'var(--border)'}`,
@@ -564,6 +617,10 @@ function ListForm({ user, onClose }) {
                 }}>{i}</button>
               ))}
             </div>
+            <button type="button" onClick={() => setEmojiExpanded(v => !v)}
+              style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+              {emojiExpanded ? '▲ Mniej' : `▼ Więcej (${LIST_ICONS.length - 15})`}
+            </button>
           </div>
           <div className="form-group">
             <label>Kolor</label>

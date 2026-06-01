@@ -3,6 +3,7 @@ import { collection, addDoc, onSnapshot, orderBy, query, Timestamp, doc, updateD
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { fmt, getCurrencyCode } from '../../utils/currency'
+import { IconClose } from '../Icons'
 
 export default function TransferForm({ user, onClose }) {
   const [accounts, setAccounts] = useState([])

@@ -13,9 +13,21 @@ export const HABIT_CATEGORIES = [
   { id: 'other',   label: 'Inne',      icon: '📌' },
 ]
 
-const HABIT_COLORS = ['#C94B28', '#6B9E72', '#4A90D9', '#9B59B6', '#E67E22', '#1ABC9C', '#E74C3C', '#F1C40F']
+const HABIT_COLORS = [
+  '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',
+  '#22C55E','#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1',
+  '#8B5CF6','#A855F7','#EC4899','#F43F5E','#64748B','#6B7280',
+  '#92400E','#059669','#0EA5E9','#DC2626','#7C3AED','#0D9488',
+  '#4F46E5','#BE185D','#6B9E72','#4A90D9','#1ABC9C','#E74C3C',
+]
 
-const EMOJIS = ['💪', '📖', '🧘', '🏃', '💧', '🥗', '😴', '🙏', '✍️', '🎯', '🎸', '🌿', '☕', '🧹', '💊', '🚶', '🏋️', '🧠', '❤️', '⭐']
+const EMOJIS = [
+  '💪','📖','🧘','🏃','💧','🥗','😴','🙏','✍️','🎯',
+  '🎸','🌿','☕','🧹','💊','🚶','🏋️','🧠','❤️','⭐',
+  '🌅','🛁','🎨','🥦','🚲','📝','🎵','🕯️','🌊','🍵',
+  '🦷','🧴','🏊','⚽','🎾','🥊','📷','🌱','🫀','🧬',
+  '✝️','📿','🌺','🦋','🍀','🎉','💎','🔥','🎓','🚀',
+]
 
 const FREQ_DAYS = [
   { id: 1, label: 'Pn' }, { id: 2, label: 'Wt' }, { id: 3, label: 'Śr' },
@@ -34,6 +46,7 @@ export default function HabitForm({ user, onClose, editData }) {
   const [endDate, setEndDate]     = useState(editData?.endDate || '')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
+  const [emojiExpanded, setEmojiExpanded] = useState(false)
 
   const toggleDay = (id) =>
     setFreqDays(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id])
@@ -88,11 +101,23 @@ export default function HabitForm({ user, onClose, editData }) {
           {/* Emoji */}
           <div className="form-group">
             <label>Ikona</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 28 }}>{emoji}</span>
+              <input type="text" className="form-input" value={emoji}
+                onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setEmoji(v) }}
+                placeholder="emoji" maxLength={4}
+                style={{ width: 72, textAlign: 'center', fontSize: 18, margin: 0 }} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
+            </div>
             <div className="emoji-grid">
-              {EMOJIS.map(e => (
+              {(emojiExpanded ? EMOJIS : EMOJIS.slice(0, 15)).map(e => (
                 <button key={e} type="button" className={`emoji-btn ${emoji === e ? 'active' : ''}`} onClick={() => setEmoji(e)}>{e}</button>
               ))}
             </div>
+            <button type="button" onClick={() => setEmojiExpanded(v => !v)}
+              style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+              {emojiExpanded ? '▲ Mniej' : `▼ Więcej (${EMOJIS.length - 15})`}
+            </button>
           </div>
 
           {/* Nazwa */}

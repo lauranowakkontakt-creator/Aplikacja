@@ -24,8 +24,21 @@ const DEFAULT_CATEGORIES = [
   { slug: 'other',    label: 'Inne',      icon: '📌', color: '#607D8B' },
 ]
 
-const CAT_ICONS   = ['💼','🏠','❤️','🎉','📚','💪','👨‍👩‍👧','🤝','✈️','💰','🙏','📌','🎵','🍽️','🎬','🏥','🎓','🛒','🌿','⚽','🎨','🔧','📞','🎂','🚗','💊','📸','🌙','☀️','🎯']
-const CAT_COLORS  = ['#C94B28','#3b82f6','#10b981','#ef4444','#f59e0b','#8b5cf6','#14b8a6','#ec4899','#6366f1','#84cc16','#a78bfa','#607D8B']
+const CAT_ICONS   = [
+  '💼','🏠','❤️','🎉','📚','💪','👨‍👩‍👧','🤝','✈️','💰',
+  '🙏','📌','🎵','🍽️','🎬','🏥','🎓','🛒','🌿','⚽',
+  '🎨','🔧','📞','🎂','🚗','💊','📸','🌙','☀️','🎯',
+  '🌍','🏆','🎸','🎤','🧘','🏋️','🐾','🌺','⭐','🔑',
+  '📅','💌','🎁','🔥','💎','🧠','💻','📱','🌊','🏔️',
+  '✝️','🕊️','🌸','🦋','🍀','🎭','🎪','🚀','⚡','🌈',
+]
+const CAT_COLORS  = [
+  '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',
+  '#22C55E','#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1',
+  '#8B5CF6','#A855F7','#EC4899','#F43F5E','#64748B','#607D8B',
+  '#059669','#0EA5E9','#DC2626','#7C3AED','#0D9488','#4F46E5',
+  '#BE185D','#A78BFA','#92400E','#4A90D9','#1ABC9C','#E74C3C',
+]
 const WEEKDAYS    = ['Pn','Wt','Śr','Cz','Pt','So','Nd']
 
 const findCat   = (cats, id) => cats.find(c => c.id === id)
@@ -448,6 +461,7 @@ function CategoryManager({ user, categories, onClose }) {
   const [label, setLabel]   = useState('')
   const [color, setColor]   = useState(CAT_COLORS[0])
   const [saving, setSaving] = useState(false)
+  const [emojiExpanded, setEmojiExpanded] = useState(false)
 
   const handleAdd = async (e) => {
     e.preventDefault()
@@ -496,8 +510,16 @@ function CategoryManager({ user, categories, onClose }) {
             </div>
             <div className="form-group">
               <label>Ikona</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 28 }}>{icon}</span>
+                <input type="text" className="form-input" value={icon}
+                  onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setIcon(v) }}
+                  placeholder="emoji" maxLength={4}
+                  style={{ width: 72, textAlign: 'center', fontSize: 18, margin: 0 }} />
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
+              </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {CAT_ICONS.map(i => (
+                {(emojiExpanded ? CAT_ICONS : CAT_ICONS.slice(0, 15)).map(i => (
                   <button key={i} type="button" onClick={() => setIcon(i)} style={{
                     width: 34, height: 34, borderRadius: 8, fontSize: 17, cursor: 'pointer',
                     border: `2px solid ${icon === i ? 'var(--primary)' : 'var(--border)'}`,
@@ -505,6 +527,10 @@ function CategoryManager({ user, categories, onClose }) {
                   }}>{i}</button>
                 ))}
               </div>
+              <button type="button" onClick={() => setEmojiExpanded(v => !v)}
+                style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+                {emojiExpanded ? '▲ Mniej' : `▼ Więcej (${CAT_ICONS.length - 15})`}
+              </button>
             </div>
             <div className="form-group">
               <label>Kolor</label>

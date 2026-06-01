@@ -133,6 +133,15 @@ body {
 }
 .login-error { color: var(--expense); font-size: 13px; margin-top: 12px; }
 .login-note { color: var(--text-muted); font-size: 11px; margin-top: 20px; }
+.btn-email-toggle { background: none; border: none; color: var(--text-muted); font-size: 12px; font-family: var(--font-sans); cursor: pointer; margin-top: 12px; text-decoration: underline; padding: 0; }
+.btn-email-toggle:hover { color: var(--text); }
+.login-email-form { display: flex; flex-direction: column; gap: 10px; width: 100%; margin-top: 4px; }
+.login-input { background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; color: var(--text); font-size: 16px; font-family: var(--font-sans); outline: none; transition: border-color 0.15s; }
+.login-input:focus { border-color: var(--primary); }
+.btn-email-submit { width: 100%; padding: 13px; background: var(--primary); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 600; font-family: var(--font-sans); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.15s; }
+.btn-email-submit:hover { opacity: 0.9; }
+.btn-email-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+.login-toggle-row { display: flex; justify-content: space-between; }
 
 /* App layout */
 .app { min-height: 100vh; display: flex; flex-direction: column; }
@@ -155,7 +164,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 20px 14px;
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 20px 14px;
     border-bottom: 1px solid var(--border);
     background: var(--bg);
     position: sticky;
@@ -348,7 +357,7 @@ body {
   }
   .bottom-nav-item.active svg { transform: translateY(-1px) scale(1.12); }
   .bottom-nav-item.active { color: var(--primary); font-weight: 600; }
-  .main-content { padding: 28px 20px 90px; }
+  .main-content { padding: 28px 20px calc(90px + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* Month nav */
@@ -418,6 +427,7 @@ body {
   gap: 4px;
   white-space: nowrap;
   line-height: 1;
+  overflow: hidden;
 }
 .balance-hero-main {
   font-family: var(--font-serif);
@@ -583,6 +593,7 @@ body {
 .t-amount.expense { color: var(--expense); }
 .t-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
 .transaction-item:hover .t-actions { opacity: 1; }
+@media (max-width: 640px) { .t-actions { opacity: 1; } }
 .t-btn { background: none; border: none; cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 4px; }
 .t-btn:hover { background: var(--border); }
 
@@ -606,6 +617,9 @@ body {
   justify-content: center;
 }
 .btn-add:hover { background: var(--primary-hover); transform: scale(1.06); }
+@media (max-width: 640px) {
+  .btn-add { bottom: calc(max(28px, env(safe-area-inset-bottom)) + 68px); right: 20px; }
+}
 
 /* Modal */
 .modal-overlay {
@@ -1769,3 +1783,11 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
   .cal-day-num { width: 24px; height: 24px; font-size: 12px; }
   .cal-dot { width: 4px; height: 4px; }
 }
+
+/* Prayer driving mode */
+.driving-mode .prayer-verse-text { font-size: 28px; line-height: 1.45; }
+.driving-mode .prayer-verse-kicker, .driving-mode .prayer-verse-ref { font-size: 14px; }
+.driving-mode .prayer-stat-num { font-size: 36px; }
+.driving-mode .prayer-stat-lbl { font-size: 12px; }
+.driving-mode .habit-view-tab { font-size: 15px; padding: 10px 16px; }
+.driving-mode .mod-header-title { font-size: 22px; }

@@ -3,7 +3,7 @@ import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format, getDaysInMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { CatIcon, IconBell } from '../Icons'
+import { CatIcon, IconBell, IconClose } from '../Icons'
 import { fmt } from '../../utils/currency'
 
 export default function Reminders({ user, onClose }) {

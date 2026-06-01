@@ -3,6 +3,7 @@ import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, que
 import { db } from '../../firebase/config'
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../TransactionForm'
 import { getCurrencyCode } from '../../utils/currency'
+import { IconClose } from '../Icons'
 
 const FREQUENCIES = [
   { id: 'monthly', label: 'Co miesiąc' },

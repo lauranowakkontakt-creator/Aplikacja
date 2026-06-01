@@ -4,7 +4,7 @@ import { getFirestore } from 'firebase/firestore'
 
 // UZUPEŁNIJ te dane po stworzeniu projektu Firebase (patrz instrukcja poniżej)
 const firebaseConfig = {
-  apiKey: "AIzaSyDIu08Q_gjmbWrUQc_pnigWfrEfT8FmGA0",
+  apiKey: "AIzaSyDIuO8Q_gjmbWrUQc_pnigWfrEfT8FmGA0",
   authDomain: "aplikacja-0.firebaseapp.com",
   projectId: "aplikacja-0",
   storageBucket: "aplikacja-0.firebasestorage.app",

@@ -24,7 +24,13 @@ const PRIORITY_CFG = [
   { v: 1, label: 'Minimalny', color: '#9E9E9E' },
 ]
 
-const PERSON_ICONS = ['👤','👨','👩','👴','👵','👦','👧','👨‍👩‍👧','💑','👫','🧑','👶','🧑‍💼','🧑‍🏫','🧑‍⚕️','🙋','🫂','❤️','🌟','🕊️']
+const PERSON_ICONS = [
+  '👤','👨','👩','👴','👵','👦','👧','👨‍👩‍👧','💑','👫',
+  '🧑','👶','🧑‍💼','🧑‍🏫','🧑‍⚕️','🙋','🫂','❤️','🌟','🕊️',
+  '😊','😢','🤒','💪','🙏','✝️','📿','⛪','🌹','🕯️',
+  '👼','😇','🤝','👮','🚒','🎓','💍','🌺','🦋','⭐',
+  '🐣','🌱','💔','🩺','👩‍👧','👨‍👦','🫶','🤗','🌈','🕌',
+]
 
 const findCat  = (id) => PRAYER_CATS.find(c => c.id === id)
 const findPrio = (v)  => PRIORITY_CFG.find(p => p.v === v)
@@ -36,6 +42,7 @@ export default function PrayerDashboard({ user }) {
   const [sessions, setSessions]     = useState([])
   const [loading, setLoading]       = useState(true)
   const [tab, setTab]               = useState('intentions')
+  const [drivingMode, setDrivingMode] = useState(false)
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'prayerIntentions'), orderBy('createdAt', 'desc'))
@@ -85,7 +92,7 @@ export default function PrayerDashboard({ user }) {
   })()
 
   return (
-    <div className="prayer-dashboard">
+    <div className={`prayer-dashboard${drivingMode ? ' driving-mode' : ''}`}>
       {/* Mobile module header */}
       <div className="mod-header">
         <div>
@@ -93,6 +100,10 @@ export default function PrayerDashboard({ user }) {
           <div className="mod-header-title">{TAB_TITLES[tab]}</div>
         </div>
         <div className="mod-header-right">
+          <button className="icon-btn" onClick={() => setDrivingMode(m => !m)}
+            title="Tryb jazdy" style={drivingMode ? { color: 'var(--primary)', fontSize: 15 } : { fontSize: 15 }}>
+            🚗
+          </button>
           <button className="icon-btn" onClick={() => setTab('journal')} title="Dziennik"><IconBook size={16} /></button>
         </div>
       </div>
@@ -130,7 +141,7 @@ export default function PrayerDashboard({ user }) {
         <button className={`habit-view-tab ${tab === 'stats'      ? 'active' : ''}`} onClick={() => setTab('stats')}><IconChart size={14} /> Statystyki</button>
       </div>
 
-      {tab === 'intentions' && <IntentionsView user={user} intentions={intentions} people={people} />}
+      {tab === 'intentions' && <IntentionsView user={user} intentions={intentions} people={people} drivingMode={drivingMode} />}
       {tab === 'people'     && <PeopleView     user={user} people={people} intentions={intentions} />}
       {tab === 'journal'    && <JournalView    user={user} sessions={sessions} />}
       {tab === 'stats'      && <StatsView      sessions={sessions} intentions={intentions} people={people} />}
@@ -139,7 +150,7 @@ export default function PrayerDashboard({ user }) {
 }
 
 /* ─── IntentionsView ─── */
-function IntentionsView({ user, intentions, people }) {
+function IntentionsView({ user, intentions, people, drivingMode }) {
   const [filterPerson, setFilterPerson] = useState(null)
   const [filterCat, setFilterCat]       = useState(null)
   const [showForm, setShowForm]         = useState(false)
@@ -179,6 +190,34 @@ function IntentionsView({ user, intentions, people }) {
   }
 
   const usedPeople = people.filter(p => active.some(i => i.personId === p.id))
+
+  if (drivingMode) return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {active.length === 0 ? (
+        <div className="list-empty"><p>Brak aktywnych intencji</p></div>
+      ) : active.map(item => {
+        const cat = findCat(item.categoryId)
+        const person = people.find(p => p.id === item.personId)
+        const prayedToday = item.prayedDates?.includes(TODAY())
+        return (
+          <button key={item.id}
+            onClick={() => togglePrayedToday(item)}
+            style={{
+              background: prayedToday ? 'rgba(201,75,40,0.12)' : 'var(--surface)',
+              border: `2px solid ${prayedToday ? 'var(--primary)' : 'var(--border)'}`,
+              borderRadius: 16, padding: '20px 18px', textAlign: 'left', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 14
+            }}>
+            <span style={{ fontSize: 32, flexShrink: 0 }}>{prayedToday ? '🙏' : (cat ? cat.icon : '🕊️')}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 20, fontWeight: 700, lineHeight: 1.3 }}>{item.title}</p>
+              {person && <p style={{ margin: '4px 0 0', fontSize: 15, color: 'var(--text-muted)' }}>Za {person.name}</p>}
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -711,6 +750,7 @@ function PersonForm({ user, editData, onClose }) {
   const [note, setNote]   = useState(editData?.note || '')
   const [icon, setIcon]   = useState(editData?.icon || '👤')
   const [saving, setSaving] = useState(false)
+  const [emojiExpanded, setEmojiExpanded] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -742,8 +782,16 @@ function PersonForm({ user, editData, onClose }) {
           </div>
           <div className="form-group">
             <label>Ikona</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 28 }}>{icon}</span>
+              <input type="text" className="form-input" value={icon}
+                onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setIcon(v) }}
+                placeholder="emoji" maxLength={4}
+                style={{ width: 72, textAlign: 'center', fontSize: 18, margin: 0 }} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {PERSON_ICONS.map(i => (
+              {(emojiExpanded ? PERSON_ICONS : PERSON_ICONS.slice(0, 15)).map(i => (
                 <button key={i} type="button" onClick={() => setIcon(i)} style={{
                   width: 34, height: 34, borderRadius: 8, fontSize: 18, cursor: 'pointer',
                   border: `2px solid ${icon === i ? 'var(--primary)' : 'var(--border)'}`,
@@ -751,6 +799,10 @@ function PersonForm({ user, editData, onClose }) {
                 }}>{i}</button>
               ))}
             </div>
+            <button type="button" onClick={() => setEmojiExpanded(v => !v)}
+              style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+              {emojiExpanded ? '▲ Mniej' : `▼ Więcej (${PERSON_ICONS.length - 15})`}
+            </button>
           </div>
           <div className="form-group">
             <label>Notatka (opcjonalnie)</label>

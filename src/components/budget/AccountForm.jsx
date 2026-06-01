@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import { IconClose } from '../Icons'
 
 const ACCOUNT_TYPES = [
   { id: 'bank',       label: 'Konto bankowe', icon: '🏦' },

@@ -4,7 +4,7 @@ import { db } from '../../firebase/config'
 import { startOfMonth, endOfMonth } from 'date-fns'
 import { INCOME_CATEGORIES } from '../TransactionForm'
 import { fmt } from '../../utils/currency'
-import { CatIcon, IconPrayer, IconSettings } from '../Icons'
+import { CatIcon, IconPrayer, IconSettings, IconClose } from '../Icons'
 
 const DEFAULT_TITHE_CATS = INCOME_CATEGORIES.map(c => c.id)
 
