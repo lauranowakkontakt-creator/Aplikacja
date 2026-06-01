@@ -32,13 +32,16 @@ export default function RegularPayments({ user }) {
     return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
 
-  // Auto-add payments that aren't done yet
+  // Auto-add payments only when the due day has arrived
   useEffect(() => {
     if (!payments.length) return
+    const today = new Date()
+    const todayDay = today.getDate()
     payments.forEach(async (p) => {
-      if (p.autoAdd && !p.donePeriods?.includes(THIS_PERIOD)) {
-        await addTransactionForPayment(p)
-      }
+      if (!p.autoAdd || p.donePeriods?.includes(THIS_PERIOD)) return
+      if (!isActive(p)) return
+      if (p.frequency === 'monthly' && todayDay < (p.dayOfMonth || 1)) return
+      await addTransactionForPayment(p)
     })
   }, [payments.map(p=>p.id).join(',')])
 
