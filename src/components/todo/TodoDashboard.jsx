@@ -8,7 +8,7 @@ import {
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag } from '../Icons'
 
 const PRIORITY = [
   { id: 'high',   label: 'Wysoki',  color: '#E53935' },
@@ -85,7 +85,7 @@ export default function TodoDashboard({ user }) {
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   const activeListObj = lists.find(l => l.id === activeList)
-  const headerTitle = activeListObj ? `${activeListObj.icon || ''} ${activeListObj.name}` : 'Zadania'
+  const headerTitle = activeListObj ? activeListObj.name : 'Zadania'
 
   // Today count
   const dueToday = active.filter(t => t.dueDate && isToday(parseISO(t.dueDate)))
@@ -154,7 +154,7 @@ export default function TodoDashboard({ user }) {
                   className={`todo-list-chip ${activeList === l.id ? 'active' : ''}`}
                   style={activeList === l.id ? { borderColor: l.color, background: l.color + '22', color: l.color } : {}}
                   onClick={() => setActiveList(l.id)}>
-                  {l.icon} {l.name}
+                  <CatIcon categoryId={null} emoji={l.icon} size={13} /> {l.name}
                   {cnt > 0 && <span className="todo-count">{cnt}</span>}
                 </button>
               )
@@ -397,7 +397,7 @@ function ListStatRow({ icon, name, color, done, active }) {
   const pct   = total > 0 ? Math.round((done / total) * 100) : 0
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ fontSize: 16, width: 22, textAlign: 'center', flexShrink: 0 }}>{icon}</span>
+      <div style={{ width: 22, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CatIcon categoryId={null} emoji={icon} size={16} /></div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
           <span style={{ fontSize: 13, fontWeight: 500 }}>{name}</span>
@@ -456,8 +456,8 @@ function TodoItem({ todo, lists, onToggle, onEdit, onDelete }) {
         {todo.note && <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{todo.note}</p>}
         <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
           {list && (
-            <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 4, background: list.color + '22', color: list.color, fontWeight: 600 }}>
-              {list.icon} {list.name}
+            <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 4, background: list.color + '22', color: list.color, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <CatIcon categoryId={null} emoji={list.icon} size={12} /> {list.name}
             </span>
           )}
           {date && (
@@ -552,7 +552,7 @@ function TodoForm({ user, lists, editData, defaultListId, onClose }) {
                   <button key={l.id} type="button"
                     className={`account-chip ${listId === l.id ? 'active' : ''}`}
                     style={listId === l.id ? { borderColor: l.color, background: l.color + '22' } : {}}
-                    onClick={() => setListId(l.id)}>{l.icon} {l.name}</button>
+                    onClick={() => setListId(l.id)}><CatIcon categoryId={null} emoji={l.icon} size={13} /> {l.name}</button>
                 ))}
               </div>
             </div>
@@ -569,18 +569,22 @@ function TodoForm({ user, lists, editData, defaultListId, onClose }) {
 
 /* ─── ListForm ─── */
 function ListForm({ user, onClose }) {
-  const [name, setName]     = useState('')
-  const [icon, setIcon]     = useState('📁')
-  const [color, setColor]   = useState('#6366f1')
-  const [saving, setSaving] = useState(false)
-  const [emojiExpanded, setEmojiExpanded] = useState(false)
+  const [name, setName]         = useState('')
+  const [iconKey, setIconKey]   = useState('IcFolder')
+  const [iconSearch, setIconSearch] = useState('')
+  const [color, setColor]       = useState('#6366f1')
+  const [saving, setSaving]     = useState(false)
+
+  const filteredIcons = iconSearch.trim()
+    ? ICON_CATALOG.filter(ic => ic.label.toLowerCase().includes(iconSearch.toLowerCase()) || ic.group.toLowerCase().includes(iconSearch.toLowerCase()))
+    : ICON_CATALOG.slice(0, 56)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
     await addDoc(collection(db, 'users', user.uid, 'todoLists'), {
-      name: name.trim(), icon, color, createdAt: Timestamp.now()
+      name: name.trim(), icon: iconKey, color, createdAt: Timestamp.now()
     })
     onClose()
   }
@@ -600,27 +604,28 @@ function ListForm({ user, onClose }) {
           </div>
           <div className="form-group">
             <label>Ikona</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 28 }}>{icon}</span>
-              <input type="text" className="form-input" value={icon}
-                onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setIcon(v) }}
-                placeholder="emoji" maxLength={4}
-                style={{ width: 72, textAlign: 'center', fontSize: 18, margin: 0 }} />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color, border: `2px solid ${color}` }}>
+                <CatIcon categoryId={null} emoji={iconKey} size={22} />
+              </div>
+              <input type="text" className="form-input" value={iconSearch} onChange={e => setIconSearch(e.target.value)}
+                placeholder="Szukaj ikony..." style={{ margin: 0, flex: 1 }} />
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {(emojiExpanded ? LIST_ICONS : LIST_ICONS.slice(0, 15)).map(i => (
-                <button key={i} type="button" onClick={() => setIcon(i)} style={{
-                  width: 36, height: 36, borderRadius: 8, fontSize: 18, cursor: 'pointer',
-                  border: `2px solid ${icon === i ? 'var(--primary)' : 'var(--border)'}`,
-                  background: icon === i ? 'rgba(201,75,40,0.1)' : 'transparent'
-                }}>{i}</button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, maxHeight: 180, overflowY: 'auto' }}>
+              {filteredIcons.map(ic => (
+                <button key={ic.key} type="button"
+                  onClick={() => setIconKey(ic.key)}
+                  title={ic.label}
+                  style={{
+                    width: '100%', aspectRatio: '1', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    border: `2px solid ${iconKey === ic.key ? color : 'var(--border)'}`,
+                    background: iconKey === ic.key ? color + '22' : 'transparent',
+                    color: iconKey === ic.key ? color : 'var(--text-muted)', padding: 0
+                  }}>
+                  <CatIcon categoryId={null} emoji={ic.key} size={17} />
+                </button>
               ))}
             </div>
-            <button type="button" onClick={() => setEmojiExpanded(v => !v)}
-              style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
-              {emojiExpanded ? '▲ Mniej' : `▼ Więcej (${LIST_ICONS.length - 15})`}
-            </button>
           </div>
           <div className="form-group">
             <label>Kolor</label>

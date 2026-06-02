@@ -62,7 +62,21 @@ export default function Dashboard({ user }) {
   const income   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const expenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const balance  = income - expenses
-  const totalAccountBalance = accounts.reduce((s, a) => s + (a.balance || 0), 0)
+  const [visibleAccounts, setVisibleAccounts] = useState(null) // null = all
+  const shownAccounts = visibleAccounts === null ? accounts : accounts.filter(a => visibleAccounts.includes(a.id))
+  const totalAccountBalance = shownAccounts.reduce((s, a) => s + (a.balance || 0), 0)
+
+  const toggleAccountVisible = (id) => {
+    if (visibleAccounts === null) {
+      setVisibleAccounts(accounts.map(a => a.id).filter(aid => aid !== id))
+    } else if (visibleAccounts.includes(id)) {
+      const next = visibleAccounts.filter(aid => aid !== id)
+      setVisibleAccounts(next.length === accounts.length ? null : next.length === 0 ? accounts.map(a => a.id) : next)
+    } else {
+      const next = [...visibleAccounts, id]
+      setVisibleAccounts(next.length === accounts.length ? null : next)
+    }
+  }
   const monthLabel = format(currentMonth, 'LLLL yyyy', { locale: pl })
 
   const handleMenuAction = (id) => {
@@ -136,11 +150,44 @@ export default function Dashboard({ user }) {
           {/* Balance hero — mobile */}
           {!privateMode && (
             <div className="balance-hero mobile-only">
-              <div className="balance-hero-label">Saldo miesiąca</div>
-              <div className="balance-hero-amount">
-                <span className="balance-hero-main" style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(balance).int}</span>
-                <span className="balance-hero-cents" style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(balance).dec} zł</span>
-              </div>
+              {/* Big hero: total account balance */}
+              {accounts.length > 0 && (
+                <>
+                  <div className="balance-hero-label">Saldo kont</div>
+                  <div className="balance-hero-amount">
+                    <span className="balance-hero-main" style={{ color: totalAccountBalance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(totalAccountBalance).int}</span>
+                    <span className="balance-hero-cents" style={{ color: totalAccountBalance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(totalAccountBalance).dec} zł</span>
+                  </div>
+                  {/* Account chips filter */}
+                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', margin: '6px 0 10px' }}>
+                    {accounts.map(a => {
+                      const active = visibleAccounts === null || visibleAccounts.includes(a.id)
+                      return (
+                        <button key={a.id} onClick={() => toggleAccountVisible(a.id)} style={{
+                          fontSize: 10, padding: '2px 8px', borderRadius: 99, cursor: 'pointer', fontWeight: 600, border: `1px solid ${a.color}`,
+                          background: active ? a.color + '33' : 'transparent', color: active ? a.color : 'var(--text-muted)', opacity: active ? 1 : 0.5
+                        }}>{a.name}</button>
+                      )
+                    })}
+                  </div>
+                  <div style={{ paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Saldo miesiąca</span>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
+                      {fmtHero(balance).int}{fmtHero(balance).dec} zł
+                    </span>
+                  </div>
+                </>
+              )}
+              {/* If no accounts, show monthly balance as hero */}
+              {accounts.length === 0 && (
+                <>
+                  <div className="balance-hero-label">Saldo miesiąca</div>
+                  <div className="balance-hero-amount">
+                    <span className="balance-hero-main" style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(balance).int}</span>
+                    <span className="balance-hero-cents" style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(balance).dec} zł</span>
+                  </div>
+                </>
+              )}
               <div className="balance-hero-row">
                 <div className="balance-hero-stat">
                   <span className="balance-hero-stat-label">Przychody</span>
@@ -152,14 +199,6 @@ export default function Dashboard({ user }) {
                   <span className="balance-hero-stat-value" style={{ color: 'var(--expense)' }}>−{expenses.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł</span>
                 </div>
               </div>
-              {accounts.length > 0 && (
-                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Saldo wszystkich kont</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: totalAccountBalance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
-                    {totalAccountBalance >= 0 ? '+' : '−'}{Math.abs(totalAccountBalance).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł
-                  </span>
-                </div>
-              )}
             </div>
           )}
           {/* Summary grid — desktop */}

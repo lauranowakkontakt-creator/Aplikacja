@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, arrayUnion, arrayRemove } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { format, subDays, parseISO, differenceInDays } from 'date-fns'
+import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOfDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight } from '../Icons'
 
 const PRIORITY_CFG = [
   { v: 5, label: 'Pilna',   color: '#ef4444' },
@@ -12,28 +12,28 @@ const PRIORITY_CFG = [
   { v: 2, label: 'Niska',   color: '#3b82f6' },
   { v: 1, label: 'Mała',    color: '#9E9E9E' },
 ]
-const PERSON_ICONS = [
-  '👤','👨','👩','👴','👵','👦','👧','🧑','👶','💑',
-  '👨‍👩‍👧','🧑‍💼','🧑‍🏫','🧑‍⚕️','🙋','🫂','❤️','🌟','🕊️','😊',
-  '😢','🤒','💪','🙏','✝️','📿','⛪','🌹','🕯️','👼',
-  '😇','🤝','👮','🎓','💍','🌺','🦋','⭐','🫶','🤗',
+
+// 5-level neglect scale
+const NEGLECT_LEVELS = [
+  { min: 0,  max: 2,   level: 1, label: 'niedawno',    color: '#22c55e' },
+  { min: 3,  max: 6,   level: 2, label: 'trochę dawno',color: '#eab308' },
+  { min: 7,  max: 13,  level: 3, label: 'kilka dni',   color: '#f59e0b' },
+  { min: 14, max: 29,  level: 4, label: 'dawno',       color: '#f97316' },
+  { min: 30, max: 9999,level: 5, label: 'zapomniana',  color: '#ef4444' },
 ]
 
-const TODAY = () => format(new Date(), 'yyyy-MM-dd')
-const findPrio = (v) => PRIORITY_CFG.find(p => p.v === v) || PRIORITY_CFG[2]
+const TODAY     = () => format(new Date(), 'yyyy-MM-dd')
+const findPrio  = (v) => PRIORITY_CFG.find(p => p.v === v) || PRIORITY_CFG[2]
 
-function daysSinceLastPrayed(prayedDates) {
-  if (!prayedDates?.length) return null
-  const last = [...prayedDates].sort().reverse()[0]
-  return differenceInDays(new Date(), parseISO(last))
+function getNeglect(days) {
+  if (days === null) return { level: 5, label: 'nigdy',     color: '#ef4444' }
+  return NEGLECT_LEVELS.find(l => days >= l.min && days <= l.max) || NEGLECT_LEVELS[4]
 }
 
-function personLastPrayed(intentions, personId) {
-  const all = intentions
-    .filter(i => i.personId === personId && (i.status === 'active' || !i.status))
-    .flatMap(i => i.prayedDates || [])
-  if (!all.length) return null
-  return [...all].sort().reverse()[0]
+function daysSince(dates) {
+  if (!dates?.length) return null
+  const last = [...dates].sort().reverse()[0]
+  return differenceInDays(new Date(), parseISO(last))
 }
 
 export default function PrayerDashboard({ user }) {
@@ -42,6 +42,7 @@ export default function PrayerDashboard({ user }) {
   const [loading, setLoading]       = useState(true)
   const [tab, setTab]               = useState('people')
   const [selectedPerson, setSelectedPerson] = useState(null)
+  const [carMode, setCarMode]       = useState(false)
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'prayerIntentions'), orderBy('createdAt', 'desc'))
@@ -56,7 +57,19 @@ export default function PrayerDashboard({ user }) {
     return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
 
-  const today = TODAY()
+  // Auto-archive intentions past their dateTo
+  useEffect(() => {
+    const today = TODAY()
+    intentions.forEach(async i => {
+      if ((i.status === 'active' || !i.status) && i.dateTo && i.dateTo < today) {
+        await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', i.id), {
+          status: 'ended', endedAt: Timestamp.now(), autoArchived: true
+        })
+      }
+    })
+  }, [intentions])
+
+  const today            = TODAY()
   const activeIntentions = intentions.filter(i => i.status === 'active' || !i.status)
   const prayedToday      = activeIntentions.filter(i => i.prayedDates?.includes(today)).length
 
@@ -77,7 +90,7 @@ export default function PrayerDashboard({ user }) {
   const switchTab = (t) => { setTab(t); setSelectedPerson(null) }
 
   return (
-    <div className="prayer-dashboard">
+    <div className={`prayer-dashboard${carMode ? ' car-mode' : ''}`}>
       <div className="mod-header">
         <div>
           <div className="mod-header-kicker">Modlitwa</div>
@@ -86,6 +99,12 @@ export default function PrayerDashboard({ user }) {
           </div>
         </div>
         <div className="mod-header-right">
+          <button
+            className="icon-btn"
+            onClick={() => setCarMode(m => !m)}
+            style={carMode ? { background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700 } : { fontSize: 13, padding: '4px 8px' }}
+            title="Tryb auto"
+          >🚗</button>
           <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
             <IconFlame size={14} style={{ color: 'var(--primary)' }} />
             <span style={{ fontSize: 13, fontWeight: 700 }}>{streak}</span>
@@ -97,11 +116,13 @@ export default function PrayerDashboard({ user }) {
         </div>
       </div>
 
-      <div className="prayer-verse-card">
-        <div className="prayer-verse-kicker">Werset dnia · {format(new Date(), 'd.MM', { locale: pl })}</div>
-        <p className="prayer-verse-text">"Bądź cicho przed Panem<br />i czekaj cierpliwie na Niego."</p>
-        <div className="prayer-verse-ref">— Psalm 37,7</div>
-      </div>
+      {!carMode && (
+        <div className="prayer-verse-card">
+          <div className="prayer-verse-kicker">Werset dnia · {format(new Date(), 'd.MM', { locale: pl })}</div>
+          <p className="prayer-verse-text">"Bądź cicho przed Panem<br />i czekaj cierpliwie na Niego."</p>
+          <div className="prayer-verse-ref">— Psalm 37,7</div>
+        </div>
+      )}
 
       <div className="habit-view-tabs">
         <button className={`habit-view-tab ${tab === 'people' ? 'active' : ''}`} onClick={() => switchTab('people')}>
@@ -121,17 +142,19 @@ export default function PrayerDashboard({ user }) {
               user={user}
               person={selectedPerson}
               intentions={intentions}
+              carMode={carMode}
               onBack={() => setSelectedPerson(null)}
             />
           : <PeopleView
               user={user}
               people={people}
               intentions={intentions}
+              carMode={carMode}
               onSelect={setSelectedPerson}
             />
       )}
       {tab === 'today' && (
-        <TodayView user={user} intentions={activeIntentions} people={people} />
+        <TodayView user={user} intentions={activeIntentions} people={people} carMode={carMode} />
       )}
       {tab === 'stats' && (
         <StatsView intentions={intentions} people={people} allPrayedDates={allPrayedDates} streak={streak} />
@@ -141,18 +164,21 @@ export default function PrayerDashboard({ user }) {
 }
 
 /* ─── PeopleView ─────────────────────────────────────────────────────────── */
-function PeopleView({ user, people, intentions, onSelect }) {
+function PeopleView({ user, people, intentions, carMode, onSelect }) {
   const [showForm, setShowForm] = useState(false)
   const [editPerson, setEditPerson] = useState(null)
   const today = TODAY()
 
   const withStats = useMemo(() => people.map(p => {
-    const mine = intentions.filter(i => i.personId === p.id && (i.status === 'active' || !i.status))
-    const allDates = mine.flatMap(i => i.prayedDates || [])
+    // active intentions
+    const active = intentions.filter(i => i.personId === p.id && (i.status === 'active' || !i.status))
+    // ALL intentions (including archived) for stats
+    const all    = intentions.filter(i => i.personId === p.id)
+    const allDates = all.flatMap(i => i.prayedDates || [])
     const lastDate = allDates.length ? [...allDates].sort().reverse()[0] : null
     const days = lastDate ? differenceInDays(new Date(), parseISO(lastDate)) : null
     const prayedToday = allDates.includes(today)
-    return { ...p, activeCount: mine.length, days, prayedToday }
+    return { ...p, activeCount: active.length, days, prayedToday }
   }).sort((a, b) => {
     if (a.prayedToday && !b.prayedToday) return 1
     if (!a.prayedToday && b.prayedToday) return -1
@@ -164,6 +190,8 @@ function PeopleView({ user, people, intentions, onSelect }) {
     if (!confirm('Usunąć osobę i wszystkie jej prośby?')) return
     await deleteDoc(doc(db, 'users', user.uid, 'prayerPeople', id))
   }
+
+  const sz = carMode ? 1.35 : 1
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -178,27 +206,32 @@ function PeopleView({ user, people, intentions, onSelect }) {
         </div>
       ) : (
         withStats.map(p => {
-          const forgotten = p.activeCount > 0 && !p.prayedToday && (p.days === null || p.days > 7)
-          const almostForgotten = p.activeCount > 0 && !p.prayedToday && p.days !== null && p.days >= 3 && p.days <= 7
+          const neglect = getNeglect(p.activeCount > 0 ? p.days : -1)
+          const isNeglected  = p.activeCount > 0 && !p.prayedToday && neglect.level >= 4
+          const isAtRisk     = p.activeCount > 0 && !p.prayedToday && neglect.level === 3
+          const borderColor  = isNeglected ? neglect.color : isAtRisk ? neglect.color : p.prayedToday ? '#27AE60' : 'transparent'
           return (
             <div key={p.id} onClick={() => onSelect(p)} style={{
-              background: forgotten ? 'rgba(239,68,68,0.06)' : 'var(--surface)',
-              border: `1px solid ${forgotten ? 'rgba(239,68,68,0.35)' : almostForgotten ? 'rgba(249,115,22,0.3)' : 'var(--border)'}`,
-              borderLeft: `3px solid ${forgotten ? '#ef4444' : almostForgotten ? '#f97316' : p.prayedToday ? '#27AE60' : 'transparent'}`,
-              borderRadius: 12, padding: '12px 14px',
+              background: isNeglected ? neglect.color + '0D' : 'var(--surface)',
+              border: `1px solid ${isNeglected ? neglect.color + '55' : isAtRisk ? neglect.color + '44' : 'var(--border)'}`,
+              borderLeft: `3px solid ${borderColor}`,
+              borderRadius: 12, padding: carMode ? '16px 18px' : '12px 14px',
               display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer'
             }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, flexShrink: 0 }}>
-                {p.icon || '👤'}
+              <div style={{ width: carMode ? 54 : 44, height: carMode ? 54 : 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#8b5cf6' }}>
+                <CatIcon categoryId={null} emoji={p.icon || 'IcUsers'} size={carMode ? 28 : 22} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{p.name}</p>
+                  <p style={{ margin: 0, fontSize: carMode ? 19 : 14, fontWeight: 600 }}>{p.name}</p>
                   {p.prayedToday && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(39,174,96,0.15)', color: '#27AE60' }}>✓ dziś</span>}
-                  {forgotten && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>zapomniana</span>}
-                  {almostForgotten && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(249,115,22,0.12)', color: '#f97316' }}>dawno</span>}
+                  {(isNeglected || isAtRisk) && (
+                    <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: neglect.color + '22', color: neglect.color, fontWeight: 700 }}>
+                      L{neglect.level} · {neglect.label}
+                    </span>
+                  )}
                 </div>
-                <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
+                <p style={{ margin: '3px 0 0', fontSize: carMode ? 13 : 11, color: 'var(--text-muted)' }}>
                   {p.activeCount} {p.activeCount === 1 ? 'prośba' : p.activeCount < 5 ? 'prośby' : 'próśb'}
                   {p.days === 0 && ' · modlono dziś'}
                   {p.days !== null && p.days > 0 && ` · ${p.days} dni temu`}
@@ -223,26 +256,50 @@ function PeopleView({ user, people, intentions, onSelect }) {
 }
 
 /* ─── PersonDetailView ───────────────────────────────────────────────────── */
-function PersonDetailView({ user, person, intentions, onBack }) {
+function PersonDetailView({ user, person, intentions, carMode, onBack }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editItem, setEditItem]       = useState(null)
   const [showEnded, setShowEnded]     = useState(false)
 
-  const mine    = intentions.filter(i => i.personId === person.id)
-  const active  = mine.filter(i => i.status === 'active' || !i.status).sort((a, b) => (b.priority || 3) - (a.priority || 3))
-  const ended   = mine.filter(i => i.status === 'ended')
+  const mine   = intentions.filter(i => i.personId === person.id)
+  const active = mine.filter(i => i.status === 'active' || !i.status).sort((a, b) => {
+    // P5 always at top regardless of prayedToday
+    if ((a.priority || 3) === 5 && (b.priority || 3) !== 5) return -1
+    if ((a.priority || 3) !== 5 && (b.priority || 3) === 5) return 1
+    const at = a.prayedDates?.includes(TODAY())
+    const bt = b.prayedDates?.includes(TODAY())
+    if (at && !bt) return 1
+    if (!at && bt) return -1
+    return (b.priority || 3) - (a.priority || 3)
+  })
+  const ended = mine.filter(i => i.status === 'ended')
 
-  const togglePrayed = async (item) => {
-    const t = TODAY()
-    const prayed = item.prayedDates?.includes(t)
+  const togglePrayed = async (item, date) => {
+    const d = date || TODAY()
+    const prayed = item.prayedDates?.includes(d)
     await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
-      prayedDates: prayed ? arrayRemove(t) : arrayUnion(t)
+      prayedDates: prayed ? arrayRemove(d) : arrayUnion(d)
     })
   }
 
   const addNote = async (itemId, text) => {
     await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', itemId), {
       notes: arrayUnion({ text, date: TODAY(), id: Date.now().toString() })
+    })
+  }
+
+  const editNote = async (item, note, newText) => {
+    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
+      notes: arrayRemove(note)
+    })
+    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
+      notes: arrayUnion({ ...note, text: newText })
+    })
+  }
+
+  const deleteNote = async (item, note) => {
+    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
+      notes: arrayRemove(note)
     })
   }
 
@@ -261,14 +318,14 @@ function PersonDetailView({ user, person, intentions, onBack }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <button className="t-btn" onClick={onBack} style={{ fontSize: 20, padding: '4px 8px' }}>←</button>
-        <span style={{ fontSize: 26 }}>{person.icon || '👤'}</span>
+        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
+          <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={20} />
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>{person.name}</p>
           {person.note && <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>{person.note}</p>}
         </div>
-        <span style={{ fontSize: 12, color: '#8b5cf6', flexShrink: 0 }}>
-          {active.length} aktywnych
-        </span>
+        <span style={{ fontSize: 12, color: '#8b5cf6', flexShrink: 0 }}>{active.length} aktywnych</span>
       </div>
 
       {active.length === 0 && !showAddForm && (
@@ -283,8 +340,11 @@ function PersonDetailView({ user, person, intentions, onBack }) {
           key={item.id}
           item={item}
           user={user}
+          carMode={carMode}
           onTogglePrayed={togglePrayed}
           onAddNote={addNote}
+          onEditNote={editNote}
+          onDeleteNote={deleteNote}
           onArchive={archiveItem}
           onEdit={() => { setEditItem(item); setShowAddForm(true) }}
           onDelete={deleteItem}
@@ -312,12 +372,15 @@ function PersonDetailView({ user, person, intentions, onBack }) {
           {showEnded && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
               {ended.map(item => (
-                <div key={item.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 14px', opacity: 0.6, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 16 }}>✅</span>
+                <div key={item.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 14px', opacity: 0.65, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>✅</span>
                   <div style={{ flex: 1 }}>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{item.title}</p>
                     {item.endedNote && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>"{item.endedNote}"</p>}
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-muted)' }}>🙏 ×{item.prayedDates?.length || 0}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-muted)' }}>
+                      🙏 ×{item.prayedDates?.length || 0}
+                      {item.autoArchived && ' · auto-zarchiwizowana'}
+                    </p>
                   </div>
                   <button className="t-btn delete" onClick={() => deleteItem(item.id)}><IconTrash size={13} /></button>
                 </div>
@@ -331,16 +394,19 @@ function PersonDetailView({ user, person, intentions, onBack }) {
 }
 
 /* ─── RequestCard ────────────────────────────────────────────────────────── */
-function RequestCard({ item, user, onTogglePrayed, onAddNote, onArchive, onEdit, onDelete, showPerson, person }) {
-  const [showNotes, setShowNotes]   = useState(false)
-  const [addingNote, setAddingNote] = useState(false)
-  const [noteText, setNoteText]     = useState('')
+function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNote, onDeleteNote, onArchive, onEdit, onDelete, showPerson, person, viewDate }) {
+  const [showNotes, setShowNotes]     = useState(false)
+  const [addingNote, setAddingNote]   = useState(false)
+  const [noteText, setNoteText]       = useState('')
+  const [editingNoteId, setEditingNoteId] = useState(null)
+  const [editNoteText, setEditNoteText]   = useState('')
 
   const prio       = findPrio(item.priority || 3)
-  const today      = TODAY()
-  const prayedToday = item.prayedDates?.includes(today)
-  const days       = daysSinceLastPrayed(item.prayedDates)
-  const forgotten  = !prayedToday && (days === null || days > 7)
+  const date       = viewDate || TODAY()
+  const prayedToday = item.prayedDates?.includes(date)
+  const days       = daysSince(item.prayedDates)
+  const neglect    = getNeglect(prayedToday ? 0 : days)
+  const isNeglected = !prayedToday && neglect.level >= 4
 
   const submitNote = () => {
     if (!noteText.trim()) return
@@ -350,90 +416,139 @@ function RequestCard({ item, user, onTogglePrayed, onAddNote, onArchive, onEdit,
     setShowNotes(true)
   }
 
+  const submitEditNote = (note) => {
+    if (!editNoteText.trim()) return
+    onEditNote(item, note, editNoteText.trim())
+    setEditingNoteId(null)
+  }
+
+  const fs = carMode ? { title: 18, sub: 14, badge: 12, action: 15, note: 14 } : { title: 14, sub: 12, badge: 10, action: 12, note: 12 }
+  const pad = carMode ? '16px 18px' : '12px 14px'
+
   return (
     <div style={{
-      background: forgotten ? 'rgba(239,68,68,0.04)' : 'var(--surface)',
-      border: `1px solid ${forgotten ? 'rgba(239,68,68,0.3)' : 'var(--border)'}`,
+      background: isNeglected ? neglect.color + '08' : 'var(--surface)',
+      border: `1px solid ${isNeglected ? neglect.color + '44' : 'var(--border)'}`,
       borderLeft: `3px solid ${prio.color}`,
-      borderRadius: 12, padding: '12px 14px'
+      borderRadius: 12, padding: pad
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{item.title}</p>
-            <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: prio.color + '22', color: prio.color, fontWeight: 700 }}>P{item.priority || 3}</span>
-            {forgotten && <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>⚠ zapomniana</span>}
+            <p style={{ margin: 0, fontSize: fs.title, fontWeight: 600 }}>{item.title}</p>
+            <span style={{ fontSize: fs.badge, padding: '1px 5px', borderRadius: 4, background: prio.color + '22', color: prio.color, fontWeight: 700 }}>P{item.priority || 3}</span>
+            {isNeglected && (
+              <span style={{ fontSize: fs.badge, padding: '1px 5px', borderRadius: 4, background: neglect.color + '18', color: neglect.color, fontWeight: 600 }}>
+                L{neglect.level} · {neglect.label}
+              </span>
+            )}
           </div>
           {showPerson && person && (
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: '#8b5cf6' }}>{person.icon || '👤'} {person.name}</p>
+            <p style={{ margin: '2px 0 0', fontSize: fs.sub, color: '#8b5cf6' }}>
+              <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={fs.sub} /> {person.name}
+            </p>
           )}
-          {item.note && <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{item.note}</p>}
+          {item.note && <p style={{ margin: '3px 0 0', fontSize: fs.sub, color: 'var(--text-muted)' }}>{item.note}</p>}
+          {item.dateTo && (
+            <p style={{ margin: '2px 0 0', fontSize: fs.badge, color: 'var(--text-muted)' }}>
+              📅 do {item.dateTo}
+            </p>
+          )}
           <div style={{ display: 'flex', gap: 10, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
             {item.prayedDates?.length > 0 && (
-              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+              <span style={{ fontSize: fs.badge, color: 'var(--text-muted)' }}>
                 🙏 ×{item.prayedDates.length}
                 {days === 0 && ' · dziś'}
                 {days !== null && days > 0 && ` · ${days} dni temu`}
               </span>
             )}
             {item.notes?.length > 0 && (
-              <button type="button" onClick={() => setShowNotes(v => !v)} style={{ fontSize: 10, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              <button type="button" onClick={() => setShowNotes(v => !v)} style={{ fontSize: fs.badge, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                 📝 {item.notes.length} {item.notes.length === 1 ? 'notatka' : 'notatki'}
               </button>
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
-          <button className="t-btn" onClick={onEdit}><IconEdit size={13} /></button>
-          <button className="t-btn delete" onClick={() => onDelete(item.id)}><IconTrash size={13} /></button>
-        </div>
+        {!carMode && (
+          <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+            <button className="t-btn" onClick={onEdit}><IconEdit size={13} /></button>
+            <button className="t-btn delete" onClick={() => onDelete(item.id)}><IconTrash size={13} /></button>
+          </div>
+        )}
       </div>
 
       {showNotes && item.notes?.length > 0 && (
-        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {[...item.notes].sort((a, b) => b.date.localeCompare(a.date)).map(n => (
-            <div key={n.id} style={{ background: 'var(--bg)', borderRadius: 8, padding: '6px 10px' }}>
-              <p style={{ margin: 0, fontSize: 12 }}>{n.text}</p>
-              <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-muted)' }}>{n.date}</p>
+            <div key={n.id} style={{ background: 'var(--bg)', borderRadius: 8, padding: '7px 10px' }}>
+              {editingNoteId === n.id ? (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <textarea
+                    className="form-input"
+                    value={editNoteText}
+                    onChange={e => setEditNoteText(e.target.value)}
+                    rows={2}
+                    style={{ flex: 1, margin: 0, fontSize: fs.note, resize: 'vertical' }}
+                    autoFocus
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <button className="btn-save" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => submitEditNote(n)}>Zapisz</button>
+                    <button onClick={() => setEditingNoteId(null)} style={{ padding: '4px 10px', fontSize: 12, background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', color: 'var(--text-muted)' }}>Anuluj</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: fs.note }}>{n.text}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-muted)' }}>{n.date}</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                    <button className="t-btn" onClick={() => { setEditingNoteId(n.id); setEditNoteText(n.text) }}><IconEdit size={12} /></button>
+                    <button className="t-btn delete" onClick={() => onDeleteNote(item, n)}><IconTrash size={12} /></button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-        <button type="button" onClick={() => onTogglePrayed(item)} style={{
-          flex: 1, padding: '8px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontWeight: 600,
+        <button type="button" onClick={() => onTogglePrayed(item, viewDate)} style={{
+          flex: 1, padding: carMode ? '13px' : '8px', borderRadius: 8, fontSize: fs.action, cursor: 'pointer', fontWeight: 600,
           border: `1px solid ${prayedToday ? '#27AE60' : 'var(--border)'}`,
           background: prayedToday ? 'rgba(39,174,96,0.15)' : 'transparent',
           color: prayedToday ? '#27AE60' : 'var(--text-muted)'
         }}>
-          {prayedToday ? <><IconCheck size={12} /> Modlono dziś</> : <><IconPrayer size={12} /> Módl się</>}
+          {prayedToday ? <><IconCheck size={carMode ? 16 : 12} /> Modlono</> : <><IconPrayer size={carMode ? 16 : 12} /> Módl się</>}
         </button>
         <button type="button" onClick={() => setAddingNote(v => !v)} style={{
-          padding: '8px 11px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
+          padding: carMode ? '13px 16px' : '8px 11px', borderRadius: 8, fontSize: carMode ? 18 : 13, cursor: 'pointer',
           border: `1px solid ${addingNote ? 'var(--primary)' : 'var(--border)'}`,
           background: addingNote ? 'rgba(201,75,40,0.1)' : 'transparent',
           color: addingNote ? 'var(--primary)' : 'var(--text-muted)'
         }}>📝</button>
-        <button type="button" onClick={() => onArchive(item)} style={{
-          padding: '8px 10px', borderRadius: 8, fontSize: 11, cursor: 'pointer',
-          border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)'
-        }}>Archiwizuj</button>
+        {!carMode && (
+          <button type="button" onClick={() => onArchive(item)} style={{
+            padding: '8px 10px', borderRadius: 8, fontSize: 11, cursor: 'pointer',
+            border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)'
+          }}>Archiwizuj</button>
+        )}
       </div>
 
       {addingNote && (
         <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
-          <input
-            type="text"
+          <textarea
             className="form-input"
             placeholder="Notatka z modlitwy..."
             value={noteText}
             onChange={e => setNoteText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && submitNote()}
-            style={{ flex: 1, margin: 0, fontSize: 13 }}
+            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && submitNote()}
+            rows={2}
+            style={{ flex: 1, margin: 0, fontSize: fs.note, resize: 'vertical' }}
             autoFocus
           />
-          <button className="btn-save" style={{ padding: '0 14px', fontSize: 13 }} onClick={submitNote}>
+          <button className="btn-save" style={{ padding: '0 14px', fontSize: 13, alignSelf: 'flex-end' }} onClick={submitNote}>
             Dodaj
           </button>
         </div>
@@ -443,40 +558,65 @@ function RequestCard({ item, user, onTogglePrayed, onAddNote, onArchive, onEdit,
 }
 
 /* ─── TodayView ──────────────────────────────────────────────────────────── */
-function TodayView({ user, intentions, people }) {
-  const today = TODAY()
+function TodayView({ user, intentions, people, carMode }) {
+  const [viewDate, setViewDate] = useState(TODAY())
 
-  const togglePrayed = async (item) => {
-    const prayed = item.prayedDates?.includes(today)
+  const togglePrayed = async (item, date) => {
+    const d = date || viewDate
+    const prayed = item.prayedDates?.includes(d)
     await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
-      prayedDates: prayed ? arrayRemove(today) : arrayUnion(today)
+      prayedDates: prayed ? arrayRemove(d) : arrayUnion(d)
     })
   }
 
   const addNote = async (itemId, text) => {
     await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', itemId), {
-      notes: arrayUnion({ text, date: today, id: Date.now().toString() })
+      notes: arrayUnion({ text, date: viewDate, id: Date.now().toString() })
     })
   }
 
+  const editNote = async (item, note, newText) => {
+    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { notes: arrayRemove(note) })
+    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { notes: arrayUnion({ ...note, text: newText }) })
+  }
+
+  const deleteNote = async (item, note) => {
+    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { notes: arrayRemove(note) })
+  }
+
   const sorted = [...intentions].sort((a, b) => {
-    const ap = a.prayedDates?.includes(today)
-    const bp = b.prayedDates?.includes(today)
+    // P5 always at top
+    if ((a.priority || 3) === 5 && (b.priority || 3) !== 5) return -1
+    if ((a.priority || 3) !== 5 && (b.priority || 3) === 5) return 1
+    const ap = a.prayedDates?.includes(viewDate)
+    const bp = b.prayedDates?.includes(viewDate)
     if (ap && !bp) return 1
     if (!ap && bp) return -1
     return (b.priority || 3) - (a.priority || 3)
   })
 
-  const prayedCount = intentions.filter(i => i.prayedDates?.includes(today)).length
+  const prayedCount = intentions.filter(i => i.prayedDates?.includes(viewDate)).length
+  const isToday     = viewDate === TODAY()
+  const dateLabel   = isToday ? 'Dziś' : format(parseISO(viewDate), 'EEEE, d MMMM', { locale: pl })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* Date navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px' }}>
+        <button className="icon-btn" onClick={() => setViewDate(d => format(subDays(parseISO(d), 1), 'yyyy-MM-dd'))}><IconChevronLeft size={16} /></button>
+        <div style={{ textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{dateLabel}</p>
+          {!isToday && <button onClick={() => setViewDate(TODAY())} style={{ fontSize: 10, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>wróć do dziś</button>}
+        </div>
+        <button className="icon-btn" onClick={() => setViewDate(d => format(addDays(parseISO(d), 1), 'yyyy-MM-dd'))}><IconChevronRight size={16} /></button>
+      </div>
+
       {intentions.length > 0 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: 18, color: 'var(--text-muted)' }}>/{intentions.length}</span></p>
-          <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>modlono dziś</p>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: carMode ? '18px' : '14px 16px', textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: carMode ? 36 : 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: carMode ? 24 : 18, color: 'var(--text-muted)' }}>/{intentions.length}</span></p>
+          <p style={{ margin: '2px 0 0', fontSize: carMode ? 14 : 12, color: 'var(--text-muted)' }}>modlono {isToday ? 'dziś' : dateLabel.toLowerCase()}</p>
           {prayedCount > 0 && prayedCount === intentions.length && (
-            <p style={{ margin: '6px 0 0', fontSize: 13, color: '#27AE60', fontWeight: 600 }}>🙌 Wszystkie prośby modlone!</p>
+            <p style={{ margin: '6px 0 0', fontSize: carMode ? 15 : 13, color: '#27AE60', fontWeight: 600 }}>🙌 Wszystkie prośby modlone!</p>
           )}
         </div>
       )}
@@ -488,8 +628,12 @@ function TodayView({ user, intentions, people }) {
             key={item.id}
             item={item}
             user={user}
+            carMode={carMode}
+            viewDate={viewDate}
             onTogglePrayed={togglePrayed}
             onAddNote={addNote}
+            onEditNote={editNote}
+            onDeleteNote={deleteNote}
             onArchive={async (item) => updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { status: 'ended', endedAt: Timestamp.now() })}
             onEdit={() => {}}
             onDelete={async (id) => { if (confirm('Usunąć?')) await deleteDoc(doc(db, 'users', user.uid, 'prayerIntentions', id)) }}
@@ -515,16 +659,19 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
   const heatDates = Array.from({ length: 35 }, (_, i) => format(subDays(new Date(), 34 - i), 'yyyy-MM-dd'))
 
   const personStats = useMemo(() => people.map(p => {
-    const mine = intentions.filter(i => i.personId === p.id && (i.status === 'active' || !i.status))
-    const allDates = mine.flatMap(i => i.prayedDates || [])
+    // Include ALL intentions (active + archived) in stats
+    const allMine  = intentions.filter(i => i.personId === p.id)
+    const active   = allMine.filter(i => i.status === 'active' || !i.status)
+    const allDates = allMine.flatMap(i => i.prayedDates || [])
     const lastDate = allDates.length ? [...allDates].sort().reverse()[0] : null
-    const days = lastDate ? differenceInDays(new Date(), parseISO(lastDate)) : null
+    const days     = lastDate ? differenceInDays(new Date(), parseISO(lastDate)) : null
     return {
       ...p,
-      totalPrays: allDates.length,
+      totalPrays:   allDates.length,
+      totalIntentions: allMine.length,
+      activeCount:  active.length,
       days,
-      prayedToday: allDates.includes(today),
-      activeCount: mine.length
+      prayedToday:  allDates.includes(today),
     }
   }).sort((a, b) => {
     if (a.prayedToday && !b.prayedToday) return 1
@@ -557,25 +704,31 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
           <h3 className="chart-title">Osoby — jak często się modliłam</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {personStats.map(p => {
-              const forgotten      = p.activeCount > 0 && !p.prayedToday && (p.days === null || p.days > 7)
-              const almostForgotten = p.activeCount > 0 && !p.prayedToday && p.days !== null && p.days >= 3 && p.days <= 7
+              const neglect = getNeglect(p.activeCount > 0 && !p.prayedToday ? p.days : -1)
+              const isNeglected     = p.activeCount > 0 && !p.prayedToday && neglect.level >= 4
+              const isAtRisk        = p.activeCount > 0 && !p.prayedToday && neglect.level === 3
               return (
                 <div key={p.id} style={{
-                  background: forgotten ? 'rgba(239,68,68,0.05)' : almostForgotten ? 'rgba(249,115,22,0.05)' : 'var(--surface)',
-                  border: `1px solid ${forgotten ? 'rgba(239,68,68,0.35)' : almostForgotten ? 'rgba(249,115,22,0.25)' : 'var(--border)'}`,
+                  background: isNeglected ? neglect.color + '08' : 'var(--surface)',
+                  border: `1px solid ${isNeglected ? neglect.color + '44' : isAtRisk ? neglect.color + '33' : 'var(--border)'}`,
                   borderRadius: 10, padding: '10px 14px',
                   display: 'flex', alignItems: 'center', gap: 10
                 }}>
-                  <span style={{ fontSize: 20 }}>{p.icon || '👤'}</span>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
+                    <CatIcon categoryId={null} emoji={p.icon || 'IcUsers'} size={18} />
+                  </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{p.name}</p>
                       {p.prayedToday && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'rgba(39,174,96,0.15)', color: '#27AE60' }}>✓ dziś</span>}
-                      {forgotten && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>zapomniana</span>}
-                      {almostForgotten && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'rgba(249,115,22,0.12)', color: '#f97316' }}>dawno</span>}
+                      {(isNeglected || isAtRisk) && (
+                        <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: neglect.color + '20', color: neglect.color, fontWeight: 700 }}>
+                          L{neglect.level} · {neglect.label}
+                        </span>
+                      )}
                     </div>
                     <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
-                      🙏 ×{p.totalPrays}
+                      🙏 ×{p.totalPrays} · {p.totalIntentions} {p.totalIntentions === 1 ? 'prośba' : 'próśb'}
                       {p.days === 0 && ' · modlono dziś'}
                       {p.days !== null && p.days > 0 && ` · ${p.days} dni temu`}
                       {p.days === null && p.activeCount > 0 && ' · jeszcze nie modlono'}
@@ -596,6 +749,7 @@ function IntentionForm({ user, editData, personId, onClose }) {
   const [title, setTitle]       = useState(editData?.title || '')
   const [note, setNote]         = useState(editData?.note || '')
   const [priority, setPriority] = useState(editData?.priority || 3)
+  const [dateTo, setDateTo]     = useState(editData?.dateTo || '')
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
 
@@ -606,7 +760,8 @@ function IntentionForm({ user, editData, personId, onClose }) {
     const data = {
       title: title.trim(), note: note.trim(),
       personId: personId || editData?.personId || null,
-      priority, updatedAt: Timestamp.now()
+      priority, dateTo: dateTo || null,
+      updatedAt: Timestamp.now()
     }
     try {
       if (editData) {
@@ -653,6 +808,12 @@ function IntentionForm({ user, editData, personId, onClose }) {
           maxLength={300} placeholder="Szczegóły..." />
       </div>
 
+      <div className="form-group" style={{ margin: 0 }}>
+        <label>Auto-archiwizuj po dacie (opcjonalnie)</label>
+        <input type="date" className="form-input" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        {dateTo && <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>Prośba zarchiwizuje się automatycznie po {dateTo} — ale zostanie w statystykach</p>}
+      </div>
+
       {error && <p className="form-error" style={{ margin: 0 }}>{error}</p>}
 
       <div style={{ display: 'flex', gap: 8 }}>
@@ -669,18 +830,34 @@ function IntentionForm({ user, editData, personId, onClose }) {
 }
 
 /* ─── PersonForm ─────────────────────────────────────────────────────────── */
+const PERSON_ICON_GROUPS = [
+  { label: 'Ludzie', keys: ['IcUsers','IcUser','IcHeart','IcStar','IcChild','IcFamily'] },
+  { label: 'Wiara', keys: ['IcPrayer','IcCross','IcChurch','IcBible','IcDove','IcCandle'] },
+  { label: 'Emocje', keys: ['IcSmile','IcSad','IcStrong','IcHug','IcPeace'] },
+  { label: 'Zdrowie', keys: ['IcHealth','IcPill','IcHospital','IcRun','IcMedal'] },
+  { label: 'Praca', keys: ['IcWork','IcSchool','IcBook','IcGrad','IcBriefcase'] },
+]
+
+// Build available catalog for person icons — filter to keys that exist
+const ALL_PERSON_ICON_KEYS = ICON_CATALOG.map(ic => ic.key)
+const PERSON_ICON_CATALOG  = ICON_CATALOG.slice(0, 60)
+
 function PersonForm({ user, editData, onClose }) {
-  const [name, setName]     = useState(editData?.name || '')
-  const [note, setNote]     = useState(editData?.note || '')
-  const [icon, setIcon]     = useState(editData?.icon || '👤')
-  const [saving, setSaving] = useState(false)
-  const [expanded, setExpanded] = useState(false)
+  const [name, setName]         = useState(editData?.name || '')
+  const [note, setNote]         = useState(editData?.note || '')
+  const [iconKey, setIconKey]   = useState(editData?.icon || 'IcUsers')
+  const [iconSearch, setIconSearch] = useState('')
+  const [saving, setSaving]     = useState(false)
+
+  const filtered = iconSearch.trim()
+    ? ICON_CATALOG.filter(ic => ic.label.toLowerCase().includes(iconSearch.toLowerCase()) || ic.group.toLowerCase().includes(iconSearch.toLowerCase()))
+    : PERSON_ICON_CATALOG
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
-    const data = { name: name.trim(), note: note.trim(), icon, updatedAt: Timestamp.now() }
+    const data = { name: name.trim(), note: note.trim(), icon: iconKey, updatedAt: Timestamp.now() }
     try {
       if (editData) {
         await updateDoc(doc(db, 'users', user.uid, 'prayerPeople', editData.id), data)
@@ -690,6 +867,8 @@ function PersonForm({ user, editData, onClose }) {
       onClose()
     } catch { setSaving(false) }
   }
+
+  const curIcon = ICON_CATALOG.find(ic => ic.key === iconKey)
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -704,26 +883,34 @@ function PersonForm({ user, editData, onClose }) {
             <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)}
               autoFocus maxLength={60} placeholder="np. Mama, Zuzia, Przyjaciel Paweł..." />
           </div>
+
           <div className="form-group">
             <label>Ikona</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 28 }}>{icon}</span>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 10, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6', border: '2px solid #8b5cf6' }}>
+                <CatIcon categoryId={null} emoji={iconKey} size={24} />
+              </div>
+              <input type="text" className="form-input" value={iconSearch} onChange={e => setIconSearch(e.target.value)}
+                placeholder="Szukaj ikony..." style={{ margin: 0, flex: 1 }} />
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {(expanded ? PERSON_ICONS : PERSON_ICONS.slice(0, 15)).map(i => (
-                <button key={i} type="button" onClick={() => setIcon(i)} style={{
-                  width: 36, height: 36, borderRadius: 8, fontSize: 20, cursor: 'pointer',
-                  border: `2px solid ${icon === i ? 'var(--primary)' : 'var(--border)'}`,
-                  background: icon === i ? 'rgba(201,75,40,0.1)' : 'transparent'
-                }}>{i}</button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, maxHeight: 200, overflowY: 'auto' }}>
+              {filtered.map(ic => (
+                <button key={ic.key} type="button"
+                  onClick={() => setIconKey(ic.key)}
+                  title={ic.label}
+                  style={{
+                    width: '100%', aspectRatio: '1', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    border: `2px solid ${iconKey === ic.key ? '#8b5cf6' : 'var(--border)'}`,
+                    background: iconKey === ic.key ? 'rgba(139,92,246,0.15)' : 'transparent',
+                    color: iconKey === ic.key ? '#8b5cf6' : 'var(--text-muted)',
+                    padding: 0
+                  }}>
+                  <CatIcon categoryId={null} emoji={ic.key} size={18} />
+                </button>
               ))}
             </div>
-            <button type="button" onClick={() => setExpanded(v => !v)}
-              style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
-              {expanded ? '▲ Mniej' : `▼ Więcej (${PERSON_ICONS.length - 15})`}
-            </button>
           </div>
+
           <div className="form-group">
             <label>Notatka (opcjonalnie)</label>
             <input type="text" className="form-input" value={note} onChange={e => setNote(e.target.value)}
