@@ -68,25 +68,12 @@ export default function Dashboard({ user }) {
   const income   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const expenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const balance  = income - expenses
-  const [visibleAccounts, setVisibleAccounts] = useState(null) // null = all
-  const shownAccounts = visibleAccounts === null ? accounts : accounts.filter(a => visibleAccounts.includes(a.id))
-  const totalsByCurrency = shownAccounts.reduce((acc, a) => {
+  const totalsByCurrency = accounts.reduce((acc, a) => {
     const cur = a.currency || 'PLN'
     acc[cur] = (acc[cur] || 0) + (a.balance || 0)
     return acc
   }, {})
 
-  const toggleAccountVisible = (id) => {
-    if (visibleAccounts === null) {
-      setVisibleAccounts(accounts.map(a => a.id).filter(aid => aid !== id))
-    } else if (visibleAccounts.includes(id)) {
-      const next = visibleAccounts.filter(aid => aid !== id)
-      setVisibleAccounts(next.length === accounts.length ? null : next.length === 0 ? accounts.map(a => a.id) : next)
-    } else {
-      const next = [...visibleAccounts, id]
-      setVisibleAccounts(next.length === accounts.length ? null : next)
-    }
-  }
   const monthLabel = format(currentMonth, 'LLLL yyyy', { locale: pl })
 
   const handleMenuAction = (id) => {
@@ -118,7 +105,7 @@ export default function Dashboard({ user }) {
         </div>
         <div className="mod-header-right">
           <button className="icon-btn" onClick={() => handleMenuAction('search')}><IconSearch size={16} /></button>
-          <BudgetMenu onAction={handleMenuAction} privateMode={privateMode} accounts={accounts} visibleAccounts={visibleAccounts} onToggleAccount={toggleAccountVisible} mobile />
+          <BudgetMenu onAction={handleMenuAction} privateMode={privateMode} mobile />
         </div>
       </div>
 
@@ -146,7 +133,7 @@ export default function Dashboard({ user }) {
             </button>
           ))}
         </div>
-        <span className="desktop-only"><BudgetMenu onAction={handleMenuAction} privateMode={privateMode} accounts={accounts} visibleAccounts={visibleAccounts} onToggleAccount={toggleAccountVisible} /></span>
+        <span className="desktop-only"><BudgetMenu onAction={handleMenuAction} privateMode={privateMode} /></span>
       </div>
 
       {/* Month navigation — desktop only */}
@@ -191,18 +178,6 @@ export default function Dashboard({ user }) {
                       </div>
                     )
                   })()}
-                  {/* Account chips filter */}
-                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', margin: '6px 0 10px' }}>
-                    {accounts.map(a => {
-                      const active = visibleAccounts === null || visibleAccounts.includes(a.id)
-                      return (
-                        <button key={a.id} onClick={() => toggleAccountVisible(a.id)} style={{
-                          fontSize: 10, padding: '2px 8px', borderRadius: 99, cursor: 'pointer', fontWeight: 600, border: `1px solid ${a.color}`,
-                          background: active ? a.color + '33' : 'transparent', color: active ? a.color : 'var(--text-muted)', opacity: active ? 1 : 0.5
-                        }}>{a.name}</button>
-                      )
-                    })}
-                  </div>
                   <div style={{ paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Saldo miesiąca</span>
                     <span style={{ fontSize: 15, fontWeight: 700, color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
