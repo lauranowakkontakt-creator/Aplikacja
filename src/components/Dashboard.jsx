@@ -118,7 +118,7 @@ export default function Dashboard({ user }) {
         </div>
         <div className="mod-header-right">
           <button className="icon-btn" onClick={() => handleMenuAction('search')}><IconSearch size={16} /></button>
-          <BudgetMenu onAction={handleMenuAction} privateMode={privateMode} mobile />
+          <BudgetMenu onAction={handleMenuAction} privateMode={privateMode} accounts={accounts} visibleAccounts={visibleAccounts} onToggleAccount={toggleAccountVisible} mobile />
         </div>
       </div>
 
@@ -146,7 +146,7 @@ export default function Dashboard({ user }) {
             </button>
           ))}
         </div>
-        <span className="desktop-only"><BudgetMenu onAction={handleMenuAction} privateMode={privateMode} /></span>
+        <span className="desktop-only"><BudgetMenu onAction={handleMenuAction} privateMode={privateMode} accounts={accounts} visibleAccounts={visibleAccounts} onToggleAccount={toggleAccountVisible} /></span>
       </div>
 
       {/* Month navigation — desktop only */}
