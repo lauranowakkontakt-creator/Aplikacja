@@ -64,7 +64,11 @@ export default function Dashboard({ user }) {
   const balance  = income - expenses
   const [visibleAccounts, setVisibleAccounts] = useState(null) // null = all
   const shownAccounts = visibleAccounts === null ? accounts : accounts.filter(a => visibleAccounts.includes(a.id))
-  const totalAccountBalance = shownAccounts.reduce((s, a) => s + (a.balance || 0), 0)
+  const totalsByCurrency = shownAccounts.reduce((acc, a) => {
+    const cur = a.currency || 'PLN'
+    acc[cur] = (acc[cur] || 0) + (a.balance || 0)
+    return acc
+  }, {})
 
   const toggleAccountVisible = (id) => {
     if (visibleAccounts === null) {
@@ -88,6 +92,9 @@ export default function Dashboard({ user }) {
     if (id === 'reminders')  return setModal('reminders')
     if (id === 'categories') return setModal('categories')
   }
+
+  const fmtAcc = (n, currency = 'PLN') =>
+    new Intl.NumberFormat('pl-PL', { style: 'currency', currency }).format(n)
 
   const fmtHero = (n) => {
     const abs = Math.abs(n)
@@ -154,10 +161,30 @@ export default function Dashboard({ user }) {
               {accounts.length > 0 && (
                 <>
                   <div className="balance-hero-label">Saldo kont</div>
-                  <div className="balance-hero-amount">
-                    <span className="balance-hero-main" style={{ color: totalAccountBalance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(totalAccountBalance).int}</span>
-                    <span className="balance-hero-cents" style={{ color: totalAccountBalance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(totalAccountBalance).dec} zł</span>
-                  </div>
+                  {(() => {
+                    const entries = Object.entries(totalsByCurrency)
+                    const isOnlyPLN = entries.length === 0 || (entries.length === 1 && entries[0][0] === 'PLN')
+                    const plnVal = totalsByCurrency['PLN'] || 0
+                    if (isOnlyPLN) {
+                      return (
+                        <div className="balance-hero-amount">
+                          <span className="balance-hero-main" style={{ color: plnVal >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(plnVal).int}</span>
+                          <span className="balance-hero-cents" style={{ color: plnVal >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(plnVal).dec} zł</span>
+                        </div>
+                      )
+                    }
+                    return (
+                      <div className="balance-hero-amount" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+                        {entries.map(([cur, amount]) => (
+                          <div key={cur} style={{ display: 'flex', alignItems: 'baseline' }}>
+                            <span className="balance-hero-main" style={{ fontSize: '1.65rem', color: amount >= 0 ? 'var(--income)' : 'var(--expense)' }}>
+                              {fmtAcc(amount, cur)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                   {/* Account chips filter */}
                   <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', margin: '6px 0 10px' }}>
                     {accounts.map(a => {
