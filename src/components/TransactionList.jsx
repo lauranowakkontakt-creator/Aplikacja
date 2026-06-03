@@ -72,7 +72,9 @@ export default function TransactionList({ transactions, loading, onEdit, user, p
                     <CatIcon categoryId={t.categoryId} emoji={t.categoryIcon} size={18} />
                   </div>
                   <div className="t-details">
-                    <span className="t-category">{t.category}</span>
+                    <span className="t-category">
+                      {t.category}{t.subcategoryLabel ? <span style={{ opacity: 0.7 }}> › {t.subcategoryLabel}</span> : ''}
+                    </span>
                     {t.description && <span className="t-desc">{t.description}</span>}
                   </div>
                   <div className="t-right">

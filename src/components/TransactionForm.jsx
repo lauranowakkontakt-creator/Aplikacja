@@ -3,7 +3,7 @@ import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, que
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { getCurrencyCode } from '../utils/currency'
-import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../utils/categories'
+import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, getSubcategoryColor } from '../utils/categories'
 import { CatIcon, IconClose } from './Icons'
 
 export const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_CATEGORIES
@@ -13,6 +13,7 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
   const [type, setType]             = useState(editData?.type || defaultType || 'expense')
   const [amount, setAmount]         = useState(editData?.amount?.toString() || '')
   const [category, setCategory]     = useState(editData?.categoryId || '')
+  const [subcategoryId, setSubcategoryId] = useState(editData?.subcategoryId || '')
   const [description, setDescription] = useState(editData?.description || '')
   const [date, setDate]             = useState(editData?.date ? format(editData.date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
   const [accountId, setAccountId]   = useState(editData?.accountId || defaultAccountId || '')
@@ -43,17 +44,22 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
     if (!categories.find(c => c.id === category)) setCategory('')
   }, [type])
 
+  useEffect(() => { setSubcategoryId('') }, [category])
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!amount || parseFloat(amount) <= 0) { setError('Podaj prawidłową kwotę'); return }
     if (!category) { setError('Wybierz kategorię'); return }
     setSaving(true); setError('')
     const cat = categories.find(c => c.id === category)
+    const subcat = cat?.subcategories?.find(s => s.id === subcategoryId)
     const data = {
       type, amount: parseFloat(amount),
       category: cat?.label || category,
       categoryId: category,
       categoryIcon: cat?.icon || '📌',
+      subcategoryId: subcat?.id || null,
+      subcategoryLabel: subcat?.label || null,
       description: description.trim(),
       date: Timestamp.fromDate(new Date(date)),
       accountId: accountId || null,
@@ -117,6 +123,38 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
               ))}
             </div>
           </div>
+
+          {(() => {
+            const selectedCat = categories.find(c => c.id === category)
+            const subcats = selectedCat?.subcategories || []
+            if (!subcats.length) return null
+            return (
+              <div className="form-group">
+                <label>Podkategoria <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcjonalna)</span></label>
+                <div className="category-icons-grid">
+                  {subcats.map((sub, si) => {
+                    const subColor = getSubcategoryColor(selectedCat.color, si)
+                    const active = subcategoryId === sub.id
+                    return (
+                      <button key={sub.id} type="button"
+                        className={`cat-icon-btn ${active ? 'active' : ''}`}
+                        onClick={() => setSubcategoryId(active ? '' : sub.id)}
+                      >
+                        <div className="cat-circle" style={{
+                          background: active ? subColor : subColor + '33',
+                          borderColor: active ? subColor : 'transparent',
+                          color: active ? '#fff' : subColor
+                        }}>
+                          <CatIcon categoryId="" emoji={sub.icon} size={18} />
+                        </div>
+                        <span className="cat-label">{sub.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           {accounts.length > 0 && (
             <div className="form-group">

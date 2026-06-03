@@ -6,6 +6,7 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveCo
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, subMonths, addMonths, eachDayOfInterval, eachMonthOfInterval, subWeeks, addWeeks, subYears, addYears, subDays, addDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../utils/currency'
+import { getSubcategoryColor } from '../utils/categories'
 
 const COLORS = ['#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16','#06b6d4','#a78bfa']
 
@@ -104,7 +105,7 @@ export default function Charts({ user }) {
         <>
           {tab === 'general' && <GeneralTab expenses={expenses} incomes={incomes} totalExp={totalExp} totalInc={totalInc} balance={balance} period={period} pivot={pivot} allTx={filtered} />}
           {tab === 'expense' && <CategoryTab transactions={expenses} total={totalExp} chartType={chartType} label="Wydatki" />}
-          {tab === 'income'  && <CategoryTab transactions={incomes}  total={totalInc} chartType={chartType} label="Dochody" />}
+          {tab === 'income'  && <CategoryTab transactions={incomes}  total={totalInc} chartType={chartType} label="Dochody" key="income" />}
         </>
       )}
     </div>
@@ -161,31 +162,106 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
 
 /* ===== CATEGORY TAB ===== */
 function CategoryTab({ transactions, total, chartType, label }) {
+  const [drillDown, setDrillDown] = useState(null) // { categoryId, name, icon, parentColor }
+
+  // Which categories have subcategory data
+  const hasSubcatSet = new Set()
+  transactions.forEach(t => { if (t.subcategoryId) hasSubcatSet.add(t.categoryId) })
+
   const byCat = {}
   transactions.forEach(t => {
-    const key = t.category || 'Inne'
-    if (!byCat[key]) byCat[key] = { name: key, icon: t.categoryIcon || '📌', categoryId: t.categoryId, value: 0 }
+    const key = t.categoryId || t.category || 'Inne'
+    if (!byCat[key]) byCat[key] = { name: t.category || 'Inne', icon: t.categoryIcon || '📌', categoryId: t.categoryId, value: 0 }
     byCat[key].value += t.amount
   })
   const data = Object.values(byCat).sort((a, b) => b.value - a.value)
+  data.forEach((item, i) => { item.chartColor = COLORS[i % COLORS.length] })
+
+  // Drill-down view
+  if (drillDown) {
+    const catTxs = transactions.filter(t => t.categoryId === drillDown.categoryId)
+    const bySub = {}
+    catTxs.forEach(t => {
+      const key = t.subcategoryId || '__none__'
+      const name = t.subcategoryLabel || 'Ogólne'
+      if (!bySub[key]) bySub[key] = { name, subcatId: t.subcategoryId, value: 0 }
+      bySub[key].value += t.amount
+    })
+    const subData = Object.values(bySub).sort((a, b) => b.value - a.value)
+    const subTotal = catTxs.reduce((s, t) => s + t.amount, 0)
+    const subColors = subData.map((_, i) => getSubcategoryColor(drillDown.parentColor, i))
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <button onClick={() => setDrillDown(null)} style={{
+          display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)',
+          border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px',
+          cursor: 'pointer', fontSize: 13, color: 'var(--text)'
+        }}>
+          ← <CatIcon categoryId={drillDown.categoryId} emoji={drillDown.icon} size={16} />
+          <span style={{ fontWeight: 600 }}>{drillDown.name}</span>
+          <span style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>{fmt(subTotal)}</span>
+        </button>
+
+        <div className="chart-section">
+          {chartType === 'pie' ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie data={subData} cx="50%" cy="50%" innerRadius={50} outerRadius={88} paddingAngle={3} dataKey="value">
+                  {subData.map((_, i) => <Cell key={i} fill={subColors[i]} />)}
+                </Pie>
+                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <ResponsiveContainer width="100%" height={Math.max(120, subData.length * 36)}>
+              <BarChart data={subData} layout="vertical" margin={{ left: 4, right: 60, top: 4, bottom: 4 }}>
+                <XAxis type="number" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => fmt(v).replace(/[\s,].*/,'')} />
+                <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
+                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }} />
+                <Bar dataKey="value" radius={[0,4,4,0]}>
+                  {subData.map((_, i) => <Cell key={i} fill={subColors[i]} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {subData.map((item, i) => {
+            const pct = subTotal > 0 ? (item.value / subTotal * 100) : 0
+            return (
+              <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: subColors[i], flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 13, color: 'var(--text)' }}>{item.name}</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{fmt(item.value)}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 38, textAlign: 'right' }}>{pct.toFixed(1)}%</span>
+              </div>
+            )
+          })}
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0 0', borderTop: '1px solid var(--border)', marginTop: 4 }}>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Łącznie</span>
+            <span style={{ fontSize: 15, fontWeight: 700 }}>{fmt(subTotal)}</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!data.length) return <div className="charts-empty"><p>Brak {label.toLowerCase()}</p></div>
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Chart */}
       <div className="chart-section">
         {chartType === 'pie' ? (
-          <>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={88} paddingAngle={3} dataKey="value">
-                  {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={88} paddingAngle={3} dataKey="value">
+                {data.map((item, i) => <Cell key={i} fill={item.chartColor} />)}
+              </Pie>
+              <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }} />
+            </PieChart>
+          </ResponsiveContainer>
         ) : (
           <ResponsiveContainer width="100%" height={Math.max(160, data.length * 32)}>
             <BarChart data={data} layout="vertical" margin={{ left: 4, right: 60, top: 4, bottom: 4 }}>
@@ -193,24 +269,28 @@ function CategoryTab({ transactions, total, chartType, label }) {
               <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
               <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }} />
               <Bar dataKey="value" radius={[0,4,4,0]}>
-                {data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                {data.map((item, i) => <Cell key={i} fill={item.chartColor} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         )}
       </div>
 
-      {/* Category list with % */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {data.map((item, i) => {
           const pct = total > 0 ? (item.value / total * 100) : 0
+          const clickable = hasSubcatSet.has(item.categoryId)
           return (
-            <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: 2, background: COLORS[i % COLORS.length], flexShrink: 0 }} />
+            <div key={item.name}
+              onClick={() => clickable && setDrillDown({ categoryId: item.categoryId, name: item.name, icon: item.icon, parentColor: item.chartColor })}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: clickable ? 'pointer' : 'default', borderRadius: 8, padding: '3px 6px', transition: 'background 0.1s', ...(clickable ? { ':hover': { background: 'var(--surface)' } } : {}) }}
+            >
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: item.chartColor, flexShrink: 0 }} />
               <CatIcon categoryId={item.categoryId} emoji={item.icon} size={16} />
               <span style={{ flex: 1, fontSize: 13, color: 'var(--text)' }}>{item.name}</span>
               <span style={{ fontSize: 13, fontWeight: 600 }}>{fmt(item.value)}</span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 38, textAlign: 'right' }}>{pct.toFixed(1)}%</span>
+              {clickable && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>›</span>}
             </div>
           )
         })}
