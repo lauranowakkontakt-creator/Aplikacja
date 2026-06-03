@@ -54,7 +54,13 @@ export default function Dashboard({ user }) {
       orderBy('date', 'desc')
     )
     return onSnapshot(q, snap => {
-      setTransactions(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() })))
+      const txs = snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() }))
+      txs.sort((a, b) => {
+        const at = a.createdAt?.toMillis() ?? a.date?.getTime() ?? 0
+        const bt = b.createdAt?.toMillis() ?? b.date?.getTime() ?? 0
+        return bt - at
+      })
+      setTransactions(txs)
       setLoading(false)
     })
   }, [user.uid, currentMonth])
