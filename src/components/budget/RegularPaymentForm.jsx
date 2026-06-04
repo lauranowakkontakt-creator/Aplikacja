@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../TransactionForm'
+import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../../utils/categories'
 import { getCurrencyCode } from '../../utils/currency'
-import { IconClose } from '../Icons'
+import { CatIcon, IconClose } from '../Icons'
 
 const FREQUENCIES = [
   { id: 'monthly', label: 'Co miesiąc' },
@@ -23,14 +23,25 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
   const [dateFrom, setDateFrom]   = useState(editData?.dateFrom || '')
   const [dateTo, setDateTo]       = useState(editData?.dateTo || '')
   const [accounts, setAccounts]   = useState([])
+  const [expCats, setExpCats]     = useState(DEFAULT_EXPENSE_CATEGORIES)
+  const [incCats, setIncCats]     = useState(DEFAULT_INCOME_CATEGORIES)
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
 
-  const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
+  const categories = type === 'expense' ? expCats : incCats
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
+
+  useEffect(() => {
+    getDoc(doc(db, 'users', user.uid, 'settings', 'categories')).then(d => {
+      if (d.exists()) {
+        if (d.data().expense?.length) setExpCats(d.data().expense)
+        if (d.data().income?.length)  setIncCats(d.data().income)
+      }
+    })
   }, [user.uid])
 
   const handleSubmit = async (e) => {
@@ -92,8 +103,8 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
                   className={`cat-icon-btn ${category === cat.id ? 'active' : ''}`}
                   onClick={() => setCategory(cat.id)}
                 >
-                  <div className="cat-circle" style={{ background: category === cat.id ? cat.color : cat.color + '33', borderColor: category === cat.id ? cat.color : 'transparent' }}>
-                    <span>{cat.icon}</span>
+                  <div className="cat-circle" style={{ background: category === cat.id ? cat.color : cat.color + '33', borderColor: category === cat.id ? cat.color : 'transparent', color: category === cat.id ? '#fff' : cat.color }}>
+                    <CatIcon categoryId={cat.id} emoji={cat.icon} size={18} />
                   </div>
                   <span className="cat-label">{cat.label}</span>
                 </button>
