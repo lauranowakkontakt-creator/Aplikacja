@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react'
-import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore'
+import { useState, useEffect, useMemo } from 'react'
+import { collection, query, where, orderBy, onSnapshot, Timestamp, getDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { CatIcon } from './Icons'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart } from 'recharts'
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, subMonths, addMonths, eachDayOfInterval, eachMonthOfInterval, subWeeks, addWeeks, subYears, addYears, subDays, addDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../utils/currency'
-import { getSubcategoryColor } from '../utils/categories'
+import { getSubcategoryColor, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../utils/categories'
 
-const COLORS = ['#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16','#06b6d4','#a78bfa']
+const FALLBACK_COLORS = ['#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16','#06b6d4','#a78bfa']
 
 const PERIODS = [
   { id: 'day',   label: 'Dzień'    },
@@ -25,6 +25,7 @@ export default function Charts({ user }) {
   const [transactions, setTx]     = useState([])
   const [accounts, setAccounts]   = useState([])
   const [accountFilter, setAccountFilter] = useState('all')
+  const [customCats, setCustomCats] = useState(null)
 
   const bounds = getBounds(period, pivot)
 
@@ -32,6 +33,21 @@ export default function Charts({ user }) {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
+
+  useEffect(() => {
+    getDoc(doc(db, 'users', user.uid, 'settings', 'categories')).then(d => {
+      setCustomCats(d.exists() ? d.data() : {})
+    })
+  }, [user.uid])
+
+  const catColorMap = useMemo(() => {
+    const map = {}
+    ;[...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES].forEach(c => { map[c.id] = c.color })
+    if (customCats) {
+      ;[...(customCats.expense || []), ...(customCats.income || [])].forEach(c => { if (c.id && c.color) map[c.id] = c.color })
+    }
+    return map
+  }, [customCats])
 
   useEffect(() => {
     const q = query(
@@ -104,8 +120,8 @@ export default function Charts({ user }) {
       ) : (
         <>
           {tab === 'general' && <GeneralTab expenses={expenses} incomes={incomes} totalExp={totalExp} totalInc={totalInc} balance={balance} period={period} pivot={pivot} allTx={filtered} />}
-          {tab === 'expense' && <CategoryTab transactions={expenses} total={totalExp} chartType={chartType} label="Wydatki" />}
-          {tab === 'income'  && <CategoryTab transactions={incomes}  total={totalInc} chartType={chartType} label="Dochody" key="income" />}
+          {tab === 'expense' && <CategoryTab transactions={expenses} total={totalExp} chartType={chartType} label="Wydatki" catColorMap={catColorMap} />}
+          {tab === 'income'  && <CategoryTab transactions={incomes}  total={totalInc} chartType={chartType} label="Dochody" catColorMap={catColorMap} key="income" />}
         </>
       )}
     </div>
@@ -161,10 +177,9 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
 }
 
 /* ===== CATEGORY TAB ===== */
-function CategoryTab({ transactions, total, chartType, label }) {
-  const [drillDown, setDrillDown] = useState(null) // { categoryId, name, icon, parentColor }
+function CategoryTab({ transactions, total, chartType, label, catColorMap = {} }) {
+  const [drillDown, setDrillDown] = useState(null)
 
-  // Which categories have subcategory data
   const hasSubcatSet = new Set()
   transactions.forEach(t => { if (t.subcategoryId) hasSubcatSet.add(t.categoryId) })
 
@@ -175,7 +190,9 @@ function CategoryTab({ transactions, total, chartType, label }) {
     byCat[key].value += t.amount
   })
   const data = Object.values(byCat).sort((a, b) => b.value - a.value)
-  data.forEach((item, i) => { item.chartColor = COLORS[i % COLORS.length] })
+  data.forEach((item, i) => {
+    item.chartColor = catColorMap[item.categoryId] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]
+  })
 
   // Drill-down view
   if (drillDown) {
