@@ -17,7 +17,7 @@ import SavingsGoals from './budget/SavingsGoals'
 import Reminders from './budget/Reminders'
 import CategoriesView from './budget/CategoriesView'
 import ShoppingList from './budget/ShoppingList'
-import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore } from './Icons'
+import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, CatIcon } from './Icons'
 import { Donut, FlowBar, BarChartSVG, Spark } from './ChartPrimitives'
 
 const TABS = [
@@ -305,7 +305,7 @@ export default function Dashboard({ user }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 12 }}>
 
             {/* Left: Bar chart 6 months */}
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20 }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20, overflow: 'hidden' }}>
               {kicker('Wydatki miesięczne')}
               <BarChartSVG
                 data={barData}
@@ -319,33 +319,33 @@ export default function Dashboard({ user }) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {/* Avg daily */}
               <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14 }}>
-                <div style={{ fontSize: 16, marginBottom: 4 }}>📊</div>
+                <div style={{ color: 'var(--warn)', marginBottom: 6 }}><IconChart size={16}/></div>
                 {kicker('Śr. dzienne')}
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--warn)' }}>{!privateMode ? fmtShort(avgDaily) : '••'} zł</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--warn)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!privateMode ? fmtShort(avgDaily) : '••'} zł</div>
               </div>
 
-              {/* Savings */}
+              {/* Balance */}
               <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14 }}>
-                <div style={{ fontSize: 16, marginBottom: 4 }}>💰</div>
+                <div style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)', marginBottom: 6 }}><IconSavings size={16}/></div>
                 {kicker('Saldo m-ca')}
-                <div style={{ fontSize: 18, fontWeight: 700, color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: balance >= 0 ? 'var(--income)' : 'var(--expense)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {!privateMode ? fmtShort(balance) : '••'} zł
                 </div>
               </div>
 
               {/* Income */}
               <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14 }}>
-                <div style={{ fontSize: 16, marginBottom: 4 }}>⬆️</div>
+                <div style={{ color: 'var(--income)', marginBottom: 6 }}><IconArrowUp size={16}/></div>
                 {kicker('Przychody')}
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--income)' }}>{!privateMode ? fmtShort(income) : '••'} zł</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--income)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!privateMode ? fmtShort(income) : '••'} zł</div>
                 <Spark data={sparkData.slice(0, 7)} color="var(--income)" height={20} w={4} />
               </div>
 
               {/* Expenses */}
               <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14 }}>
-                <div style={{ fontSize: 16, marginBottom: 4 }}>⬇️</div>
+                <div style={{ color: 'var(--expense)', marginBottom: 6 }}><IconArrowDown size={16}/></div>
                 {kicker('Wydatki')}
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--expense)' }}>{!privateMode ? fmtShort(expenses) : '••'} zł</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--expense)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!privateMode ? fmtShort(expenses) : '••'} zł</div>
                 <Spark data={sparkData.slice(0, 7)} color="var(--expense)" height={20} w={4} />
               </div>
             </div>
@@ -369,8 +369,8 @@ export default function Dashboard({ user }) {
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0, fontSize: 16 }}>
-                          {a.type === 'cash' ? '💵' : a.type === 'savings' ? '🏦' : a.type === 'card' ? '💳' : '🏛️'}
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
+                          {a.type === 'cash' ? <IconCash size={17}/> : a.type === 'savings' ? <IconSavings size={17}/> : a.type === 'card' ? <IconCard size={17}/> : <IconBank size={17}/>}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</div>
@@ -403,9 +403,10 @@ export default function Dashboard({ user }) {
                         <div style={{
                           width: 34, height: 34, borderRadius: 9, flexShrink: 0,
                           background: isExpense ? 'var(--expense)22' : 'var(--income)22',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: isExpense ? 'var(--expense)' : 'var(--income)',
                         }}>
-                          {t.categoryIcon || (isExpense ? '↓' : '↑')}
+                          <CatIcon categoryId={t.categoryId} emoji={t.categoryIcon} size={16} />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.description || t.category || 'Transakcja'}</div>

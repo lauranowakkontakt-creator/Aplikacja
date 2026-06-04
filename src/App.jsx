@@ -29,7 +29,7 @@ function buildModules() {
   return [
     { id: 'budget',   label: 'Budżet',    Icon: resolveIcon(prefs.budget,   IconBudget) },
     { id: 'habits',   label: 'Nawyki',    Icon: resolveIcon(prefs.habits,   IconHabits) },
-    { id: 'mood',     label: 'Nastrój',   Icon: resolveIcon(prefs.mood,     IconMood),   hidden: true },
+    { id: 'mood',     label: 'Nastrój',   Icon: resolveIcon(prefs.mood,     IconMood) },
     { id: 'todo',     label: 'To-do',     Icon: resolveIcon(prefs.todo,     IconTodo) },
     { id: 'calendar', label: 'Kalendarz', Icon: resolveIcon(prefs.calendar, IconCalendar) },
     { id: 'prayer',   label: 'Modlitwa',  Icon: resolveIcon(prefs.prayer,   IconPrayer) },

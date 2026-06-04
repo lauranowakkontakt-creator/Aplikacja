@@ -5,7 +5,7 @@ import { format, startOfWeek, addDays, subDays, subWeeks, addWeeks, startOfMonth
 import { pl } from 'date-fns/locale'
 import HabitForm, { HABIT_CATEGORIES } from './HabitForm'
 import PauseForm from './PauseForm'
-import { CatIcon, IconFlame, IconStar, IconCheck } from '../Icons'
+import { CatIcon, IconFlame, IconStar, IconCheck, IconPause } from '../Icons'
 import { Ring, Heatmap, Spark } from '../ChartPrimitives'
 
 function isPausedDay(dateStr, pauses) {
@@ -160,7 +160,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           <div className="mod-header-title" style={{ textTransform: 'capitalize' }}>{todayLabel}</div>
         </div>
         <div className="mod-header-right">
-          <button className="icon-btn" title="Pauza" onClick={() => setShowPause(true)}>⏸️</button>
+          <button className="icon-btn" title="Pauza" onClick={() => setShowPause(true)}><IconPause size={16}/></button>
           <button className="icon-btn" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk"
             style={{ background: 'var(--primary)', color: 'var(--bg)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
             +
@@ -182,8 +182,8 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               {doneToday}<span style={{ fontSize: 16, color: 'var(--text-muted)', fontWeight: 400 }}>/{todayDue.length}</span>
             </div>
             {maxStreak > 0 && (
-              <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 6, fontWeight: 600 }}>
-                🔥 {maxStreak} dni serii
+              <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 6, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <IconFlame size={12}/> {maxStreak} dni serii
               </div>
             )}
           </div>
@@ -295,7 +295,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                           color: done ? 'var(--text-muted)' : 'var(--text)',
                         }}>{habit.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-                          {streak > 0 && <span style={{ color }}>🔥 {streak} dni · </span>}
+                          {streak > 0 && <span style={{ color, display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconFlame size={10}/>{streak} dni · </span>}
                           {cat && <span>{cat.label}</span>}
                         </div>
                       </div>
@@ -370,7 +370,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{habit.name}</div>
-                        {streak > 0 && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>🔥 {streak}</div>}
+                        {streak > 0 && <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 2 }}><IconFlame size={10} style={{color:'var(--warn)'}}/>{streak}</div>}
                       </div>
                     </div>
                     {weekDays.map(d => {
@@ -492,7 +492,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
 
       {/* Desktop add button */}
       <div className="desktop-only" style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <button className="habit-compact-btn" onClick={() => setShowPause(true)}>⏸️ Pauza</button>
+        <button className="habit-compact-btn" onClick={() => setShowPause(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 10, paddingRight: 10, width: 'auto' }}><IconPause size={13}/>Pauza</button>
         <button className="btn-add-habit" onClick={() => { setEditHabit(null); setShowForm(true) }}>+ Nowy nawyk</button>
       </div>
 

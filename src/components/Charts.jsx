@@ -269,18 +269,18 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
 
       {/* Timeline chart */}
       {hasTimeline && (
-        <div className="card card-pad">
+        <div className="card card-pad" style={{ overflow: 'hidden' }}>
           <p style={{ margin: '0 0 16px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
             Przepływy w czasie
           </p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
               <p style={{ margin: '0 0 8px', fontSize: 9, color: 'var(--income)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Przychody</p>
-              <BarChartSVG data={incomeData} height={120} accent="var(--income)" fmt={fmt} />
+              <BarChartSVG data={incomeData} height={110} accent="var(--income)" fmt={fmt} />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ minWidth: 0 }}>
               <p style={{ margin: '0 0 8px', fontSize: 9, color: 'var(--expense)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Wydatki</p>
-              <BarChartSVG data={expenseData} height={120} accent="var(--expense)" fmt={fmt} />
+              <BarChartSVG data={expenseData} height={110} accent="var(--expense)" fmt={fmt} />
             </div>
           </div>
         </div>
@@ -537,12 +537,13 @@ function buildTimeline(period, pivot, transactions) {
   const map    = {}
 
   if (period === 'day') {
-    for (let h = 0; h < 24; h++) {
-      const lbl = `${h}h`
+    for (let h = 0; h < 24; h += 2) {
+      const lbl = `${h}`
       map[lbl] = { label: lbl, income: 0, expense: 0 }
     }
     transactions.forEach(t => {
-      const key = `${t.date.getHours()}h`
+      const h = t.date.getHours()
+      const key = `${h - (h % 2)}`
       if (map[key]) map[key][t.type] += t.amount
     })
   } else if (period === 'week') {

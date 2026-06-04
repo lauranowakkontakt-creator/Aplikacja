@@ -89,27 +89,28 @@ export function BarChartSVG({ data, height = 150, accent = 'var(--primary)', fmt
   const on = useMounted(120)
   const max = Math.max(...data.map(d => d.value)) * 1.12 || 1
   const [hover, setHover] = useState(null)
+  const tooltipH = fmt ? 26 : 0
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'min(3%,10px)', height, padding: '0 2px' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'min(3%,8px)', height, padding: '0 2px', overflow: 'hidden' }}>
       {data.map((d, i) => {
-        const h = (d.value / max) * 100
+        const h = (d.value / max) * (100 - (tooltipH / height) * 100)
         const active = d.active || hover === i
         return (
-          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7, height: '100%', justifyContent: 'flex-end' }}
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, height: '100%', justifyContent: 'flex-end', minWidth: 0 }}
             onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
-            <div style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-end', flex: 1 }}>
-              {active && fmt && (
-                <div style={{ position: 'absolute', top: -2, fontSize: 10, color: 'var(--text)', whiteSpace: 'nowrap', background: 'var(--surface2)', padding: '3px 7px', borderRadius: 6, border: '1px solid var(--border-strong)', zIndex: 2 }}>{fmt(d.value)}</div>
+            <div style={{ position: 'relative', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', flex: 1, minHeight: tooltipH }}>
+              {active && fmt && d.value > 0 && (
+                <div style={{ fontSize: 9, color: 'var(--text)', whiteSpace: 'nowrap', background: 'var(--surface2)', padding: '2px 5px', borderRadius: 5, border: '1px solid var(--border-strong)', zIndex: 2, marginBottom: 3, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fmt(d.value)}</div>
               )}
               <div style={{
-                width: '70%', maxWidth: 32, borderRadius: '7px 7px 3px 3px', transformOrigin: 'bottom',
+                width: 'min(70%,28px)', borderRadius: '6px 6px 3px 3px', transformOrigin: 'bottom', flexShrink: 0,
                 height: on ? `${h}%` : '0%',
                 background: active ? accent : `color-mix(in oklab, ${accent} 30%, var(--surface3))`,
-                boxShadow: active ? `0 6px 18px -8px ${accent}` : 'none',
+                boxShadow: active ? `0 4px 14px -6px ${accent}` : 'none',
                 transition: `height .8s cubic-bezier(.34,1.4,.64,1) ${i * .04}s, background .2s`,
               }}/>
             </div>
-            <span style={{ fontSize: 9, color: active ? 'var(--text)' : 'var(--text-muted)', letterSpacing: '.02em' }}>{d.label}</span>
+            <span style={{ fontSize: 8, color: active ? 'var(--text)' : 'var(--text-muted)', letterSpacing: '.02em', flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '100%', textAlign: 'center' }}>{d.label}</span>
           </div>
         )
       })}
