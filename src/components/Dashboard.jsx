@@ -68,7 +68,12 @@ export default function Dashboard({ user }) {
   const income   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const expenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const balance  = income - expenses
-  const totalsByCurrency = accounts.reduce((acc, a) => {
+
+  const excludedFromTotal = (() => {
+    try { const s = localStorage.getItem(`excludedAccounts_${user.uid}`); return s ? JSON.parse(s) : [] } catch { return [] }
+  })()
+  const includedAccounts = accounts.filter(a => !excludedFromTotal.includes(a.id))
+  const totalsByCurrency = includedAccounts.reduce((acc, a) => {
     const cur = a.currency || 'PLN'
     acc[cur] = (acc[cur] || 0) + (a.balance || 0)
     return acc
