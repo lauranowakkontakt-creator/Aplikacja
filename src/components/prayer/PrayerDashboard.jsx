@@ -4,6 +4,7 @@ import { db } from '../../firebase/config'
 import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOfDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight } from '../Icons'
+import { Heatmap } from '../ChartPrimitives'
 
 const PRIORITY_CFG = [
   { v: 5, label: 'Pilna',   color: '#ef4444' },
@@ -13,7 +14,6 @@ const PRIORITY_CFG = [
   { v: 1, label: 'Mała',    color: '#9E9E9E' },
 ]
 
-// 5-level neglect scale
 const NEGLECT_LEVELS = [
   { min: 0,  max: 2,   level: 1, label: 'niedawno',    color: '#22c55e' },
   { min: 3,  max: 6,   level: 2, label: 'trochę dawno',color: '#eab308' },
@@ -35,6 +35,10 @@ function daysSince(dates) {
   const last = [...dates].sort().reverse()[0]
   return differenceInDays(new Date(), parseISO(last))
 }
+
+const kicker = (t) => (
+  <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>{t}</div>
+)
 
 export default function PrayerDashboard({ user }) {
   const [intentions, setIntentions] = useState([])
@@ -91,6 +95,7 @@ export default function PrayerDashboard({ user }) {
 
   return (
     <div className={`prayer-dashboard${carMode ? ' car-mode' : ''}`}>
+      {/* Header */}
       <div className="mod-header">
         <div>
           <div className="mod-header-kicker">Modlitwa</div>
@@ -116,24 +121,67 @@ export default function PrayerDashboard({ user }) {
         </div>
       </div>
 
+      {/* Verse hero card */}
       {!carMode && (
-        <div className="prayer-verse-card">
-          <div className="prayer-verse-kicker">Werset dnia · {format(new Date(), 'd.MM', { locale: pl })}</div>
-          <p className="prayer-verse-text">"Bądź cicho przed Panem<br />i czekaj cierpliwie na Niego."</p>
-          <div className="prayer-verse-ref">— Psalm 37,7</div>
+        <div style={{
+          background: 'linear-gradient(140deg,var(--surface),var(--bg))',
+          border: '1px solid var(--border)', borderRadius: 'var(--r-lg)',
+          padding: 32, marginBottom: 18, position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute', top: -80, right: -60, width: 200, height: 200,
+            background: '#C9A24A', borderRadius: '50%', filter: 'blur(70px)', opacity: .16, pointerEvents: 'none'
+          }} />
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 16 }}>
+            Werset dnia · {format(new Date(), 'd.MM', { locale: pl })}
+          </div>
+          <p style={{
+            fontFamily: 'var(--font-sans)', fontSize: 'clamp(18px,3vw,26px)',
+            lineHeight: 1.5, fontStyle: 'italic', margin: 0, color: 'var(--text)'
+          }}>
+            „Bądź cicho przed Panem<br />i czekaj cierpliwie na Niego."
+          </p>
+          <div style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 14, letterSpacing: '.04em' }}>
+            — Psalm 37,7
+          </div>
         </div>
       )}
 
-      <div className="habit-view-tabs">
-        <button className={`habit-view-tab ${tab === 'people' ? 'active' : ''}`} onClick={() => switchTab('people')}>
-          <IconUsers size={14} /> Osoby
-        </button>
-        <button className={`habit-view-tab ${tab === 'today' ? 'active' : ''}`} onClick={() => switchTab('today')}>
-          <IconPrayer size={14} /> Dziś
-        </button>
-        <button className={`habit-view-tab ${tab === 'stats' ? 'active' : ''}`} onClick={() => switchTab('stats')}>
-          <IconChart size={14} /> Statystyki
-        </button>
+      {/* Stats tiles */}
+      {!carMode && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
+            <div style={{ fontSize: 22, marginBottom: 4 }}>🙏</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#C9A24A', lineHeight: 1 }}>{prayedToday}</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Dziś</div>
+          </div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
+            <IconFlame size={22} style={{ marginBottom: 4 }} />
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--primary)', lineHeight: 1 }}>{streak}</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Seria</div>
+          </div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
+            <IconUsers size={22} style={{ marginBottom: 4 }} />
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--violet)', lineHeight: 1 }}>{people.length}</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Osób</div>
+          </div>
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
+        {[['people','Osoby'],['today','Dziś'],['stats','Statystyki']].map(([id, label]) => (
+          <button key={id}
+            onClick={() => switchTab(id)}
+            style={{
+              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === id ? 700 : 400,
+              background: tab === id ? 'var(--surface3)' : 'transparent',
+              color: tab === id ? 'var(--text)' : 'var(--text-muted)',
+              border: tab === id ? '1px solid var(--border-strong)' : '1px solid transparent',
+              cursor: 'pointer', transition: 'all .2s',
+            }}
+          >{label}</button>
+        ))}
       </div>
 
       {tab === 'people' && (
@@ -170,9 +218,7 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
   const today = TODAY()
 
   const withStats = useMemo(() => people.map(p => {
-    // active intentions
     const active = intentions.filter(i => i.personId === p.id && (i.status === 'active' || !i.status))
-    // ALL intentions (including archived) for stats
     const all    = intentions.filter(i => i.personId === p.id)
     const allDates = all.flatMap(i => i.prayedDates || [])
     const lastDate = allDates.length ? [...allDates].sort().reverse()[0] : null
@@ -190,8 +236,6 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
     if (!confirm('Usunąć osobę i wszystkie jej prośby?')) return
     await deleteDoc(doc(db, 'users', user.uid, 'prayerPeople', id))
   }
-
-  const sz = carMode ? 1.35 : 1
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -263,7 +307,6 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
 
   const mine   = intentions.filter(i => i.personId === person.id)
   const active = mine.filter(i => i.status === 'active' || !i.status).sort((a, b) => {
-    // P5 always at top regardless of prayedToday
     if ((a.priority || 3) === 5 && (b.priority || 3) !== 5) return -1
     if ((a.priority || 3) !== 5 && (b.priority || 3) === 5) return 1
     const at = a.prayedDates?.includes(TODAY())
@@ -585,7 +628,6 @@ function TodayView({ user, intentions, people, carMode }) {
   }
 
   const sorted = [...intentions].sort((a, b) => {
-    // P5 always at top
     if ((a.priority || 3) === 5 && (b.priority || 3) !== 5) return -1
     if ((a.priority || 3) !== 5 && (b.priority || 3) === 5) return 1
     const ap = a.prayedDates?.includes(viewDate)
@@ -656,10 +698,15 @@ function TodayView({ user, intentions, people, carMode }) {
 /* ─── StatsView ──────────────────────────────────────────────────────────── */
 function StatsView({ intentions, people, allPrayedDates, streak }) {
   const today    = TODAY()
-  const heatDates = Array.from({ length: 35 }, (_, i) => format(subDays(new Date(), 34 - i), 'yyyy-MM-dd'))
+
+  // Build heatmap data for 9 weeks
+  const WEEKS = 9
+  const heatData = Array.from({ length: WEEKS * 7 }, (_, i) => {
+    const d = format(subDays(new Date(), WEEKS * 7 - 1 - i), 'yyyy-MM-dd')
+    return allPrayedDates.has(d) ? 4 : 0
+  })
 
   const personStats = useMemo(() => people.map(p => {
-    // Include ALL intentions (active + archived) in stats
     const allMine  = intentions.filter(i => i.personId === p.id)
     const active   = allMine.filter(i => i.status === 'active' || !i.status)
     const allDates = allMine.flatMap(i => i.prayedDates || [])
@@ -679,29 +726,73 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
     return (b.days ?? 999) - (a.days ?? 999)
   }), [people, intentions, today])
 
+  // Regularność %
+  const totalDays = 30
+  const prayedDays = Array.from({ length: totalDays }, (_, i) => format(subDays(new Date(), i), 'yyyy-MM-dd'))
+    .filter(d => allPrayedDates.has(d)).length
+  const regularPct = Math.round((prayedDays / totalDays) * 100)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 16, textAlign: 'center' }}>
-        <IconFlame size={36} style={{ color: 'var(--warn)' }} />
-        <p style={{ margin: '6px 0 2px', fontSize: 28, fontWeight: 700 }}>{streak}</p>
-        <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>dni z rzędu</p>
-      </div>
+      {/* 2-column layout */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {/* Intencje — lista */}
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
+          {kicker('Intencje')}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {personStats.slice(0, 4).map(p => {
+              const neglect = getNeglect(p.activeCount > 0 && !p.prayedToday ? p.days : -1)
+              const isNeglected = p.activeCount > 0 && !p.prayedToday && neglect.level >= 4
+              const isAtRisk    = p.activeCount > 0 && !p.prayedToday && neglect.level === 3
+              return (
+                <div key={p.id} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                  borderRadius: 10, cursor: 'pointer',
+                  background: isNeglected ? neglect.color + '08' : 'var(--surface2)',
+                  border: `1px solid ${isNeglected ? neglect.color + '40' : isAtRisk ? neglect.color + '30' : 'var(--border)'}`,
+                }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6', flexShrink: 0 }}>
+                    <CatIcon categoryId={null} emoji={p.icon || 'IcUsers'} size={16} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      ↳ {p.totalPrays}× · {p.days === 0 ? 'dziś' : p.days !== null ? `${p.days} dni temu` : 'brak'}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>›</span>
+                </div>
+              )
+            })}
+            {personStats.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>Brak osób</div>
+            )}
+          </div>
+        </div>
 
-      <div className="chart-section">
-        <h3 className="chart-title">Ostatnie 5 tygodni</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-          {['Pn','Wt','Śr','Cz','Pt','So','Nd'].map(d => (
-            <div key={d} style={{ textAlign: 'center', fontSize: 9, color: 'var(--text-muted)', paddingBottom: 4 }}>{d}</div>
-          ))}
-          {heatDates.map(d => (
-            <div key={d} style={{ height: 24, borderRadius: 5, background: allPrayedDates.has(d) ? '#8b5cf6' : 'var(--surface)', border: `1px solid ${allPrayedDates.has(d) ? '#8b5cf6' : 'var(--border)'}` }} />
-          ))}
+        {/* Heatmap + stats */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
+            {kicker('Aktywność modlitwy')}
+            <Heatmap weeks={WEEKS} accent="#C9A24A" data={heatData} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: '#C9A24A' }}>{regularPct}%</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>regularność</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>{streak}</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>seria dni</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Person stats full list */}
       {personStats.length > 0 && (
-        <div className="chart-section">
-          <h3 className="chart-title">Osoby — jak często się modliłam</h3>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
+          {kicker('Osoby — jak często się modliłam')}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {personStats.map(p => {
               const neglect = getNeglect(p.activeCount > 0 && !p.prayedToday ? p.days : -1)
@@ -709,7 +800,7 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
               const isAtRisk        = p.activeCount > 0 && !p.prayedToday && neglect.level === 3
               return (
                 <div key={p.id} style={{
-                  background: isNeglected ? neglect.color + '08' : 'var(--surface)',
+                  background: isNeglected ? neglect.color + '08' : 'var(--surface2)',
                   border: `1px solid ${isNeglected ? neglect.color + '44' : isAtRisk ? neglect.color + '33' : 'var(--border)'}`,
                   borderRadius: 10, padding: '10px 14px',
                   display: 'flex', alignItems: 'center', gap: 10
@@ -811,7 +902,7 @@ function IntentionForm({ user, editData, personId, onClose }) {
       <div className="form-group" style={{ margin: 0 }}>
         <label>Auto-archiwizuj po dacie (opcjonalnie)</label>
         <input type="date" className="form-input" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-        {dateTo && <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>Prośba zarchiwizuje się automatycznie po {dateTo} — ale zostanie w statystykach</p>}
+        {dateTo && <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>Prośba zarchiwizuje się automatycznie po {dateTo}</p>}
       </div>
 
       {error && <p className="form-error" style={{ margin: 0 }}>{error}</p>}
@@ -838,7 +929,6 @@ const PERSON_ICON_GROUPS = [
   { label: 'Praca', keys: ['IcWork','IcSchool','IcBook','IcGrad','IcBriefcase'] },
 ]
 
-// Build available catalog for person icons — filter to keys that exist
 const ALL_PERSON_ICON_KEYS = ICON_CATALOG.map(ic => ic.key)
 const PERSON_ICON_CATALOG  = ICON_CATALOG.slice(0, 60)
 
@@ -867,8 +957,6 @@ function PersonForm({ user, editData, onClose }) {
       onClose()
     } catch { setSaving(false) }
   }
-
-  const curIcon = ICON_CATALOG.find(ic => ic.key === iconKey)
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>

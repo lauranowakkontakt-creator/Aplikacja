@@ -9,6 +9,7 @@ import {
 import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag } from '../Icons'
+import { Ring } from '../ChartPrimitives'
 
 const PRIORITY = [
   { id: 'high',   label: 'Wysoki',  color: '#E53935' },
@@ -32,11 +33,15 @@ const LIST_COLORS = [
 ]
 const pOrder      = { high: 0, medium: 1, low: 2 }
 
+const kicker = (t) => (
+  <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>{t}</div>
+)
+
 export default function TodoDashboard({ user }) {
   const [todos, setTodos]           = useState([])
   const [lists, setLists]           = useState([])
   const [loading, setLoading]       = useState(true)
-  const [tab, setTab]               = useState('tasks')    // 'tasks' | 'stats'
+  const [tab, setTab]               = useState('tasks')
   const [activeList, setActiveList] = useState(null)
   const [showForm, setShowForm]     = useState(false)
   const [editTodo, setEditTodo]     = useState(null)
@@ -45,6 +50,7 @@ export default function TodoDashboard({ user }) {
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showMenu, setShowMenu]     = useState(false)
+  const [quickInput, setQuickInput] = useState('')
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc'))
@@ -67,6 +73,17 @@ export default function TodoDashboard({ user }) {
     await deleteDoc(doc(db, 'users', user.uid, 'todos', id))
   }
 
+  const handleQuickAdd = async (e) => {
+    e.preventDefault()
+    if (!quickInput.trim()) return
+    await addDoc(collection(db, 'users', user.uid, 'todos'), {
+      title: quickInput.trim(), note: '', listId: activeList || null,
+      priority: 'medium', dueDate: null, done: false,
+      createdAt: Timestamp.now(), updatedAt: Timestamp.now(), doneAt: null
+    })
+    setQuickInput('')
+  }
+
   const sortActive = (arr) => [...arr].sort((a, b) => {
     const aDate = a.dueDate ? parseISO(a.dueDate) : null
     const bDate = b.dueDate ? parseISO(b.dueDate) : null
@@ -86,10 +103,13 @@ export default function TodoDashboard({ user }) {
 
   const activeListObj = lists.find(l => l.id === activeList)
   const headerTitle = activeListObj ? activeListObj.name : 'Zadania'
+  const activeListColor = activeListObj?.color || 'var(--sky)'
 
-  // Today count
   const dueToday = active.filter(t => t.dueDate && isToday(parseISO(t.dueDate)))
-  const highCount = dueToday.filter(t => t.priority === 'high').length
+  const highCount = active.filter(t => t.priority === 'high').length
+  const totalForList = byList.length
+  const doneForList = byList.filter(t => t.done).length
+  const pct = totalForList > 0 ? Math.round((doneForList / totalForList) * 100) : 0
 
   return (
     <div className="todo-dashboard">
@@ -112,98 +132,142 @@ export default function TodoDashboard({ user }) {
               minWidth: 180, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
             }} onClick={() => setShowMenu(false)}>
               <button style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
-                onClick={() => { setShowDone(v => !v); setShowMenu(false) }}>
+                onClick={() => { setShowDone(v => !v) }}>
                 {showDone ? '✓ ' : ''}Ukończone zadania
               </button>
               <button style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
-                onClick={() => { setShowListForm(true); setShowMenu(false) }}>
+                onClick={() => { setShowListForm(true) }}>
                 + Nowa lista
               </button>
             </div>
           )}
         </div>
       </div>
+
       {showSearch && (
         <div style={{ padding: '0 0 12px' }}>
           <input autoFocus className="form-input" placeholder="Szukaj zadań..." value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            style={{ margin: 0 }} />
+            onChange={e => setSearchQuery(e.target.value)} style={{ margin: 0 }} />
         </div>
       )}
 
-      {/* Główne zakładki */}
-      <div className="habit-view-tabs">
-        <button className={`habit-view-tab ${tab === 'tasks' ? 'active' : ''}`} onClick={() => setTab('tasks')}><IconEdit size={14} /> Zadania</button>
-        <button className={`habit-view-tab ${tab === 'stats' ? 'active' : ''}`} onClick={() => setTab('stats')}><IconChart size={14} /> Statystyki</button>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
+        <button onClick={() => setTab('tasks')}
+          style={{
+            flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === 'tasks' ? 700 : 400,
+            background: tab === 'tasks' ? 'var(--surface3)' : 'transparent',
+            color: tab === 'tasks' ? 'var(--text)' : 'var(--text-muted)',
+            border: tab === 'tasks' ? '1px solid var(--border-strong)' : '1px solid transparent',
+            cursor: 'pointer',
+          }}
+        >Zadania</button>
+        <button onClick={() => setTab('stats')}
+          style={{
+            flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === 'stats' ? 700 : 400,
+            background: tab === 'stats' ? 'var(--surface3)' : 'transparent',
+            color: tab === 'stats' ? 'var(--text)' : 'var(--text-muted)',
+            border: tab === 'stats' ? '1px solid var(--border-strong)' : '1px solid transparent',
+            cursor: 'pointer',
+          }}
+        ><IconChart size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />Statystyki</button>
       </div>
 
       {tab === 'stats' ? (
         <TodoStats todos={todos} lists={lists} />
       ) : (
         <>
-          {/* Lista filter chips */}
-          <div className="todo-lists">
-            <button className={`todo-list-chip ${!activeList ? 'active' : ''}`} onClick={() => setActiveList(null)}>
+          {/* List chips */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
+            <button
+              onClick={() => setActiveList(null)}
+              style={{
+                padding: '6px 14px', borderRadius: 99, fontSize: 12, cursor: 'pointer', fontWeight: !activeList ? 700 : 400,
+                border: `1px solid ${!activeList ? 'var(--sky)' : 'var(--border)'}`,
+                background: !activeList ? 'var(--sky)22' : 'transparent',
+                color: !activeList ? 'var(--sky)' : 'var(--text-muted)',
+              }}
+            >
               Wszystkie
-              {todos.filter(t => !t.done).length > 0 && <span className="todo-count">{todos.filter(t => !t.done).length}</span>}
+              {todos.filter(t => !t.done).length > 0 && (
+                <span style={{ marginLeft: 5, fontSize: 10, background: 'var(--surface3)', borderRadius: 99, padding: '1px 6px' }}>
+                  {todos.filter(t => !t.done).length}
+                </span>
+              )}
             </button>
             {lists.map(l => {
               const cnt = todos.filter(t => !t.done && t.listId === l.id).length
+              const isActive = activeList === l.id
               return (
                 <button key={l.id}
-                  className={`todo-list-chip ${activeList === l.id ? 'active' : ''}`}
-                  style={activeList === l.id ? { borderColor: l.color, background: l.color + '22', color: l.color } : {}}
-                  onClick={() => setActiveList(l.id)}>
-                  <CatIcon categoryId={null} emoji={l.icon} size={13} /> {l.name}
-                  {cnt > 0 && <span className="todo-count">{cnt}</span>}
+                  onClick={() => setActiveList(l.id)}
+                  style={{
+                    padding: '6px 14px', borderRadius: 99, fontSize: 12, cursor: 'pointer', fontWeight: isActive ? 700 : 400,
+                    border: `1px solid ${isActive ? l.color : 'var(--border)'}`,
+                    background: isActive ? l.color + '22' : 'transparent',
+                    color: isActive ? l.color : 'var(--text-muted)',
+                  }}
+                >
+                  <CatIcon categoryId={null} emoji={l.icon} size={12} /> {l.name}
+                  {cnt > 0 && <span style={{ marginLeft: 5, fontSize: 10, background: 'var(--surface3)', borderRadius: 99, padding: '1px 6px' }}>{cnt}</span>}
                 </button>
               )
             })}
-            <button className="todo-list-chip todo-list-add" onClick={() => setShowListForm(true)}>+ Lista</button>
+            <button
+              onClick={() => setShowListForm(true)}
+              style={{
+                padding: '6px 14px', borderRadius: 99, fontSize: 12, cursor: 'pointer',
+                border: '1px dashed var(--border)', background: 'transparent', color: 'var(--text-muted)',
+              }}
+            >+ Lista</button>
           </div>
 
-          {/* Today summary card */}
-          {dueToday.length > 0 && (
-            <div className="todo-today-card">
-              <div className="todo-today-icon">
-                <IconFlag size={18} />
+          {/* Summary card */}
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '14px 18px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: activeListColor + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <IconFlag size={20} style={{ color: activeListColor }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{active.length} {active.length === 1 ? 'zadanie' : 'zadań'} do zrobienia</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                {highCount > 0 ? `${highCount} z wysokim priorytetem` : 'brak pilnych'}
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{dueToday.length} {dueToday.length === 1 ? 'zadanie' : 'zadania'} na dziś</div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.04em', marginTop: 2 }}>
-                  {highCount > 0 ? `${highCount} z priorytetem · ` : ''}{dueToday.length - highCount} standardowe
-                </div>
+            </div>
+            <Ring value={pct} size={52} thickness={6} color="var(--sky)" />
+          </div>
+
+          {/* Active tasks */}
+          {active.length > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 8 }}>Aktywne</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {active.map(todo => (
+                  <TodoItem key={todo.id} todo={todo} lists={lists}
+                    onToggle={toggleDone}
+                    onEdit={() => { setEditTodo(todo); setShowForm(true) }}
+                    onDelete={handleDelete} />
+                ))}
               </div>
             </div>
           )}
 
-          <button className="btn-add-habit" onClick={() => { setEditTodo(null); setShowForm(true) }}>
-            + Dodaj zadanie
-          </button>
-
-          {active.length === 0 && done.length === 0 ? (
+          {active.length === 0 && done.length === 0 && (
             <div className="list-empty">
               <p>Brak zadań</p>
-              <p className="list-empty-hint">Kliknij „+ Dodaj zadanie" aby zacząć</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {active.map(todo => (
-                <TodoItem key={todo.id} todo={todo} lists={lists}
-                  onToggle={toggleDone}
-                  onEdit={() => { setEditTodo(todo); setShowForm(true) }}
-                  onDelete={handleDelete} />
-              ))}
+              <p className="list-empty-hint">Wpisz poniżej aby dodać pierwsze zadanie</p>
             </div>
           )}
 
+          {/* Done tasks */}
           {done.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <button className="todo-done-toggle" onClick={() => setShowDone(v => !v)}>
-                {showDone ? '▾' : '▸'} Ukończone ({done.length})
+            <div style={{ marginBottom: 80 }}>
+              <button onClick={() => setShowDone(v => !v)} style={{
+                fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', marginBottom: 6
+              }}>
+                {showDone ? '▾' : '▸'} Zrobione ({done.length})
               </button>
               {showDone && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, opacity: 0.55 }}>
                   {done.map(todo => (
                     <TodoItem key={todo.id} todo={todo} lists={lists}
                       onToggle={toggleDone}
@@ -214,6 +278,28 @@ export default function TodoDashboard({ user }) {
               )}
             </div>
           )}
+
+          {/* Sticky quick-add */}
+          <div style={{
+            position: 'sticky', bottom: 0, background: 'var(--bg)', paddingBottom: 12, paddingTop: 8,
+            borderTop: '1px solid var(--border)', marginTop: 8,
+          }}>
+            <form onSubmit={handleQuickAdd}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px 14px',
+              }}>
+                <span style={{ fontSize: 18, color: 'var(--text-muted)' }}>+</span>
+                <input
+                  value={quickInput}
+                  onChange={e => setQuickInput(e.target.value)}
+                  placeholder="Dodaj zadanie..."
+                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: 'var(--text)' }}
+                />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--surface2)', padding: '2px 6px', borderRadius: 4 }}>↵</span>
+              </div>
+            </form>
+          </div>
         </>
       )}
 
@@ -222,6 +308,68 @@ export default function TodoDashboard({ user }) {
           onClose={() => { setShowForm(false); setEditTodo(null) }} />
       )}
       {showListForm && <ListForm user={user} onClose={() => setShowListForm(false)} />}
+    </div>
+  )
+}
+
+/* ─── TodoItem ─── */
+function TodoItem({ todo, lists, onToggle, onEdit, onDelete }) {
+  const list     = lists.find(l => l.id === todo.listId)
+  const priority = PRIORITY.find(p => p.id === todo.priority)
+  const date     = todo.dueDate ? parseISO(todo.dueDate) : null
+  const overdue  = date && isPast(date) && !isToday(date) && !todo.done
+  const dueToday = date && isToday(date) && !todo.done
+  const listColor = list?.color || 'var(--border)'
+
+  return (
+    <div style={{
+      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
+      padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 12,
+    }}>
+      {/* Checkbox */}
+      <button onClick={() => onToggle(todo)} style={{
+        width: 22, height: 22, borderRadius: 7, flexShrink: 0, marginTop: 1,
+        border: `2px solid ${todo.done ? 'var(--income)' : list ? listColor : priority?.color || 'var(--border)'}`,
+        background: todo.done ? 'var(--income)' : 'transparent', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11
+      }}>{todo.done ? <IconCheck size={12} /> : ''}</button>
+
+      {/* Body */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{
+          margin: 0, fontSize: 14, fontWeight: 600,
+          textDecoration: todo.done ? 'line-through' : 'none',
+          color: todo.done ? 'var(--text-muted)' : 'var(--text)'
+        }}>{todo.title}</p>
+        {todo.note && <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{todo.note}</p>}
+        <div style={{ display: 'flex', gap: 5, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+          {list && (
+            <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 4, background: listColor + '22', color: listColor, fontWeight: 600 }}>
+              <CatIcon categoryId={null} emoji={list.icon} size={11} /> {list.name}
+            </span>
+          )}
+          {priority && !todo.done && (
+            <span style={{
+              fontSize: 10, padding: '1px 7px', borderRadius: 4,
+              background: priority.color + '22', color: priority.color, fontWeight: 700,
+              textTransform: 'uppercase', letterSpacing: '.04em',
+            }}>
+              {priority.label}
+            </span>
+          )}
+          {date && (
+            <span style={{ fontSize: 11, fontWeight: overdue || dueToday ? 600 : 400, color: overdue ? '#E53935' : dueToday ? '#FB8C00' : 'var(--text-muted)' }}>
+              {overdue ? '⚠ ' : dueToday ? '⏰ ' : '📅 '}
+              {format(date, 'd MMM', { locale: pl })}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
+        <button className="t-btn" onClick={onEdit}><IconEdit size={13} /></button>
+        <button className="t-btn delete" onClick={() => onDelete(todo.id)}><IconTrash size={13} /></button>
+      </div>
     </div>
   )
 }
@@ -262,7 +410,6 @@ function TodoStats({ todos, lists }) {
   }).length
   const completionRate = totalInPeriod > 0 ? Math.round((doneInPeriod.length / Math.max(doneInPeriod.length + allActive.length, 1)) * 100) : 0
 
-  // Bar chart data
   const chartData = (() => {
     if (period === 'day') return []
     if (period === 'week' || period === 'month') {
@@ -275,7 +422,6 @@ function TodoStats({ todos, lists }) {
         return { label: format(d, period === 'week' ? 'EEE' : 'd', { locale: pl }), count }
       })
     }
-    // year → by month
     return eachMonthOfInterval(range).map(m => {
       const count = doneInPeriod.filter(t => {
         const done = t.doneAt.toDate ? t.doneAt.toDate() : new Date(t.doneAt)
@@ -285,7 +431,6 @@ function TodoStats({ todos, lists }) {
     })
   })()
 
-  // By list breakdown (done in period)
   const byList = lists.map(l => ({
     ...l,
     done:   doneInPeriod.filter(t => t.listId === l.id).length,
@@ -294,7 +439,6 @@ function TodoStats({ todos, lists }) {
   const noListDone   = doneInPeriod.filter(t => !t.listId).length
   const noListActive = allActive.filter(t => !t.listId).length
 
-  // By priority (active only)
   const byPriority = PRIORITY.map(p => ({
     ...p, count: allActive.filter(t => t.priority === p.id).length
   }))
@@ -302,33 +446,32 @@ function TodoStats({ todos, lists }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-      {/* Karty — do zrobienia */}
-      <div>
-        <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>Do zrobienia</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-          <StatCard value={allActive.length}  label="Aktywnych"       color="var(--text)" />
-          <StatCard value={overdue.length}    label="Przeterminowane" color={overdue.length > 0 ? '#E53935' : 'var(--text-muted)'} />
-          <StatCard value={dueToday.length}   label="Na dziś"         color={dueToday.length > 0 ? '#FB8C00' : 'var(--text-muted)'} />
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <StatCard value={allActive.length}  label="Aktywnych"       color="var(--text)" />
+        <StatCard value={overdue.length}    label="Przeterminowane" color={overdue.length > 0 ? '#E53935' : 'var(--text-muted)'} />
+        <StatCard value={dueToday.length}   label="Na dziś"         color={dueToday.length > 0 ? '#FB8C00' : 'var(--text-muted)'} />
       </div>
 
-      {/* Period selector */}
-      <div className="habit-view-tabs">
+      <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
         {PERIODS.map(p => (
-          <button key={p.id} className={`habit-view-tab ${period === p.id ? 'active' : ''}`} onClick={() => setPeriod(p.id)}>
-            {p.label}
-          </button>
+          <button key={p.id}
+            onClick={() => setPeriod(p.id)}
+            style={{
+              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: period === p.id ? 700 : 400,
+              background: period === p.id ? 'var(--surface3)' : 'transparent',
+              color: period === p.id ? 'var(--text)' : 'var(--text-muted)',
+              border: period === p.id ? '1px solid var(--border-strong)' : '1px solid transparent',
+              cursor: 'pointer',
+            }}
+          >{p.label}</button>
         ))}
       </div>
 
-      {/* Ukończone w okresie */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-        <StatCard value={doneInPeriod.length} label="Ukończonych" color="#27AE60" big />
+        <StatCard value={doneInPeriod.length} label="Ukończonych" color="var(--income)" big />
         <StatCard value={`${completionRate}%`} label="Ukończono" color="var(--primary)" big />
       </div>
 
-      {/* Wykres */}
       {chartData.length > 0 && chartData.some(d => d.count > 0) && (
         <div className="chart-section">
           <h3 className="chart-title">Ukończone zadania</h3>
@@ -341,14 +484,13 @@ function TodoStats({ todos, lists }) {
                 formatter={v => [v, 'Ukończone']}
               />
               <Bar dataKey="count" radius={[4,4,0,0]}>
-                {chartData.map((_, i) => <Cell key={i} fill="#27AE60" fillOpacity={0.8} />)}
+                {chartData.map((_, i) => <Cell key={i} fill="var(--income)" fillOpacity={0.8} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       )}
 
-      {/* Według list */}
       {(byList.length > 0 || noListDone > 0 || noListActive > 0) && (
         <div className="chart-section">
           <h3 className="chart-title">Według list</h3>
@@ -365,7 +507,6 @@ function TodoStats({ todos, lists }) {
         </div>
       )}
 
-      {/* Według priorytetu (aktywne) */}
       {allActive.length > 0 && (
         <div className="chart-section">
           <h3 className="chart-title">Aktywne według priorytetu</h3>
@@ -421,58 +562,6 @@ function PriorityRow({ label, color, count, total }) {
         <div style={{ height: '100%', borderRadius: 3, background: color, width: `${pct}%`, transition: 'width .3s' }} />
       </div>
       <span style={{ fontSize: 12, color: 'var(--text-muted)', width: 24, textAlign: 'right' }}>{count}</span>
-    </div>
-  )
-}
-
-/* ─── TodoItem ─── */
-function TodoItem({ todo, lists, onToggle, onEdit, onDelete }) {
-  const list     = lists.find(l => l.id === todo.listId)
-  const priority = PRIORITY.find(p => p.id === todo.priority)
-  const date     = todo.dueDate ? parseISO(todo.dueDate) : null
-  const overdue  = date && isPast(date) && !isToday(date) && !todo.done
-  const dueToday = date && isToday(date) && !todo.done
-
-  return (
-    <div style={{
-      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
-      padding: '11px 14px', display: 'flex', alignItems: 'flex-start', gap: 10,
-      opacity: todo.done ? 0.55 : 1,
-      borderLeft: `3px solid ${todo.done ? 'var(--border)' : priority?.color || 'var(--border)'}`
-    }}>
-      <button onClick={() => onToggle(todo)} style={{
-        width: 20, height: 20, borderRadius: 6, flexShrink: 0, marginTop: 1,
-        border: `2px solid ${todo.done ? '#27AE60' : priority?.color || 'var(--border)'}`,
-        background: todo.done ? '#27AE60' : 'transparent', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11
-      }}>{todo.done ? <IconCheck size={11} /> : ''}</button>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{
-          margin: 0, fontSize: 14, fontWeight: 600,
-          textDecoration: todo.done ? 'line-through' : 'none',
-          color: todo.done ? 'var(--text-muted)' : 'var(--text)'
-        }}>{todo.title}</p>
-        {todo.note && <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{todo.note}</p>}
-        <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
-          {list && (
-            <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 4, background: list.color + '22', color: list.color, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              <CatIcon categoryId={null} emoji={list.icon} size={12} /> {list.name}
-            </span>
-          )}
-          {date && (
-            <span style={{ fontSize: 11, fontWeight: overdue || dueToday ? 600 : 400, color: overdue ? '#E53935' : dueToday ? '#FB8C00' : 'var(--text-muted)' }}>
-              {overdue ? '⚠ ' : dueToday ? '⏰ ' : '📅 '}
-              {format(date, 'd MMM', { locale: pl })}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-        <button className="t-btn" onClick={onEdit}><IconEdit size={13} /></button>
-        <button className="t-btn delete" onClick={() => onDelete(todo.id)}><IconTrash size={13} /></button>
-      </div>
     </div>
   )
 }
