@@ -11,24 +11,31 @@ import CalendarDashboard from './components/calendar/CalendarDashboard'
 import PrayerDashboard from './components/prayer/PrayerDashboard'
 import SettingsDrawer from './components/SettingsDrawer'
 import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconSettings } from './components/Icons'
+import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
 
 const DEV_USER = { uid: 'dev-user', displayName: 'Laura', photoURL: null }
 const DEV_MODE = import.meta.env.DEV
 
-export const MODULES = [
-  { id: 'budget',   label: 'Budżet',    Icon: IconBudget },
-  { id: 'habits',   label: 'Nawyki',    Icon: IconHabits },
-  { id: 'mood',     label: 'Nastrój',   Icon: IconMood,     hidden: true },
-  { id: 'todo',     label: 'To-do',     Icon: IconTodo },
-  { id: 'calendar', label: 'Kalendarz', Icon: IconCalendar },
-  { id: 'prayer',   label: 'Modlitwa',  Icon: IconPrayer },
-]
+function buildModules() {
+  const prefs = getModuleIcons()
+  return [
+    { id: 'budget',   label: 'Budżet',    Icon: resolveIcon(prefs.budget,   IconBudget) },
+    { id: 'habits',   label: 'Nawyki',    Icon: resolveIcon(prefs.habits,   IconHabits) },
+    { id: 'mood',     label: 'Nastrój',   Icon: resolveIcon(prefs.mood,     IconMood),   hidden: true },
+    { id: 'todo',     label: 'To-do',     Icon: resolveIcon(prefs.todo,     IconTodo) },
+    { id: 'calendar', label: 'Kalendarz', Icon: resolveIcon(prefs.calendar, IconCalendar) },
+    { id: 'prayer',   label: 'Modlitwa',  Icon: resolveIcon(prefs.prayer,   IconPrayer) },
+  ]
+}
 
 export default function App() {
   const [user, setUser] = useState(DEV_MODE ? DEV_USER : null)
   const [loading, setLoading] = useState(!DEV_MODE)
   const [activeModule, setActiveModule] = useState('budget')
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [modules, setModules] = useState(() => buildModules())
+
+  const handleModuleIconChange = () => setModules(buildModules())
 
   useEffect(() => {
     if (DEV_MODE) return
@@ -49,13 +56,13 @@ export default function App() {
 
   if (!user) return <Login />
 
-  const currentModule = MODULES.find(m => m.id === activeModule)
+  const currentModule = modules.find(m => m.id === activeModule)
 
   return (
     <div className="app">
       <Header
         user={user}
-        modules={MODULES}
+        modules={modules}
         activeModule={activeModule}
         onModuleChange={(id) => { setActiveModule(id); setDrawerOpen(false) }}
         onSettingsOpen={() => setDrawerOpen(true)}
@@ -71,7 +78,7 @@ export default function App() {
 
       {/* Bottom nav mobile */}
       {(() => {
-        const navItems = [...MODULES.filter(m => !m.soon && !m.hidden), { id: '__settings', label: 'Więcej', Icon: IconSettings }]
+        const navItems = [...modules.filter(m => !m.soon && !m.hidden), { id: '__settings', label: 'Więcej', Icon: IconSettings }]
         const activeId = drawerOpen ? '__settings' : activeModule
         const activeIdx = navItems.findIndex(m => m.id === activeId)
         const pct = navItems.length > 0 ? (activeIdx + 0.5) * (100 / navItems.length) : 0
@@ -103,8 +110,9 @@ export default function App() {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         activeModule={currentModule}
-        modules={MODULES}
+        modules={modules}
         onModuleChange={(id) => { setActiveModule(id); setDrawerOpen(false) }}
+        onIconChange={handleModuleIconChange}
         user={user}
       />
     </div>

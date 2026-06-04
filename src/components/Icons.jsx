@@ -19,9 +19,10 @@ const Icon = ({ children, size = 20, stroke = 1.5, style, ...rest }) => (
 
 export const IconBudget = (p) => (
   <Icon {...p}>
-    <rect x="3" y="6" width="18" height="13" rx="2" />
-    <path d="M3 10h18" />
-    <circle cx="16.5" cy="14.5" r="1.2" fill="currentColor" stroke="none" />
+    <rect x="2" y="7" width="20" height="13" rx="2.5" />
+    <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+    <circle cx="16.5" cy="13.5" r="2" />
+    <path d="M2 11h20" />
   </Icon>
 )
 
@@ -65,8 +66,11 @@ export const IconCalendar = (p) => (
 
 export const IconPrayer = (p) => (
   <Icon {...p}>
-    <path d="M12 2v20" />
-    <path d="M4 8h16" />
+    <path d="M12 21V13a4 4 0 0 1 8 0" />
+    <path d="M12 21V13a4 4 0 0 0-8 0" />
+    <path d="M12 13V8" />
+    <path d="M9.5 6.5 Q12 3.5 14.5 6.5" />
+    <path d="M7 21h10" />
   </Icon>
 )
 

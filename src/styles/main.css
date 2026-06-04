@@ -1791,3 +1791,34 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .driving-mode .prayer-stat-lbl { font-size: 12px; }
 .driving-mode .habit-view-tab { font-size: 15px; padding: 10px 16px; }
 .driving-mode .mod-header-title { font-size: 22px; }
+
+/* iOS time/date input fix */
+input[type="time"],
+input[type="date"] {
+  color-scheme: dark;
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="time"]::-webkit-datetime-edit-fields-wrapper,
+input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+  padding: 0;
+}
+
+/* Settings drawer — icon picker */
+.drawer-icon-list { display: flex; flex-direction: column; gap: 4px; }
+.drawer-icon-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 10px;
+  background: var(--surface2); border: none;
+  cursor: pointer; width: 100%; text-align: left;
+  color: var(--text);
+  transition: background 0.15s;
+}
+.drawer-icon-row:hover { background: var(--border-strong); }
+.drawer-icon-preview {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--primary-soft); color: var(--primary);
+}
+.drawer-icon-label { flex: 1; font-size: 13px; font-weight: 500; }
+.drawer-icon-change { font-size: 11px; color: var(--text-muted); }

@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import { signOut } from 'firebase/auth'
 import { auth } from '../firebase/config'
-import { IconClose } from './Icons'
+import { IconClose, ICON_CATALOG } from './Icons'
+import { saveModuleIcon } from '../utils/iconPrefs'
 
-export default function SettingsDrawer({ open, onClose, activeModule, modules, onModuleChange, user }) {
+export default function SettingsDrawer({ open, onClose, activeModule, modules, onModuleChange, onIconChange, user }) {
   const handleLogout = () => { signOut(auth); onClose() }
   const displayName = user.displayName || 'Laura'
   const initials = displayName[0]?.toUpperCase() || 'L'
+  const [pickerModule, setPickerModule] = useState(null)
 
   return (
     <>
@@ -28,7 +31,7 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
           </button>
         </div>
 
-        {/* Wszystkie aplikacje */}
+        {/* Moduły */}
         <div className="drawer-section">
           <p className="drawer-section-title">Moduły</p>
           <div className="drawer-apps-grid">
@@ -44,6 +47,32 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Ikony aplikacji */}
+        <div className="drawer-section">
+          <p className="drawer-section-title">Ikony aplikacji</p>
+          {pickerModule ? (
+            <IconPickerPanel
+              module={pickerModule}
+              onPick={(key) => {
+                saveModuleIcon(pickerModule.id, key)
+                onIconChange?.()
+                setPickerModule(null)
+              }}
+              onCancel={() => setPickerModule(null)}
+            />
+          ) : (
+            <div className="drawer-icon-list">
+              {modules.filter(m => !m.hidden && !m.soon).map(m => (
+                <button key={m.id} className="drawer-icon-row" onClick={() => setPickerModule(m)}>
+                  <span className="drawer-icon-preview"><m.Icon size={20} /></span>
+                  <span className="drawer-icon-label">{m.label}</span>
+                  <span className="drawer-icon-change">Zmień →</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Ustawienia bieżącego modułu */}
@@ -64,6 +93,48 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
         </div>
       </aside>
     </>
+  )
+}
+
+function IconPickerPanel({ module, onPick, onCancel }) {
+  const groups = [...new Set(ICON_CATALOG.map(ic => ic.group))]
+  const [activeGroup, setActiveGroup] = useState(groups[0])
+  const icons = ICON_CATALOG.filter(ic => ic.group === activeGroup)
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>← Wróć</button>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>Ikona: {module.label}</span>
+      </div>
+      {/* Group tabs */}
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 10 }}>
+        {groups.map(g => (
+          <button key={g} onClick={() => setActiveGroup(g)}
+            style={{
+              fontSize: 10, padding: '3px 8px', borderRadius: 99, border: 'none', cursor: 'pointer',
+              background: activeGroup === g ? 'var(--primary)' : 'var(--surface2)',
+              color: activeGroup === g ? '#fff' : 'var(--text-muted)'
+            }}>
+            {g.split(' ')[0]}
+          </button>
+        ))}
+      </div>
+      {/* Icon grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 6, maxHeight: 220, overflowY: 'auto' }}>
+        {icons.map(ic => (
+          <button key={ic.key} title={ic.label} onClick={() => onPick(ic.key)}
+            style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, padding: '8px 4px',
+              borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface2)',
+              cursor: 'pointer', color: 'var(--text)'
+            }}>
+            <ic.Component size={18} />
+            <span style={{ fontSize: 8, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{ic.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 

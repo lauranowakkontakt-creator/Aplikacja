@@ -105,7 +105,14 @@ export default function CalendarDashboard({ user }) {
     await deleteDoc(doc(db, 'users', user.uid, 'calendarEvents', id))
   }
 
-  const eventsOnDay   = (day) => events.filter(e => e.date === format(day, 'yyyy-MM-dd'))
+  const eventsOnDay   = (day) => {
+    const dayStr = format(day, 'yyyy-MM-dd')
+    return events.filter(e => {
+      const start = e.date
+      const end = e.dateEnd || e.date
+      return dayStr >= start && dayStr <= end
+    })
+  }
   const todosOnDay    = (day) => todos.filter(t => t.dueDate === format(day, 'yyyy-MM-dd'))
   const paymentsOnDay = (day) => payments.filter(p => p.dayOfMonth === getDate(day))
 
@@ -347,6 +354,18 @@ function EventRow({ e, categories, onEdit, onDelete }) {
         <div style={{ minWidth: 44, flexShrink: 0 }}>
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{e.startTime}</div>
           {e.endTime && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>–{e.endTime}</div>}
+          {e.dateEnd && e.dateEnd !== e.date && (
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>
+              →{format(parseISO(e.dateEnd), 'd MMM', { locale: pl })}
+            </div>
+          )}
+        </div>
+      )}
+      {!e.startTime && e.dateEnd && e.dateEnd !== e.date && (
+        <div style={{ minWidth: 44, flexShrink: 0 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)' }}>
+            →{format(parseISO(e.dateEnd), 'd MMM', { locale: pl })}
+          </div>
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -377,6 +396,7 @@ function EventRow({ e, categories, onEdit, onDelete }) {
 function EventForm({ user, editData, defaultDate, categories, people, onClose }) {
   const [title, setTitle]           = useState(editData?.title || '')
   const [date, setDate]             = useState(editData?.date || defaultDate)
+  const [dateEnd, setDateEnd]       = useState(editData?.dateEnd || '')
   const [startTime, setStartTime]   = useState(editData?.startTime || '')
   const [endTime, setEndTime]       = useState(editData?.endTime || '')
   const [note, setNote]             = useState(editData?.note || '')
@@ -395,6 +415,7 @@ function EventForm({ user, editData, defaultDate, categories, people, onClose })
     setSaving(true)
     const data = {
       title: title.trim(), date,
+      dateEnd: dateEnd && dateEnd > date ? dateEnd : null,
       startTime: startTime || null, endTime: endTime || null,
       note: note.trim(),
       categoryId: categoryId || null,
@@ -446,6 +467,13 @@ function EventForm({ user, editData, defaultDate, categories, people, onClose })
           <div className="form-group">
             <label>Data</label>
             <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label>Data końca (opcjonalnie)</label>
+            <input type="date" className="form-input" value={dateEnd}
+              onChange={e => setDateEnd(e.target.value)}
+              min={date}
+              placeholder="Tylko dla wielodniowych" />
           </div>
           <div className="form-row">
             <div className="form-group" style={{ flex: 1 }}>
