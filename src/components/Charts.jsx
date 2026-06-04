@@ -2,10 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { collection, query, where, orderBy, onSnapshot, Timestamp, getDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { CatIcon, IconChevronLeft, IconChevronRight } from './Icons'
-import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, Tooltip,
-  ResponsiveContainer, AreaChart, Area, CartesianGrid
-} from 'recharts'
+import { useMounted, BarChartSVG, FlowBar } from './ChartPrimitives'
 import {
   format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   startOfYear, endOfYear, startOfDay, endOfDay,
@@ -27,15 +24,6 @@ const PERIODS = [
   { id: 'month', label: 'Miesiąc' },
   { id: 'year',  label: 'Rok'     },
 ]
-
-const TOOLTIP_STYLE = {
-  background: 'var(--surface2)',
-  border: '1px solid var(--border-strong)',
-  borderRadius: 10,
-  color: 'var(--text)',
-  fontSize: 12,
-  boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
-}
 
 export default function Charts({ user }) {
   const [tab, setTab]             = useState('general')
@@ -198,38 +186,31 @@ export default function Charts({ user }) {
 function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pivot, allTx }) {
   const timeline = buildTimeline(period, pivot, allTx)
   const savingsRate = totalInc > 0 ? Math.round((balance / totalInc) * 100) : null
+  const on = useMounted(80)
+
+  // Prepare dual-series bar data
+  const incomeData = timeline.map(d => ({ label: d.label, value: d.income }))
+  const expenseData = timeline.map(d => ({ label: d.label, value: d.expense }))
+  const hasTimeline = timeline.length > 1
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Balance hero card */}
-      <div style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 18,
-        padding: '20px 20px 16px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-        {/* Subtle bg tint based on positive/negative */}
+      <div className="card card-pad" style={{ overflow: 'hidden' }}>
         <div style={{
-          position: 'absolute', inset: 0,
+          position: 'absolute', inset: 0, pointerEvents: 'none',
           background: balance >= 0
-            ? 'radial-gradient(ellipse at top right, rgba(39,174,96,0.08) 0%, transparent 60%)'
-            : 'radial-gradient(ellipse at top right, rgba(224,101,60,0.08) 0%, transparent 60%)',
-          pointerEvents: 'none',
+            ? 'radial-gradient(ellipse at top right, rgba(95,191,152,0.08) 0%, transparent 60%)'
+            : 'radial-gradient(ellipse at top right, rgba(224,103,62,0.08) 0%, transparent 60%)',
         }} />
 
-        <p style={{ margin: '0 0 4px', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+        <p style={{ margin: '0 0 4px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
           Bilans okresu
         </p>
         <p style={{
-          margin: '0 0 16px',
-          fontSize: 36,
-          fontWeight: 800,
-          letterSpacing: '-0.02em',
-          color: balance >= 0 ? 'var(--income)' : 'var(--expense)',
-          lineHeight: 1.1,
+          margin: '0 0 16px', fontSize: 36, fontWeight: 800, letterSpacing: '-0.02em',
+          color: balance >= 0 ? 'var(--income)' : 'var(--expense)', lineHeight: 1.1,
         }}>
           {balance >= 0 ? '+' : '−'}{fmt(Math.abs(balance))}
         </p>
@@ -251,10 +232,10 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
             <div style={{ flex: 1, height: 4, background: 'var(--surface2)', borderRadius: 99, overflow: 'hidden' }}>
               <div style={{
                 height: '100%',
-                width: `${Math.min(100, Math.max(0, savingsRate))}%`,
+                width: on ? `${Math.min(100, Math.max(0, savingsRate))}%` : '0%',
                 background: savingsRate >= 0 ? 'var(--income)' : 'var(--expense)',
                 borderRadius: 99,
-                transition: 'width 0.6s ease',
+                transition: 'width 0.8s cubic-bezier(.4,0,.2,1)',
               }} />
             </div>
             <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', minWidth: 60, textAlign: 'right' }}>
@@ -264,38 +245,43 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
         )}
       </div>
 
-      {/* Timeline chart */}
-      {timeline.length > 1 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, padding: '16px 12px 8px' }}>
-          <p style={{ margin: '0 0 12px 4px', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            Przepływy w czasie
+      {/* Flow bar — przychody vs wydatki */}
+      {(totalInc > 0 || totalExp > 0) && (
+        <div className="card card-pad">
+          <p style={{ margin: '0 0 12px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            Przepływy
           </p>
-          <ResponsiveContainer width="100%" height={150}>
-            <BarChart data={timeline} barGap={2} barCategoryGap="35%">
-              <XAxis
-                dataKey="label"
-                tick={{ fill: 'var(--text-muted)', fontSize: 9 }}
-                axisLine={false} tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <Tooltip
-                formatter={(v, name) => [fmt(v), name === 'income' ? 'Przychód' : 'Wydatek']}
-                contentStyle={TOOLTIP_STYLE}
-                cursor={{ fill: 'rgba(255,255,255,0.03)', radius: 4 }}
-              />
-              <Bar dataKey="income"  name="income"  fill="#27AE60" radius={[4,4,0,0]} maxBarSize={32} />
-              <Bar dataKey="expense" name="expense" fill="var(--expense)" radius={[4,4,0,0]} maxBarSize={32} />
-            </BarChart>
-          </ResponsiveContainer>
-
-          {/* Legend */}
-          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 4 }}>
-            {[['#27AE60','Przychody'],['var(--expense)','Wydatki']].map(([color, lbl]) => (
-              <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
-                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{lbl}</span>
+          <FlowBar segments={[
+            ...(totalInc > 0 ? [{ label: 'Przychody', value: totalInc, color: 'var(--income)' }] : []),
+            ...(totalExp > 0 ? [{ label: 'Wydatki', value: totalExp, color: 'var(--expense)' }] : []),
+          ]} height={12} />
+          <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
+            {[['var(--income)','Przychody', fmt(totalInc)],['var(--expense)','Wydatki', fmt(totalExp)]].map(([color, lbl, val]) => (
+              <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lbl}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{val}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Timeline chart */}
+      {hasTimeline && (
+        <div className="card card-pad">
+          <p style={{ margin: '0 0 16px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            Przepływy w czasie
+          </p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 8px', fontSize: 9, color: 'var(--income)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Przychody</p>
+              <BarChartSVG data={incomeData} height={120} accent="var(--income)" fmt={fmt} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 8px', fontSize: 9, color: 'var(--expense)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Wydatki</p>
+              <BarChartSVG data={expenseData} height={120} accent="var(--expense)" fmt={fmt} />
+            </div>
           </div>
         </div>
       )}
@@ -386,9 +372,10 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
   )
 }
 
-/* ─── Progress bar list (replaces horizontal BarChart) ─── */
+/* ─── Progress bar list ─── */
 function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon }) {
   const maxVal = data[0]?.value || 1
+  const on = useMounted(100)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -403,23 +390,14 @@ function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon 
             key={item.name}
             onClick={() => onItemClick?.(item)}
             style={{
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              borderRadius: 14,
-              padding: '12px 14px',
-              cursor: clickable ? 'pointer' : 'default',
-              transition: 'border-color 0.15s, background 0.15s',
+              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
+              padding: '12px 14px', cursor: clickable ? 'pointer' : 'default', transition: 'border-color 0.15s, background 0.15s',
             }}
             onMouseEnter={e => { if (clickable) { e.currentTarget.style.borderColor = color; e.currentTarget.style.background = 'var(--surface2)' } }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <div style={{
-                width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                background: color + '22',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color,
-              }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
                 {renderIcon ? renderIcon(item) : <span style={{ fontSize: 14 }}>{item.name[0]}</span>}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -433,11 +411,8 @@ function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon 
             </div>
             <div style={{ height: 4, background: 'var(--surface2)', borderRadius: 99, overflow: 'hidden' }}>
               <div style={{
-                height: '100%',
-                width: relPct + '%',
-                background: color,
-                borderRadius: 99,
-                transition: 'width 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
+                height: '100%', width: on ? relPct + '%' : '0%', background: color, borderRadius: 99,
+                transition: `width .8s cubic-bezier(.4,0,.2,1) ${i * .05}s`,
               }} />
             </div>
           </div>
@@ -445,13 +420,7 @@ function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon 
       })}
 
       {/* Total row */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '10px 14px',
-        background: 'var(--surface2)',
-        borderRadius: 12,
-        marginTop: 2,
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface2)', borderRadius: 12, marginTop: 2 }}>
         <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>Łącznie</span>
         <span style={{ fontSize: 17, fontWeight: 800 }}>{fmt(total)}</span>
       </div>
@@ -459,57 +428,55 @@ function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon 
   )
 }
 
-/* ─── Donut chart with center label ─── */
+/* ─── Donut chart z SVG (zastępuje recharts PieChart) ─── */
 function DonutChart({ data, colors, total }) {
   const [active, setActive] = useState(null)
+  const on = useMounted(120)
+
+  const size = 220
+  const thickness = 28
+  const r = (size - thickness) / 2 - 2
+  const C = 2 * Math.PI * r
+  const gap = 0.015
+
+  let acc = 0
+  const segs = data.map((d, i) => {
+    const frac = d.value / total
+    const len = Math.max(0, frac * C - gap * C)
+    const seg = { ...d, i, offset: -(acc * C), len, dash: `${len} ${C - len}`, frac }
+    acc += frac
+    return seg
+  })
+
   const displayItem = active != null ? data[active] : null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ position: 'relative' }}>
-        <ResponsiveContainer width="100%" height={220}>
-          <PieChart>
-            <Pie
-              data={data} cx="50%" cy="50%"
-              innerRadius={62} outerRadius={96}
-              paddingAngle={2} dataKey="value"
-              onMouseEnter={(_, i) => setActive(i)}
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface3)" strokeWidth={thickness} opacity={.4}/>
+          {segs.map(s => (
+            <circle key={s.i} cx={size/2} cy={size/2} r={r} fill="none"
+              stroke={colors[s.i]}
+              strokeWidth={active === s.i ? thickness + 4 : thickness}
+              strokeLinecap="butt"
+              strokeDasharray={on ? s.dash : `0 ${C}`}
+              strokeDashoffset={s.offset}
+              opacity={active == null || active === s.i ? 1 : 0.4}
+              onMouseEnter={() => setActive(s.i)}
               onMouseLeave={() => setActive(null)}
-              strokeWidth={0}
-            >
-              {data.map((_, i) => (
-                <Cell
-                  key={i}
-                  fill={colors[i]}
-                  opacity={active == null || active === i ? 1 : 0.4}
-                />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={v => fmt(v)}
-              contentStyle={TOOLTIP_STYLE}
+              style={{ transition: `stroke-dasharray .9s cubic-bezier(.4,0,.2,1) ${s.i * .07}s, stroke-width .2s, opacity .2s`, cursor: 'pointer' }}
             />
-          </PieChart>
-        </ResponsiveContainer>
+          ))}
+        </svg>
 
         {/* Center label */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          pointerEvents: 'none',
-        }}>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', pointerEvents: 'none' }}>
           {displayItem ? (
             <>
-              <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {displayItem.name}
-              </p>
-              <p style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 800, color: colors[active] }}>
-                {fmt(displayItem.value)}
-              </p>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>
-                {total > 0 ? (displayItem.value / total * 100).toFixed(1) : 0}%
-              </p>
+              <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{displayItem.name}</p>
+              <p style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 800, color: colors[active] }}>{fmt(displayItem.value)}</p>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>{total > 0 ? (displayItem.value / total * 100).toFixed(1) : 0}%</p>
             </>
           ) : (
             <>
@@ -526,12 +493,7 @@ function DonutChart({ data, colors, total }) {
           const pct = total > 0 ? (item.value / total * 100) : 0
           return (
             <div key={item.name}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '4px 6px', borderRadius: 8,
-                background: active === i ? 'var(--surface2)' : 'transparent',
-                transition: 'background 0.15s',
-              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 8, background: active === i ? 'var(--surface2)' : 'transparent', transition: 'background 0.15s', cursor: 'pointer' }}
               onMouseEnter={() => setActive(i)}
               onMouseLeave={() => setActive(null)}
             >

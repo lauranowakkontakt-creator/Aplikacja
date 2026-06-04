@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './firebase/config'
 import Login from './components/Login'
-import Header from './components/Header'
 import Dashboard from './components/Dashboard'
 import HabitsDashboard from './components/habits/HabitsDashboard'
 import MoodDashboard from './components/mood/MoodDashboard'
@@ -13,8 +12,17 @@ import SettingsDrawer from './components/SettingsDrawer'
 import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconSettings } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
 
-const DEV_USER = { uid: 'dev-user', displayName: 'Laura', photoURL: null }
+const DEV_USER = { uid: 'dev-user', displayName: 'Laura', photoURL: null, email: 'laura@mojswiat.app' }
 const DEV_MODE = import.meta.env.DEV
+
+const MODULE_ACCENTS = {
+  budget:   '#E0673E',
+  habits:   '#E0B15A',
+  mood:     '#9B7CF0',
+  todo:     '#5BB6D9',
+  calendar: '#5FBF98',
+  prayer:   '#C9A24A',
+}
 
 function buildModules() {
   const prefs = getModuleIcons()
@@ -56,64 +64,145 @@ export default function App() {
 
   if (!user) return <Login />
 
-  const currentModule = modules.find(m => m.id === activeModule)
+  const accent = MODULE_ACCENTS[activeModule] || 'var(--primary)'
+  const accentVars = {
+    '--accent': accent,
+    '--accent-soft': `color-mix(in oklab, ${accent} 15%, transparent)`,
+  }
+
+  const navItems = modules.filter(m => !m.hidden && !m.soon)
+  const activeIdx = navItems.findIndex(m => m.id === activeModule)
+  const w = 100 / navItems.length
 
   return (
-    <div className="app">
-      <Header
-        user={user}
-        modules={modules}
-        activeModule={activeModule}
-        onModuleChange={(id) => { setActiveModule(id); setDrawerOpen(false) }}
-        onSettingsOpen={() => setDrawerOpen(true)}
-      />
-      <main className="main-content">
-        {activeModule === 'budget'  && <Dashboard user={user} />}
-        {activeModule === 'habits'  && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} />}
-        {activeModule === 'mood'    && <MoodDashboard user={user} />}
-        {activeModule === 'todo'    && <TodoDashboard user={user} />}
-        {activeModule === 'calendar' && <CalendarDashboard user={user} />}
-        {activeModule === 'prayer'   && <PrayerDashboard user={user} />}
-      </main>
+    <div className="app" style={accentVars}>
 
-      {/* Bottom nav mobile */}
-      {(() => {
-        const navItems = [...modules.filter(m => !m.soon && !m.hidden), { id: '__settings', label: 'Więcej', Icon: IconSettings }]
-        const activeId = drawerOpen ? '__settings' : activeModule
-        const activeIdx = navItems.findIndex(m => m.id === activeId)
-        const pct = navItems.length > 0 ? (activeIdx + 0.5) * (100 / navItems.length) : 0
-        return (
-          <nav className="bottom-nav">
-            <div className="bottom-nav-indicator" style={{ left: `calc(${pct}% - 15px)` }} />
-            {navItems.map(m => {
-              const isActive = activeId === m.id
-              return (
-                <button
-                  key={m.id}
-                  className={`bottom-nav-item ${isActive ? 'active' : ''}`}
-                  onClick={() => {
-                    if (m.id === '__settings') setDrawerOpen(true)
-                    else { setActiveModule(m.id); setDrawerOpen(false) }
-                  }}
-                >
-                  <m.Icon size={22} />
-                  <span>{m.label}</span>
-                </button>
-              )
-            })}
-          </nav>
-        )
-      })()}
+      {/* SIDEBAR — desktop only */}
+      <aside className="sidebar">
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-mark">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 2l3 7h7l-5 5 2 7-7-4-7 4 2-7L2 9h7z"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.01em', lineHeight: 1.1 }}>Mój Świat</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.1em', textTransform: 'uppercase', marginTop: 2 }}>
+              {user?.displayName || 'laura'}
+            </div>
+          </div>
+        </div>
+
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {modules.filter(m => !m.hidden).map(m => {
+            const modAccent = MODULE_ACCENTS[m.id] || 'var(--primary)'
+            const isActive = activeModule === m.id
+            return (
+              <button
+                key={m.id}
+                className={`sidebar-nav-item${isActive ? ' active' : ''}`}
+                style={isActive ? { '--accent': modAccent, '--accent-soft': `color-mix(in oklab, ${modAccent} 15%, transparent)` } : {}}
+                onClick={() => { setActiveModule(m.id); setDrawerOpen(false) }}
+              >
+                <m.Icon size={18}/>
+                <span style={{ flex: 1 }}>{m.label}</span>
+              </button>
+            )
+          })}
+        </nav>
+
+        <div style={{ marginTop: 'auto', paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 30, height: 30, borderRadius: 99, background: 'var(--surface2)', display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 600, color: 'var(--text-sub)', flexShrink: 0 }}>
+            {user?.displayName?.[0]?.toUpperCase() || 'L'}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.displayName || 'Laura'}</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.06em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email || ''}</div>
+          </div>
+          <button className="icon-btn" style={{ width: 30, height: 30, flexShrink: 0 }} onClick={() => setDrawerOpen(true)}>
+            <IconSettings size={14}/>
+          </button>
+        </div>
+      </aside>
+
+      {/* MAIN */}
+      <div className="main">
+        {/* Topbar — desktop */}
+        <div className="topbar">
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <h1 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-.02em', margin: 0 }}>
+              {modules.find(m => m.id === activeModule)?.label || ''}
+            </h1>
+            <span style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.1em', textTransform: 'uppercase' }}>
+              · {user?.displayName || 'laura'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="icon-btn" onClick={() => setDrawerOpen(true)}><IconSettings size={15}/></button>
+          </div>
+        </div>
+
+        {/* Mobile header */}
+        <div className="mobile-header">
+          <div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.12em', textTransform: 'uppercase' }}>
+              {modules.find(m => m.id === activeModule)?.label || ''}
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-.02em', marginTop: 2 }}>Mój Świat</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="icon-btn"
+              style={{ width: 34, height: 34, background: 'var(--accent-soft)', color: 'var(--accent)', border: 'none' }}
+              onClick={() => setDrawerOpen(true)}
+            >
+              <IconSettings size={15}/>
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="content" key={activeModule}>
+          <div className="content-inner">
+            {activeModule === 'budget'   && <Dashboard user={user} />}
+            {activeModule === 'habits'   && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} />}
+            {activeModule === 'mood'     && <MoodDashboard user={user} />}
+            {activeModule === 'todo'     && <TodoDashboard user={user} />}
+            {activeModule === 'calendar' && <CalendarDashboard user={user} />}
+            {activeModule === 'prayer'   && <PrayerDashboard user={user} />}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom nav — mobile */}
+      <nav className="bottom-nav">
+        <div className="bn-indicator" style={{ left: `calc(${(activeIdx + 0.5) * w}% - 12px)`, background: accent }}/>
+        {navItems.map(m => {
+          const isActive = activeModule === m.id
+          const modAccent = MODULE_ACCENTS[m.id] || 'var(--primary)'
+          return (
+            <button
+              key={m.id}
+              className={`bottom-nav-item${isActive ? ' active' : ''}`}
+              style={{ '--accent': modAccent }}
+              onClick={() => { setActiveModule(m.id); setDrawerOpen(false) }}
+            >
+              <m.Icon size={21}/>
+              <span>{m.label}</span>
+            </button>
+          )
+        })}
+      </nav>
 
       {/* Settings drawer */}
       <SettingsDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        activeModule={currentModule}
+        activeModule={modules.find(m => m.id === activeModule)}
         modules={modules}
         onModuleChange={(id) => { setActiveModule(id); setDrawerOpen(false) }}
-        onIconChange={handleModuleIconChange}
         user={user}
+        onIconChange={handleModuleIconChange}
       />
     </div>
   )
