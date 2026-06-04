@@ -21,7 +21,10 @@ export default function AccountsView({ user, privateMode }) {
   const [showForm, setShowForm]   = useState(false)
   const [editAccount, setEditAccount] = useState(null)
   const [selected, setSelected]   = useState(null)
-  const [excludedFromTotal, setExcludedFromTotal] = useState([])
+  const storageKey = `excludedAccounts_${user.uid}`
+  const [excludedFromTotal, setExcludedFromTotal] = useState(() => {
+    try { const s = localStorage.getItem(`excludedAccounts_${user.uid}`); return s ? JSON.parse(s) : [] } catch { return [] }
+  })
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
@@ -41,7 +44,11 @@ export default function AccountsView({ user, privateMode }) {
 
   const toggleExcluded = (id, e) => {
     e.stopPropagation()
-    setExcludedFromTotal(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+    setExcludedFromTotal(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+      try { localStorage.setItem(storageKey, JSON.stringify(next)) } catch {}
+      return next
+    })
   }
 
   const handleDelete = async (id, e) => {
@@ -49,7 +56,11 @@ export default function AccountsView({ user, privateMode }) {
     if (!confirm('Usunąć to konto? Historia transakcji zostanie zachowana.')) return
     await deleteDoc(doc(db, 'users', user.uid, 'accounts', id))
     if (selected?.id === id) setSelected(null)
-    setExcludedFromTotal(prev => prev.filter(x => x !== id))
+    setExcludedFromTotal(prev => {
+      const next = prev.filter(x => x !== id)
+      try { localStorage.setItem(storageKey, JSON.stringify(next)) } catch {}
+      return next
+    })
   }
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
