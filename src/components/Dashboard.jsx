@@ -216,7 +216,8 @@ export default function Dashboard({ user }) {
           )}
           {/* Summary grid — desktop */}
           <div className="desktop-only">
-            <Summary income={income} expenses={expenses} balance={balance} privateMode={privateMode} />
+            <Summary income={income} expenses={expenses} balance={balance} privateMode={privateMode}
+              totalsByCurrency={totalsByCurrency} hasAccounts={includedAccounts.length > 0} />
           </div>
           <TransactionList
             transactions={transactions}
