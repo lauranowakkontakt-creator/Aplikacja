@@ -31,6 +31,7 @@ export default function Charts({ user }) {
   const [period, setPeriod]       = useState('month')
   const [pivot, setPivot]         = useState(new Date())
   const [transactions, setTx]     = useState([])
+  const [allYearTx, setAllYearTx] = useState([])
   const [accounts, setAccounts]   = useState([])
   const [accountFilter, setAccountFilter] = useState('all')
   const [customCats, setCustomCats] = useState(null)
@@ -68,6 +69,19 @@ export default function Charts({ user }) {
       setTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() })))
     )
   }, [user.uid, period, pivot])
+
+  // 12-month data for timeline (always, regardless of selected period)
+  useEffect(() => {
+    const twelveAgo = startOfMonth(subMonths(new Date(), 11))
+    const q = query(
+      collection(db, 'users', user.uid, 'transactions'),
+      where('date', '>=', Timestamp.fromDate(twelveAgo)),
+      orderBy('date', 'asc')
+    )
+    return onSnapshot(q, snap =>
+      setAllYearTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() })))
+    )
+  }, [user.uid])
 
   const goBack = () => setPivot(p => shiftPivot(period, p, -1))
   const goFwd  = () => setPivot(p => shiftPivot(period, p, +1))
@@ -159,6 +173,7 @@ export default function Charts({ user }) {
               expenses={expenses} incomes={incomes}
               totalExp={totalExp} totalInc={totalInc} balance={balance}
               period={period} pivot={pivot} allTx={filtered}
+              yearTx={accountFilter === 'all' ? allYearTx : allYearTx.filter(t => t.accountId === accountFilter)}
             />
           )}
           {tab === 'expense' && (
@@ -183,15 +198,15 @@ export default function Charts({ user }) {
 }
 
 /* ─── General Tab ─── */
-function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pivot, allTx }) {
-  const timeline = buildTimeline(period, pivot, allTx)
+function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pivot, allTx, yearTx = [] }) {
   const savingsRate = totalInc > 0 ? Math.round((balance / totalInc) * 100) : null
   const on = useMounted(80)
 
-  // Prepare dual-series bar data
-  const incomeData = timeline.map(d => ({ label: d.label, value: d.income }))
-  const expenseData = timeline.map(d => ({ label: d.label, value: d.expense }))
-  const hasTimeline = timeline.length > 1
+  // Always show last 12 months (monthly buckets) — more informative than day-by-day
+  const monthly12 = build12MonthTimeline(yearTx.length > 0 ? yearTx : allTx)
+  const incomeData  = monthly12.map(d => ({ label: d.label, value: d.income }))
+  const expenseData = monthly12.map(d => ({ label: d.label, value: d.expense }))
+  const hasTimeline = monthly12.some(d => d.income > 0 || d.expense > 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -271,7 +286,7 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
       {hasTimeline && (
         <div className="card card-pad" style={{ overflow: 'hidden' }}>
           <p style={{ margin: '0 0 16px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-            Przepływy w czasie
+            Trendy · ostatnie 12 miesięcy
           </p>
           <div className="g2">
             <div style={{ minWidth: 0 }}>
@@ -530,6 +545,22 @@ function shiftPivot(period, pivot, dir) {
   if (period === 'week') return dir > 0 ? addWeeks(pivot, 1)   : subWeeks(pivot, 1)
   if (period === 'year') return dir > 0 ? addYears(pivot, 1)   : subYears(pivot, 1)
   return dir > 0 ? addMonths(pivot, 1) : subMonths(pivot, 1)
+}
+
+function build12MonthTimeline(transactions) {
+  const months = eachMonthOfInterval({
+    start: subMonths(new Date(), 11),
+    end: new Date(),
+  })
+  return months.map(m => {
+    const mStr = format(m, 'yyyy-MM')
+    const txs = transactions.filter(t => format(t.date, 'yyyy-MM') === mStr)
+    return {
+      label: format(m, 'MMM', { locale: pl }),
+      income: txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
+      expense: txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+    }
+  })
 }
 
 function buildTimeline(period, pivot, transactions) {

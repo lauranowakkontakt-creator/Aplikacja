@@ -167,6 +167,10 @@ body {
 /* ===== MOBILE HEADER ===== */
 .mobile-header { display: none; }
 
+/* ===== SCROLL FIX — prevent child elements from blocking scroll ===== */
+.content { -webkit-overflow-scrolling: touch; }
+button { touch-action: manipulation; }
+
 /* ===== CARDS ===== */
 .card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);

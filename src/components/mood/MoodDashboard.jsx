@@ -88,7 +88,8 @@ export default function MoodDashboard({ user, onBack }) {
     })
   }, [user.uid])
 
-  const todayEntry = entries.find(e => e.date === TODAY)
+  const [selectedDate, setSelectedDate] = useState(TODAY)
+  const selectedEntry = entries.find(e => e.date === selectedDate)
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -123,7 +124,7 @@ export default function MoodDashboard({ user, onBack }) {
         ))}
       </div>
 
-      {view === 'today'    && <MoodTodayView user={user} entry={todayEntry} today={TODAY} entries={entries} />}
+      {view === 'today'    && <MoodTodayView user={user} entry={selectedEntry} today={TODAY} entries={entries} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />}
       {view === 'calendar' && <MoodCalendarView user={user} entries={entries} calMonth={calMonth} setCalMonth={setCalMonth} today={TODAY} />}
       {view === 'trends'   && <MoodTrendsView entries={entries} today={TODAY} />}
     </div>
@@ -133,7 +134,7 @@ export default function MoodDashboard({ user, onBack }) {
 /* ============================================================
    TODAY VIEW
    ============================================================ */
-function MoodTodayView({ user, entry, today, entries }) {
+function MoodTodayView({ user, entry, today, entries, selectedDate, setSelectedDate }) {
   const [mood, setMood]         = useState(entry?.mood || null)
   const [emotions, setEmotions] = useState(entry?.emotions || [])
   const [note, setNote]         = useState(entry?.note || '')
@@ -146,7 +147,15 @@ function MoodTodayView({ user, entry, today, entries }) {
     setEmotions(entry?.emotions || [])
     setNote(entry?.note || '')
     setSaved(!!entry)
-  }, [entry?.mood, entry?.id])
+  }, [entry?.id, selectedDate])
+
+  // 14-day strip
+  const dayStrip = Array.from({ length: 14 }, (_, i) => {
+    const d = format(subDays(new Date(), 13 - i), 'yyyy-MM-dd')
+    const e = entries.find(en => en.date === d)
+    const m = e ? MOODS.find(mo => mo.id === e.mood) : null
+    return { date: d, label: format(new Date(d + 'T12:00:00'), 'EEE', { locale: pl }), dayNum: format(new Date(d + 'T12:00:00'), 'd'), mood: m }
+  })
 
   const toggleEmotion = (id) => {
     setEmotions(prev => prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id])
@@ -157,8 +166,8 @@ function MoodTodayView({ user, entry, today, entries }) {
     if (!mood) return
     setSaving(true)
     const m = MOODS.find(m => m.id === mood)
-    await setDoc(doc(db, 'users', user.uid, 'moods', today), {
-      date: today, mood, moodValue: m.value, moodEmoji: m.emoji, moodLabel: m.label,
+    await setDoc(doc(db, 'users', user.uid, 'moods', selectedDate), {
+      date: selectedDate, mood, moodValue: m.value, moodEmoji: m.emoji, moodLabel: m.label,
       emotions, note: note.trim(), updatedAt: Timestamp.now()
     })
     setSaving(false)
@@ -189,6 +198,27 @@ function MoodTodayView({ user, entry, today, entries }) {
 
   return (
     <div className="mood-today">
+      {/* 14-day selector strip */}
+      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4, marginBottom: 14, scrollbarWidth: 'none' }}>
+        {dayStrip.map(d => {
+          const isSel = d.date === selectedDate
+          const isToday = d.date === today
+          return (
+            <button key={d.date} onClick={() => setSelectedDate(d.date)} style={{
+              flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+              padding: '8px 10px', borderRadius: 12, cursor: 'pointer',
+              background: isSel ? 'var(--accent-soft)' : 'var(--surface)',
+              border: `1px solid ${isSel ? 'var(--accent)' : 'var(--border)'}`,
+              minWidth: 48, transition: 'all .15s',
+            }}>
+              <span style={{ fontSize: 9, color: isToday ? 'var(--accent)' : isSel ? 'var(--text-sub)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: isToday ? 700 : 400 }}>{d.label}</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: isSel ? 'var(--accent)' : 'var(--text)', lineHeight: 1 }}>{d.dayNum}</span>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: d.mood ? d.mood.color : 'var(--surface3)', flexShrink: 0 }} />
+            </button>
+          )
+        })}
+      </div>
+
       {/* Hero row */}
       <div className="g2-b" style={{ gap: 10, marginBottom: 14 }}>
         {/* Left: mini chart */}

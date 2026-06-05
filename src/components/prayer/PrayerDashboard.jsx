@@ -151,7 +151,7 @@ export default function PrayerDashboard({ user }) {
       {!carMode && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
-            <div style={{ fontSize: 22, marginBottom: 4 }}>🙏</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: '#C9A24A' }}><IconPrayer size={22}/></div>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#C9A24A', lineHeight: 1 }}>{prayedToday}</div>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Dziś</div>
           </div>
@@ -930,7 +930,7 @@ const PERSON_ICON_GROUPS = [
 ]
 
 const ALL_PERSON_ICON_KEYS = ICON_CATALOG.map(ic => ic.key)
-const PERSON_ICON_CATALOG  = ICON_CATALOG.slice(0, 60)
+const PERSON_ICON_CATALOG  = ICON_CATALOG
 
 function PersonForm({ user, editData, onClose }) {
   const [name, setName]         = useState(editData?.name || '')

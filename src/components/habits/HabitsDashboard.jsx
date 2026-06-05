@@ -260,11 +260,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               <div className="list-empty"><p>Brak nawyków</p><p className="list-empty-hint">Kliknij "+ Nowy" aby dodać</p></div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 8 }}>
-                {[...selDue].sort((a, b) => {
-                  const aDone = a.completedDates?.includes(selectedDay) ? 1 : 0
-                  const bDone = b.completedDates?.includes(selectedDay) ? 1 : 0
-                  return aDone - bDone
-                }).map(habit => {
+                {selDue.map(habit => {
                   const status = isHabitDue(habit, selectedDay, pauses)
                   const done   = habit.completedDates?.includes(selectedDay)
                   const streak = getStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)

@@ -42,7 +42,9 @@ export default function Dashboard({ user }) {
   const [editTransaction, setEditTransaction] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
-  const [privateMode, setPrivateMode] = useState(false)
+  const [privateMode, setPrivateMode] = useState(() => {
+    try { return localStorage.getItem('mw_privateMode') === 'true' } catch { return false }
+  })
   const [modal, setModal] = useState(null)
   const [donutHover, setDonutHover] = useState(null)
 
@@ -104,7 +106,10 @@ export default function Dashboard({ user }) {
   const monthLabel = format(currentMonth, 'LLLL yyyy', { locale: pl })
 
   const handleMenuAction = (id) => {
-    if (id === 'private')    return setPrivateMode(m => !m)
+    if (id === 'private') {
+      setPrivateMode(m => { const n=!m; try { localStorage.setItem('mw_privateMode', n) } catch {} return n })
+      return
+    }
     if (id === 'transfer')   return setModal('transfer')
     if (id === 'search')     return setModal('search')
     if (id === 'tithe')      return setModal('tithe')

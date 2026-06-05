@@ -47,6 +47,7 @@ export default function TodoDashboard({ user }) {
   const [editTodo, setEditTodo]     = useState(null)
   const [showDone, setShowDone]     = useState(false)
   const [showListForm, setShowListForm] = useState(false)
+  const [editList, setEditList]       = useState(null)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showMenu, setShowMenu]     = useState(false)
@@ -210,6 +211,7 @@ export default function TodoDashboard({ user }) {
                 >
                   <CatIcon categoryId={null} emoji={l.icon} size={12} /> {l.name}
                   {cnt > 0 && <span style={{ marginLeft: 5, fontSize: 10, background: 'var(--surface3)', borderRadius: 99, padding: '1px 6px' }}>{cnt}</span>}
+                  {isActive && <span onClick={e => { e.stopPropagation(); setEditList(l) }} style={{ marginLeft: 4, opacity: 0.6, fontSize: 11 }}>✏️</span>}
                 </button>
               )
             })}
@@ -308,6 +310,7 @@ export default function TodoDashboard({ user }) {
           onClose={() => { setShowForm(false); setEditTodo(null) }} />
       )}
       {showListForm && <ListForm user={user} onClose={() => setShowListForm(false)} />}
+      {editList && <ListForm user={user} onClose={() => setEditList(null)} editData={editList} />}
     </div>
   )
 }
@@ -656,25 +659,38 @@ function TodoForm({ user, lists, editData, defaultListId, onClose }) {
   )
 }
 
-/* ─── ListForm ─── */
-function ListForm({ user, onClose }) {
-  const [name, setName]         = useState('')
-  const [iconKey, setIconKey]   = useState('IcFolder')
+/* ─── ListForm (create + edit) ─── */
+function ListForm({ user, onClose, editData }) {
+  const [name, setName]         = useState(editData?.name || '')
+  const [iconKey, setIconKey]   = useState(editData?.icon || 'IcFolder')
   const [iconSearch, setIconSearch] = useState('')
-  const [color, setColor]       = useState('#6366f1')
+  const [color, setColor]       = useState(editData?.color || '#6366f1')
   const [saving, setSaving]     = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const filteredIcons = iconSearch.trim()
     ? ICON_CATALOG.filter(ic => ic.label.toLowerCase().includes(iconSearch.toLowerCase()) || ic.group.toLowerCase().includes(iconSearch.toLowerCase()))
-    : ICON_CATALOG.slice(0, 56)
+    : ICON_CATALOG
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
-    await addDoc(collection(db, 'users', user.uid, 'todoLists'), {
-      name: name.trim(), icon: iconKey, color, createdAt: Timestamp.now()
-    })
+    if (editData) {
+      await updateDoc(doc(db, 'users', user.uid, 'todoLists', editData.id), {
+        name: name.trim(), icon: iconKey, color
+      })
+    } else {
+      await addDoc(collection(db, 'users', user.uid, 'todoLists'), {
+        name: name.trim(), icon: iconKey, color, createdAt: Timestamp.now()
+      })
+    }
+    onClose()
+  }
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return }
+    await deleteDoc(doc(db, 'users', user.uid, 'todoLists', editData.id))
     onClose()
   }
 
@@ -682,7 +698,7 @@ function ListForm({ user, onClose }) {
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>Nowa lista</h3>
+          <h3>{editData ? 'Edytuj listę' : 'Nowa lista'}</h3>
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
@@ -700,7 +716,7 @@ function ListForm({ user, onClose }) {
               <input type="text" className="form-input" value={iconSearch} onChange={e => setIconSearch(e.target.value)}
                 placeholder="Szukaj ikony..." style={{ margin: 0, flex: 1 }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, maxHeight: 180, overflowY: 'auto' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, maxHeight: 200, overflowY: 'auto' }}>
               {filteredIcons.map(ic => (
                 <button key={ic.key} type="button"
                   onClick={() => setIconKey(ic.key)}
@@ -728,8 +744,17 @@ function ListForm({ user, onClose }) {
             </div>
           </div>
           <button type="submit" className="btn-save" disabled={saving || !name.trim()}>
-            {saving ? 'Zapisywanie...' : 'Utwórz listę'}
+            {saving ? 'Zapisywanie...' : editData ? 'Zapisz zmiany' : 'Utwórz listę'}
           </button>
+          {editData && (
+            <button type="button" onClick={handleDelete} style={{
+              width: '100%', padding: 12, borderRadius: 'var(--r)', border: `1px solid ${confirmDelete ? 'var(--expense)' : 'var(--border)'}`,
+              background: confirmDelete ? 'var(--expense)22' : 'transparent', color: confirmDelete ? 'var(--expense)' : 'var(--text-muted)',
+              cursor: 'pointer', fontSize: 14, marginTop: 4,
+            }}>
+              {confirmDelete ? 'Kliknij ponownie aby potwierdzić usunięcie' : 'Usuń listę'}
+            </button>
+          )}
         </form>
       </div>
     </div>
