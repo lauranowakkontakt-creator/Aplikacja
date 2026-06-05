@@ -235,7 +235,7 @@ export default function Dashboard({ user }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {/* Row 1: Balance + Donut */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: 12 }}>
+          <div className="r-grid" style={{ '--cols': '1.1fr 1fr' }}>
 
             {/* Left: Saldo */}
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20 }}>
@@ -277,8 +277,8 @@ export default function Dashboard({ user }) {
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <Donut
                       data={donutData}
-                      size={140}
-                      thickness={18}
+                      size={typeof window !== 'undefined' && window.innerWidth < 480 ? 120 : 140}
+                      thickness={16}
                       centerTop={donutHover ? donutHover.name : 'razem'}
                       centerMain={!privateMode ? (donutHover ? fmtShort(donutHover.value) : fmtShort(expenses)) : '••'}
                       centerSub="zł"
@@ -302,7 +302,7 @@ export default function Dashboard({ user }) {
           </div>
 
           {/* Row 2: Bar chart + mini metrics */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 12 }}>
+          <div className="r-grid" style={{ '--cols': '1.4fr 1fr' }}>
 
             {/* Left: Bar chart 6 months */}
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20, overflow: 'hidden' }}>
@@ -352,7 +352,7 @@ export default function Dashboard({ user }) {
           </div>
 
           {/* Row 3: Accounts + recent transactions */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: 12 }}>
+          <div className="r-grid" style={{ '--cols': '1fr 1.3fr' }}>
 
             {/* Left: Accounts */}
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20 }}>

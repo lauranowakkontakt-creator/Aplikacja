@@ -203,6 +203,22 @@ body {
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 
+/* ===== RESPONSIVE DASHBOARD GRID =====
+   Use className="r-grid" + style={{ '--cols':'1.4fr 1fr','--gap':'12px' }}
+   On mobile (<640px) always collapses to single column.
+*/
+.r-grid {
+  display: grid;
+  grid-template-columns: var(--cols, 1fr 1fr);
+  gap: var(--gap, 12px);
+}
+@media (max-width: 640px) {
+  .r-grid { grid-template-columns: 1fr !important; gap: 10px; }
+  .content-inner { overflow-x: hidden; }
+  /* Cards: prevent content from escaping on mobile */
+  .card { min-width: 0; }
+}
+
 /* ===== BUTTONS ===== */
 .btn-primary {
   display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px;
@@ -240,6 +256,8 @@ body {
   .content-inner { padding: 16px 16px 110px; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .hide-mobile { display: none !important; }
+  /* Force all flex/grid to not overflow */
+  .content { overflow-x: hidden; }
 }
 @media (min-width: 881px) { .only-mobile { display: none !important; } }
 
@@ -797,6 +815,16 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
   .mood-btn-emoji { font-size: 18px; }
   .mood-btn-label { font-size: 7px; }
   .habit-card-icon { width: 40px; height: 40px; font-size: 20px; }
+  /* Mood calendar: smaller cells on mobile */
+  .mood-cal-grid { gap: 2px; padding: 8px; }
+  .mood-cal-day { border-radius: 6px; }
+  .mood-cal-num { font-size: 9px; }
+  .mood-cal-emoji { font-size: 9px; }
+  /* Budget tabs: smaller on mobile */
+  .budget-tab { font-size: 10px; padding: 6px 2px; }
+  .budget-tabs { gap: 1px; padding: 3px; }
+  /* Charts: full width */
+  .charts { gap: 14px; }
 }
 
 /* ===== TO-DO ===== */

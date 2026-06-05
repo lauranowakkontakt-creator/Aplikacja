@@ -165,7 +165,7 @@ function MoodTodayView({ user, entry, today, entries }) {
   return (
     <div className="mood-today">
       {/* Hero row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 10, marginBottom: 14 }}>
+      <div className="r-grid" style={{ '--cols': '1.4fr 1fr', '--gap': '10px', marginBottom: 14 }}>
         {/* Left: mini chart */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
           {kicker('Nastrój w czasie · 7 dni')}
@@ -468,7 +468,7 @@ function MoodTrendsView({ entries, today }) {
   return (
     <div className="mood-trends">
       {/* Stats grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(120px,1fr))', gap: 8, marginBottom: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginBottom: 14 }}>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16, textAlign: 'center' }}>
           <span style={{ fontSize: 22 }}>{avgMood?.emoji}</span>
           <p style={{ margin: '6px 0 2px', fontSize: 22, fontWeight: 700 }}>{avg.toFixed(1)}<span style={{ fontSize: 12, color: 'var(--text-muted)' }}>/7</span></p>

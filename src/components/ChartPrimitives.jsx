@@ -132,15 +132,16 @@ export function Heatmap({ weeks = 18, accent = 'var(--warn)', data }) {
     return out
   }, [weeks, data])
   const lvl = (v) => v === 0 ? 'var(--surface2)' : `color-mix(in oklab, ${accent} ${v * 24 + 16}%, var(--surface2))`
+  // cell + gap = 11 + 3 = 14px per column; show as many weeks as fit
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div style={{ width: '100%', overflow: 'hidden' }}>
       <div style={{ display: 'flex', gap: 3 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingRight: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingRight: 4, flexShrink: 0 }}>
           {['P','','Ś','','P','','N'].map((d, i) => (
             <span key={i} style={{ fontSize: 8, color: 'var(--text-muted)', height: 11, lineHeight: '11px' }}>{d}</span>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateRows: 'repeat(7,11px)', gridAutoColumns: '11px', gridAutoFlow: 'column', gap: 3 }}>
+        <div style={{ display: 'grid', gridTemplateRows: 'repeat(7,11px)', gridAutoColumns: '11px', gridAutoFlow: 'column', gap: 3, overflow: 'hidden', flex: 1 }}>
           {cells.map((v, i) => (
             <div key={i} style={{
               width: 11, height: 11, borderRadius: 3, background: lvl(v),

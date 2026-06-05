@@ -169,7 +169,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       </div>
 
       {/* Hero row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 10, marginBottom: 14 }}>
+      <div className="r-grid" style={{ '--cols': '1fr 1.4fr', '--gap': '10px', marginBottom: 14 }}>
         {/* Left: Ring progress */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18, display: 'flex', alignItems: 'center', gap: 16 }}>
           <Ring

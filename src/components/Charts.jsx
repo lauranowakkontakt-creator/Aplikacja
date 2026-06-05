@@ -273,7 +273,7 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
           <p style={{ margin: '0 0 16px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
             Przepływy w czasie
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="r-grid" style={{ '--cols': '1fr 1fr' }}>
             <div style={{ minWidth: 0 }}>
               <p style={{ margin: '0 0 8px', fontSize: 9, color: 'var(--income)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Przychody</p>
               <BarChartSVG data={incomeData} height={110} accent="var(--income)" fmt={fmt} />
@@ -433,7 +433,7 @@ function DonutChart({ data, colors, total }) {
   const [active, setActive] = useState(null)
   const on = useMounted(120)
 
-  const size = 220
+  const size = typeof window !== 'undefined' && window.innerWidth < 480 ? 180 : 220
   const thickness = 28
   const r = (size - thickness) / 2 - 2
   const C = 2 * Math.PI * r
