@@ -163,7 +163,7 @@ function TodayView({ user, logs, today, selectedDate, setSelectedDate }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
       {/* 14-day date strip */}
-      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
+      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
         {strip.map(d => {
           const isSel   = d.date === selectedDate
           const isToday = d.date === today
@@ -190,24 +190,30 @@ function TodayView({ user, logs, today, selectedDate, setSelectedDate }) {
       </div>
 
       {/* ── MOOD RATING — 7 SVG faces ── */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
-        <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 14 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px 12px', overflow: 'hidden' }}>
+        <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 12 }}>
           Jak się czujesz? · wybierz nastrój
         </div>
-        <div style={{ display: 'flex', gap: 5, justifyContent: 'space-between' }}>
+        {/* Grid — 7 equal columns, no overflow */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
           {MOODS.map(m => {
             const active = mood === m.id
             return (
               <button key={m.id} onClick={() => setMood(active ? null : m.id)} style={{
-                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                padding: '10px 4px', borderRadius: 12, cursor: 'pointer',
-                background: active ? m.color + '20' : 'transparent',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                padding: '8px 2px', borderRadius: 12, cursor: 'pointer', minWidth: 0,
+                background: active ? m.color + '22' : 'transparent',
                 border: `2px solid ${active ? m.color : 'transparent'}`,
                 transform: active ? 'translateY(-3px)' : 'none',
                 transition: 'all .2s cubic-bezier(.34,1.4,.64,1)',
               }}>
-                <MoodMark mood={m} size={28} active={active} />
-                <span style={{ fontSize: 9, color: active ? m.color : 'var(--text-muted)', fontWeight: active ? 700 : 400, letterSpacing: '.02em', whiteSpace: 'nowrap' }}>
+                <MoodMark mood={m} size={26} active={active} />
+                <span style={{
+                  fontSize: 8, color: active ? m.color : 'var(--text-muted)',
+                  fontWeight: active ? 700 : 400, textAlign: 'center',
+                  lineHeight: 1.2, width: '100%', display: 'block',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
                   {m.label}
                 </span>
               </button>
