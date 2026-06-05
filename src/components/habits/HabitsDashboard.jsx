@@ -169,7 +169,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       </div>
 
       {/* Hero row */}
-      <div className="r-grid" style={{ '--cols': '1fr 1.4fr', '--gap': '10px', marginBottom: 14 }}>
+      <div className="g2-br" style={{ gap: 10, marginBottom: 14 }}>
         {/* Left: Ring progress */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18, display: 'flex', alignItems: 'center', gap: 16 }}>
           <Ring
@@ -250,7 +250,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                 <button className={`habit-cat-chip ${filterCat === 'all' ? 'active' : ''}`} onClick={() => setFilterCat('all')}>Wszystkie</button>
                 {HABIT_CATEGORIES.filter(c => activeHabits.some(h => h.category === c.id)).map(c => (
                   <button key={c.id} className={`habit-cat-chip ${filterCat === c.id ? 'active' : ''}`} onClick={() => setFilterCat(c.id)}>
-                    {c.icon} {c.label}
+                    <CatIcon categoryId={c.id} emoji={c.icon} size={13} /> {c.label}
                   </button>
                 ))}
               </div>

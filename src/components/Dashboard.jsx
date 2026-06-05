@@ -235,10 +235,10 @@ export default function Dashboard({ user }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {/* Row 1: Balance + Donut */}
-          <div className="r-grid" style={{ '--cols': '1.1fr 1fr' }}>
+          <div className="g2-11">
 
             {/* Left: Saldo */}
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20 }}>
+            <div className="card-hover-glow" style={{ background: 'linear-gradient(140deg,var(--surface) 40%,color-mix(in oklab,var(--expense) 5%,var(--surface)) 100%)', border: '1px solid var(--border)', borderTop: `2px solid color-mix(in oklab,${totalPLN>=0?'var(--income)':'var(--expense)'} 80%,transparent)`, borderRadius: 'var(--r)', padding: 20, overflow: 'hidden' }}>
               {kicker('Saldo łączne')}
               {!privateMode ? (
                 <>
@@ -302,7 +302,7 @@ export default function Dashboard({ user }) {
           </div>
 
           {/* Row 2: Bar chart + mini metrics */}
-          <div className="r-grid" style={{ '--cols': '1.4fr 1fr' }}>
+          <div className="g2-b">
 
             {/* Left: Bar chart 6 months */}
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20, overflow: 'hidden' }}>
@@ -317,42 +317,29 @@ export default function Dashboard({ user }) {
 
             {/* Right: 2x2 mini metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {/* Avg daily */}
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14 }}>
-                <div style={{ color: 'var(--warn)', marginBottom: 6 }}><IconChart size={16}/></div>
-                {kicker('Śr. dzienne')}
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--warn)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!privateMode ? fmtShort(avgDaily) : '••'} zł</div>
-              </div>
-
-              {/* Balance */}
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14 }}>
-                <div style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)', marginBottom: 6 }}><IconSavings size={16}/></div>
-                {kicker('Saldo m-ca')}
-                <div style={{ fontSize: 18, fontWeight: 700, color: balance >= 0 ? 'var(--income)' : 'var(--expense)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {!privateMode ? fmtShort(balance) : '••'} zł
+              {[
+                { color: 'var(--warn)',    Icon: IconChart,    label: 'Śr. dzienne', val: !privateMode ? fmtShort(avgDaily) + ' zł' : '••', spark: null },
+                { color: balance>=0?'var(--income)':'var(--expense)', Icon: IconSavings, label: 'Saldo m-ca', val: !privateMode ? fmtShort(balance) + ' zł' : '••', spark: null },
+                { color: 'var(--income)', Icon: IconArrowUp,   label: 'Przychody',   val: !privateMode ? fmtShort(income) + ' zł' : '••', spark: sparkData.slice(0, 7), sparkColor: 'var(--income)' },
+                { color: 'var(--expense)',Icon: IconArrowDown,  label: 'Wydatki',     val: !privateMode ? fmtShort(expenses) + ' zł' : '••', spark: sparkData.slice(0, 7), sparkColor: 'var(--expense)' },
+              ].map((m, i) => (
+                <div key={i} className="card-hover-glow" style={{
+                  background: `linear-gradient(145deg, var(--surface) 50%, color-mix(in oklab, ${m.color} 6%, var(--surface)) 100%)`,
+                  border: '1px solid var(--border)',
+                  borderTop: `2px solid ${m.color}`,
+                  borderRadius: 'var(--r)', padding: 14, overflow: 'hidden',
+                }}>
+                  <div style={{ color: m.color, marginBottom: 6 }}><m.Icon size={15}/></div>
+                  {kicker(m.label)}
+                  <div style={{ fontSize: 17, fontWeight: 700, color: m.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-.01em' }}>{m.val}</div>
+                  {m.spark && <div style={{ marginTop: 6 }}><Spark data={m.spark} color={m.sparkColor} height={18} w={3} /></div>}
                 </div>
-              </div>
-
-              {/* Income */}
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14 }}>
-                <div style={{ color: 'var(--income)', marginBottom: 6 }}><IconArrowUp size={16}/></div>
-                {kicker('Przychody')}
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--income)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!privateMode ? fmtShort(income) : '••'} zł</div>
-                <Spark data={sparkData.slice(0, 7)} color="var(--income)" height={20} w={4} />
-              </div>
-
-              {/* Expenses */}
-              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14 }}>
-                <div style={{ color: 'var(--expense)', marginBottom: 6 }}><IconArrowDown size={16}/></div>
-                {kicker('Wydatki')}
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--expense)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{!privateMode ? fmtShort(expenses) : '••'} zł</div>
-                <Spark data={sparkData.slice(0, 7)} color="var(--expense)" height={20} w={4} />
-              </div>
+              ))}
             </div>
           </div>
 
           {/* Row 3: Accounts + recent transactions */}
-          <div className="r-grid" style={{ '--cols': '1fr 1.3fr' }}>
+          <div className="g2-13">
 
             {/* Left: Accounts */}
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20 }}>
@@ -365,7 +352,7 @@ export default function Dashboard({ user }) {
                     const acColors = { bank: '#3b82f6', cash: '#22c55e', card: '#f59e0b', savings: '#8b5cf6', investment: '#14b8a6', revolut: '#6366f1' }
                     const color = acColors[a.type] || 'var(--primary)'
                     return (
-                      <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}
+                      <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 6px', borderRadius: 10, borderLeft: `3px solid ${color}55`, transition: 'background .15s' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >

@@ -180,7 +180,7 @@ export default function CalendarDashboard({ user }) {
 
       {tab === 'month' ? (
         /* 2-column desktop layout */
-        <div className="r-grid" style={{ '--cols': '1.1fr 1fr', '--gap': '14px' }}>
+        <div className="g2-14">
           {/* Left: calendar */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
             {/* Month nav */}

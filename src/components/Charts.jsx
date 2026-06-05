@@ -273,7 +273,7 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
           <p style={{ margin: '0 0 16px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
             Przepływy w czasie
           </p>
-          <div className="r-grid" style={{ '--cols': '1fr 1fr' }}>
+          <div className="g2">
             <div style={{ minWidth: 0 }}>
               <p style={{ margin: '0 0 8px', fontSize: 9, color: 'var(--income)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Przychody</p>
               <BarChartSVG data={incomeData} height={110} accent="var(--income)" fmt={fmt} />

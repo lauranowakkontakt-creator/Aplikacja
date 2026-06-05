@@ -3,7 +3,32 @@ import { collection, doc, setDoc, deleteDoc, onSnapshot, Timestamp, query, order
 import { db } from '../../firebase/config'
 import { format, subDays, startOfMonth, getDaysInMonth, addDays, subMonths, addMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { IconTrash, IconCalendar, IconFlame } from '../Icons'
+import { IconTrash, IconCalendar, IconFlame, IconArrowUp, IconArrowDown } from '../Icons'
+
+/* Abstract SVG mood face — no emoji */
+function MoodMark({ mood, size = 32, active }) {
+  const col = active ? mood.color : 'var(--border-strong)'
+  const fill = active ? mood.color : 'var(--text-muted)'
+  // Quadratic bezier mouth: Q 16 controlY 23 baseY
+  // control > base = smile, control < base = frown
+  const mouths = {
+    awful:    'M9,17 Q16,11 23,17',
+    bad:      'M9,17 Q16,13 23,17',
+    poor:     'M9,16 Q16,14.5 23,16',
+    neutral:  'M9,15 L23,15',
+    good:     'M9,15 Q16,16.5 23,15',
+    great:    'M9,15 Q16,18 23,15',
+    excellent:'M9,14 Q16,20 23,14',
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none"
+      stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11.5" cy="11" r="1.5" fill={fill} stroke="none"/>
+      <circle cx="20.5" cy="11" r="1.5" fill={fill} stroke="none"/>
+      <path d={mouths[mood.id] || mouths.neutral}/>
+    </svg>
+  )
+}
 
 export const MOODS = [
   { id: 'awful',     label: 'Fatalnie',  emoji: '😣', value: 1, color: '#C0392B' },
@@ -165,7 +190,7 @@ function MoodTodayView({ user, entry, today, entries }) {
   return (
     <div className="mood-today">
       {/* Hero row */}
-      <div className="r-grid" style={{ '--cols': '1.4fr 1fr', '--gap': '10px', marginBottom: 14 }}>
+      <div className="g2-b" style={{ gap: 10, marginBottom: 14 }}>
         {/* Left: mini chart */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
           {kicker('Nastrój w czasie · 7 dni')}
@@ -232,11 +257,13 @@ function MoodTodayView({ user, entry, today, entries }) {
         </div>
       </div>
 
-      {/* Pasek ostatnich 7 dni (emoji) */}
+      {/* Pasek ostatnich 7 dni (SVG) */}
       <div className="mood-week-strip" style={{ marginBottom: 14 }}>
         {recent7.map(({ date, mood: m }) => (
           <div key={date} className={`mood-week-day ${date === today ? 'today' : ''}`}>
-            <span className="mood-week-emoji" style={m ? { opacity: 1 } : {}}>{m ? m.emoji : '·'}</span>
+            <div style={{ opacity: m ? 1 : 0.18, transition: 'opacity .2s' }}>
+              {m ? <MoodMark mood={m} size={22} active={true} /> : <MoodMark mood={MOODS[3]} size={22} active={false} />}
+            </div>
             <span className="mood-week-label">{format(new Date(date + 'T12:00:00'), 'EEE', { locale: pl })}</span>
           </div>
         ))}
@@ -258,7 +285,7 @@ function MoodTodayView({ user, entry, today, entries }) {
                 transition: 'all .2s var(--spring)',
               }}
             >
-              <span style={{ fontSize: 22 }}>{m.emoji}</span>
+              <MoodMark mood={m} size={28} active={mood === m.id} />
               <span style={{ fontSize: 9, color: mood === m.id ? m.color : 'var(--text-muted)', fontWeight: mood === m.id ? 700 : 400 }}>{m.label}</span>
             </button>
           ))}
@@ -369,7 +396,7 @@ function MoodCalendarView({ user, entries, calMonth, setCalMonth, today }) {
               onClick={() => setSelected(date === selected ? null : date)}
             >
               <span className="mood-cal-num">{dayNum}</span>
-              {m && <span className="mood-cal-emoji">{m.emoji}</span>}
+              {m && <span style={{ display: 'block', width: 16, height: 3, borderRadius: 2, background: m.color, margin: '0 auto' }}/>}
             </button>
           ))}
         </div>
@@ -393,7 +420,7 @@ function MoodEntryCard({ entry, user }) {
     <div className="mood-entry-card" style={{ borderLeftColor: m?.color }}>
       <div className="mood-entry-header">
         <div>
-          <span style={{ fontSize: 28 }}>{m?.emoji}</span>
+          {m && <MoodMark mood={m} size={32} active={true} />}
           <div>
             <p className="mood-entry-label">{m?.label}</p>
             <p className="mood-entry-date">{format(new Date(entry.date + 'T12:00:00'), 'd MMMM yyyy', { locale: pl })}</p>
@@ -469,9 +496,9 @@ function MoodTrendsView({ entries, today }) {
     <div className="mood-trends">
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(100px,1fr))', gap: 8, marginBottom: 14 }}>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16, textAlign: 'center' }}>
-          <span style={{ fontSize: 22 }}>{avgMood?.emoji}</span>
-          <p style={{ margin: '6px 0 2px', fontSize: 22, fontWeight: 700 }}>{avg.toFixed(1)}<span style={{ fontSize: 12, color: 'var(--text-muted)' }}>/7</span></p>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          {avgMood && <MoodMark mood={avgMood} size={26} active={true} />}
+          <p style={{ margin: '4px 0 2px', fontSize: 22, fontWeight: 700 }}>{avg.toFixed(1)}<span style={{ fontSize: 12, color: 'var(--text-muted)' }}>/7</span></p>
           <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Średni nastrój</p>
         </div>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16, textAlign: 'center' }}>
@@ -486,7 +513,9 @@ function MoodTrendsView({ entries, today }) {
         </div>
         {diff !== null && (
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16, textAlign: 'center' }}>
-            <span style={{ fontSize: 22 }}>{Number(diff) >= 0 ? '📈' : '📉'}</span>
+            <div style={{ display: 'flex', justifyContent: 'center', color: Number(diff) >= 0 ? 'var(--income)' : 'var(--expense)' }}>
+            {Number(diff) >= 0 ? <IconArrowUp size={22}/> : <IconArrowDown size={22}/>}
+          </div>
             <p style={{ margin: '6px 0 2px', fontSize: 22, fontWeight: 700, color: Number(diff) >= 0 ? 'var(--income)' : 'var(--expense)' }}>
               {Number(diff) >= 0 ? '+' : ''}{diff}
             </p>
@@ -536,7 +565,7 @@ function MoodTrendsView({ entries, today }) {
           <div className="mood-dist">
             {moodDist.sort((a,b) => b.count - a.count).map(m => (
               <div key={m.id} className="mood-dist-row">
-                <span className="mood-dist-emoji">{m.emoji}</span>
+                <MoodMark mood={m} size={18} active={true} />
                 <span className="mood-dist-label">{m.label}</span>
                 <div className="mood-dist-bar-wrap">
                   <div className="mood-dist-bar" style={{ width: `${(m.count / Math.max(...moodDist.map(x=>x.count))) * 100}%`, background: m.color }} />
