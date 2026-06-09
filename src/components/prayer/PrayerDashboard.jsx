@@ -100,7 +100,7 @@ export default function PrayerDashboard({ user }) {
         <div>
           <div className="mod-header-kicker">Modlitwa</div>
           <div className="mod-header-title">
-            {tab === 'people' ? (selectedPerson ? selectedPerson.name : 'Osoby') : tab === 'today' ? 'Dziś' : 'Statystyki'}
+            {tab === 'people' ? (selectedPerson ? selectedPerson.name : 'Osoby') : tab === 'today' ? 'Dziś' : tab === 'archive' ? 'Archiwum' : 'Statystyki'}
           </div>
         </div>
         <div className="mod-header-right">
@@ -170,11 +170,11 @@ export default function PrayerDashboard({ user }) {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-        {[['people','Osoby'],['today','Dziś'],['stats','Statystyki']].map(([id, label]) => (
+        {[['people','Osoby'],['today','Dziś'],['stats','Statystyki'],['archive','Archiwum']].map(([id, label]) => (
           <button key={id}
             onClick={() => switchTab(id)}
             style={{
-              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === id ? 700 : 400,
+              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 12, fontWeight: tab === id ? 700 : 400,
               background: tab === id ? 'var(--surface3)' : 'transparent',
               color: tab === id ? 'var(--text)' : 'var(--text-muted)',
               border: tab === id ? '1px solid var(--border-strong)' : '1px solid transparent',
@@ -202,10 +202,13 @@ export default function PrayerDashboard({ user }) {
             />
       )}
       {tab === 'today' && (
-        <TodayView user={user} intentions={activeIntentions} people={people} carMode={carMode} />
+        <TodayView user={user} intentions={intentions} people={people} carMode={carMode} />
       )}
       {tab === 'stats' && (
         <StatsView intentions={intentions} people={people} allPrayedDates={allPrayedDates} streak={streak} />
+      )}
+      {tab === 'archive' && (
+        <ArchiveView user={user} intentions={intentions} people={people} />
       )}
     </div>
   )
@@ -604,6 +607,12 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
 function TodayView({ user, intentions, people, carMode }) {
   const [viewDate, setViewDate] = useState(TODAY())
 
+  const activeIntentions   = intentions.filter(i => i.status === 'active' || !i.status)
+  const archivedPrayedOnDate = useMemo(
+    () => intentions.filter(i => i.status === 'ended' && i.prayedDates?.includes(viewDate)),
+    [intentions, viewDate]
+  )
+
   const togglePrayed = async (item, date) => {
     const d = date || viewDate
     const prayed = item.prayedDates?.includes(d)
@@ -627,7 +636,7 @@ function TodayView({ user, intentions, people, carMode }) {
     await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { notes: arrayRemove(note) })
   }
 
-  const sorted = [...intentions].sort((a, b) => {
+  const sorted = [...activeIntentions].sort((a, b) => {
     if ((a.priority || 3) === 5 && (b.priority || 3) !== 5) return -1
     if ((a.priority || 3) !== 5 && (b.priority || 3) === 5) return 1
     const ap = a.prayedDates?.includes(viewDate)
@@ -637,7 +646,7 @@ function TodayView({ user, intentions, people, carMode }) {
     return (b.priority || 3) - (a.priority || 3)
   })
 
-  const prayedCount = intentions.filter(i => i.prayedDates?.includes(viewDate)).length
+  const prayedCount = activeIntentions.filter(i => i.prayedDates?.includes(viewDate)).length
   const isToday     = viewDate === TODAY()
   const dateLabel   = isToday ? 'Dziś' : format(parseISO(viewDate), 'EEEE, d MMMM', { locale: pl })
 
@@ -653,11 +662,11 @@ function TodayView({ user, intentions, people, carMode }) {
         <button className="icon-btn" onClick={() => setViewDate(d => format(addDays(parseISO(d), 1), 'yyyy-MM-dd'))}><IconChevronRight size={16} /></button>
       </div>
 
-      {intentions.length > 0 && (
+      {activeIntentions.length > 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: carMode ? '18px' : '14px 16px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: carMode ? 36 : 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: carMode ? 24 : 18, color: 'var(--text-muted)' }}>/{intentions.length}</span></p>
+          <p style={{ margin: 0, fontSize: carMode ? 36 : 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: carMode ? 24 : 18, color: 'var(--text-muted)' }}>/{activeIntentions.length}</span></p>
           <p style={{ margin: '2px 0 0', fontSize: carMode ? 14 : 12, color: 'var(--text-muted)' }}>modlono {isToday ? 'dziś' : dateLabel.toLowerCase()}</p>
-          {prayedCount > 0 && prayedCount === intentions.length && (
+          {prayedCount > 0 && prayedCount === activeIntentions.length && (
             <p style={{ margin: '6px 0 0', fontSize: carMode ? 15 : 13, color: '#27AE60', fontWeight: 600 }}>🙌 Wszystkie prośby modlone!</p>
           )}
         </div>
@@ -685,7 +694,39 @@ function TodayView({ user, intentions, people, carMode }) {
         )
       })}
 
-      {intentions.length === 0 && (
+      {/* Archived intentions that were prayed on this date */}
+      {archivedPrayedOnDate.length > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.15em', marginBottom: 8, paddingLeft: 2 }}>
+            Zarchiwizowane · modlono {isToday ? 'dziś' : 'tego dnia'}
+          </div>
+          {archivedPrayedOnDate.map(item => {
+            const person = people.find(p => p.id === item.personId)
+            const prio = findPrio(item.priority || 3)
+            return (
+              <div key={item.id} style={{
+                background: 'var(--surface)', border: '1px solid var(--border)',
+                borderLeft: `3px solid ${prio.color}55`,
+                borderRadius: 12, padding: '10px 14px', opacity: 0.5,
+                display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6,
+                pointerEvents: 'none',
+              }}>
+                <span style={{ fontSize: 16, flexShrink: 0 }}>✅</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>{item.title}</p>
+                    <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'var(--surface3)', color: 'var(--text-muted)' }}>archiwum</span>
+                  </div>
+                  {person && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{person.name}</p>}
+                  <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-muted)' }}>🙏 ×{item.prayedDates?.length || 0} łącznie</p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {activeIntentions.length === 0 && archivedPrayedOnDate.length === 0 && (
         <div className="list-empty">
           <p>Brak aktywnych próśb</p>
           <p className="list-empty-hint">Przejdź do zakładki Osoby i dodaj prośby modlitewne</p>
@@ -830,6 +871,168 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
             })}
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── ArchiveView ────────────────────────────────────────────────────────── */
+function ArchiveView({ user, intentions, people }) {
+  const [search, setSearch]       = useState('')
+  const [expandedId, setExpandedId] = useState(null)
+
+  const ended = intentions.filter(i => i.status === 'ended')
+
+  const filtered = search.trim()
+    ? ended.filter(i => i.title.toLowerCase().includes(search.toLowerCase()))
+    : ended
+
+  const byPerson = useMemo(() => {
+    const map = {}
+    filtered.forEach(i => {
+      const key = i.personId || '__none__'
+      if (!map[key]) map[key] = []
+      map[key].push(i)
+    })
+    return map
+  }, [filtered])
+
+  const restoreItem = async (item) => {
+    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
+      status: 'active', endedAt: null, autoArchived: null
+    })
+  }
+
+  const deleteItem = async (id) => {
+    if (!confirm('Usunąć prośbę trwale?')) return
+    await deleteDoc(doc(db, 'users', user.uid, 'prayerIntentions', id))
+  }
+
+  const totalPrays = ended.reduce((s, i) => s + (i.prayedDates?.length || 0), 0)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* Summary tiles */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-muted)', lineHeight: 1 }}>{ended.length}</div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Zarchiwizowanych</div>
+        </div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#C9A24A', lineHeight: 1 }}>{totalPrays}</div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Łącznie modlono</div>
+        </div>
+      </div>
+
+      {ended.length === 0 ? (
+        <div className="list-empty">
+          <p>Brak zarchiwizowanych próśb</p>
+          <p className="list-empty-hint">Zarchiwizowane prośby będą tutaj widoczne</p>
+        </div>
+      ) : (
+        <>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Szukaj w archiwum..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ margin: 0 }}
+          />
+
+          {filtered.length === 0 && (
+            <div className="list-empty"><p>Brak wyników</p></div>
+          )}
+
+          {Object.entries(byPerson).map(([personId, items]) => {
+            const person = personId === '__none__' ? null : people.find(p => p.id === personId)
+            const groupPrays = items.reduce((s, i) => s + (i.prayedDates?.length || 0), 0)
+            return (
+              <div key={personId}>
+                {/* Person header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  {person && (
+                    <div style={{ width: 26, height: 26, borderRadius: 8, background: 'rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6', flexShrink: 0 }}>
+                      <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={14} />
+                    </div>
+                  )}
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em' }}>
+                    {person ? person.name : 'Bez osoby'}
+                  </span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>
+                    {items.length} {items.length === 1 ? 'prośba' : 'próśb'} · 🙏×{groupPrays}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                  {items.map(item => (
+                    <div key={item.id} style={{
+                      background: 'var(--surface)', border: '1px solid var(--border)',
+                      borderRadius: 12, padding: '10px 14px', opacity: 0.75,
+                      display: 'flex', alignItems: 'flex-start', gap: 10
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>{item.title}</p>
+                          {item.autoArchived && (
+                            <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'var(--surface3)', color: 'var(--text-muted)' }}>auto</span>
+                          )}
+                          {findPrio(item.priority || 3) && (
+                            <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: findPrio(item.priority || 3).color + '22', color: findPrio(item.priority || 3).color }}>
+                              P{item.priority || 3}
+                            </span>
+                          )}
+                        </div>
+                        {item.note && (
+                          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{item.note}</p>
+                        )}
+                        {item.endedNote && (
+                          <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>„{item.endedNote}"</p>
+                        )}
+                        <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>🙏 ×{item.prayedDates?.length || 0}</span>
+                          {item.endedAt && (
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                              Zarchiwizowano: {format(item.endedAt.toDate?.() || new Date(item.endedAt), 'd.MM.yyyy', { locale: pl })}
+                            </span>
+                          )}
+                        </div>
+                        {expandedId === item.id && item.prayedDates?.length > 0 && (
+                          <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 6 }}>Historia modlitw</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {[...item.prayedDates].sort().reverse().slice(0, 20).map(d => (
+                                <span key={d} style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--surface3)', color: 'var(--text-muted)' }}>
+                                  {format(parseISO(d), 'd.MM.yy')}
+                                </span>
+                              ))}
+                              {item.prayedDates.length > 20 && (
+                                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>+{item.prayedDates.length - 20} więcej</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+                        {item.prayedDates?.length > 0 && (
+                          <button className="t-btn" title="Historia" onClick={() => setExpandedId(v => v === item.id ? null : item.id)} style={{ fontSize: 11 }}>
+                            📅
+                          </button>
+                        )}
+                        <button className="t-btn" title="Przywróć" onClick={() => restoreItem(item)} style={{ fontSize: 11 }}>
+                          ↩
+                        </button>
+                        <button className="t-btn delete" title="Usuń" onClick={() => deleteItem(item.id)}>
+                          <IconTrash size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </>
       )}
     </div>
   )
