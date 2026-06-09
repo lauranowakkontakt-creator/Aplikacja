@@ -131,7 +131,11 @@ export function Heatmap({ weeks = 18, accent = 'var(--warn)', data }) {
     }
     return out
   }, [weeks, data])
-  const lvl = (v) => v === 0 ? 'var(--surface2)' : `color-mix(in oklab, ${accent} ${v * 25}%, var(--surface2))`
+  const lvl = (v) => {
+    if (v === 0) return 'var(--surface2)'
+    if (v >= 4) return accent
+    return `color-mix(in oklab, ${accent} ${v * 25}%, var(--surface2))`
+  }
   // cell + gap = 11 + 3 = 14px per column; show as many weeks as fit
   return (
     <div style={{ width: '100%', overflow: 'hidden' }}>
