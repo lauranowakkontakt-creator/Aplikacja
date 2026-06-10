@@ -196,7 +196,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
             <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>mniej</span>
             {[0,1,2,3,4].map(v => (
-              <div key={v} style={{ width: 9, height: 9, borderRadius: 2, background: v === 0 ? 'var(--surface2)' : `color-mix(in oklab, var(--warn) ${v * 24 + 16}%, var(--surface2))` }} />
+              <div key={v} style={{ width: 9, height: 9, borderRadius: 2, background: v === 0 ? 'var(--surface2)' : v >= 4 ? 'var(--warn)' : `color-mix(in oklab, var(--warn) ${v * 25}%, var(--surface2))` }} />
             ))}
             <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>więcej</span>
           </div>
