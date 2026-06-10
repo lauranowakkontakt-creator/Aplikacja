@@ -3,6 +3,8 @@ import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Times
 import { db } from '../../firebase/config'
 import { fmt } from '../../utils/currency'
 import { IconEdit, IconTrash, IconClose } from '../Icons'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
 const GOAL_EMOJIS = [
   '🎯','🏠','✈️','🚗','💍','📱','🎓','💻','🏖️','🐷',
@@ -25,7 +27,8 @@ export default function SavingsGoals({ user, onClose }) {
   }, [user.uid])
 
   const handleDelete = async (id) => {
-    if (!confirm('Usunąć cel?')) return
+    const ok = await confirmDialog({ title: 'Usunąć cel oszczędnościowy?' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'savingsGoals', id))
   }
 

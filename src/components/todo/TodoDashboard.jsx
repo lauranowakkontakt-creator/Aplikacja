@@ -10,6 +10,8 @@ import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag } from '../Icons'
 import { Ring } from '../ChartPrimitives'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
 const PRIORITY = [
   { id: 'high',   label: 'Wysoki',  color: '#E53935' },
@@ -70,7 +72,8 @@ export default function TodoDashboard({ user }) {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Usunąć zadanie?')) return
+    const ok = await confirmDialog({ title: 'Usunąć zadanie?' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'todos', id))
   }
 

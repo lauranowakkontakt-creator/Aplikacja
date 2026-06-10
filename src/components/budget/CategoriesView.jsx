@@ -3,6 +3,8 @@ import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, CAT_COLORS, getSubcategoryColor } from '../../utils/categories'
 import { CatIcon, IconClose, IconTrash, IconTag, IconEdit, IconSearch, IconChevronDown, ICON_CATALOG } from '../Icons'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
 export default function CategoriesView({ user, onClose }) {
   const [tab, setTab]               = useState('expense')
@@ -35,8 +37,9 @@ export default function CategoriesView({ user, onClose }) {
   const cats    = tab === 'expense' ? expCats : incCats
   const setCats = tab === 'expense' ? setExpCats : setIncCats
 
-  const deleteCat = (id) => {
-    if (!confirm('Usunąć kategorię? Podkategorie zostaną usunięte razem.')) return
+  const deleteCat = async (id) => {
+    const ok = await confirmDialog({ title: 'Usunąć kategorię?', message: 'Podkategorie zostaną usunięte razem.' })
+    if (!ok) return
     const next = cats.filter(c => c.id !== id)
     setCats(next); save(tab, next)
   }
@@ -73,8 +76,9 @@ export default function CategoriesView({ user, onClose }) {
     setCats(next); save(tab, next); setEditSubcat(null)
   }
 
-  const deleteSubcat = (catId, subcatId) => {
-    if (!confirm('Usunąć podkategorię?')) return
+  const deleteSubcat = async (catId, subcatId) => {
+    const ok = await confirmDialog({ title: 'Usunąć podkategorię?' })
+    if (!ok) return
     const next = cats.map(c => c.id === catId
       ? { ...c, subcategories: (c.subcategories || []).filter(s => s.id !== subcatId) }
       : c)

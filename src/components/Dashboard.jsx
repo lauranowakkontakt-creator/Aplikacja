@@ -158,15 +158,15 @@ export default function Dashboard({ user }) {
     }
   })
 
-  // Recent 30-day spark data (daily expenses)
+  // Real daily expense spark — last 14 days
   const sparkData = Array.from({ length: 14 }, (_, i) => {
-    const d = format(subMonths(new Date(), 0), 'yyyy-MM')
-    const dayTransactions = allTransactions.filter(t => {
-      const tDate = t.date instanceof Date ? t.date : t.date?.toDate?.() || new Date(t.date)
-      return t.type === 'expense' && format(tDate, 'yyyy-MM') === format(subMonths(new Date(), Math.floor(i / 4)), 'yyyy-MM')
-    })
-    return dayTransactions.reduce((s, t) => s + t.amount, 0) / 4
-  }).map(v => Math.max(0, v))
+    const target = new Date()
+    target.setDate(target.getDate() - (13 - i))
+    const dayStr = format(target, 'yyyy-MM-dd')
+    return allTransactions
+      .filter(t => t.type === 'expense' && format(t.date instanceof Date ? t.date : new Date(t.date), 'yyyy-MM-dd') === dayStr)
+      .reduce((s, t) => s + t.amount, 0)
+  })
 
   // Prev month comparison
   const prevMonthStart = startOfMonth(subMonths(currentMonth, 1))

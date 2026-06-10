@@ -8,6 +8,8 @@ import {
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { CatIcon, IconEdit, IconTrash, IconCalendar, IconBook, IconTag, IconClose, IconChevronLeft, IconChevronRight } from '../Icons'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
 const DEFAULT_CATEGORIES = [
   { slug: 'work',     label: 'Praca',     icon: '💼', color: '#3b82f6' },
@@ -105,7 +107,8 @@ export default function CalendarDashboard({ user }) {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Usunąć wydarzenie?')) return
+    const ok = await confirmDialog({ title: 'Usunąć wydarzenie?' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'calendarEvents', id))
   }
 
@@ -633,7 +636,8 @@ function CategoryManager({ user, categories, onClose }) {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Usunąć kategorię?')) return
+    const ok = await confirmDialog({ title: 'Usunąć kategorię?' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'calendarCategories', id))
   }
 

@@ -6,6 +6,8 @@ import { pl } from 'date-fns/locale'
 import AccountForm from './AccountForm'
 import { fmt } from '../../utils/currency'
 import { CatIcon, IconBank, IconCash, IconCard, IconSavings, IconEdit, IconTrash, IconEye, IconEyeOff } from '../Icons'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
 const fmtAcc = (n, currency = 'PLN') =>
   new Intl.NumberFormat('pl-PL', { style: 'currency', currency }).format(n)
@@ -53,7 +55,8 @@ export default function AccountsView({ user, privateMode }) {
 
   const handleDelete = async (id, e) => {
     e.stopPropagation()
-    if (!confirm('Usunąć to konto? Historia transakcji zostanie zachowana.')) return
+    const ok = await confirmDialog({ title: 'Usunąć konto?', message: 'Historia transakcji zostanie zachowana.' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'accounts', id))
     if (selected?.id === id) setSelected(null)
     setExcludedFromTotal(prev => {

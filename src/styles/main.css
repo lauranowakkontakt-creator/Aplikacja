@@ -915,3 +915,152 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 input[type="time"], input[type="date"] { color-scheme: dark; -webkit-appearance: none; appearance: none; }
 input[type="time"]::-webkit-datetime-edit-fields-wrapper,
 input[type="date"]::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+
+/* ===== TOAST NOTIFICATIONS ===== */
+.toast-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  backdrop-filter: blur(20px);
+  min-width: 220px; max-width: 340px;
+  cursor: pointer;
+  animation: toastIn .25s var(--spring) both;
+  box-shadow: 0 8px 32px -8px rgba(0,0,0,.6);
+}
+.toast-item[data-type="error"]   { background: rgba(224,103,62,.18); border-color: rgba(224,103,62,.35); }
+.toast-item[data-type="success"] { background: rgba(95,191,152,.18); border-color: rgba(95,191,152,.35); }
+.toast-item[data-type="info"]    { background: rgba(124,138,240,.18); border-color: rgba(124,138,240,.35); }
+@keyframes toastIn { from { opacity: 0; transform: translateX(20px) scale(.95); } }
+
+/* ===== MODAL ANIMATION ===== */
+@keyframes modalIn { from { opacity: 0; transform: scale(.96) translateY(8px); } }
+
+/* ===== BUDGET TABS SCROLL INDICATOR ===== */
+.budget-tabs-wrap {
+  position: relative;
+}
+.budget-tabs-wrap::after {
+  content: '';
+  position: absolute; right: 0; top: 0; bottom: 0; width: 32px;
+  background: linear-gradient(to right, transparent, var(--bg));
+  pointer-events: none;
+}
+
+/* ===== TAB SCROLL HINT ===== */
+.budget-tabs { scroll-snap-type: x mandatory; }
+.budget-tab { scroll-snap-align: start; white-space: nowrap; }
+
+/* ===== RESPONSIVENESS FIX: unified breakpoints ===== */
+/* Remove the legacy .mobile-only / .desktop-only conflict at 640px — unify at 880px */
+@media (max-width: 880px) {
+  .mobile-only { display: block !important; }
+  .desktop-only { display: none !important; }
+}
+@media (min-width: 881px) {
+  .mobile-only { display: none !important; }
+  .desktop-only { display: block !important; }
+}
+
+/* ===== BOTTOM NAV SAFE AREA ===== */
+@media (max-width: 880px) {
+  .content-inner { padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
+  .btn-add { bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); }
+}
+
+/* ===== TABS OVERFLOW ON SMALL PHONES ===== */
+@media (max-width: 400px) {
+  .budget-tab { font-size: 10px; padding: 6px 6px; gap: 3px; }
+}
+
+/* ===== CARD ENTER ANIMATIONS ===== */
+.card-enter { animation: fadeUp .3s var(--ease) both; }
+.card-enter:nth-child(2) { animation-delay: .05s; }
+.card-enter:nth-child(3) { animation-delay: .10s; }
+.card-enter:nth-child(4) { animation-delay: .15s; }
+
+/* ===== SIDEBAR ACTIVE ITEM PULSE ===== */
+.sidebar-nav-item.active::after {
+  content: '';
+  position: absolute; inset: 0; border-radius: 11px;
+  background: var(--accent-soft);
+  animation: none;
+}
+
+/* ===== TRANSACTION ITEM SWIPE HINT ON MOBILE ===== */
+@media (max-width: 880px) {
+  .t-actions { opacity: 1; }
+}
+
+/* ===== BETTER SCROLLBAR ===== */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ===== BUDGET TAB FADE MASK ===== */
+.budget-tabs {
+  mask-image: linear-gradient(to right, transparent 0px, black 8px, black calc(100% - 32px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0px, black 8px, black calc(100% - 32px), transparent 100%);
+}
+@media (min-width: 881px) {
+  .budget-tabs { mask-image: none; -webkit-mask-image: none; }
+}
+
+/* ===== LOADING STATES POLISH ===== */
+.list-loading {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 80px;
+}
+.list-loading::before {
+  content: '';
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  animation: spin .7s linear infinite; flex-shrink: 0;
+}
+
+/* ===== TRANSACTION ITEM HOVER GLOW ===== */
+.transaction-item {
+  position: relative;
+  transition: background .15s, transform .12s;
+}
+.transaction-item:active { transform: scale(.995); }
+
+/* ===== MONTH NAV PILL ===== */
+.month-nav { gap: 12px; }
+.month-label {
+  background: var(--surface2); border-radius: 99px;
+  padding: 6px 18px; border: 1px solid var(--border);
+}
+
+/* ===== BOTTOM NAV LABEL SIZE FIX ===== */
+@media (max-width: 380px) {
+  .bottom-nav-item span { font-size: 7px; }
+  .bottom-nav-item svg { width: 18px; height: 18px; }
+}
+
+/* ===== SAVINGS GOAL PROGRESS BAR ===== */
+.goal-progress { height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.goal-progress-fill { height: 100%; border-radius: 3px; transition: width .5s var(--ease); background: var(--income); }
+
+/* ===== MODAL CLOSE BUTTON HOVER ===== */
+.modal-close {
+  width: 30px; height: 30px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.modal-close:hover { background: var(--surface2); color: var(--text); }
+
+/* ===== ACCOUNT CHIP ACTIVE GLOW ===== */
+.account-chip.active { box-shadow: 0 0 0 1px var(--border-strong) inset; }
+
+/* ===== HABITS MOBILE WEEK GRID ===== */
+@media (max-width: 400px) {
+  .week-header, .habit-row { grid-template-columns: 1fr repeat(7, 28px); gap: 2px; padding: 8px 10px; }
+  .habit-check { width: 26px; height: 26px; font-size: 12px; }
+}
+
+/* ===== GLOBAL FOCUS RING ===== */
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+button:focus:not(:focus-visible) { outline: none; }

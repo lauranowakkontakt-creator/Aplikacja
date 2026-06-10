@@ -3,6 +3,8 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'fireba
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { CatIcon, IconClose, IconTrash } from '../Icons'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
 export const HABIT_CATEGORIES = [
   { id: 'health',  label: 'Zdrowie',   icon: '❤️' },
@@ -79,7 +81,8 @@ export default function HabitForm({ user, onClose, editData }) {
   }
 
   const handleDelete = async () => {
-    if (!confirm(`Usunąć nawyk "${editData.name}"? Utracisz całą historię.`)) return
+    const ok = await confirmDialog({ title: `Usunąć nawyk "${editData.name}"?`, message: "Utracisz całą historię aktywności." })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'habits', editData.id))
     onClose()
   }

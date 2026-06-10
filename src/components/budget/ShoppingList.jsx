@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, getDoc, setDoc } from 'firebase/firestore'
+import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, setDoc, increment } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -8,6 +8,8 @@ import { fmt, getCurrencyCode } from '../../utils/currency'
 import { EXPENSE_CATEGORIES } from '../TransactionForm'
 import { IconTrash, IconClose, IconTag } from '../Icons'
 import { CAT_COLORS } from '../../utils/categories'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
 const COLORS = ['#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
 
@@ -50,7 +52,8 @@ export default function ShoppingList({ user }) {
   const bought  = items.filter(i => i.status === 'bought')
 
   const handleDelete = async (id) => {
-    if (!confirm('Usunąć?')) return
+    const ok = await confirmDialog({ title: 'Usunąć produkt?', confirmLabel: 'Usuń' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'shoppingItems', id))
   }
 
@@ -191,7 +194,8 @@ function ShopCategoryManager({ user, categories, onClose }) {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Usunąć kategorię?')) return
+    const ok = await confirmDialog({ title: 'Usunąć kategorię?' })
+    if (!ok) return
     save(cats.filter(c => c.id !== id))
   }
 
@@ -201,7 +205,8 @@ function ShopCategoryManager({ user, categories, onClose }) {
   }
 
   const handleReset = async () => {
-    if (!confirm('Przywrócić domyślne kategorie zakupów?')) return
+    const ok = await confirmDialog({ title: 'Przywrócić domyślne?', message: 'Wszystkie własne kategorie zostaną usunięte.', confirmLabel: 'Przywróć', danger: false })
+    if (!ok) return
     await setDoc(doc(db, 'users', user.uid, 'settings', 'shopCategories'), { categories: EXPENSE_CATEGORIES })
   }
 
@@ -426,12 +431,7 @@ function BuyModal({ item, user, categories, onBuy, onClose }) {
         createdAt: Timestamp.now(), updatedAt: Timestamp.now()
       })
       if (accountId) {
-        const accSnap = await getDoc(doc(db, 'users', user.uid, 'accounts', accountId))
-        if (accSnap.exists()) {
-          await updateDoc(doc(db, 'users', user.uid, 'accounts', accountId), {
-            balance: (accSnap.data().balance || 0) - actualPrice
-          })
-        }
+        await updateDoc(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(-actualPrice) })
       }
     }
     await onBuy(item, price)

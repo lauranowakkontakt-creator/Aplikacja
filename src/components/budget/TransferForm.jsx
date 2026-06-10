@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, onSnapshot, orderBy, query, Timestamp, doc, updateDoc } from 'firebase/firestore'
+import { collection, addDoc, onSnapshot, orderBy, query, Timestamp, doc, updateDoc, increment } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { fmt, getCurrencyCode } from '../../utils/currency'
@@ -51,8 +51,8 @@ export default function TransferForm({ user, onClose }) {
         transferFrom: fromId, transferComment: desc || '',
         date: d, accountId: toId, createdAt: Timestamp.now(), updatedAt: Timestamp.now()
       })
-      await updateDoc(doc(db, 'users', user.uid, 'accounts', fromId), { balance: (fromAcc.balance || 0) - amt })
-      await updateDoc(doc(db, 'users', user.uid, 'accounts', toId),   { balance: (toAcc.balance   || 0) + amt })
+      await updateDoc(doc(db, 'users', user.uid, 'accounts', fromId), { balance: increment(-amt) })
+      await updateDoc(doc(db, 'users', user.uid, 'accounts', toId),   { balance: increment(amt) })
       onClose()
     } catch { setError('Błąd zapisu'); setSaving(false) }
   }

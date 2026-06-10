@@ -5,6 +5,8 @@ import { format, subDays, startOfMonth, getDaysInMonth, addDays, subMonths, addM
 import { pl } from 'date-fns/locale'
 import { IconTrash, IconCalendar, IconFlame } from '../Icons'
 import EmotionWheel, { ALL_EMOTIONS } from './EmotionWheel'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
 // ── 7-level mood scale ────────────────────────────────────────────────────────
 const MOODS = [
@@ -148,7 +150,8 @@ function TodayView({ user, logs, today, selectedDate, setSelectedDate }) {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Usunąć wpis?')) return
+    const ok = await confirmDialog({ title: 'Usunąć wpis nastroju?' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'moodLogs', id))
   }
 

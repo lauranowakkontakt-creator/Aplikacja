@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, orderBy, query, deleteDoc, doc, updateDoc, arrayUnion, addDoc, Timestamp, getDoc } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, deleteDoc, doc, updateDoc, arrayUnion, addDoc, Timestamp, increment } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format, parseISO, isAfter, isBefore, startOfDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../../utils/currency'
 import { CatIcon, IconEdit, IconTrash, IconCheck, IconCalendar } from '../Icons'
 import RegularPaymentForm from './RegularPaymentForm'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
 const FREQ_LABELS = { monthly: 'miesięcznie', weekly: 'tygodniowo', yearly: 'rocznie' }
 
@@ -55,18 +57,13 @@ export default function RegularPayments({ user }) {
         fromRegular: p.id
       })
       if (p.accountId) {
-        const accSnap = await getDoc(doc(db, 'users', user.uid, 'accounts', p.accountId))
-        if (accSnap.exists()) {
-          const delta = p.type === 'expense' ? -p.amount : p.amount
-          await updateDoc(doc(db, 'users', user.uid, 'accounts', p.accountId), {
-            balance: (accSnap.data().balance || 0) + delta
-          })
-        }
+        const delta = p.type === 'expense' ? -p.amount : p.amount
+        await updateDoc(doc(db, 'users', user.uid, 'accounts', p.accountId), { balance: increment(delta) })
       }
       await updateDoc(doc(db, 'users', user.uid, 'regularPayments', p.id), {
         donePeriods: arrayUnion(THIS_PERIOD)
       })
-    } catch {}
+    } catch { toast.error('Błąd zapisu płatności') }
   }
 
   const markDone = async (p) => {
@@ -79,7 +76,8 @@ export default function RegularPayments({ user }) {
   }
 
   const handleDelete = async (id) => {
-    if (!confirm('Usunąć tę regularną płatność?')) return
+    const ok = await confirmDialog({ title: 'Usunąć płatność?', message: 'Płatność zostanie trwale usunięta.' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'regularPayments', id))
   }
 

@@ -4,12 +4,15 @@ import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../utils/currency'
 import { CatIcon, IconEdit, IconTrash } from './Icons'
+import { confirmDialog } from './ConfirmModal'
+import { toast } from './Toast'
 
 const hide = '••••'
 
 export default function TransactionList({ transactions, loading, onEdit, user, privateMode }) {
   const handleDelete = async (t) => {
-    if (!confirm('Usunąć tę transakcję?')) return
+    const ok = await confirmDialog({ title: 'Usunąć transakcję?', message: 'Ta operacja jest nieodwracalna.' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'transactions', t.id))
     if (t.accountId) {
       const reversal = t.type === 'income' ? -t.amount : t.amount

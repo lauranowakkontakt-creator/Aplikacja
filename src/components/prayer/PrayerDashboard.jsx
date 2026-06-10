@@ -5,6 +5,8 @@ import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOf
 import { pl } from 'date-fns/locale'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight } from '../Icons'
 import { Heatmap } from '../ChartPrimitives'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
 const PRIORITY_CFG = [
   { v: 5, label: 'Pilna',   color: '#ef4444' },
@@ -236,7 +238,8 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
 
   const handleDeletePerson = async (id, e) => {
     e.stopPropagation()
-    if (!confirm('Usunąć osobę i wszystkie jej prośby?')) return
+    const ok = await confirmDialog({ title: 'Usunąć osobę?', message: 'Wszystkie prośby tej osoby zostaną usunięte.' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'prayerPeople', id))
   }
 
@@ -356,7 +359,8 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
   }
 
   const deleteItem = async (id) => {
-    if (!confirm('Usunąć prośbę?')) return
+    const ok = await confirmDialog({ title: 'Usunąć prośbę?' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'prayerIntentions', id))
   }
 
@@ -687,7 +691,8 @@ function TodayView({ user, intentions, people, carMode }) {
             onDeleteNote={deleteNote}
             onArchive={async (item) => updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { status: 'ended', endedAt: Timestamp.now() })}
             onEdit={() => {}}
-            onDelete={async (id) => { if (confirm('Usunąć?')) await deleteDoc(doc(db, 'users', user.uid, 'prayerIntentions', id)) }}
+            onDelete={async (id) => { const _ok = await confirmDialog({ title: 'Usunąć prośbę?' })
+              if (_ok) await deleteDoc(doc(db, 'users', user.uid, 'prayerIntentions', id)) }}
             showPerson
             person={person}
           />
@@ -904,7 +909,8 @@ function ArchiveView({ user, intentions, people }) {
   }
 
   const deleteItem = async (id) => {
-    if (!confirm('Usunąć prośbę trwale?')) return
+    const ok = await confirmDialog({ title: 'Usunąć trwale?', message: 'Prośba zostanie usunięta z archiwum.' })
+    if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'prayerIntentions', id))
   }
 
