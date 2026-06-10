@@ -7,7 +7,7 @@ import {
   addMonths, subMonths, getDate
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { CatIcon, IconEdit, IconTrash, IconCalendar, IconBook, IconTag, IconClose, IconChevronLeft, IconChevronRight } from '../Icons'
+import { CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -26,7 +26,13 @@ const DEFAULT_CATEGORIES = [
   { slug: 'other',    label: 'Inne',      icon: '📌', color: '#607D8B' },
 ]
 
-const CAT_ICONS   = [
+const PERSON_COLORS = [
+  '#E74C3C','#E91E63','#9C27B0','#8B5CF6','#3F51B5','#2196F3',
+  '#00BCD4','#009688','#4CAF50','#F59E0B','#FF9800','#FF5722',
+  '#EC4899','#14B8A6','#84CC16','#6366F1',
+]
+
+const CAT_ICONS = [
   '💼','🏠','❤️','🎉','📚','💪','👨‍👩‍👧','🤝','✈️','💰',
   '🙏','📌','🎵','🍽️','🎬','🏥','🎓','🛒','🌿','⚽',
   '🎨','🔧','📞','🎂','🚗','💊','📸','🌙','☀️','🎯',
@@ -34,37 +40,58 @@ const CAT_ICONS   = [
   '📅','💌','🎁','🔥','💎','🧠','💻','📱','🌊','🏔️',
   '✝️','🕊️','🌸','🦋','🍀','🎭','🎪','🚀','⚡','🌈',
 ]
-const CAT_COLORS  = [
+const CAT_COLORS = [
   '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',
   '#22C55E','#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1',
   '#8B5CF6','#A855F7','#EC4899','#F43F5E','#64748B','#607D8B',
   '#059669','#0EA5E9','#DC2626','#7C3AED','#0D9488','#4F46E5',
   '#BE185D','#A78BFA','#92400E','#4A90D9','#1ABC9C','#E74C3C',
 ]
-const WEEKDAYS    = ['Pn','Wt','Śr','Cz','Pt','So','Nd']
+const WEEKDAYS = ['Pn','Wt','Śr','Cz','Pt','So','Nd']
 
-const findCat   = (cats, id) => cats.find(c => c.id === id)
-const getCatColor = (cats, e) => findCat(cats, e.categoryId)?.color || e.color || '#607D8B'
+const findCat    = (cats, id)   => cats.find(c => c.id === id)
+const findPerson = (ppl, id)    => ppl.find(p => p.id === id)
+const getEventColor = (cats, ppl, e) =>
+  findPerson(ppl, e.personId)?.color || findCat(cats, e.categoryId)?.color || e.color || '#607D8B'
+const initials = (name) =>
+  (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
 const kicker = (t) => (
   <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>{t}</div>
 )
 
+/* ─── PersonBubble ─────────────────────────────────────────────────────── */
+function PersonBubble({ person, size = 32 }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%',
+      background: person.color + '30', border: `2px solid ${person.color}`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      color: person.color, fontSize: size * 0.36, fontWeight: 700, flexShrink: 0,
+      letterSpacing: '-0.02em',
+    }}>
+      {initials(person.name)}
+    </div>
+  )
+}
+
+/* ─── CalendarDashboard ────────────────────────────────────────────────── */
 export default function CalendarDashboard({ user }) {
-  const [events, setEvents]       = useState([])
-  const [todos, setTodos]         = useState([])
-  const [payments, setPayments]   = useState([])
+  const [events, setEvents]         = useState([])
+  const [todos, setTodos]           = useState([])
+  const [payments, setPayments]     = useState([])
   const [categories, setCategories] = useState([])
-  const [people, setPeople]       = useState([])
-  const [loading, setLoading]     = useState(true)
+  const [calPeople, setCalPeople]   = useState([])
+  const [loading, setLoading]       = useState(true)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDay, setSelectedDay]   = useState(new Date())
-  const [tab, setTab]             = useState('month')
-  const [showForm, setShowForm]   = useState(false)
-  const [editEvent, setEditEvent] = useState(null)
-  const [showCatMgr, setShowCatMgr] = useState(false)
+  const [tab, setTab]               = useState('month')
+  const [showForm, setShowForm]     = useState(false)
+  const [editEvent, setEditEvent]   = useState(null)
+  const [showCatMgr, setShowCatMgr]       = useState(false)
+  const [showPeopleMgr, setShowPeopleMgr] = useState(false)
+  const [filterPersonId, setFilterPersonId] = useState(null)
 
-  // Categories — seed defaults on first load
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarCategories'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, async snap => {
@@ -82,8 +109,8 @@ export default function CalendarDashboard({ user }) {
   }, [user.uid])
 
   useEffect(() => {
-    const q = query(collection(db, 'users', user.uid, 'prayerPeople'), orderBy('name', 'asc'))
-    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setCalPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
 
   useEffect(() => {
@@ -112,32 +139,26 @@ export default function CalendarDashboard({ user }) {
     await deleteDoc(doc(db, 'users', user.uid, 'calendarEvents', id))
   }
 
-  const eventsOnDay   = (day) => {
-    const dayStr = format(day, 'yyyy-MM-dd')
-    return events.filter(e => {
-      const start = e.date
-      const end = e.dateEnd || e.date
-      return dayStr >= start && dayStr <= end
-    })
+  const eventsOnDay = (day) => {
+    const s = format(day, 'yyyy-MM-dd')
+    const all = events.filter(e => s >= e.date && s <= (e.dateEnd || e.date))
+    return filterPersonId ? all.filter(e => e.personId === filterPersonId) : all
   }
   const todosOnDay    = (day) => todos.filter(t => t.dueDate === format(day, 'yyyy-MM-dd'))
   const paymentsOnDay = (day) => payments.filter(p => p.dayOfMonth === getDate(day))
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
-  const calMonthLabel = format(currentMonth, 'LLLL yyyy', { locale: pl })
-  const selectedDayEvents = eventsOnDay(selectedDay)
-  const selectedDayTodos  = todosOnDay(selectedDay)
-  const selectedDayPayments = paymentsOnDay(selectedDay)
-  const selectedDayTotal  = selectedDayEvents.length + selectedDayTodos.length + selectedDayPayments.length
-
-  // Mini stats for the month
+  const calMonthLabel  = format(currentMonth, 'LLLL yyyy', { locale: pl })
+  const selEvts  = eventsOnDay(selectedDay)
+  const selTodos = todosOnDay(selectedDay)
+  const selPmts  = paymentsOnDay(selectedDay)
   const monthStr = format(currentMonth, 'yyyy-MM')
   const monthEvents = events.filter(e => e.date.startsWith(monthStr))
+  const colorOf = (e) => getEventColor(categories, calPeople, e)
 
   return (
     <div className="calendar-dashboard">
-      {/* Mobile module header */}
       <div className="mod-header">
         <div>
           <div className="mod-header-kicker">Kalendarz</div>
@@ -153,40 +174,56 @@ export default function CalendarDashboard({ user }) {
         </div>
       </div>
 
-      {/* Tabs + categories button */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+      {/* Tabs + category btn */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <div style={{ display: 'flex', flex: 1, gap: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-          <button
-            onClick={() => setTab('month')}
-            style={{
-              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === 'month' ? 700 : 400,
-              background: tab === 'month' ? 'var(--surface3)' : 'transparent',
-              color: tab === 'month' ? 'var(--text)' : 'var(--text-muted)',
-              border: tab === 'month' ? '1px solid var(--border-strong)' : '1px solid transparent',
+          {[['month','Miesiąc'],['agenda','Agenda'],['people','Osoby']].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)} style={{
+              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === key ? 700 : 400,
+              background: tab === key ? 'var(--surface3)' : 'transparent',
+              color: tab === key ? 'var(--text)' : 'var(--text-muted)',
+              border: tab === key ? '1px solid var(--border-strong)' : '1px solid transparent',
               cursor: 'pointer',
-            }}
-          >Miesiąc</button>
-          <button
-            onClick={() => setTab('agenda')}
-            style={{
-              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === 'agenda' ? 700 : 400,
-              background: tab === 'agenda' ? 'var(--surface3)' : 'transparent',
-              color: tab === 'agenda' ? 'var(--text)' : 'var(--text-muted)',
-              border: tab === 'agenda' ? '1px solid var(--border-strong)' : '1px solid transparent',
-              cursor: 'pointer',
-            }}
-          >Agenda</button>
+            }}>{label}</button>
+          ))}
         </div>
-        <button className="cal-nav-btn" style={{ fontSize: 12, padding: '7px 12px', whiteSpace: 'nowrap' }}
-          onClick={() => setShowCatMgr(true)}><IconTag size={13} /> Kat.</button>
+        <button className="cal-nav-btn" title="Kategorie" style={{ fontSize: 12, padding: '7px 10px', whiteSpace: 'nowrap', flexShrink: 0 }}
+          onClick={() => setShowCatMgr(true)}><IconTag size={13} /></button>
       </div>
 
-      {tab === 'month' ? (
-        /* 2-column desktop layout */
+      {/* Person filter pills */}
+      {calPeople.length > 0 && tab !== 'people' && (
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
+          <button onClick={() => setFilterPersonId(null)} style={{
+            padding: '4px 10px', borderRadius: 99, fontSize: 12, cursor: 'pointer',
+            border: `1.5px solid ${filterPersonId === null ? 'var(--text)' : 'var(--border)'}`,
+            background: filterPersonId === null ? 'var(--surface3)' : 'transparent',
+            color: filterPersonId === null ? 'var(--text)' : 'var(--text-muted)',
+            fontWeight: filterPersonId === null ? 700 : 400,
+          }}>Wszyscy</button>
+          {calPeople.map(p => (
+            <button key={p.id} onClick={() => setFilterPersonId(filterPersonId === p.id ? null : p.id)} style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px 3px 4px',
+              borderRadius: 99, fontSize: 12, cursor: 'pointer',
+              border: `1.5px solid ${p.color}`,
+              background: filterPersonId === p.id ? p.color + '28' : 'transparent',
+              color: filterPersonId === p.id ? p.color : 'var(--text-muted)',
+              fontWeight: filterPersonId === p.id ? 700 : 400,
+            }}>
+              <div style={{ width: 18, height: 18, borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 8, fontWeight: 700 }}>
+                {initials(p.name)}
+              </div>
+              {p.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* MONTH TAB */}
+      {tab === 'month' && (
         <div className="g2-14">
           {/* Left: calendar */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
-            {/* Month nav — hidden on mobile (mod-header has the arrows) */}
             <div className="cal-inner-nav">
               <span style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>
                 {format(currentMonth, 'LLLL yyyy', { locale: pl })}
@@ -199,46 +236,30 @@ export default function CalendarDashboard({ user }) {
               </div>
             </div>
 
-            {/* Calendar grid */}
             <CalendarGrid
-              currentMonth={currentMonth}
-              selectedDay={selectedDay}
-              categories={categories}
+              currentMonth={currentMonth} selectedDay={selectedDay}
+              categories={categories} calPeople={calPeople}
               onDayClick={handleDayClick}
-              eventsOnDay={eventsOnDay}
-              todosOnDay={todosOnDay}
-              paymentsOnDay={paymentsOnDay}
+              eventsOnDay={eventsOnDay} todosOnDay={todosOnDay} paymentsOnDay={paymentsOnDay}
             />
 
-            {/* Mini stats */}
             <div className="cal-mini-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginTop: 14 }}>
-              <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-                <div className="cal-stat-num" style={{ fontSize: 16, fontWeight: 700 }}>{monthEvents.length}</div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Wydarzeń</div>
-              </div>
-              <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-                <div className="cal-stat-num" style={{ fontSize: 16, fontWeight: 700 }}>
-                  {todos.filter(t => t.dueDate?.startsWith(monthStr)).length}
+              {[[monthEvents.length,'Wydarzeń'],[todos.filter(t=>t.dueDate?.startsWith(monthStr)).length,'Zadań'],[payments.length,'Płatności']].map(([n,lbl]) => (
+                <div key={lbl} style={{ background: 'var(--surface2)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+                  <div className="cal-stat-num" style={{ fontSize: 16, fontWeight: 700 }}>{n}</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>{lbl}</div>
                 </div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Zadań</div>
-              </div>
-              <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-                <div className="cal-stat-num" style={{ fontSize: 16, fontWeight: 700 }}>{payments.length}</div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Płatności</div>
-              </div>
+              ))}
             </div>
           </div>
 
-          {/* Right: agenda dnia */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18, display: 'flex', flexDirection: 'column' }}>
-            {/* Day header */}
+          {/* Right: day detail */}
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>
                   {format(selectedDay, 'EEEE', { locale: pl })}
-                  {isToday(selectedDay) && (
-                    <span style={{ marginLeft: 8, background: 'var(--primary)', color: '#fff', padding: '1px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>DZIŚ</span>
-                  )}
+                  {isToday(selectedDay) && <span style={{ marginLeft: 8, background: 'var(--primary)', color: '#fff', padding: '1px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>DZIŚ</span>}
                 </div>
                 <div className="cal-day-panel-date" style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.15, textTransform: 'capitalize', marginTop: 2 }}>
                   {format(selectedDay, 'd MMMM', { locale: pl })}
@@ -247,55 +268,35 @@ export default function CalendarDashboard({ user }) {
               <button onClick={() => { setEditEvent(null); setShowForm(true) }} style={{
                 display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 20,
                 background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-              }}>
-                + Wydarzenie
-              </button>
+              }}>+ Wydarzenie</button>
             </div>
 
-            {/* Events list */}
-            {selectedDayTotal === 0 ? (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                Brak wydarzeń
-              </div>
+            {selEvts.length + selTodos.length + selPmts.length === 0 ? (
+              <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Brak wydarzeń</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {selectedDayEvents.map(e => {
-                  const color = getCatColor(categories, e)
-                  const cat = findCat(categories, e.categoryId)
+                {selEvts.map(e => {
+                  const color  = colorOf(e)
+                  const person = findPerson(calPeople, e.personId)
+                  const cat    = findCat(categories, e.categoryId)
                   return (
-                    <div key={e.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      {/* Time */}
-                      <div style={{ minWidth: 44, flexShrink: 0, textAlign: 'right' }}>
-                        {e.startTime && (
-                          <>
-                            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{e.startTime}</div>
-                            {e.endTime && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)' }}>–{e.endTime}</div>}
-                          </>
-                        )}
-                      </div>
-                      {/* Dot + vertical line */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, flexShrink: 0, marginTop: 3 }} />
-                      </div>
-                      {/* Card */}
-                      <div style={{ flex: 1, background: 'var(--surface2)', border: `1px solid ${color}33`, borderRadius: 10, padding: '8px 12px' }}
-                        onMouseEnter={ev => ev.currentTarget.style.background = 'var(--surface3)'}
-                        onMouseLeave={ev => ev.currentTarget.style.background = 'var(--surface2)'}
-                      >
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{e.title}</div>
-                        {cat && (
-                          <div style={{ fontSize: 10, color, marginTop: 2, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em' }}>{cat.label}</div>
-                        )}
-                        {e.note && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, fontStyle: 'italic' }}>{e.note}</div>}
-                        <div style={{ display: 'flex', gap: 4, marginTop: 6, justifyContent: 'flex-end' }}>
-                          <button className="t-btn" onClick={() => { setEditEvent(e); setShowForm(true) }}><IconEdit size={12} /></button>
-                          <button className="t-btn delete" onClick={() => handleDelete(e.id)}><IconTrash size={12} /></button>
+                    <div key={e.id} style={{ background: 'var(--surface2)', border: `1px solid ${color}33`, borderLeft: `3px solid ${color}`, borderRadius: 10, padding: '10px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {person && <PersonBubble person={person} size={26} />}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600 }}>{e.title}</div>
+                          {e.startTime && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{e.startTime}{e.endTime ? ` – ${e.endTime}` : ''}</div>}
                         </div>
+                        <button className="t-btn" onClick={() => { setEditEvent(e); setShowForm(true) }}><IconEdit size={12} /></button>
+                        <button className="t-btn delete" onClick={() => handleDelete(e.id)}><IconTrash size={12} /></button>
                       </div>
+                      {person && <div style={{ fontSize: 11, color: person.color, fontWeight: 600, marginTop: 5 }}>{person.name}</div>}
+                      {!person && cat && <div style={{ fontSize: 10, color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginTop: 4 }}>{cat.label}</div>}
+                      {e.note && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>{e.note}</div>}
                     </div>
                   )
                 })}
-                {selectedDayTodos.map(t => (
+                {selTodos.map(t => (
                   <div key={t.id} className="cal-event-row" style={{ borderLeftColor: '#6366f1', opacity: 0.8 }}>
                     <span style={{ fontSize: 14 }}>✅</span>
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', flex: 1 }}>
@@ -303,7 +304,7 @@ export default function CalendarDashboard({ user }) {
                     </p>
                   </div>
                 ))}
-                {selectedDayPayments.map(p => (
+                {selPmts.map(p => (
                   <div key={p.id} className="cal-event-row" style={{ borderLeftColor: '#f59e0b', opacity: 0.8 }}>
                     <CatIcon categoryId={p.categoryId} emoji={p.categoryIcon} size={14} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -316,35 +317,39 @@ export default function CalendarDashboard({ user }) {
             )}
           </div>
         </div>
-      ) : (
-        <AgendaView
-          events={events} categories={categories}
+      )}
+
+      {tab === 'agenda' && (
+        <AgendaView events={events} categories={categories} calPeople={calPeople}
+          filterPersonId={filterPersonId}
           onAdd={() => { setEditEvent(null); setShowForm(true) }}
           onEdit={e => { setEditEvent(e); setShowForm(true) }}
-          onDelete={handleDelete}
-        />
+          onDelete={handleDelete} />
+      )}
+
+      {tab === 'people' && (
+        <PeopleView calPeople={calPeople} events={events} categories={categories}
+          onManage={() => setShowPeopleMgr(true)}
+          onEdit={e => { setEditEvent(e); setShowForm(true) }}
+          onDelete={handleDelete} />
       )}
 
       {showForm && (
-        <EventForm user={user} editData={editEvent} categories={categories} people={people}
+        <EventForm user={user} editData={editEvent} categories={categories} calPeople={calPeople}
           defaultDate={format(selectedDay, 'yyyy-MM-dd')}
           onClose={() => { setShowForm(false); setEditEvent(null) }} />
       )}
-
-      {showCatMgr && (
-        <CategoryManager user={user} categories={categories} onClose={() => setShowCatMgr(false)} />
-      )}
+      {showCatMgr    && <CategoryManager user={user} categories={categories} onClose={() => setShowCatMgr(false)} />}
+      {showPeopleMgr && <PeopleManager   user={user} calPeople={calPeople}   onClose={() => setShowPeopleMgr(false)} />}
     </div>
   )
 }
 
-/* ─── CalendarGrid ─── */
-function CalendarGrid({ currentMonth, selectedDay, categories, onDayClick, eventsOnDay, todosOnDay, paymentsOnDay }) {
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd   = endOfMonth(currentMonth)
-  const days       = eachDayOfInterval({
-    start: startOfWeek(monthStart, { weekStartsOn: 1 }),
-    end:   endOfWeek(monthEnd,     { weekStartsOn: 1 })
+/* ─── CalendarGrid ─────────────────────────────────────────────────────── */
+function CalendarGrid({ currentMonth, selectedDay, categories, calPeople, onDayClick, eventsOnDay, todosOnDay, paymentsOnDay }) {
+  const days = eachDayOfInterval({
+    start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
+    end:   endOfWeek(endOfMonth(currentMonth),     { weekStartsOn: 1 })
   })
 
   return (
@@ -361,34 +366,28 @@ function CalendarGrid({ currentMonth, selectedDay, categories, onDayClick, event
         const today      = isToday(day)
 
         const allItems = [
-          ...evts.map(e => ({ label: e.title, color: getCatColor(categories, e), icon: e.categoryIcon || null })),
-          ...tdos.map(t => ({ label: t.title, color: '#6366f1', icon: '✅' })),
-          ...pmts.map(p => ({ label: p.name,  color: '#f59e0b', icon: '💳' })),
+          ...evts.map(e => ({ color: getEventColor(categories, calPeople, e), label: e.title })),
+          ...tdos.map(t => ({ color: '#6366f1', label: t.title })),
+          ...pmts.map(p => ({ color: '#f59e0b', label: p.name })),
         ]
         const visible  = allItems.slice(0, 3)
         const overflow = allItems.length - 3
 
         return (
-          <button
-            key={day.toISOString()}
-            className={`cal-day${isSelected ? ' cal-day--sel' : ''}`}
-            onClick={() => onDayClick(day)}
-            style={{ opacity: inMonth ? 1 : 0.25 }}
-          >
+          <button key={day.toISOString()} className={`cal-day${isSelected ? ' cal-day--sel' : ''}`}
+            onClick={() => onDayClick(day)} style={{ opacity: inMonth ? 1 : 0.25 }}>
             <div className={`cal-day-num${today ? ' today' : isSelected ? ' selected' : ''}`}>
               {getDate(day)}
             </div>
             <div className="cal-chips">
               {visible.map((item, i) => (
-                <div key={i} className="cal-chip" style={{ '--dot-color': item.color, background: item.color + '28', borderLeft: `2px solid ${item.color}` }}>
+                <div key={i} className="cal-chip"
+                  style={{ '--dot-color': item.color, background: item.color + '28', borderLeft: `2px solid ${item.color}` }}>
                   <span className="cal-chip-dot" />
-                  {item.icon && <span className="cal-chip-icon">{item.icon}</span>}
                   <span className="cal-chip-text">{item.label}</span>
                 </div>
               ))}
-              {overflow > 0 && (
-                <div className="cal-chip-more">+{overflow} więcej</div>
-              )}
+              {overflow > 0 && <div className="cal-chip-more">+{overflow}</div>}
             </div>
           </button>
         )
@@ -397,21 +396,20 @@ function CalendarGrid({ currentMonth, selectedDay, categories, onDayClick, event
   )
 }
 
-/* ─── AgendaView ─── */
-function AgendaView({ events, categories, onAdd, onEdit, onDelete }) {
+/* ─── AgendaView ───────────────────────────────────────────────────────── */
+function AgendaView({ events, categories, calPeople, filterPersonId, onAdd, onEdit, onDelete }) {
   const today    = format(new Date(), 'yyyy-MM-dd')
-  const upcoming = [...events]
-    .filter(e => e.date >= today)
+  const src      = filterPersonId ? events.filter(e => e.personId === filterPersonId) : events
+  const upcoming = [...src].filter(e => e.date >= today)
     .sort((a, b) => a.date !== b.date ? a.date.localeCompare(b.date) : (a.startTime || '').localeCompare(b.startTime || ''))
   const grouped  = {}
   upcoming.forEach(e => { if (!grouped[e.date]) grouped[e.date] = []; grouped[e.date].push(e) })
   const dates    = Object.keys(grouped).sort()
-  const past     = [...events].filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date))
+  const past     = [...src].filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <button className="btn-add-habit" onClick={onAdd}>+ Dodaj wydarzenie</button>
-
       {dates.length === 0 ? (
         <div className="list-empty">
           <p>Brak nadchodzących wydarzeń</p>
@@ -423,26 +421,17 @@ function AgendaView({ events, categories, onAdd, onEdit, onDelete }) {
             {isToday(parseISO(date)) ? '📌 DZIŚ' : format(parseISO(date), 'EEEE, d MMMM', { locale: pl })}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {grouped[date].map(e => <EventRow key={e.id} e={e} categories={categories} onEdit={onEdit} onDelete={onDelete} />)}
+            {grouped[date].map(e => <EventRow key={e.id} e={e} categories={categories} calPeople={calPeople} onEdit={onEdit} onDelete={onDelete} />)}
           </div>
         </div>
       ))}
-
       {past.length > 0 && (
-        <details style={{ marginTop: 4 }}>
-          <summary style={{ fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, listStyle: 'none' }}>
+        <details>
+          <summary style={{ fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, listStyle: 'none', marginTop: 4 }}>
             ▸ Minione ({past.length})
           </summary>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
-            {past.map(e => (
-              <div key={e.id} className="cal-event-row" style={{ borderLeftColor: getCatColor(categories, e), opacity: 0.5 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{e.title}</p>
-                  <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{format(parseISO(e.date), 'd MMM yyyy', { locale: pl })}</p>
-                </div>
-                <button className="t-btn delete" onClick={() => onDelete(e.id)}><IconTrash size={13} /></button>
-              </div>
-            ))}
+            {past.map(e => <EventRow key={e.id} e={e} categories={categories} calPeople={calPeople} onEdit={onEdit} onDelete={onDelete} muted />)}
           </div>
         </details>
       )}
@@ -450,43 +439,30 @@ function AgendaView({ events, categories, onAdd, onEdit, onDelete }) {
   )
 }
 
-/* ─── EventRow ─── */
-function EventRow({ e, categories, onEdit, onDelete }) {
-  const cat   = findCat(categories, e.categoryId)
-  const color = getCatColor(categories, e)
+/* ─── EventRow ─────────────────────────────────────────────────────────── */
+function EventRow({ e, categories, calPeople, onEdit, onDelete, muted }) {
+  const person = findPerson(calPeople, e.personId)
+  const cat    = findCat(categories, e.categoryId)
+  const color  = getEventColor(categories, calPeople, e)
   return (
-    <div className="cal-event-row" style={{ borderLeftColor: color }}>
-      {e.startTime && (
+    <div className="cal-event-row" style={{ borderLeftColor: color, opacity: muted ? 0.5 : 1 }}>
+      {(e.startTime || (e.dateEnd && e.dateEnd !== e.date)) && (
         <div style={{ minWidth: 44, flexShrink: 0 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{e.startTime}</div>
-          {e.endTime && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>–{e.endTime}</div>}
+          {e.startTime && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600 }}>{e.startTime}</div>}
+          {e.endTime   && <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>–{e.endTime}</div>}
           {e.dateEnd && e.dateEnd !== e.date && (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>
-              →{format(parseISO(e.dateEnd), 'd MMM', { locale: pl })}
-            </div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>→{format(parseISO(e.dateEnd), 'd MMM', { locale: pl })}</div>
           )}
-        </div>
-      )}
-      {!e.startTime && e.dateEnd && e.dateEnd !== e.date && (
-        <div style={{ minWidth: 44, flexShrink: 0 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-muted)' }}>
-            →{format(parseISO(e.dateEnd), 'd MMM', { locale: pl })}
-          </div>
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{e.title}</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: cat || e.personName ? 4 : 0 }}>
-          {cat && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', background: color + '1A', color, borderRadius: 99, fontSize: 10, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 600 }}>
-              {cat.label}
-            </div>
-          )}
-          {e.personName && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 8px', background: 'rgba(255,255,255,0.06)', borderRadius: 99, fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>
-              👤 {e.personName}
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+          {person && <PersonBubble person={person} size={20} />}
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{e.title}</p>
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+          {person && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 99, background: person.color + '22', color: person.color, fontWeight: 700 }}>{person.name}</span>}
+          {cat    && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 99, background: color + '18', color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{cat.label}</span>}
         </div>
         {e.note && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{e.note}</p>}
       </div>
@@ -498,8 +474,92 @@ function EventRow({ e, categories, onEdit, onDelete }) {
   )
 }
 
-/* ─── EventForm ─── */
-function EventForm({ user, editData, defaultDate, categories, people, onClose }) {
+/* ─── PeopleView ───────────────────────────────────────────────────────── */
+function PeopleView({ calPeople, events, categories, onManage, onEdit, onDelete }) {
+  const today = format(new Date(), 'yyyy-MM-dd')
+
+  const upcomingFor = (personId) =>
+    events.filter(e => e.personId === personId && e.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date))
+
+  const noPerson = events.filter(e => !e.personId && e.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <button className="btn-add-habit" onClick={onManage}>+ Zarządzaj osobami</button>
+
+      {calPeople.length === 0 && (
+        <div className="list-empty">
+          <p>Brak osób</p>
+          <p className="list-empty-hint">Dodaj osoby przyciskiem powyżej, każda dostanie swój kolor</p>
+        </div>
+      )}
+
+      {calPeople.map(person => {
+        const upcoming = upcomingFor(person.id)
+        return (
+          <div key={person.id} style={{ background: 'var(--surface)', border: `1px solid ${person.color}44`, borderRadius: 'var(--r)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: person.color + '14', borderBottom: `1px solid ${person.color}22` }}>
+              <PersonBubble person={person} size={40} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>{person.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                  {upcoming.length > 0 ? `${upcoming.length} nadchodzących wydarzeń` : 'Nic zaplanowanego'}
+                </div>
+              </div>
+            </div>
+
+            {upcoming.length > 0 ? (
+              <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {upcoming.map(e => (
+                  <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '7px 10px', borderRadius: 9, background: 'var(--surface2)' }}>
+                    <div style={{ flexShrink: 0, paddingTop: 1 }}>
+                      <div style={{ fontSize: 11, color: person.color, fontWeight: 700, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
+                        {format(parseISO(e.date), 'd MMM', { locale: pl })}
+                      </div>
+                      {e.startTime && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{e.startTime}</div>}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500 }}>{e.title}</div>
+                      {e.note && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, fontStyle: 'italic' }}>{e.note}</div>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                      <button className="t-btn" onClick={() => onEdit(e)}><IconEdit size={11} /></button>
+                      <button className="t-btn delete" onClick={() => onDelete(e.id)}><IconTrash size={11} /></button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: '10px 16px', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>Nic zaplanowanego</div>
+            )}
+          </div>
+        )
+      })}
+
+      {noPerson.length > 0 && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
+          <div style={{ padding: '10px 16px', fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.12em', borderBottom: '1px solid var(--border)' }}>
+            Bez osoby
+          </div>
+          <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {noPerson.map(e => (
+              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{format(parseISO(e.date), 'd MMM', { locale: pl })}</span>
+                <span style={{ fontSize: 13, flex: 1, minWidth: 0 }}>{e.title}</span>
+                <button className="t-btn" onClick={() => onEdit(e)}><IconEdit size={11} /></button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── EventForm ────────────────────────────────────────────────────────── */
+function EventForm({ user, editData, defaultDate, categories, calPeople, onClose }) {
   const [title, setTitle]           = useState(editData?.title || '')
   const [date, setDate]             = useState(editData?.date || defaultDate)
   const [dateEnd, setDateEnd]       = useState(editData?.dateEnd || '')
@@ -512,7 +572,7 @@ function EventForm({ user, editData, defaultDate, categories, people, onClose })
   const [error, setError]           = useState('')
 
   const selectedCat    = findCat(categories, categoryId)
-  const selectedPerson = people?.find(p => p.id === personId)
+  const selectedPerson = findPerson(calPeople, personId)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -526,7 +586,7 @@ function EventForm({ user, editData, defaultDate, categories, people, onClose })
       note: note.trim(),
       categoryId: categoryId || null,
       categoryIcon: selectedCat?.icon || null,
-      color: selectedCat?.color || '#607D8B',
+      color: selectedPerson?.color || selectedCat?.color || '#607D8B',
       personId: personId || null,
       personName: selectedPerson?.name || null,
       updatedAt: Timestamp.now()
@@ -549,20 +609,54 @@ function EventForm({ user, editData, defaultDate, categories, people, onClose })
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
+
           <div className="form-group">
             <label>Tytuł</label>
             <input type="text" className="form-input" value={title} onChange={e => setTitle(e.target.value)}
-              maxLength={100} placeholder="np. Spotkanie, Urodziny..." />
+              maxLength={100} placeholder="np. Lekarz, Urodziny Mamy..." />
           </div>
 
+          {/* OSOBY — wybór jako pierwsza rzecz */}
+          {calPeople.length > 0 && (
+            <div className="form-group">
+              <label>Dla kogo?</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+                <button type="button" onClick={() => setPersonId('')} style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                  padding: '8px 10px', borderRadius: 12, cursor: 'pointer', fontSize: 11,
+                  border: `2px solid ${!personId ? 'var(--border-strong)' : 'var(--border)'}`,
+                  background: !personId ? 'var(--surface3)' : 'transparent',
+                  color: !personId ? 'var(--text)' : 'var(--text-muted)',
+                }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--surface2)', border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'var(--text-muted)' }}>—</div>
+                  Brak
+                </button>
+                {calPeople.map(p => (
+                  <button key={p.id} type="button" onClick={() => setPersonId(p.id)} style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                    padding: '8px 10px', borderRadius: 12, cursor: 'pointer', fontSize: 11,
+                    border: `2px solid ${personId === p.id ? p.color : 'var(--border)'}`,
+                    background: personId === p.id ? p.color + '22' : 'transparent',
+                    color: personId === p.id ? p.color : 'var(--text-muted)',
+                    fontWeight: personId === p.id ? 700 : 400,
+                  }}>
+                    <PersonBubble person={p} size={36} />
+                    {p.name.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Kategoria — opcjonalna */}
           <div className="form-group">
-            <label>Kategoria</label>
+            <label>Kategoria (opcjonalnie)</label>
             <div className="cal-cat-grid">
               {categories.map(cat => (
                 <button key={cat.id} type="button"
                   className={`cal-cat-btn ${categoryId === cat.id ? 'active' : ''}`}
                   style={categoryId === cat.id ? { borderColor: cat.color, background: cat.color + '22' } : {}}
-                  onClick={() => setCategoryId(cat.id)}>
+                  onClick={() => setCategoryId(categoryId === cat.id ? '' : cat.id)}>
                   <span className="cal-cat-icon" style={categoryId === cat.id ? { background: cat.color + '33' } : {}}><CatIcon categoryId={cat.slug} emoji={cat.icon} size={15} /></span>
                   <span className="cal-cat-label">{cat.label}</span>
                 </button>
@@ -576,38 +670,24 @@ function EventForm({ user, editData, defaultDate, categories, people, onClose })
           </div>
           <div className="form-group">
             <label>Data końca (opcjonalnie)</label>
-            <input type="date" className="form-input" value={dateEnd}
-              onChange={e => setDateEnd(e.target.value)} min={date} />
+            <input type="date" className="form-input" value={dateEnd} onChange={e => setDateEnd(e.target.value)} min={date} />
           </div>
           <div className="form-row">
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Od (opcjonalnie)</label>
+              <label>Od</label>
               <input type="time" className="form-input" value={startTime} onChange={e => setStartTime(e.target.value)} />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Do (opcjonalnie)</label>
+              <label>Do</label>
               <input type="time" className="form-input" value={endTime} onChange={e => setEndTime(e.target.value)} />
             </div>
           </div>
-          {people?.length > 0 && (
-            <div className="form-group">
-              <label>Osoba (opcjonalnie)</label>
-              <div className="account-chips">
-                <button type="button" className={`account-chip ${!personId ? 'active' : ''}`} onClick={() => setPersonId('')}>Brak</button>
-                {people.map(p => (
-                  <button key={p.id} type="button"
-                    className={`account-chip ${personId === p.id ? 'active' : ''}`}
-                    onClick={() => setPersonId(p.id)}
-                  >{p.name}</button>
-                ))}
-              </div>
-            </div>
-          )}
           <div className="form-group">
-            <label>Notatka (opcjonalnie)</label>
+            <label>Opis / notatka</label>
             <input type="text" className="form-input" value={note} onChange={e => setNote(e.target.value)}
-              maxLength={200} placeholder="Szczegóły, link, miejsce..." />
+              maxLength={300} placeholder="Szczegóły, miejsce, link..." />
           </div>
+
           {error && <p className="form-error">{error}</p>}
           <button type="submit" className="btn-save" disabled={saving}>
             {saving ? 'Zapisywanie...' : editData ? 'Zapisz zmiany' : 'Dodaj wydarzenie'}
@@ -618,7 +698,87 @@ function EventForm({ user, editData, defaultDate, categories, people, onClose })
   )
 }
 
-/* ─── CategoryManager ─── */
+/* ─── PeopleManager ────────────────────────────────────────────────────── */
+function PeopleManager({ user, calPeople, onClose }) {
+  const [name, setName]     = useState('')
+  const [color, setColor]   = useState(PERSON_COLORS[0])
+  const [saving, setSaving] = useState(false)
+
+  const handleAdd = async (e) => {
+    e.preventDefault()
+    if (!name.trim()) return
+    setSaving(true)
+    await addDoc(collection(db, 'users', user.uid, 'calendarPeople'), {
+      name: name.trim(), color, createdAt: Timestamp.now()
+    })
+    setName('')
+    setSaving(false)
+  }
+
+  const handleDelete = async (id) => {
+    const ok = await confirmDialog({ title: 'Usunąć osobę?', message: 'Jej wydarzenia pozostaną, ale stracą przypisanie do osoby.' })
+    if (!ok) return
+    await deleteDoc(doc(db, 'users', user.uid, 'calendarPeople', id))
+  }
+
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <h3>Osoby w kalendarzu</h3>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
+        </div>
+        <div className="form">
+          {calPeople.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+              {calPeople.map(p => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--surface2)', borderRadius: 10, border: `1px solid ${p.color}33` }}>
+                  <PersonBubble person={p} size={34} />
+                  <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: p.color }}>{p.name}</span>
+                  <button className="t-btn delete" onClick={() => handleDelete(p.id)}><IconTrash size={13} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0 0 14px' }} />
+          <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700 }}>Dodaj osobę</p>
+
+          <form onSubmit={handleAdd}>
+            <div className="form-group">
+              <label>Imię / nazwa</label>
+              <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)}
+                placeholder="np. Mama, Zuzia, Tomek..." maxLength={40} />
+            </div>
+            <div className="form-group">
+              <label>Kolor</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: name ? 10 : 0 }}>
+                {PERSON_COLORS.map(c => (
+                  <button key={c} type="button" onClick={() => setColor(c)} style={{
+                    width: 34, height: 34, borderRadius: '50%', background: c, cursor: 'pointer', border: 'none',
+                    boxShadow: color === c ? `0 0 0 3px var(--bg), 0 0 0 5px ${c}` : 'none',
+                    transition: 'box-shadow .15s',
+                  }} />
+                ))}
+              </div>
+              {name && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0' }}>
+                  <PersonBubble person={{ name, color }} size={40} />
+                  <span style={{ fontSize: 13, color, fontWeight: 600 }}>{name}</span>
+                </div>
+              )}
+            </div>
+            <button type="submit" className="btn-save" disabled={saving || !name.trim()}>
+              {saving ? 'Dodawanie...' : '+ Dodaj osobę'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─── CategoryManager ──────────────────────────────────────────────────── */
 function CategoryManager({ user, categories, onClose }) {
   const [icon, setIcon]     = useState(CAT_ICONS[0])
   const [label, setLabel]   = useState('')
@@ -652,8 +812,10 @@ function CategoryManager({ user, categories, onClose }) {
         <div className="form">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>
             {categories.map(cat => (
-              <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--surface2, rgba(255,255,255,.04))', borderRadius: 10 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color }}><CatIcon categoryId={cat.slug} emoji={cat.icon} size={17} /></div>
+              <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--surface2)', borderRadius: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color }}>
+                  <CatIcon categoryId={cat.slug} emoji={cat.icon} size={17} />
+                </div>
                 <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{cat.label}</span>
                 <div style={{ width: 14, height: 14, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
                 <button className="t-btn delete" onClick={() => handleDelete(cat.id)}><IconTrash size={13} /></button>
@@ -662,7 +824,6 @@ function CategoryManager({ user, categories, onClose }) {
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '12px 0' }} />
-
           <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Dodaj kategorię</p>
           <form onSubmit={handleAdd}>
             <div className="form-group">

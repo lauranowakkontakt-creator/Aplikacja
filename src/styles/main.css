@@ -904,13 +904,11 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 
 /* ── Mobile (≤640px): chips → dots ── */
 @media (max-width: 640px) {
-  /* Show only the dot, hide text/icon */
   .cal-chip-dot { display: block; }
   .cal-chip-text, .cal-chip-icon, .cal-chip-more { display: none; }
-  /* Strip chip background/border — it's now just a dot container */
-  .cal-chip { background: transparent; border-left: none; padding: 0; gap: 0; }
-  /* Row of dots centered */
-  .cal-chips { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 3px; padding-top: 2px; }
+  /* !important needed to override inline background/borderLeft on the chip element */
+  .cal-chip { background: transparent !important; border-left: none !important; padding: 2px 0 !important; gap: 0; }
+  .cal-chips { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px; padding-top: 2px; }
 }
 
 /* ── Mobile (≤480px): compact cells ── */
