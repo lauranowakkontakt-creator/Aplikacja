@@ -186,8 +186,8 @@ export default function CalendarDashboard({ user }) {
         <div className="g2-14">
           {/* Left: calendar */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
-            {/* Month nav */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            {/* Month nav — hidden on mobile (mod-header has the arrows) */}
+            <div className="cal-inner-nav">
               <span style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>
                 {format(currentMonth, 'LLLL yyyy', { locale: pl })}
               </span>
@@ -211,19 +211,19 @@ export default function CalendarDashboard({ user }) {
             />
 
             {/* Mini stats */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginTop: 14 }}>
+            <div className="cal-mini-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginTop: 14 }}>
               <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>{monthEvents.length}</div>
+                <div className="cal-stat-num" style={{ fontSize: 16, fontWeight: 700 }}>{monthEvents.length}</div>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Wydarzeń</div>
               </div>
               <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>
+                <div className="cal-stat-num" style={{ fontSize: 16, fontWeight: 700 }}>
                   {todos.filter(t => t.dueDate?.startsWith(monthStr)).length}
                 </div>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Zadań</div>
               </div>
               <div style={{ background: 'var(--surface2)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-                <div style={{ fontSize: 16, fontWeight: 700 }}>{payments.length}</div>
+                <div className="cal-stat-num" style={{ fontSize: 16, fontWeight: 700 }}>{payments.length}</div>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Płatności</div>
               </div>
             </div>
@@ -240,7 +240,7 @@ export default function CalendarDashboard({ user }) {
                     <span style={{ marginLeft: 8, background: 'var(--primary)', color: '#fff', padding: '1px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>DZIŚ</span>
                   )}
                 </div>
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.15, textTransform: 'capitalize', marginTop: 2 }}>
+                <div className="cal-day-panel-date" style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.15, textTransform: 'capitalize', marginTop: 2 }}>
                   {format(selectedDay, 'd MMMM', { locale: pl })}
                 </div>
               </div>
@@ -380,7 +380,7 @@ function CalendarGrid({ currentMonth, selectedDay, categories, onDayClick, event
             </div>
             <div className="cal-chips">
               {visible.map((item, i) => (
-                <div key={i} className="cal-chip" style={{ background: item.color + '28', borderLeft: `2px solid ${item.color}` }}>
+                <div key={i} className="cal-chip" style={{ '--dot-color': item.color, background: item.color + '28', borderLeft: `2px solid ${item.color}` }}>
                   {item.icon && <span className="cal-chip-icon">{item.icon}</span>}
                   <span className="cal-chip-text">{item.label}</span>
                 </div>
