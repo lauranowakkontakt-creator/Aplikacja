@@ -442,14 +442,18 @@ button { touch-action: manipulation; }
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex;
   align-items: flex-end; justify-content: center; z-index: 200; backdrop-filter: blur(4px);
+  overscroll-behavior: contain;
 }
 @media (min-width: 600px) { .modal-overlay { align-items: center; } }
 .modal {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--r-lg) var(--r-lg) 0 0; padding: 28px 24px; width: 100%;
-  max-width: 480px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.25s ease;
+  max-width: 480px; max-height: 92dvh; overflow-y: auto; animation: slideUp 0.25s ease;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
-@media (min-width: 600px) { .modal { border-radius: var(--r-lg); } }
+@media (min-width: 600px) { .modal { border-radius: var(--r-lg); max-height: 88vh; } }
+/* Taller modal variant */
+.modal-tall { max-height: 92dvh; }
 .modal-grip { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
 .modal-header h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
@@ -606,12 +610,16 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 /* ===== SETTINGS DRAWER ===== */
 .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; backdrop-filter: blur(2px); }
 .drawer {
-  position: fixed; top: 0; right: 0; width: 320px; max-width: 90vw; height: 100vh;
+  position: fixed; top: 0; right: 0; width: 320px; max-width: 90vw; height: 100dvh;
   background: var(--surface); border-left: 1px solid var(--border); z-index: 201;
   display: flex; flex-direction: column; transform: translateX(100%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y: auto;
+  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
 .drawer.open { transform: translateX(0); }
+@media (max-width: 480px) {
+  .drawer { width: 100%; max-width: 100%; border-left: none; border-top: 1px solid var(--border); }
+}
 .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .drawer-user { display: flex; align-items: center; gap: 12px; }
 .drawer-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
@@ -1064,3 +1072,152 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 2px;
 }
 button:focus:not(:focus-visible) { outline: none; }
+
+/* ===== MOBILE UX FIXES ===== */
+
+/* Remove blue tap flash on iOS */
+*, *::before, *::after { -webkit-tap-highlight-color: transparent; }
+
+/* Prevent double-tap zoom on buttons (300ms fix) */
+button, a, [role="button"] { touch-action: manipulation; }
+
+/* Prevent rubber-band scroll on main content */
+.content { overscroll-behavior-y: contain; }
+
+/* Viewport height: use dvh where available to account for iOS browser bars */
+html, body, #root { min-height: 100dvh; }
+.app { min-height: 100dvh; }
+
+/* Bottom nav safe area - more reliable approach */
+.bottom-nav {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+/* FAB button: safe area + bottom nav height */
+@media (max-width: 880px) {
+  .btn-add {
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 64px);
+  }
+}
+
+/* Modal: when keyboard opens on iOS, modal stays scrollable */
+.modal {
+  /* Prevents bounce-scrolling from passing through to body */
+  overscroll-behavior: contain;
+}
+
+/* Bigger tap targets for small buttons on mobile */
+@media (max-width: 880px) {
+  .t-btn { min-width: 36px; min-height: 36px; padding: 6px 8px; }
+  .icon-btn { width: 40px; height: 40px; }
+  .habit-check { width: 36px; height: 36px; }
+  .cal-nav-btn { padding: 10px 18px; }
+  /* Month navigation arrows bigger on mobile */
+  .month-btn { width: 40px; height: 40px; }
+  /* Bottom nav items bigger touch area */
+  .bottom-nav-item { padding: 6px 0; min-height: 52px; justify-content: center; }
+}
+
+/* Smooth momentum scrolling on iOS in all scrollable areas */
+.content, .modal, .search-results, .drawer-body {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fix input zoom on iOS: ensure all inputs stay 16px minimum */
+input, select, textarea {
+  font-size: max(16px, 1em);
+}
+/* But preserve visual size — only scale up for iOS */
+@media (max-width: 880px) {
+  .form-input { font-size: 16px !important; }
+  .amount-input { font-size: 24px !important; }
+  select.form-input { font-size: 16px !important; }
+}
+
+/* Transaction item: show action buttons always on mobile */
+@media (max-width: 880px) {
+  .t-actions { opacity: 1; }
+  .transaction-item { padding: 14px 16px; }
+}
+
+/* Category grid: bigger cells on mobile for easier tapping */
+@media (max-width: 480px) {
+  .category-icons-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px;
+  }
+  .cat-icon-btn { padding: 6px 2px; }
+  .cat-circle { width: 40px; height: 40px; }
+}
+
+/* Budget tabs: full touch scroll, no momentum jankyness */
+.budget-tabs {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  padding-bottom: 2px; /* prevent clipping of active underline */
+}
+
+/* Chips and account pills: bigger on mobile */
+@media (max-width: 880px) {
+  .account-chip { padding: 9px 14px; font-size: 14px; }
+  .mood-emotion-btn { padding: 8px 12px; }
+}
+
+/* Prevent text selection on tap-and-hold for interactive elements */
+.bottom-nav-item, .sidebar-nav-item, .budget-tab, .habit-check {
+  user-select: none; -webkit-user-select: none;
+}
+
+/* Settings drawer overlay: full-screen on mobile */
+@media (max-width: 880px) {
+  .drawer-overlay { z-index: 500; }
+  .drawer { max-width: 100% !important; }
+}
+
+/* Fix select on iOS: remove inner shadow */
+select { -webkit-appearance: none; appearance: none; }
+
+/* Habit week view: prevent horizontal overflow on very small phones */
+@media (max-width: 360px) {
+  .week-header, .habit-row {
+    grid-template-columns: 1fr repeat(7, 24px);
+    gap: 1px;
+    padding: 8px 8px;
+  }
+  .habit-check { width: 22px; height: 22px; font-size: 10px; border-radius: 6px; }
+}
+
+/* Toast: move up when bottom nav is present */
+@media (max-width: 880px) {
+  .toast-item { max-width: calc(100vw - 32px); }
+}
+
+/* Pull-to-refresh prevention (body) */
+body { overscroll-behavior-y: none; }
+
+/* Budget overview cards: full width stacked on mobile */
+@media (max-width: 880px) {
+  .g2-11, .g2-13 { grid-template-columns: 1fr; }
+}
+
+/* Form: better spacing on mobile */
+@media (max-width: 480px) {
+  .form { gap: 14px; }
+  .modal { padding: 20px 18px; }
+  .modal-header { margin-bottom: 18px; }
+}
+
+/* Animated slide-up for modals on mobile (feels more native) */
+@keyframes slideUpMobile { from { transform: translateY(100%); opacity: 0; } }
+@media (max-width: 599px) {
+  .modal { animation: slideUpMobile .28s cubic-bezier(0.32, 0.72, 0, 1) both; }
+}
+
+/* Disable the habit heatmap hover tooltips on touch (they get stuck) */
+@media (hover: none) {
+  [title] { pointer-events: none; }
+  [title]::after { display: none; }
+  /* Re-enable pointer events for actual clickable elements */
+  button[title], a[title] { pointer-events: auto; }
+}

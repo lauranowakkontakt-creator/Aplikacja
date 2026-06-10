@@ -185,18 +185,18 @@ function GoalForm({ user, editData, onClose }) {
           <div className="form-group">
             <label>Nazwa celu</label>
             <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)}
-              placeholder="np. Wakacje, Nowy laptop..." autoFocus maxLength={50} />
+              placeholder="np. Wakacje, Nowy laptop..." maxLength={50} />
           </div>
 
           <div className="form-row">
             <div className="form-group" style={{ flex: 1 }}>
               <label>Cel (kwota)</label>
-              <input type="number" step="0.01" min="0" className="form-input" value={target}
+              <input type="number" inputMode="decimal" step="0.01" min="0" className="form-input" value={target}
                 onChange={e => setTarget(e.target.value)} placeholder="0,00" />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
               <label>Odłożone dotąd</label>
-              <input type="number" step="0.01" min="0" className="form-input" value={current}
+              <input type="number" inputMode="decimal" step="0.01" min="0" className="form-input" value={current}
                 onChange={e => setCurrent(e.target.value)} placeholder="0,00" />
             </div>
           </div>

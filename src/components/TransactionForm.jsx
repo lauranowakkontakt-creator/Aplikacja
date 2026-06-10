@@ -102,9 +102,9 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
 
           <div className="form-group">
             <label>Kwota ({getCurrencyCode()})</label>
-            <input type="number" step="0.01" min="0" placeholder="0,00"
+            <input type="number" inputMode="decimal" step="0.01" min="0" placeholder="0,00"
               value={amount} onChange={e => setAmount(e.target.value)}
-              className="form-input amount-input" autoFocus />
+              className="form-input amount-input" />
           </div>
 
           <div className="form-group">

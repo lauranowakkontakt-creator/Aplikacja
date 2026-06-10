@@ -273,7 +273,7 @@ function AddShopCategoryForm({ onAdd, onCancel, existingIds }) {
       <div className="form-group" style={{ margin: 0 }}>
         <label>Nazwa</label>
         <input type="text" className="form-input" value={label} onChange={e => setLabel(e.target.value)}
-          placeholder="np. Elektronika, Owoce..." maxLength={30} autoFocus />
+          placeholder="np. Elektronika, Owoce..." maxLength={30} />
       </div>
 
       <div className="form-group" style={{ margin: 0 }}>
@@ -359,7 +359,7 @@ function AddItemModal({ user, categories, onClose }) {
         <form onSubmit={handleAdd} className="form">
           <div className="form-group">
             <label>Produkt</label>
-            <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)} autoFocus placeholder="np. Masło, Słuchawki..." maxLength={80} />
+            <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)} placeholder="np. Masło, Słuchawki..." maxLength={80} />
           </div>
 
           <div className="form-group">
@@ -383,7 +383,7 @@ function AddItemModal({ user, categories, onClose }) {
 
           <div className="form-group">
             <label>Szacowana cena (opcjonalnie)</label>
-            <input type="number" step="0.01" min="0" className="form-input" value={estimatedPrice} onChange={e => setPrice(e.target.value)} placeholder="0,00" />
+            <input type="number" inputMode="decimal" step="0.01" min="0" className="form-input" value={estimatedPrice} onChange={e => setPrice(e.target.value)} placeholder="0,00" />
           </div>
 
           <div className="form-group">
@@ -448,8 +448,8 @@ function BuyModal({ item, user, categories, onBuy, onClose }) {
         <div className="form">
           <div className="form-group">
             <label>Zapłacona cena ({getCurrencyCode()})</label>
-            <input type="number" step="0.01" min="0" className="form-input amount-input" value={price}
-              onChange={e => setPrice(e.target.value)} autoFocus />
+            <input type="number" inputMode="decimal" step="0.01" min="0" className="form-input amount-input" value={price}
+              onChange={e => setPrice(e.target.value)} />
           </div>
 
           {accounts.length > 0 && (

@@ -71,14 +71,14 @@ export default function AccountForm({ user, onClose, editData }) {
           <div className="form-group">
             <label>Nazwa (np. ING, Gotówka)</label>
             <input type="text" className="form-input" value={name}
-              onChange={e => setName(e.target.value)} placeholder="Nazwa konta" autoFocus maxLength={30} />
+              onChange={e => setName(e.target.value)} placeholder="Nazwa konta" maxLength={30} />
           </div>
 
           {/* Saldo i waluta */}
           <div className="form-row">
             <div className="form-group" style={{flex:1}}>
               <label>Aktualne saldo</label>
-              <input type="number" step="0.01" className="form-input" value={balance}
+              <input type="number" inputMode="decimal" step="0.01" className="form-input" value={balance}
                 onChange={e => setBalance(e.target.value)} />
             </div>
             <div className="form-group" style={{width:100}}>

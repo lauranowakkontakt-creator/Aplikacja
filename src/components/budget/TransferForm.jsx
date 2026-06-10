@@ -85,8 +85,8 @@ export default function TransferForm({ user, onClose }) {
             </div>
             <div className="form-group">
               <label>Kwota ({getCurrencyCode()})</label>
-              <input type="number" step="0.01" min="0" className="form-input amount-input"
-                value={amount} onChange={e => setAmount(e.target.value)} autoFocus />
+              <input type="number" inputMode="decimal" step="0.01" min="0" className="form-input amount-input"
+                value={amount} onChange={e => setAmount(e.target.value)} />
             </div>
             <div className="form-group">
               <label>Data</label>

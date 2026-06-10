@@ -287,7 +287,7 @@ function CategoryForm({ tab, initial, onSave, onCancel, isNew }) {
       <div className="form-group" style={{ margin: 0 }}>
         <label>Nazwa</label>
         <input type="text" className="form-input" value={label} onChange={e => setLabel(e.target.value)}
-          placeholder="np. Hobby, Siłownia..." maxLength={30} autoFocus />
+          placeholder="np. Hobby, Siłownia..." maxLength={30} />
       </div>
       <div className="form-group" style={{ margin: 0 }}>
         <label>Ikona</label>
@@ -308,7 +308,7 @@ function CategoryForm({ tab, initial, onSave, onCancel, isNew }) {
               <IconSearch size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
               <input type="text" className="form-input" placeholder="Szukaj ikony..." value={search}
                 onChange={e => setSearch(e.target.value)}
-                style={{ margin: 0, fontSize: 13, border: 'none', background: 'transparent', padding: '2px 0' }} autoFocus />
+                style={{ margin: 0, fontSize: 13, border: 'none', background: 'transparent', padding: '2px 0' }} />
             </div>
             <div style={{ maxHeight: 280, overflowY: 'auto', padding: '10px 10px 4px' }}>
               {Object.entries(groups).map(([group, icons]) => (
@@ -398,7 +398,7 @@ function SubcategoryForm({ initial, onSave, onCancel, isNew, parentColor }) {
         {isNew ? 'Nowa podkategoria' : 'Edytuj podkategorię'}
       </p>
       <input type="text" className="form-input" value={label} onChange={e => setLabel(e.target.value)}
-        placeholder="np. Paliwo, Parking..." maxLength={30} autoFocus style={{ fontSize: 13 }} />
+        placeholder="np. Paliwo, Parking..." maxLength={30} style={{ fontSize: 13 }} />
       <button type="button" onClick={() => setPickerOpen(v => !v)} style={{
         display: 'flex', alignItems: 'center', gap: 8, width: '100%',
         background: 'var(--surface)', border: '1px solid var(--border)',
@@ -416,7 +416,7 @@ function SubcategoryForm({ initial, onSave, onCancel, isNew, parentColor }) {
             <IconSearch size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <input type="text" className="form-input" placeholder="Szukaj..." value={search}
               onChange={e => setSearch(e.target.value)}
-              style={{ margin: 0, fontSize: 12, border: 'none', background: 'transparent', padding: '2px 0' }} autoFocus />
+              style={{ margin: 0, fontSize: 12, border: 'none', background: 'transparent', padding: '2px 0' }} />
           </div>
           <div style={{ maxHeight: 200, overflowY: 'auto', padding: '8px 8px 4px' }}>
             {Object.entries(groups).map(([group, icons]) => (

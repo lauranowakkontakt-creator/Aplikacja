@@ -127,7 +127,7 @@ export default function HabitForm({ user, onClose, editData }) {
           <div className="form-group">
             <label>Nazwa</label>
             <input type="text" className="form-input" value={name}
-              onChange={e => setName(e.target.value)} placeholder="np. Czytanie, Bieganie..." autoFocus maxLength={40} />
+              onChange={e => setName(e.target.value)} placeholder="np. Czytanie, Bieganie..." maxLength={40} />
           </div>
 
           {/* Kategoria */}

@@ -150,7 +150,7 @@ export default function TodoDashboard({ user }) {
 
       {showSearch && (
         <div style={{ padding: '0 0 12px' }}>
-          <input autoFocus className="form-input" placeholder="Szukaj zadań..." value={searchQuery}
+          <input className="form-input" placeholder="Szukaj zadań..." value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)} style={{ margin: 0 }} />
         </div>
       )}
@@ -614,7 +614,7 @@ function TodoForm({ user, lists, editData, defaultListId, onClose }) {
           <div className="form-group">
             <label>Zadanie</label>
             <input type="text" className="form-input" value={title} onChange={e => setTitle(e.target.value)}
-              autoFocus maxLength={100} placeholder="Co trzeba zrobić?" />
+              maxLength={100} placeholder="Co trzeba zrobić?" />
           </div>
           <div className="form-group">
             <label>Notatka (opcjonalnie)</label>
@@ -708,7 +708,7 @@ function ListForm({ user, onClose, editData }) {
           <div className="form-group">
             <label>Nazwa</label>
             <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)}
-              autoFocus placeholder="np. Praca, Dom, Projekt..." maxLength={30} />
+              placeholder="np. Praca, Dom, Projekt..." maxLength={30} />
           </div>
           <div className="form-group">
             <label>Ikona</label>

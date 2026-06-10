@@ -539,7 +539,7 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
                     onChange={e => setEditNoteText(e.target.value)}
                     rows={2}
                     style={{ flex: 1, margin: 0, fontSize: fs.note, resize: 'vertical' }}
-                    autoFocus
+                   
                   />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <button className="btn-save" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => submitEditNote(n)}>Zapisz</button>
@@ -596,7 +596,7 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && submitNote()}
             rows={2}
             style={{ flex: 1, margin: 0, fontSize: fs.note, resize: 'vertical' }}
-            autoFocus
+           
           />
           <button className="btn-save" style={{ padding: '0 14px', fontSize: 13, alignSelf: 'flex-end' }} onClick={submitNote}>
             Dodaj
@@ -1084,7 +1084,7 @@ function IntentionForm({ user, editData, personId, onClose }) {
       <div className="form-group" style={{ margin: 0 }}>
         <label>Prośba</label>
         <input type="text" className="form-input" value={title} onChange={e => setTitle(e.target.value)}
-          autoFocus maxLength={150} placeholder="O co się modlisz?" />
+          maxLength={150} placeholder="O co się modlisz?" />
       </div>
 
       <div className="form-group" style={{ margin: 0 }}>
@@ -1178,7 +1178,7 @@ function PersonForm({ user, editData, onClose }) {
           <div className="form-group">
             <label>Imię / nazwa</label>
             <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)}
-              autoFocus maxLength={60} placeholder="np. Mama, Zuzia, Przyjaciel Paweł..." />
+              maxLength={60} placeholder="np. Mama, Zuzia, Przyjaciel Paweł..." />
           </div>
 
           <div className="form-group">

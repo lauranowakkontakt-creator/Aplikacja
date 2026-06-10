@@ -551,7 +551,7 @@ function EventForm({ user, editData, defaultDate, categories, people, onClose })
           <div className="form-group">
             <label>Tytuł</label>
             <input type="text" className="form-input" value={title} onChange={e => setTitle(e.target.value)}
-              autoFocus maxLength={100} placeholder="np. Spotkanie, Urodziny..." />
+              maxLength={100} placeholder="np. Spotkanie, Urodziny..." />
           </div>
 
           <div className="form-group">
@@ -667,7 +667,7 @@ function CategoryManager({ user, categories, onClose }) {
             <div className="form-group">
               <label>Nazwa</label>
               <input type="text" className="form-input" value={label} onChange={e => setLabel(e.target.value)}
-                placeholder="np. Wakacje, Projekt..." maxLength={30} autoFocus />
+                placeholder="np. Wakacje, Projekt..." maxLength={30} />
             </div>
             <div className="form-group">
               <label>Ikona</label>

@@ -87,12 +87,12 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
 
           <div className="form-group">
             <label>Nazwa (np. Spotify, Czynsz)</label>
-            <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)} autoFocus maxLength={50} />
+            <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)} maxLength={50} />
           </div>
 
           <div className="form-group">
             <label>Kwota ({getCurrencyCode()})</label>
-            <input type="number" step="0.01" min="0" className="form-input" value={amount} onChange={e => setAmount(e.target.value)} />
+            <input type="number" inputMode="decimal" step="0.01" min="0" className="form-input" value={amount} onChange={e => setAmount(e.target.value)} />
           </div>
 
           <div className="form-group">

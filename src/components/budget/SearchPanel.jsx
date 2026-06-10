@@ -35,7 +35,7 @@ export default function SearchPanel({ user, onClose }) {
         </div>
         <div className="search-filters">
           <input type="text" className="form-input" placeholder="Szukaj po opisie lub kategorii..."
-            value={search} onChange={e => setSearch(e.target.value)} autoFocus />
+            value={search} onChange={e => setSearch(e.target.value)} />
           <div className="type-toggle" style={{ marginTop: 8 }}>
             {['all','expense','income'].map(t => (
               <button key={t} type="button"
