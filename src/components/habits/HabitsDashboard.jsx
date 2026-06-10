@@ -60,14 +60,19 @@ function getBestStreak(completedDates, frequencyDays = [0,1,2,3,4,5,6], pauses =
   return best
 }
 
-function buildHeatmapData(habits, weeks) {
+function buildHeatmapData(habits, weeks, pauses = []) {
   const total = weeks * 7
   const data = []
   for (let i = total - 1; i >= 0; i--) {
     const d = format(subDays(new Date(), i), 'yyyy-MM-dd')
-    let count = 0
-    habits.forEach(h => { if (h.completedDates?.includes(d)) count++ })
-    const intensity = habits.length === 0 ? 0 : Math.min(4, Math.round((count / habits.length) * 4))
+    let count = 0, dueCount = 0
+    habits.forEach(h => {
+      if (isHabitDue(h, d, pauses) === 'due') {
+        dueCount++
+        if (h.completedDates?.includes(d)) count++
+      }
+    })
+    const intensity = dueCount === 0 ? 0 : Math.min(4, Math.round((count / dueCount) * 4))
     data.push(intensity)
   }
   return data
@@ -141,7 +146,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
     ? Math.max(...filtered.map(h => getStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)))
     : 0
 
-  const heatmapData = buildHeatmapData(filtered, 18)
+  const heatmapData = buildHeatmapData(filtered, 18, pauses)
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -192,7 +197,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
         {/* Right: Heatmap */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
           {kicker('Mapa konsekwencji')}
-          <Heatmap weeks={18} accent="var(--warn)" data={heatmapData} />
+          <Heatmap weeks={18} accentHex="#E0B15A" data={heatmapData} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
             <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>mniej</span>
             {[0,1,2,3,4].map(v => (

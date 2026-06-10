@@ -820,7 +820,7 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
             {kicker('Aktywność modlitwy')}
-            <Heatmap weeks={WEEKS} accent="#C9A24A" data={heatData} />
+            <Heatmap weeks={WEEKS} accentHex="#C9A24A" data={heatData} />
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 18, fontWeight: 700, color: '#C9A24A' }}>{regularPct}%</div>

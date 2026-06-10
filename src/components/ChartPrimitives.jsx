@@ -119,7 +119,16 @@ export function BarChartSVG({ data, height = 150, accent = 'var(--primary)', fmt
 }
 
 // Heatmap (GitHub-style) — do nawyków i modlitwy
-export function Heatmap({ weeks = 18, accent = 'var(--warn)', data }) {
+// accentHex: raw hex like '#E0B15A' — used for rgba-based level colors (no color-mix needed)
+function hexToRgb(hex) {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  return `${r},${g},${b}`
+}
+
+export function Heatmap({ weeks = 18, accentHex = '#E0B15A', data }) {
   const on = useMounted(80)
   const cells = useMemo(() => {
     if (data) return data
@@ -131,12 +140,18 @@ export function Heatmap({ weeks = 18, accent = 'var(--warn)', data }) {
     }
     return out
   }, [weeks, data])
+
+  const rgb = useMemo(() => hexToRgb(accentHex), [accentHex])
+
+  // rgba-based levels — works on ALL browsers (no color-mix)
   const lvl = (v) => {
-    if (v === 0) return 'var(--surface2)'
-    if (v >= 4) return accent
-    return `color-mix(in oklab, ${accent} ${v * 25}%, var(--surface2))`
+    if (v === 0) return 'rgba(255,255,255,0.06)'  // surface2-like
+    if (v === 1) return `rgba(${rgb},0.25)`
+    if (v === 2) return `rgba(${rgb},0.50)`
+    if (v === 3) return `rgba(${rgb},0.75)`
+    return accentHex  // v>=4: fully saturated
   }
-  // cell + gap = 11 + 3 = 14px per column; show as many weeks as fit
+
   return (
     <div style={{ width: '100%', overflow: 'hidden' }}>
       <div style={{ display: 'flex', gap: 3 }}>
@@ -148,8 +163,11 @@ export function Heatmap({ weeks = 18, accent = 'var(--warn)', data }) {
         <div style={{ display: 'grid', gridTemplateRows: 'repeat(7,11px)', gridAutoColumns: '11px', gridAutoFlow: 'column', gap: 3, overflow: 'hidden', flex: 1 }}>
           {cells.map((v, i) => (
             <div key={i} style={{
-              width: 11, height: 11, borderRadius: 3, background: lvl(v),
-              opacity: on ? 1 : 0, transform: on ? 'scale(1)' : 'scale(.4)',
+              width: 11, height: 11, borderRadius: 3,
+              background: lvl(v),
+              boxShadow: v >= 4 ? `0 0 6px 1px rgba(${rgb},0.45)` : 'none',
+              opacity: on ? 1 : 0,
+              transform: on ? 'scale(1)' : 'scale(.4)',
               transition: `opacity .5s cubic-bezier(.4,0,.2,1) ${(i % 40) * .006}s, transform .5s cubic-bezier(.34,1.4,.64,1) ${(i % 40) * .006}s`,
             }}/>
           ))}
