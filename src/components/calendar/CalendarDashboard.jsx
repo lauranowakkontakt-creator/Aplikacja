@@ -381,6 +381,7 @@ function CalendarGrid({ currentMonth, selectedDay, categories, onDayClick, event
             <div className="cal-chips">
               {visible.map((item, i) => (
                 <div key={i} className="cal-chip" style={{ '--dot-color': item.color, background: item.color + '28', borderLeft: `2px solid ${item.color}` }}>
+                  <span className="cal-chip-dot" />
                   {item.icon && <span className="cal-chip-icon">{item.icon}</span>}
                   <span className="cal-chip-text">{item.label}</span>
                 </div>
