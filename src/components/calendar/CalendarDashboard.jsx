@@ -356,23 +356,36 @@ function CalendarGrid({ currentMonth, selectedDay, categories, onDayClick, event
         const isSelected = isSameDay(day, selectedDay)
         const inMonth    = isSameMonth(day, currentMonth)
         const today      = isToday(day)
-        const dots = [
-          ...evts.slice(0, 2).map(e => getCatColor(categories, e)),
-          ...(tdos.length > 0 ? ['#6366f1'] : []),
-          ...(pmts.length > 0 ? ['#f59e0b'] : []),
-        ].slice(0, 3)
+
+        const allItems = [
+          ...evts.map(e => ({ label: e.title, color: getCatColor(categories, e), icon: e.categoryIcon || null })),
+          ...tdos.map(t => ({ label: t.title, color: '#6366f1', icon: '✅' })),
+          ...pmts.map(p => ({ label: p.name,  color: '#f59e0b', icon: '💳' })),
+        ]
+        const visible  = allItems.slice(0, 3)
+        const overflow = allItems.length - 3
 
         return (
-          <button key={day.toISOString()} className="cal-day" onClick={() => onDayClick(day)}
-            style={{ opacity: inMonth ? 1 : 0.28 }}>
+          <button
+            key={day.toISOString()}
+            className={`cal-day${isSelected ? ' cal-day--sel' : ''}`}
+            onClick={() => onDayClick(day)}
+            style={{ opacity: inMonth ? 1 : 0.25 }}
+          >
             <div className={`cal-day-num${today ? ' today' : isSelected ? ' selected' : ''}`}>
               {getDate(day)}
             </div>
-            {dots.length > 0 && (
-              <div className="cal-dots">
-                {dots.map((c, i) => <div key={i} className="cal-dot" style={{ background: c }} />)}
-              </div>
-            )}
+            <div className="cal-chips">
+              {visible.map((item, i) => (
+                <div key={i} className="cal-chip" style={{ background: item.color + '28', borderLeft: `2px solid ${item.color}` }}>
+                  {item.icon && <span className="cal-chip-icon">{item.icon}</span>}
+                  <span className="cal-chip-text">{item.label}</span>
+                </div>
+              ))}
+              {overflow > 0 && (
+                <div className="cal-chip-more">+{overflow} więcej</div>
+              )}
+            </div>
           </button>
         )
       })}
