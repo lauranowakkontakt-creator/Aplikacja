@@ -1,34 +1,30 @@
-import { useState } from 'react'
-import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore'
+import { useState, useEffect } from 'react'
+import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp, onSnapshot, orderBy, query } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
-import { CatIcon, IconClose, IconTrash } from '../Icons'
+import { CatIcon, IconClose, IconTrash, IconPlus } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
-export const HABIT_CATEGORIES = [
-  { id: 'health',  label: 'Zdrowie',   icon: '❤️' },
-  { id: 'spirit',  label: 'Duchowość', icon: '🙏' },
-  { id: 'learn',   label: 'Nauka',     icon: '📖' },
-  { id: 'sport',   label: 'Sport',     icon: '💪' },
-  { id: 'work',    label: 'Praca',     icon: '💼' },
-  { id: 'other',   label: 'Inne',      icon: '📌' },
+// Built-in categories (can be extended with custom ones from DB)
+export const DEFAULT_HABIT_CATEGORIES = [
+  { id: 'health',  label: 'Zdrowie',   icon: null, color: '#ef4444' },
+  { id: 'spirit',  label: 'Duchowość', icon: null, color: '#9B7CF0' },
+  { id: 'learn',   label: 'Nauka',     icon: null, color: '#3B82F6' },
+  { id: 'sport',   label: 'Sport',     icon: null, color: '#10B981' },
+  { id: 'work',    label: 'Praca',     icon: null, color: '#F59E0B' },
+  { id: 'other',   label: 'Inne',      icon: null, color: '#64748B' },
 ]
 
+// HABIT_CATEGORIES exported for backward compat (used in HabitsDashboard)
+export const HABIT_CATEGORIES = DEFAULT_HABIT_CATEGORIES
+
+// Colors arranged as a spectrum
 const HABIT_COLORS = [
-  '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',
-  '#22C55E','#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1',
-  '#8B5CF6','#A855F7','#EC4899','#F43F5E','#64748B','#6B7280',
-  '#92400E','#059669','#0EA5E9','#DC2626','#7C3AED','#0D9488',
-  '#4F46E5','#BE185D','#6B9E72','#4A90D9','#1ABC9C','#E74C3C',
-]
-
-const EMOJIS = [
-  '💪','📖','🧘','🏃','💧','🥗','😴','🙏','✍️','🎯',
-  '🎸','🌿','☕','🧹','💊','🚶','🏋️','🧠','❤️','⭐',
-  '🌅','🛁','🎨','🥦','🚲','📝','🎵','🕯️','🌊','🍵',
-  '🦷','🧴','🏊','⚽','🎾','🥊','📷','🌱','🫀','🧬',
-  '✝️','📿','🌺','🦋','🍀','🎉','💎','🔥','🎓','🚀',
+  '#EF4444','#F97316','#F59E0B','#EAB308','#84CC16','#22C55E',
+  '#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1','#8B5CF6',
+  '#A855F7','#EC4899','#F43F5E','#64748B','#0D9488','#0EA5E9',
+  '#7C3AED','#BE185D','#059669','#DC2626','#4F46E5','#1ABC9C',
 ]
 
 const FREQ_DAYS = [
@@ -38,8 +34,7 @@ const FREQ_DAYS = [
 
 export default function HabitForm({ user, onClose, editData }) {
   const [name, setName]           = useState(editData?.name || '')
-  const [emoji, setEmoji]         = useState(editData?.emoji || '💪')
-  const [color, setColor]         = useState(editData?.color || HABIT_COLORS[1])
+  const [color, setColor]         = useState(editData?.color || HABIT_COLORS[0])
   const [category, setCategory]   = useState(editData?.category || 'health')
   const [frequency, setFrequency] = useState(editData?.frequency || 'daily')
   const [freqDays, setFreqDays]   = useState(editData?.frequencyDays || [1,2,3,4,5,6,0])
@@ -48,7 +43,25 @@ export default function HabitForm({ user, onClose, editData }) {
   const [endDate, setEndDate]     = useState(editData?.endDate || '')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
-  const [emojiExpanded, setEmojiExpanded] = useState(false)
+
+  // Custom categories
+  const [customCats, setCustomCats]           = useState([])
+  const [showAddCat, setShowAddCat]           = useState(false)
+  const [newCatName, setNewCatName]           = useState('')
+  const [newCatColor, setNewCatColor]         = useState('#6366F1')
+  const [savingCat, setSavingCat]             = useState(false)
+
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'habitCategories'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
+
+  const allCategories = [
+    ...DEFAULT_HABIT_CATEGORIES,
+    ...customCats.map(c => ({ id: c.id, label: c.name, icon: 'IcTag', color: c.color, custom: true }))
+  ]
+
+  const selectedCat = allCategories.find(c => c.id === category) || allCategories[0]
 
   const toggleDay = (id) =>
     setFreqDays(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id])
@@ -60,21 +73,44 @@ export default function HabitForm({ user, onClose, editData }) {
     return freqDays
   }
 
+  const handleAddCategory = async () => {
+    if (!newCatName.trim()) return
+    setSavingCat(true)
+    const ref = await addDoc(collection(db, 'users', user.uid, 'habitCategories'), {
+      name: newCatName.trim(), color: newCatColor, createdAt: Timestamp.now()
+    })
+    setCategory(ref.id)
+    setNewCatName(''); setShowAddCat(false); setSavingCat(false)
+  }
+
+  const handleDeleteCategory = async (catId) => {
+    if (!confirm('Usunąć kategorię?')) return
+    await deleteDoc(doc(db, 'users', user.uid, 'habitCategories', catId))
+    if (category === catId) setCategory('health')
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) { setError('Wpisz nazwę'); return }
     if (frequency === 'custom' && freqDays.length === 0) { setError('Wybierz co najmniej 1 dzień'); return }
     setSaving(true)
     const data = {
-      name: name.trim(), emoji, color, category, frequency, frequencyDays: getFreqDays(),
-      startDate, endDate: hasEnd && endDate ? endDate : null,
+      name: name.trim(),
+      color,
+      category,
+      frequency,
+      frequencyDays: getFreqDays(),
+      startDate,
+      endDate: hasEnd && endDate ? endDate : null,
       updatedAt: Timestamp.now()
     }
     try {
       if (editData) {
         await updateDoc(doc(db, 'users', user.uid, 'habits', editData.id), data)
       } else {
-        await addDoc(collection(db, 'users', user.uid, 'habits'), { ...data, completedDates: [], archived: false, createdAt: Timestamp.now() })
+        await addDoc(collection(db, 'users', user.uid, 'habits'), {
+          ...data, completedDates: [], archived: false, createdAt: Timestamp.now()
+        })
       }
       onClose()
     } catch { setError('Błąd zapisu'); setSaving(false) }
@@ -101,28 +137,6 @@ export default function HabitForm({ user, onClose, editData }) {
         </div>
         <form onSubmit={handleSubmit} className="form">
 
-          {/* Emoji */}
-          <div className="form-group">
-            <label>Ikona</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 28 }}>{emoji}</span>
-              <input type="text" className="form-input" value={emoji}
-                onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setEmoji(v) }}
-                placeholder="emoji" maxLength={4}
-                style={{ width: 72, textAlign: 'center', fontSize: 18, margin: 0 }} />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
-            </div>
-            <div className="emoji-grid">
-              {(emojiExpanded ? EMOJIS : EMOJIS.slice(0, 15)).map(e => (
-                <button key={e} type="button" className={`emoji-btn ${emoji === e ? 'active' : ''}`} onClick={() => setEmoji(e)}>{e}</button>
-              ))}
-            </div>
-            <button type="button" onClick={() => setEmojiExpanded(v => !v)}
-              style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
-              {emojiExpanded ? '▲ Mniej' : `▼ Więcej (${EMOJIS.length - 15})`}
-            </button>
-          </div>
-
           {/* Nazwa */}
           <div className="form-group">
             <label>Nazwa</label>
@@ -133,27 +147,66 @@ export default function HabitForm({ user, onClose, editData }) {
           {/* Kategoria */}
           <div className="form-group">
             <label>Kategoria</label>
-            <div className="habit-cat-grid">
-              {HABIT_CATEGORIES.map(cat => (
+            <div className="habit-cat-grid" style={{ marginBottom: 8 }}>
+              {allCategories.map(cat => (
                 <button key={cat.id} type="button"
                   className={`habit-cat-btn ${category === cat.id ? 'active' : ''}`}
+                  style={category === cat.id ? { borderColor: cat.color, background: cat.color + '22', color: cat.color } : {}}
                   onClick={() => setCategory(cat.id)}
                 >
-                  <CatIcon categoryId={cat.id} emoji={cat.icon} size={16} />
-                  <span>{cat.label}</span>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: (category === cat.id ? cat.color : 'var(--surface3)') + (category === cat.id ? '33' : ''),
+                    color: category === cat.id ? cat.color : 'var(--text-muted)',
+                    flexShrink: 0,
+                  }}>
+                    <CatIcon categoryId={cat.id} emoji={cat.icon} size={15} />
+                  </div>
+                  <span style={{ fontSize: 12 }}>{cat.label}</span>
+                  {cat.custom && (
+                    <span onClick={ev => { ev.stopPropagation(); handleDeleteCategory(cat.id) }}
+                      style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)', padding: '0 2px' }}>✕</span>
+                  )}
                 </button>
               ))}
             </div>
+
+            {/* Add custom category */}
+            {showAddCat ? (
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                <input type="text" className="form-input" value={newCatName}
+                  onChange={e => setNewCatName(e.target.value)}
+                  placeholder="Nazwa kategorii..." maxLength={20} autoFocus
+                  style={{ margin: 0, flex: 1 }} />
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {HABIT_COLORS.slice(0, 8).map(c => (
+                    <button key={c} type="button" onClick={() => setNewCatColor(c)} style={{
+                      width: 18, height: 18, borderRadius: '50%', background: c, cursor: 'pointer',
+                      border: `2px solid ${newCatColor === c ? 'var(--text)' : 'transparent'}`
+                    }} />
+                  ))}
+                </div>
+                <button type="button" className="btn-save" style={{ margin: 0, padding: '6px 12px', fontSize: 12 }}
+                  onClick={handleAddCategory} disabled={savingCat || !newCatName.trim()}>+</button>
+                <button type="button" onClick={() => setShowAddCat(false)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 18, lineHeight: 1 }}>✕</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setShowAddCat(true)}
+                style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: '1px dashed var(--border)', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IconPlus size={12} /> Własna kategoria
+              </button>
+            )}
           </div>
 
           {/* Kolor */}
           <div className="form-group">
             <label>Kolor</label>
-            <div className="color-picker">
+            <div className="color-picker" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {HABIT_COLORS.map(c => (
                 <button key={c} type="button"
                   className={`color-dot ${color === c ? 'active' : ''}`}
-                  style={{ background: c }}
+                  style={{ background: c, width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', border: `3px solid ${color === c ? 'var(--text)' : 'transparent'}`, transition: 'transform .15s', transform: color === c ? 'scale(1.2)' : 'scale(1)' }}
                   onClick={() => setColor(c)}
                 />
               ))}
@@ -212,7 +265,7 @@ export default function HabitForm({ user, onClose, editData }) {
           {editData && (
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={handleArchive}>
-                {editData.archived ? '📤 Przywróć' : '📦 Archiwizuj'}
+                {editData.archived ? 'Przywróć' : 'Archiwizuj'}
               </button>
               <button type="button" className="btn-outline danger" style={{ flex: 1 }} onClick={handleDelete}>
                 <IconTrash size={14} /> Usuń

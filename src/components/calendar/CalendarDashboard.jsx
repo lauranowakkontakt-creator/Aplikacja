@@ -237,10 +237,14 @@ export default function CalendarDashboard({ user }) {
             </div>
 
             <CalendarGrid
-              currentMonth={currentMonth} selectedDay={selectedDay}
-              categories={categories} calPeople={calPeople}
+              currentMonth={currentMonth}
+              selectedDay={selectedDay}
+              categories={categories}
+              calPeople={calPeople}
+              events={events}
               onDayClick={handleDayClick}
-              eventsOnDay={eventsOnDay} todosOnDay={todosOnDay} paymentsOnDay={paymentsOnDay}
+              todosOnDay={todosOnDay}
+              paymentsOnDay={paymentsOnDay}
             />
 
             <div className="cal-mini-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginTop: 14 }}>
@@ -345,53 +349,112 @@ export default function CalendarDashboard({ user }) {
   )
 }
 
-/* ─── CalendarGrid ─────────────────────────────────────────────────────── */
-function CalendarGrid({ currentMonth, selectedDay, categories, calPeople, onDayClick, eventsOnDay, todosOnDay, paymentsOnDay }) {
-  const days = eachDayOfInterval({
-    start: startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }),
-    end:   endOfWeek(endOfMonth(currentMonth),     { weekStartsOn: 1 })
+/* ─── CalendarGrid ─── */
+function CalendarGrid({ currentMonth, selectedDay, categories, calPeople, events, onDayClick, todosOnDay, paymentsOnDay }) {
+  const monthStart = startOfMonth(currentMonth)
+  const monthEnd   = endOfMonth(currentMonth)
+  const allDays    = eachDayOfInterval({
+    start: startOfWeek(monthStart, { weekStartsOn: 1 }),
+    end:   endOfWeek(monthEnd,     { weekStartsOn: 1 })
   })
+  const weeks = []
+  for (let i = 0; i < allDays.length; i += 7) weeks.push(allDays.slice(i, i + 7))
+
+  const eventsOnDay = (day) => {
+    const dayStr = format(day, 'yyyy-MM-dd')
+    return events.filter(e => dayStr >= e.date && dayStr <= (e.dateEnd || e.date))
+  }
+
+  const getSpanPos = (event, day) => {
+    if (!event.dateEnd || event.dateEnd === event.date) return 'solo'
+    const dayStr = format(day, 'yyyy-MM-dd')
+    const wStart = format(startOfWeek(day, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+    const wEnd   = format(endOfWeek(day, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+    const effStart = event.date > wStart ? event.date : wStart
+    const effEnd   = event.dateEnd < wEnd  ? event.dateEnd  : wEnd
+    if (dayStr === effStart) return 'start'
+    if (dayStr === effEnd)   return 'end'
+    return 'mid'
+  }
 
   return (
-    <div className="cal-grid">
-      {WEEKDAYS.map(d => (
-        <div key={d} style={{ textAlign: 'center', fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', padding: '4px 0 6px', letterSpacing: '.06em' }}>{d}</div>
-      ))}
-      {days.map(day => {
-        const evts = eventsOnDay(day)
-        const tdos = todosOnDay(day)
-        const pmts = paymentsOnDay(day)
-        const isSelected = isSameDay(day, selectedDay)
-        const inMonth    = isSameMonth(day, currentMonth)
-        const today      = isToday(day)
+    <div>
+      <div className="cal-grid" style={{ marginBottom: 2 }}>
+        {WEEKDAYS.map(d => (
+          <div key={d} style={{ textAlign: 'center', fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', padding: '4px 0 6px', letterSpacing: '.06em' }}>{d}</div>
+        ))}
+      </div>
+      {weeks.map((week, wi) => (
+        <div key={wi} className="cal-grid" style={{ marginBottom: 2 }}>
+          {week.map(day => {
+            const evts = eventsOnDay(day)
+            const tdos = todosOnDay(day)
+            const pmts = paymentsOnDay(day)
+            const isSelected = isSameDay(day, selectedDay)
+            const inMonth    = isSameMonth(day, currentMonth)
+            const today      = isToday(day)
 
-        const allItems = [
-          ...evts.map(e => ({ color: getEventColor(categories, calPeople, e), label: e.title })),
-          ...tdos.map(t => ({ color: '#6366f1', label: t.title })),
-          ...pmts.map(p => ({ color: '#f59e0b', label: p.name })),
-        ]
-        const visible  = allItems.slice(0, 3)
-        const overflow = allItems.length - 3
+            const multiDay  = evts.filter(e => e.dateEnd && e.dateEnd !== e.date)
+            const singleDay = evts.filter(e => !e.dateEnd || e.dateEnd === e.date)
 
-        return (
-          <button key={day.toISOString()} className={`cal-day${isSelected ? ' cal-day--sel' : ''}`}
-            onClick={() => onDayClick(day)} style={{ opacity: inMonth ? 1 : 0.25 }}>
-            <div className={`cal-day-num${today ? ' today' : isSelected ? ' selected' : ''}`}>
-              {getDate(day)}
-            </div>
-            <div className="cal-chips">
-              {visible.map((item, i) => (
-                <div key={i} className="cal-chip"
-                  style={{ '--dot-color': item.color, background: item.color + '28', borderLeft: `2px solid ${item.color}` }}>
-                  <span className="cal-chip-dot" />
-                  <span className="cal-chip-text">{item.label}</span>
+            const singleItems = [
+              ...singleDay.map(e => ({ label: e.title, color: getEventColor(categories, calPeople, e) })),
+              ...tdos.map(t => ({ label: t.title, color: '#6366f1' })),
+              ...pmts.map(p => ({ label: p.name,  color: '#f59e0b' })),
+            ]
+            const visibleSingle = singleItems.slice(0, Math.max(0, 3 - multiDay.length))
+            const overflow = singleItems.length - visibleSingle.length + Math.max(0, multiDay.length - 3)
+
+            return (
+              <button
+                key={day.toISOString()}
+                className={`cal-day${isSelected ? ' cal-day--sel' : ''}`}
+                onClick={() => onDayClick(day)}
+                style={{ opacity: inMonth ? 1 : 0.25 }}
+              >
+                <div className={`cal-day-num${today ? ' today' : isSelected ? ' selected' : ''}`}>
+                  {getDate(day)}
                 </div>
-              ))}
-              {overflow > 0 && <div className="cal-chip-more">+{overflow}</div>}
-            </div>
-          </button>
-        )
-      })}
+                <div className="cal-chips">
+                  {multiDay.slice(0, 3).map((e, i) => {
+                    const pos   = getSpanPos(e, day)
+                    const color = getEventColor(categories, calPeople, e)
+                    const showTitle = pos === 'start' || pos === 'solo'
+                    return (
+                      <div key={e.id} style={{
+                        height: 10,
+                        background: color + (pos === 'mid' ? '50' : '38'),
+                        borderLeft:  (pos === 'start' || pos === 'solo') ? `2px solid ${color}` : 'none',
+                        borderRight: (pos === 'end'   || pos === 'solo') ? `2px solid ${color}` : 'none',
+                        borderTop: `1px solid ${color}55`, borderBottom: `1px solid ${color}55`,
+                        borderRadius: pos === 'start' ? '3px 0 0 3px' : pos === 'end' ? '0 3px 3px 0' : pos === 'solo' ? 3 : 0,
+                        marginLeft:  (pos === 'mid' || pos === 'end')   ? -3 : 0,
+                        marginRight: (pos === 'mid' || pos === 'start') ? -3 : 0,
+                        display: 'flex', alignItems: 'center', paddingLeft: showTitle ? 3 : 0,
+                        overflow: 'hidden',
+                      }}>
+                        {showTitle && (
+                          <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
+                            {e.title}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {visibleSingle.map((item, i) => (
+                    <div key={i} className="cal-chip" style={{ background: item.color + '28', borderLeft: `2px solid ${item.color}` }}>
+                      <span className="cal-chip-text">{item.label}</span>
+                    </div>
+                  ))}
+                  {overflow > 0 && (
+                    <div className="cal-chip-more">+{overflow}</div>
+                  )}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      ))}
     </div>
   )
 }
@@ -563,6 +626,7 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
   const [title, setTitle]           = useState(editData?.title || '')
   const [date, setDate]             = useState(editData?.date || defaultDate)
   const [dateEnd, setDateEnd]       = useState(editData?.dateEnd || '')
+  const [allDay, setAllDay]         = useState(editData ? !editData.startTime : true)
   const [startTime, setStartTime]   = useState(editData?.startTime || '')
   const [endTime, setEndTime]       = useState(editData?.endTime || '')
   const [note, setNote]             = useState(editData?.note || '')
@@ -582,7 +646,8 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
     const data = {
       title: title.trim(), date,
       dateEnd: dateEnd && dateEnd > date ? dateEnd : null,
-      startTime: startTime || null, endTime: endTime || null,
+      startTime: allDay ? null : (startTime || null),
+      endTime:   allDay ? null : (endTime   || null),
       note: note.trim(),
       categoryId: categoryId || null,
       categoryIcon: selectedCat?.icon || null,
@@ -664,24 +729,55 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Data</label>
-            <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label>Data końca (opcjonalnie)</label>
-            <input type="date" className="form-input" value={dateEnd} onChange={e => setDateEnd(e.target.value)} min={date} />
-          </div>
           <div className="form-row">
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Od</label>
-              <input type="time" className="form-input" value={startTime} onChange={e => setStartTime(e.target.value)} />
+              <label>Data</label>
+              <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} />
             </div>
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Do</label>
-              <input type="time" className="form-input" value={endTime} onChange={e => setEndTime(e.target.value)} />
+              <label>Data końca (opcjonalnie)</label>
+              <input type="date" className="form-input" value={dateEnd}
+                onChange={e => setDateEnd(e.target.value)} min={date} />
             </div>
           </div>
+
+          <div className="form-group">
+            <div className="type-toggle">
+              <button type="button"
+                className={`type-btn ${allDay ? 'active expense' : ''}`}
+                onClick={() => setAllDay(true)}>Całodniowe</button>
+              <button type="button"
+                className={`type-btn ${!allDay ? 'active expense' : ''}`}
+                onClick={() => setAllDay(false)}>Z godzinami</button>
+            </div>
+          </div>
+
+          {!allDay && (
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Od</label>
+                <input type="time" className="form-input" value={startTime} onChange={e => setStartTime(e.target.value)} />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Do</label>
+                <input type="time" className="form-input" value={endTime} onChange={e => setEndTime(e.target.value)} />
+              </div>
+            </div>
+          )}
+          {people?.length > 0 && (
+            <div className="form-group">
+              <label>Osoba (opcjonalnie)</label>
+              <div className="account-chips">
+                <button type="button" className={`account-chip ${!personId ? 'active' : ''}`} onClick={() => setPersonId('')}>Brak</button>
+                {people.map(p => (
+                  <button key={p.id} type="button"
+                    className={`account-chip ${personId === p.id ? 'active' : ''}`}
+                    onClick={() => setPersonId(p.id)}
+                  >{p.name}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="form-group">
             <label>Opis / notatka</label>
             <input type="text" className="form-input" value={note} onChange={e => setNote(e.target.value)}

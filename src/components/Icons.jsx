@@ -688,7 +688,7 @@ export const CATEGORY_ICON_MAP = {
   ksiazki: IcBookOpen,
   wynajem: IcKey,
   // Habit categories (English IDs)
-  health: IcDumbbell,
+  health: IcPill,
   spirit: IcPray,
   learn: IcBookOpen,
   work: IcBriefcase,

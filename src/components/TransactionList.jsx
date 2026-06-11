@@ -6,6 +6,10 @@ import { fmt } from '../utils/currency'
 import { CatIcon, IconEdit, IconTrash } from './Icons'
 import { confirmDialog } from './ConfirmModal'
 import { toast } from './Toast'
+import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../utils/categories'
+
+const ALL_CATS = [...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES]
+const getCatColor = (id, type) => ALL_CATS.find(c => c.id === id)?.color || (type === 'income' ? '#5FBF98' : '#E0673E')
 
 const hide = '••••'
 
@@ -63,14 +67,13 @@ export default function TransactionList({ transactions, loading, onEdit, user, p
           </div>
           <div className="tx-group-body">
             {group.items.map(t => {
-              const color = t.type === 'income' ? 'var(--income)' : 'var(--expense)'
-              const colorHex = t.type === 'income' ? 'rgba(98,195,156,' : 'rgba(224,101,60,'
+              const catColor = getCatColor(t.categoryId, t.type)
               return (
-                <div key={t.id} className={`transaction-item ${t.type}`}>
+                <div key={t.id} className={`transaction-item ${t.type}`} style={{ borderLeft: `3px solid ${catColor}66` }}>
                   <div className="t-icon" style={{
-                    background: `${colorHex}0.15)`,
-                    border: `1px solid ${colorHex}0.35)`,
-                    color,
+                    background: catColor + '20',
+                    border: `1px solid ${catColor}44`,
+                    color: catColor,
                   }}>
                     <CatIcon categoryId={t.categoryId} emoji={t.categoryIcon} size={18} />
                   </div>

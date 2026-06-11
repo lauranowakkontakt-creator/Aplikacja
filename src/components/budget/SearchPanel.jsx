@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 
 import { fmt } from '../../utils/currency'
-import { CatIcon, IconClose } from '../Icons'
+import { CatIcon, IconClose, IconSearch } from '../Icons'
 
 export default function SearchPanel({ user, onClose }) {
   const [all, setAll]           = useState([])
@@ -30,7 +30,7 @@ export default function SearchPanel({ user, onClose }) {
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-tall">
         <div className="modal-header">
-          <h3>🔍 Szukaj transakcji</h3>
+          <h3><IconSearch size={18} style={{ marginRight: 6, verticalAlign: 'middle' }} />Szukaj transakcji</h3>
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div className="search-filters">

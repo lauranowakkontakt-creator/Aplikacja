@@ -3,50 +3,62 @@ import { collection, query, onSnapshot, addDoc, deleteDoc, doc, Timestamp, order
 import { db } from '../../firebase/config'
 import { format, subDays, startOfMonth, getDaysInMonth, addDays, subMonths, addMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { IconTrash, IconCalendar, IconFlame } from '../Icons'
-import EmotionWheel, { ALL_EMOTIONS } from './EmotionWheel'
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart,
+} from 'recharts'
+import { IconTrash, IconChevronLeft, IconChevronRight } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
-// ── 7-level mood scale ────────────────────────────────────────────────────────
+// ── 5-level mood scale ────────────────────────────────────────────────────────
 const MOODS = [
-  { id: 'awful',     label: 'Fatalnie',  value: 1, color: '#C0392B' },
-  { id: 'bad',       label: 'Źle',       value: 2, color: '#8E44AD' },
-  { id: 'poor',      label: 'Słabo',     value: 3, color: '#2980B9' },
-  { id: 'neutral',   label: 'Tak sobie', value: 4, color: '#7F8C8D' },
-  { id: 'good',      label: 'Dobrze',    value: 5, color: '#D35400' },
-  { id: 'great',     label: 'Świetnie',  value: 6, color: '#27AE60' },
-  { id: 'excellent', label: 'Doskonale', value: 7, color: '#F39C12' },
+  { id: 'awful',   label: 'okropny',  value: 1, color: '#E05A2B' },
+  { id: 'bad',     label: 'źle',      value: 2, color: '#F59E0B' },
+  { id: 'ok',      label: 'ok',       value: 3, color: '#94A3B8' },
+  { id: 'good',    label: 'dobrze',   value: 4, color: '#5FBF98' },
+  { id: 'great',   label: 'świetnie', value: 5, color: '#3B82F6' },
 ]
 
-// Abstract SVG face for each mood level
-function MoodMark({ mood, size = 32, active }) {
-  const col  = active ? mood.color : 'var(--border-strong)'
-  const fill = active ? mood.color : 'var(--text-muted)'
+// ── Emotion chip definitions ───────────────────────────────────────────────────
+const EMOTION_CHIPS = [
+  { id: 'spokój',      label: 'spokój',      color: '#5FBF98' },
+  { id: 'wdzięczność', label: 'wdzięczność', color: '#9B7CF0' },
+  { id: 'radość',      label: 'radość',      color: '#F59E0B' },
+  { id: 'ciekawość',   label: 'ciekawość',   color: '#3B82F6' },
+  { id: 'miłość',      label: 'miłość',      color: '#EC4899' },
+  { id: 'zmęczenie',   label: 'zmęczenie',   color: '#06B6D4' },
+  { id: 'frustracja',  label: 'frustracja',  color: '#E0673E' },
+  { id: 'lęk',         label: 'lęk',         color: '#8B5CF6' },
+  { id: 'smutek',      label: 'smutek',      color: '#6366F1' },
+  { id: 'duma',        label: 'duma',        color: '#F97316' },
+  { id: 'ulga',        label: 'ulga',        color: '#84CC16' },
+  { id: 'nadzieja',    label: 'nadzieja',    color: '#14B8A6' },
+]
+
+// Face SVG for mood
+function MoodFace({ mood, size = 30, active }) {
+  const col = active ? mood.color : 'var(--text-muted)'
   const mouths = {
-    awful:    'M9,17 Q16,11 23,17',
-    bad:      'M9,17 Q16,13 23,17',
-    poor:     'M9,16 Q16,14.5 23,16',
-    neutral:  'M9,15 L23,15',
-    good:     'M9,15 Q16,16.5 23,15',
-    great:    'M9,15 Q16,18 23,15',
-    excellent:'M9,14 Q16,20 23,14',
+    awful:   'M9,17 Q16,11 23,17',
+    bad:     'M9,17 Q16,13 23,17',
+    ok:      'M9,15 L23,15',
+    good:    'M9,15 Q16,18 23,15',
+    great:   'M9,14 Q16,20 23,14',
   }
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none"
       stroke={col} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11.5" cy="11" r="1.5" fill={fill} stroke="none" />
-      <circle cx="20.5" cy="11" r="1.5" fill={fill} stroke="none" />
-      <path d={mouths[mood.id] || mouths.neutral} />
+      <circle cx="11.5" cy="11.5" r="1.5" fill={col} stroke="none" />
+      <circle cx="20.5" cy="11.5" r="1.5" fill={col} stroke="none" />
+      <path d={mouths[mood.id] || mouths.ok} />
     </svg>
   )
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
 
 function findEmotion(id) {
-  return ALL_EMOTIONS.find(e => e.id === id) || { id, label: id, color: 'var(--text-muted)' }
+  return EMOTION_CHIPS.find(e => e.id === id) || { id, label: id, color: 'var(--text-muted)' }
 }
 
 // ── Root component ────────────────────────────────────────────────────────────
@@ -54,8 +66,7 @@ export default function MoodDashboard({ user }) {
   const [logs, setLogs]       = useState([])
   const [loading, setLoading] = useState(true)
   const [view, setView]       = useState('today')
-  const [selectedDate, setSelectedDate] = useState(TODAY())
-  const [calMonth, setCalMonth]         = useState(new Date())
+  const [calMonth, setCalMonth] = useState(new Date())
 
   useEffect(() => {
     const q = query(
@@ -93,7 +104,7 @@ export default function MoodDashboard({ user }) {
         ))}
       </div>
 
-      {view === 'today'    && <TodayView    user={user} logs={logs} today={TODAY()} selectedDate={selectedDate} setSelectedDate={setSelectedDate} />}
+      {view === 'today'    && <TodayView    user={user} logs={logs} today={TODAY()} />}
       {view === 'calendar' && <CalendarView logs={logs} calMonth={calMonth} setCalMonth={setCalMonth} today={TODAY()} />}
       {view === 'trends'   && <TrendsView   logs={logs} />}
     </div>
@@ -101,33 +112,18 @@ export default function MoodDashboard({ user }) {
 }
 
 /* ============================================================
-   TODAY VIEW — mood rating + emotion wheel + notes
+   TODAY VIEW
    ============================================================ */
-function TodayView({ user, logs, today, selectedDate, setSelectedDate }) {
-  const [mood, setMood]               = useState(null)
-  const [emotions, setEmotions]       = useState(new Set())
-  const [note, setNote]               = useState('')
-  const [saving, setSaving]           = useState(false)
-  const [showWheel, setShowWheel]     = useState(false)
-
-  useEffect(() => {
-    setMood(null); setEmotions(new Set()); setNote('')
-  }, [selectedDate])
+function TodayView({ user, logs, today }) {
+  const [mood, setMood]           = useState(null)
+  const [emotions, setEmotions]   = useState(new Set())
+  const [note, setNote]           = useState('')
+  const [saving, setSaving]       = useState(false)
 
   const dayLogs = useMemo(() =>
-    logs.filter(l => l.date === selectedDate)
+    logs.filter(l => l.date === today)
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-  , [logs, selectedDate])
-
-  // 14-day strip
-  const strip = Array.from({ length: 14 }, (_, i) => {
-    const d      = format(subDays(new Date(), 13 - i), 'yyyy-MM-dd')
-    const count  = logs.filter(l => l.date === d).length
-    const sample = logs.find(l => l.date === d)
-    const moodObj = sample?.mood ? MOODS.find(m => m.id === sample.mood) : null
-    return { date: d, label: format(new Date(d+'T12:00:00'), 'EEE', { locale: pl }),
-             dayNum: format(new Date(d+'T12:00:00'), 'd'), count, dotColor: moodObj?.color }
-  })
+  , [logs, today])
 
   const handleSave = async () => {
     if (!mood) return
@@ -135,7 +131,7 @@ function TodayView({ user, logs, today, selectedDate, setSelectedDate }) {
     const mObj = MOODS.find(m => m.id === mood)
     try {
       await addDoc(collection(db, 'users', user.uid, 'moodLogs'), {
-        date: selectedDate,
+        date: today,
         time: format(new Date(), 'HH:mm'),
         mood,
         moodValue: mObj.value,
@@ -156,146 +152,89 @@ function TodayView({ user, logs, today, selectedDate, setSelectedDate }) {
   }
 
   const toggleEmotion = (id) => {
-    if (id === null) { setEmotions(new Set()); return }
     setEmotions(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
-
-  const selectedMoodObj = MOODS.find(m => m.id === mood)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-      {/* 14-day date strip */}
-      <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
-        {strip.map(d => {
-          const isSel   = d.date === selectedDate
-          const isToday = d.date === today
-          return (
-            <button key={d.date} onClick={() => setSelectedDate(d.date)} style={{
-              flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-              padding: '8px 10px', borderRadius: 12, minWidth: 46,
-              background: isSel ? 'var(--accent-soft)' : 'var(--surface)',
-              border: `1px solid ${isSel ? 'var(--accent)' : 'var(--border)'}`,
-              cursor: 'pointer', transition: 'all .15s',
-            }}>
-              <span style={{ fontSize: 9, color: isToday ? 'var(--accent)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.05em', fontWeight: isToday ? 700 : 400 }}>{d.label}</span>
-              <span style={{ fontSize: 15, fontWeight: 700, color: isSel ? 'var(--accent)' : 'var(--text)', lineHeight: 1 }}>{d.dayNum}</span>
-              {d.count > 0 ? (
-                <div style={{ display: 'flex', gap: 2 }}>
-                  {Array.from({ length: Math.min(d.count, 3) }).map((_, j) => (
-                    <div key={j} style={{ width: 5, height: 5, borderRadius: '50%', background: d.dotColor || 'var(--primary)' }} />
-                  ))}
-                </div>
-              ) : <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--surface3)' }} />}
-            </button>
-          )
-        })}
-      </div>
+      {/* Mood entry card */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-      {/* ── MOOD RATING — 7 SVG faces ── */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px 12px', overflow: 'hidden' }}>
-        <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 12 }}>
-          Jak się czujesz? · wybierz nastrój
-        </div>
-        {/* Grid — 7 equal columns, no overflow */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-          {MOODS.map(m => {
-            const active = mood === m.id
-            return (
-              <button key={m.id} onClick={() => setMood(active ? null : m.id)} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
-                padding: '8px 2px', borderRadius: 12, cursor: 'pointer', minWidth: 0,
-                background: active ? m.color + '22' : 'transparent',
-                border: `2px solid ${active ? m.color : 'transparent'}`,
-                transform: active ? 'translateY(-3px)' : 'none',
-                transition: 'all .2s cubic-bezier(.34,1.4,.64,1)',
-              }}>
-                <MoodMark mood={m} size={26} active={active} />
-                <span style={{
-                  fontSize: 8, color: active ? m.color : 'var(--text-muted)',
-                  fontWeight: active ? 700 : 400, textAlign: 'center',
-                  lineHeight: 1.2, width: '100%', display: 'block',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        {/* Mood selector */}
+        <div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 14 }}>
+            Jak się masz teraz?
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
+            {MOODS.map(m => {
+              const active = mood === m.id
+              return (
+                <button key={m.id} onClick={() => setMood(active ? null : m.id)} style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                  padding: '12px 4px', borderRadius: 14, cursor: 'pointer',
+                  background: active ? m.color + '22' : 'transparent',
+                  border: `2px solid ${active ? m.color : 'var(--border)'}`,
+                  transform: active ? 'translateY(-2px)' : 'none',
+                  transition: 'all .2s cubic-bezier(.34,1.4,.64,1)',
                 }}>
-                  {m.label}
-                </span>
-              </button>
-            )
-          })}
+                  <MoodFace mood={m} size={28} active={active} />
+                  <span style={{
+                    fontSize: 11, fontWeight: active ? 700 : 400,
+                    color: active ? m.color : 'var(--text-muted)',
+                    letterSpacing: '.01em',
+                  }}>{m.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* ── EMOTION WHEEL — collapsible ── */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
+        {/* Emotion chips */}
+        <div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 12 }}>
+            Emocje · wybierz kilka
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {EMOTION_CHIPS.map(em => {
+              const active = emotions.has(em.id)
+              return (
+                <button key={em.id} onClick={() => toggleEmotion(em.id)} style={{
+                  padding: '6px 14px', borderRadius: 99, fontSize: 13, cursor: 'pointer',
+                  border: `1.5px solid ${active ? em.color : 'var(--border)'}`,
+                  background: active ? em.color + '22' : 'transparent',
+                  color: active ? em.color : 'var(--text-sub)',
+                  fontWeight: active ? 700 : 400,
+                  transition: 'all .15s',
+                }}>{em.label}</button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Note */}
+        <textarea
+          className="form-input"
+          placeholder="Jak minął dzień? Co czujesz?…"
+          value={note} onChange={e => setNote(e.target.value)}
+          rows={3} maxLength={400}
+          style={{ margin: 0, resize: 'none', fontSize: 14 }}
+        />
+
+        {/* Save button */}
         <button
-          onClick={() => setShowWheel(v => !v)}
-          style={{
-            width: '100%', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)',
-          }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>
-              Koło emocji
-            </span>
-            {emotions.size > 0 && (
-              <div style={{ display: 'flex', gap: 4 }}>
-                {Array.from(emotions).slice(0, 4).map(id => {
-                  const em = findEmotion(id)
-                  return <div key={id} style={{ width: 8, height: 8, borderRadius: '50%', background: em.color }} />
-                })}
-                {emotions.size > 4 && <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>+{emotions.size-4}</span>}
-              </div>
-            )}
-          </div>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)', transition: 'transform .2s', display: 'inline-block', transform: showWheel ? 'rotate(180deg)' : 'none' }}>▾</span>
+          className="btn-save"
+          onClick={handleSave}
+          disabled={saving || !mood}
+          style={{ opacity: !mood ? 0.4 : 1, margin: 0 }}>
+          {saving ? 'Zapisywanie…' : !mood ? 'Wybierz nastrój' : 'Zapisz nastrój'}
         </button>
-
-        {showWheel && (
-          <div style={{ padding: '0 12px 18px', borderTop: '1px solid var(--border)' }}>
-            <div style={{ paddingTop: 14 }}>
-              <EmotionWheel selected={emotions} onToggle={toggleEmotion} />
-            </div>
-
-            {/* Selected emotion chips */}
-            {emotions.size > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 12 }}>
-                {Array.from(emotions).map(id => {
-                  const em = findEmotion(id)
-                  return (
-                    <button key={id} onClick={() => toggleEmotion(id)} style={{
-                      padding: '4px 11px', borderRadius: 99, fontSize: 12, cursor: 'pointer',
-                      border: `1px solid ${em.color}`, background: em.color + '22', color: em.color,
-                      display: 'flex', alignItems: 'center', gap: 5,
-                    }}>
-                      {em.label} <span style={{ opacity: 0.6, fontSize: 10 }}>✕</span>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* ── NOTE + SAVE ── */}
-      <textarea className="form-input mood-note-input"
-        placeholder="Notatka (opcjonalnie)…"
-        value={note} onChange={e => setNote(e.target.value)}
-        rows={2} maxLength={400}
-        style={{ margin: 0, resize: 'none', fontSize: 14 }}
-      />
-      <button className="btn-save" onClick={handleSave}
-        disabled={saving || !mood}
-        style={{ opacity: !mood ? 0.4 : 1 }}>
-        {saving ? 'Zapisywanie…' : !mood ? 'Wybierz nastrój powyżej' : `Zapisz wpis${emotions.size > 0 ? ` · ${emotions.size} emocji` : ''}`}
-      </button>
-
-      {/* ── DAY ENTRIES ── */}
+      {/* Today's entries */}
       {dayLogs.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>
-            {selectedDate === today ? 'Wpisy dziś' : `Wpisy · ${format(new Date(selectedDate+'T12:00:00'), 'd MMM', { locale: pl })}`}
-          </div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>Wpisy dziś</div>
           {dayLogs.map(log => <LogEntry key={log.id} log={log} onDelete={() => handleDelete(log.id)} />)}
         </div>
       )}
@@ -315,14 +254,12 @@ function LogEntry({ log, onDelete }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {moodObj && <MoodMark mood={moodObj} size={22} active={true} />}
+          {moodObj && <MoodFace mood={moodObj} size={20} active />}
           <span style={{ fontSize: 13, fontWeight: 600, color: moodObj?.color || 'var(--text)' }}>{log.moodLabel}</span>
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{log.time}</span>
         </div>
         <button onClick={onDelete} className="t-btn delete"><IconTrash size={12} /></button>
       </div>
-
-      {/* Emotions */}
       {log.emotions?.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {log.emotions.map(id => {
@@ -336,7 +273,6 @@ function LogEntry({ log, onDelete }) {
           })}
         </div>
       )}
-
       {log.note && <p style={{ margin: 0, fontSize: 12, color: 'var(--text-sub)', fontStyle: 'italic', lineHeight: 1.5 }}>„{log.note}"</p>}
     </div>
   )
@@ -348,69 +284,85 @@ function LogEntry({ log, onDelete }) {
 function CalendarView({ logs, calMonth, setCalMonth, today }) {
   const [selected, setSelected] = useState(null)
 
-  const start    = startOfMonth(calMonth)
-  const firstDow = (start.getDay() + 6) % 7
+  const start     = startOfMonth(calMonth)
+  const firstDow  = (start.getDay() + 6) % 7
   const daysCount = getDaysInMonth(calMonth)
 
   const monthDays = Array.from({ length: daysCount }, (_, i) => {
-    const d = format(addDays(start, i), 'yyyy-MM-dd')
+    const d       = format(addDays(start, i), 'yyyy-MM-dd')
     const dayLogs = logs.filter(l => l.date === d)
-    const avgMoodVal = dayLogs.length > 0
+    const avgVal  = dayLogs.length > 0
       ? dayLogs.reduce((s, l) => s + (l.moodValue || 0), 0) / dayLogs.length
       : null
-    const closestMood = avgMoodVal ? MOODS.reduce((p, c) => Math.abs(c.value - avgMoodVal) < Math.abs(p.value - avgMoodVal) ? c : p) : null
-    return { date: d, dayNum: format(addDays(start, i), 'd'), count: dayLogs.length, moodColor: closestMood?.color }
+    const moodObj = avgVal
+      ? MOODS.reduce((p, c) => Math.abs(c.value - avgVal) < Math.abs(p.value - avgVal) ? c : p)
+      : null
+    return { date: d, dayNum: format(addDays(start, i), 'd'), count: dayLogs.length, moodColor: moodObj?.color, moodObj }
   })
 
   const selectedLogs = selected
-    ? logs.filter(l => l.date === selected).sort((a, b) => (a.createdAt?.seconds||0) - (b.createdAt?.seconds||0))
+    ? logs.filter(l => l.date === selected).sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
     : []
+
+  const monthLabel = format(calMonth, 'LLLL', { locale: pl }).toUpperCase()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button className="month-btn" onClick={() => setCalMonth(m => subMonths(m, 1))}>‹</button>
-        <span style={{ fontSize: 14, fontWeight: 600, textTransform: 'capitalize' }}>{format(calMonth, 'LLLL yyyy', { locale: pl })}</span>
-        <button className="month-btn" onClick={() => setCalMonth(m => addMonths(m, 1))}>›</button>
-      </div>
 
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '14px 12px' }}>
+      {/* Calendar card */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px 14px' }}>
+        {/* Header with arrows */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <button className="month-btn" onClick={() => setCalMonth(m => subMonths(m, 1))}><IconChevronLeft size={14} /></button>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+            Miesiąc · {monthLabel}
+          </span>
+          <button className="month-btn" onClick={() => setCalMonth(m => addMonths(m, 1))}><IconChevronRight size={14} /></button>
+        </div>
+
+        {/* Weekday headers */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 6 }}>
-          {['Pn','Wt','Śr','Cz','Pt','So','Nd'].map(d => (
-            <div key={d} style={{ textAlign: 'center', fontSize: 9, color: 'var(--text-muted)', paddingBottom: 2 }}>{d}</div>
+          {['P','W','Ś','C','P','S','N'].map((d, i) => (
+            <div key={i} style={{ textAlign: 'center', fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '.06em', paddingBottom: 2 }}>{d}</div>
           ))}
         </div>
+
+        {/* Days */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
           {Array.from({ length: firstDow }, (_, i) => <div key={'e'+i} />)}
           {monthDays.map(({ date, dayNum, count, moodColor }) => {
             const isSel   = date === selected
             const isToday = date === today
+            const bg      = moodColor ? moodColor + '28' : 'var(--surface2)'
             return (
               <button key={date} onClick={() => setSelected(date === selected ? null : date)} style={{
-                aspectRatio: 1, borderRadius: 9, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'center', gap: 3,
-                background: isSel ? (moodColor ? moodColor+'33' : 'var(--accent-soft)') : 'transparent',
-                border: `1px solid ${isToday ? 'var(--primary)' : isSel ? (moodColor||'var(--border-strong)') : 'transparent'}`,
-                cursor: 'pointer', transition: 'background .15s',
+                aspectRatio: '1', borderRadius: 10, display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'space-between',
+                padding: '6px 4px 4px',
+                background: bg,
+                border: `1.5px solid ${isToday ? 'var(--violet)' : isSel ? (moodColor || 'var(--border-strong)') : 'transparent'}`,
+                cursor: 'pointer', transition: 'all .15s',
               }}>
-                <span style={{ fontSize: 11, fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--primary)' : 'var(--text)' }}>{dayNum}</span>
-                {count > 0 ? (
-                  <div style={{ display: 'flex', gap: 2 }}>
-                    {Array.from({ length: Math.min(count, 3) }).map((_, j) => (
-                      <div key={j} style={{ width: 4, height: 4, borderRadius: '50%', background: moodColor||'var(--primary)' }} />
-                    ))}
-                  </div>
-                ) : <div style={{ width: 4, height: 4 }} />}
+                <span style={{
+                  fontSize: 12, fontWeight: isToday ? 700 : 500,
+                  color: isToday ? 'var(--violet)' : 'var(--text)',
+                  lineHeight: 1,
+                }}>{dayNum}</span>
+                <div style={{
+                  width: '60%', height: 3, borderRadius: 2,
+                  background: count > 0 ? (moodColor || 'var(--primary)') : 'transparent',
+                }} />
               </button>
             )
           })}
         </div>
       </div>
 
+      {/* Selected day detail */}
       {selected && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '.1em', textTransform: 'uppercase' }}>
-            {format(new Date(selected+'T12:00:00'), 'd MMMM yyyy', { locale: pl })}
+            {format(new Date(selected + 'T12:00:00'), 'd MMMM yyyy', { locale: pl })}
             {selectedLogs.length === 0 && ' · brak wpisów'}
           </div>
           {selectedLogs.map(log => <LogEntry key={log.id} log={log} onDelete={() => {}} />)}
@@ -424,144 +376,144 @@ function CalendarView({ logs, calMonth, setCalMonth, today }) {
    TRENDS VIEW
    ============================================================ */
 function TrendsView({ logs }) {
-  const [range, setRange] = useState('30d')
+  const [viewMonth, setViewMonth] = useState(new Date())
 
-  const days   = range === '7d' ? 7 : range === '30d' ? 30 : 90
-  const cutoff = format(subDays(new Date(), days - 1), 'yyyy-MM-dd')
-  const ranged = logs.filter(l => l.date >= cutoff)
+  const monthStr    = format(viewMonth, 'yyyy-MM')
+  const prevStr     = format(subMonths(viewMonth, 1), 'yyyy-MM')
+  const monthLabel  = format(viewMonth, 'LLLL', { locale: pl })
+  const monthCapital = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
 
-  const total   = ranged.length
-  const avgVal  = total ? ranged.reduce((s, l) => s + (l.moodValue||0), 0) / total : 0
-  const streak  = useMemo(() => {
-    let s = 0
-    for (let i = 0; i < 365; i++) {
-      const d = format(subDays(new Date(), i), 'yyyy-MM-dd')
-      if (logs.some(l => l.date === d)) s++
-      else if (i > 0) break
-    }
-    return s
-  }, [logs])
+  const monthLogs = logs.filter(l => l.date.startsWith(monthStr))
+  const prevLogs  = logs.filter(l => l.date.startsWith(prevStr))
 
-  // Mood distribution (7 levels)
-  const moodDist = MOODS.map(m => ({ ...m, count: ranged.filter(l => l.mood === m.id).length })).filter(m => m.count > 0)
-  const maxMood  = Math.max(...moodDist.map(m => m.count), 1)
+  const avg = (arr) => {
+    const valid = arr.filter(l => l.moodValue)
+    return valid.length ? valid.reduce((s, l) => s + l.moodValue, 0) / valid.length : 0
+  }
+  const monthAvg = avg(monthLogs)
+  const prevAvg  = avg(prevLogs)
+  const diff     = prevAvg > 0 ? monthAvg - prevAvg : null
+
+  // Chart data — one point per day of month
+  const daysCount = getDaysInMonth(viewMonth)
+  const start     = startOfMonth(viewMonth)
+  const chartData = Array.from({ length: daysCount }, (_, i) => {
+    const d       = format(addDays(start, i), 'yyyy-MM-dd')
+    const dayLogs = logs.filter(l => l.date === d)
+    const dayAvg  = dayLogs.length > 0
+      ? dayLogs.reduce((s, l) => s + (l.moodValue || 0), 0) / dayLogs.length
+      : null
+    const moodObj = dayAvg
+      ? MOODS.reduce((p, c) => Math.abs(c.value - dayAvg) < Math.abs(p.value - dayAvg) ? c : p)
+      : null
+    return { day: String(i + 1), value: dayAvg, color: moodObj?.color }
+  }).filter(d => d.value !== null)
 
   // Emotion frequency
   const emCount = {}
-  ranged.forEach(l => (l.emotions||[]).forEach(id => { emCount[id] = (emCount[id]||0)+1 }))
-  const topEms  = Object.entries(emCount).sort((a,b) => b[1]-a[1]).slice(0,8).map(([id,count]) => ({ ...findEmotion(id), count }))
+  monthLogs.forEach(l => (l.emotions || []).forEach(id => { emCount[id] = (emCount[id] || 0) + 1 }))
+  const topEms  = Object.entries(emCount).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([id, count]) => ({ ...findEmotion(id), count }))
   const maxEm   = topEms[0]?.count || 1
 
-  // 30-day activity
-  const last30 = Array.from({ length: 30 }, (_, i) => {
-    const d = format(subDays(new Date(), 29-i), 'yyyy-MM-dd')
-    const dayLogs = logs.filter(l => l.date === d)
-    const avgM = dayLogs.length ? dayLogs.reduce((s,l) => s+(l.moodValue||0),0)/dayLogs.length : null
-    const mObj = avgM ? MOODS.reduce((p,c) => Math.abs(c.value-avgM)<Math.abs(p.value-avgM)?c:p) : null
-    return { date: d, count: dayLogs.length, color: mObj?.color }
-  })
-  const maxDay = Math.max(...last30.map(d => d.count), 1)
-  const avgMoodObj = avgVal ? MOODS.reduce((p,c) => Math.abs(c.value-avgVal)<Math.abs(p.value-avgVal)?c:p) : null
-
-  if (!total) return (
+  if (monthLogs.length === 0 && prevLogs.length === 0) return (
     <div className="list-empty"><p>Brak wpisów</p><p className="list-empty-hint">Zacznij od zakładki Dziś</p></div>
   )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-      {/* Range */}
-      <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-        {[['7d','7 dni'],['30d','30 dni'],['90d','90 dni']].map(([id,lbl]) => (
-          <button key={id} onClick={() => setRange(id)} style={{
-            flex:1, padding:'6px 0', borderRadius:9, fontSize:12, cursor:'pointer',
-            fontWeight:range===id?700:400,
-            background:range===id?'var(--surface3)':'transparent',
-            color:range===id?'var(--text)':'var(--text-muted)',
-            border:range===id?'1px solid var(--border-strong)':'1px solid transparent',
-          }}>{lbl}</button>
-        ))}
+      {/* Month navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <button className="month-btn" onClick={() => setViewMonth(m => subMonths(m, 1))}><IconChevronLeft size={14} /></button>
+        <button style={{
+          padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 600,
+          background: 'var(--surface)', border: '1px solid var(--border-strong)',
+          color: 'var(--text)', cursor: 'pointer',
+        }}>{monthCapital}</button>
+        <button className="month-btn" onClick={() => setViewMonth(m => addMonths(m, 1))}><IconChevronRight size={14} /></button>
       </div>
 
-      {/* Summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
-        {[
-          { label: 'Wpisów',      val: total,                          color: 'var(--text)',   icon: <IconCalendar size={16}/> },
-          { label: 'Dni z rzędu', val: streak,                         color: 'var(--warn)',   icon: <IconFlame size={16} style={{color:'var(--warn)'}}/> },
-          { label: 'Śr. nastrój', val: avgMoodObj?.label || '–',       color: avgMoodObj?.color, icon: avgMoodObj ? <MoodMark mood={avgMoodObj} size={18} active /> : null },
-        ].map(({ label, val, color, icon }) => (
-          <div key={label} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', padding:'12px 8px', textAlign:'center' }}>
-            <div style={{ display:'flex', justifyContent:'center', marginBottom:5, color:'var(--text-muted)' }}>{icon}</div>
-            <div style={{ fontSize: typeof val === 'number' ? 22 : 13, fontWeight:700, lineHeight:1, color: color||'var(--text)' }}>{val}</div>
-            <div style={{ fontSize:9, color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'.1em', marginTop:3 }}>{label}</div>
+      {/* Line chart — Nastrój w czasie */}
+      {chartData.length > 0 && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 14 }}>
+            Nastrój w czasie
           </div>
-        ))}
-      </div>
-
-      {/* Mood distribution */}
-      {moodDist.length > 0 && (
-        <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', padding:16 }}>
-          <div style={{ fontSize:9, color:'var(--text-muted)', letterSpacing:'.15em', textTransform:'uppercase', marginBottom:12 }}>Rozkład nastroju</div>
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {moodDist.sort((a,b)=>b.count-a.count).map(m => (
-              <div key={m.id} style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <MoodMark mood={m} size={18} active />
-                <span style={{ fontSize:12, color:'var(--text-sub)', width:70, flexShrink:0 }}>{m.label}</span>
-                <div style={{ flex:1, height:6, borderRadius:99, background:'var(--surface3)', overflow:'hidden' }}>
-                  <AnimBar pct={(m.count/maxMood)*100} color={m.color} />
-                </div>
-                <span style={{ fontSize:11, color:'var(--text-muted)', width:24, textAlign:'right', flexShrink:0 }}>{m.count}</span>
+          <ResponsiveContainer width="100%" height={140}>
+            <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+              <defs>
+                <linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#9B7CF0" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="#9B7CF0" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0.5, 5.5]} ticks={[1,2,3,4,5]} tick={{ fontSize: 9, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+              <Tooltip
+                contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }}
+                formatter={v => [MOODS.find(m => Math.abs(m.value - v) < 0.5)?.label || v.toFixed(1), 'nastrój']}
+              />
+              <Area type="monotone" dataKey="value" stroke="#9B7CF0" strokeWidth={2}
+                fill="url(#moodGrad)"
+                dot={{ r: 3, fill: '#9B7CF0', strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: '#9B7CF0' }}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+          {/* Color legend */}
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+            {MOODS.map(m => (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text-muted)' }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: m.color }} />
+                {m.label}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Emotion frequency */}
+      {/* Average score */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20 }}>
+        <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 8 }}>
+          Średnia · {monthCapital}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+          <span style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>
+            {monthAvg > 0 ? monthAvg.toFixed(1).replace('.', ',') : '—'}
+          </span>
+          {monthAvg > 0 && <span style={{ fontSize: 18, color: 'var(--text-muted)', fontWeight: 400 }}>/5</span>}
+        </div>
+        {diff !== null && Math.abs(diff) > 0.01 && (
+          <div style={{ marginTop: 6, fontSize: 14, fontWeight: 600, color: diff > 0 ? '#5FBF98' : '#E05A2B', display: 'flex', alignItems: 'center', gap: 4 }}>
+            {diff > 0 ? '↑' : '↓'} {Math.abs(diff).toFixed(1).replace('.', ',')} vs {format(subMonths(viewMonth, 1), 'LLLL', { locale: pl })}
+          </div>
+        )}
+      </div>
+
+      {/* Most frequent emotions */}
       {topEms.length > 0 && (
-        <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', padding:16 }}>
-          <div style={{ fontSize:9, color:'var(--text-muted)', letterSpacing:'.15em', textTransform:'uppercase', marginBottom:12 }}>Najczęstsze emocje</div>
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 14 }}>
+            Najczęstsze emocje
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {topEms.map(em => (
-              <div key={em.id} style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <div style={{ width:8, height:8, borderRadius:'50%', background:em.color, flexShrink:0 }}/>
-                <span style={{ fontSize:12, color:'var(--text-sub)', width:100, flexShrink:0, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{em.label}</span>
-                <div style={{ flex:1, height:6, borderRadius:99, background:'var(--surface3)', overflow:'hidden' }}>
-                  <AnimBar pct={(em.count/maxEm)*100} color={em.color} />
+              <div key={em.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 12, color: 'var(--text-sub)', width: 90, flexShrink: 0 }}>{em.label}</span>
+                <div style={{ flex: 1, height: 8, borderRadius: 99, background: 'var(--surface3)', overflow: 'hidden' }}>
+                  <AnimBar pct={(em.count / maxEm) * 100} color={em.color} />
                 </div>
-                <span style={{ fontSize:11, color:'var(--text-muted)', width:24, textAlign:'right', flexShrink:0 }}>{em.count}</span>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* 30-day activity heatmap */}
-      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:'var(--r)', padding:16 }}>
-        <div style={{ fontSize:9, color:'var(--text-muted)', letterSpacing:'.15em', textTransform:'uppercase', marginBottom:10 }}>Aktywność · 30 dni</div>
-        <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:50 }}>
-          {last30.map(({ date, count, color }) => (
-            <div key={date} title={`${date}: ${count}`} style={{
-              flex:1, minHeight:4,
-              height: count > 0 ? `${Math.max(12,(count/maxDay)*100)}%` : 4,
-              borderRadius:3,
-              background: count > 0 ? (color||'var(--violet)') : 'var(--surface3)',
-              transition:'height .4s',
-            }}/>
-          ))}
-        </div>
-        <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
-          <span style={{ fontSize:9, color:'var(--text-muted)' }}>30 dni temu</span>
-          <span style={{ fontSize:9, color:'var(--text-muted)' }}>Dziś</span>
-        </div>
-      </div>
     </div>
   )
 }
 
-// Animated bar (% width after mount)
 function AnimBar({ pct, color }) {
   const [w, setW] = useState(0)
   useEffect(() => { const id = setTimeout(() => setW(pct), 80); return () => clearTimeout(id) }, [pct])
-  return <div style={{ height:'100%', borderRadius:99, background:color, width:`${w}%`, transition:'width .7s ease' }}/>
+  return <div style={{ height: '100%', borderRadius: 99, background: color, width: `${w}%`, transition: 'width .7s ease' }} />
 }

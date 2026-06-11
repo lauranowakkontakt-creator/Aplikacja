@@ -109,7 +109,9 @@ export default function PrayerDashboard({ user }) {
           <button
             className="icon-btn"
             onClick={() => setCarMode(m => !m)}
-            style={carMode ? { background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700 } : { fontSize: 13, padding: '4px 8px' }}
+            style={carMode
+              ? { background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 10, padding: '6px 14px', fontSize: 15, fontWeight: 700, letterSpacing: '.04em' }
+              : { fontSize: 16, padding: '5px 10px', borderRadius: 8 }}
             title="Tryb auto"
           >🚗</button>
           <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
@@ -231,6 +233,8 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
     const prayedToday = allDates.includes(today)
     return { ...p, activeCount: active.length, days, prayedToday }
   }).sort((a, b) => {
+    if (a.activeCount === 0 && b.activeCount > 0) return 1
+    if (a.activeCount > 0 && b.activeCount === 0) return -1
     if (a.prayedToday && !b.prayedToday) return 1
     if (!a.prayedToday && b.prayedToday) return -1
     return (b.days ?? 999) - (a.days ?? 999)
@@ -265,15 +269,15 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
               background: isNeglected ? neglect.color + '0D' : 'var(--surface)',
               border: `1px solid ${isNeglected ? neglect.color + '55' : isAtRisk ? neglect.color + '44' : 'var(--border)'}`,
               borderLeft: `3px solid ${borderColor}`,
-              borderRadius: 12, padding: carMode ? '16px 18px' : '12px 14px',
+              borderRadius: 12, padding: carMode ? '20px 22px' : '12px 14px',
               display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer'
             }}>
-              <div style={{ width: carMode ? 54 : 44, height: carMode ? 54 : 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#8b5cf6' }}>
-                <CatIcon categoryId={null} emoji={p.icon || 'IcUsers'} size={carMode ? 28 : 22} />
+              <div style={{ width: carMode ? 68 : 44, height: carMode ? 68 : 44, borderRadius: 14, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#8b5cf6' }}>
+                <CatIcon categoryId={null} emoji={p.icon || 'IcUsers'} size={carMode ? 36 : 22} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <p style={{ margin: 0, fontSize: carMode ? 19 : 14, fontWeight: 600 }}>{p.name}</p>
+                  <p style={{ margin: 0, fontSize: carMode ? 24 : 14, fontWeight: 600 }}>{p.name}</p>
                   {p.prayedToday && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(39,174,96,0.15)', color: '#27AE60' }}>✓ dziś</span>}
                   {(isNeglected || isAtRisk) && (
                     <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: neglect.color + '22', color: neglect.color, fontWeight: 700 }}>
@@ -281,7 +285,7 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
                     </span>
                   )}
                 </div>
-                <p style={{ margin: '3px 0 0', fontSize: carMode ? 13 : 11, color: 'var(--text-muted)' }}>
+                <p style={{ margin: '4px 0 0', fontSize: carMode ? 16 : 11, color: 'var(--text-muted)' }}>
                   {p.activeCount} {p.activeCount === 1 ? 'prośba' : p.activeCount < 5 ? 'prośby' : 'próśb'}
                   {p.days === 0 && ' · modlono dziś'}
                   {p.days !== null && p.days > 0 && ` · ${p.days} dni temu`}
@@ -312,6 +316,13 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
   const [showEnded, setShowEnded]     = useState(false)
 
   const mine   = intentions.filter(i => i.personId === person.id)
+  const allDates   = mine.flatMap(i => i.prayedDates || [])
+  const lastDate   = allDates.length ? [...allDates].sort().reverse()[0] : null
+  const totalPrays = allDates.length
+  const daysSinceLast = lastDate ? differenceInDays(new Date(), parseISO(lastDate)) : null
+  const last30days = Array.from({ length: 30 }, (_, i) => format(subDays(new Date(), i), 'yyyy-MM-dd'))
+    .filter(d => allDates.includes(d)).length
+
   const active = mine.filter(i => i.status === 'active' || !i.status).sort((a, b) => {
     if ((a.priority || 3) === 5 && (b.priority || 3) !== 5) return -1
     if ((a.priority || 3) !== 5 && (b.priority || 3) === 5) return 1
@@ -376,6 +387,24 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
           {person.note && <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>{person.note}</p>}
         </div>
         <span style={{ fontSize: 12, color: '#8b5cf6', flexShrink: 0 }}>{active.length} aktywnych</span>
+      </div>
+
+      {/* Per-person stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#C9A24A' }}>{totalPrays}</div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Łącznie</div>
+        </div>
+        <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: '#8b5cf6' }}>{last30days}</div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Ostatnie 30 dni</div>
+        </div>
+        <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: daysSinceLast === null ? '#ef4444' : daysSinceLast === 0 ? '#27AE60' : daysSinceLast <= 6 ? '#eab308' : '#f97316' }}>
+            {daysSinceLast === null ? '—' : daysSinceLast === 0 ? 'Dziś' : `${daysSinceLast}d`}
+          </div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Ostatnio</div>
+        </div>
       </div>
 
       {active.length === 0 && !showAddForm && (
@@ -472,8 +501,8 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
     setEditingNoteId(null)
   }
 
-  const fs = carMode ? { title: 18, sub: 14, badge: 12, action: 15, note: 14 } : { title: 14, sub: 12, badge: 10, action: 12, note: 12 }
-  const pad = carMode ? '16px 18px' : '12px 14px'
+  const fs = carMode ? { title: 22, sub: 16, badge: 13, action: 17, note: 15 } : { title: 14, sub: 12, badge: 10, action: 12, note: 12 }
+  const pad = carMode ? '22px 24px' : '12px 14px'
 
   return (
     <div style={{
@@ -565,7 +594,7 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
 
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
         <button type="button" onClick={() => onTogglePrayed(item, viewDate)} style={{
-          flex: 1, padding: carMode ? '13px' : '8px', borderRadius: 8, fontSize: fs.action, cursor: 'pointer', fontWeight: 600,
+          flex: 1, padding: carMode ? '18px' : '8px', borderRadius: 8, fontSize: fs.action, cursor: 'pointer', fontWeight: 600,
           border: `1px solid ${prayedToday ? '#27AE60' : 'var(--border)'}`,
           background: prayedToday ? 'rgba(39,174,96,0.15)' : 'transparent',
           color: prayedToday ? '#27AE60' : 'var(--text-muted)'
@@ -668,7 +697,7 @@ function TodayView({ user, intentions, people, carMode }) {
 
       {activeIntentions.length > 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: carMode ? '18px' : '14px 16px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: carMode ? 36 : 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: carMode ? 24 : 18, color: 'var(--text-muted)' }}>/{activeIntentions.length}</span></p>
+          <p style={{ margin: 0, fontSize: carMode ? 52 : 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: carMode ? 34 : 18, color: 'var(--text-muted)' }}>/{activeIntentions.length}</span></p>
           <p style={{ margin: '2px 0 0', fontSize: carMode ? 14 : 12, color: 'var(--text-muted)' }}>modlono {isToday ? 'dziś' : dateLabel.toLowerCase()}</p>
           {prayedCount > 0 && prayedCount === activeIntentions.length && (
             <p style={{ margin: '6px 0 0', fontSize: carMode ? 15 : 13, color: '#27AE60', fontWeight: 600 }}>🙌 Wszystkie prośby modlone!</p>

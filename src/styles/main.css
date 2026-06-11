@@ -282,7 +282,8 @@ button { touch-action: manipulation; }
 
 /* Legacy responsive helpers */
 .mobile-only { display: none; }
-.desktop-only { display: block; }
+.desktop-only { display: revert; }
+.month-nav.desktop-only { display: flex; }
 @media (max-width: 640px) {
   .mobile-only { display: block; }
   .desktop-only { display: none; }
@@ -494,10 +495,42 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 
 /* ===== MOBILE TWEAKS ===== */
 @media (max-width: 480px) {
-  .summary-grid { gap: 8px; }
-  .summary-card { padding: 14px; }
+  /* Balance hero */
+  .balance-hero { padding: 16px; }
+  .balance-hero-main { font-size: 32px; }
+  .balance-hero-cents { font-size: 18px; }
+  .balance-hero-row { gap: 10px; }
+
+  /* Summary grid — 2 columns, not 3 */
+  .summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .summary-card { padding: 12px 10px; }
   .summary-amount { font-size: 15px; }
-  .month-label { font-size: 17px; min-width: 150px; }
+
+  /* Month nav */
+  .month-label { font-size: 15px; min-width: 130px; }
+  .month-nav { gap: 10px; margin-bottom: 16px; }
+
+  /* Forms — collapse rows */
+  .form-row { flex-direction: column; gap: 8px; align-items: stretch; }
+  .form { gap: 14px; }
+  .modal { padding: 20px 16px; }
+
+  /* Budget tabs: no label text, just icons + abbreviation */
+  .budget-tab { font-size: 10px; padding: 7px 2px; }
+  .budget-tabs { gap: 1px; padding: 3px; }
+
+  /* Type toggle: smaller */
+  .type-btn { font-size: 13px; padding: 8px 4px; }
+
+  /* Cal cat grid: 3 per row on mobile */
+  .cal-cat-grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* Habit cat grid: 2 per row */
+  .habit-cat-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Prevent overflow */
+  img, video { max-width: 100%; }
+  pre, code { overflow-x: auto; }
 }
 
 /* ===== NAWYKI ===== */

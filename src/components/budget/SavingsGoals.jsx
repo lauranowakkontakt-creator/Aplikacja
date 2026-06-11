@@ -2,19 +2,19 @@ import { useState, useEffect } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { fmt } from '../../utils/currency'
-import { IconEdit, IconTrash, IconClose } from '../Icons'
+import { IconEdit, IconTrash, IconClose, IconSavings } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
-const GOAL_EMOJIS = [
-  '🎯','🏠','✈️','🚗','💍','📱','🎓','💻','🏖️','🐷',
-  '💰','🛍️','🎁','🏆','🚀','🎸','🌍','🏋️','💎','🔑',
-  '🎪','🐾','🌺','⭐','🔥','🧠','🌊','🏔️','🎨','🎬',
+const GOAL_COLORS = [
+  '#EF4444','#F97316','#F59E0B','#EAB308','#84CC16','#22C55E',
+  '#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1','#8B5CF6',
+  '#A855F7','#EC4899','#F43F5E','#64748B',
 ]
 
 export default function SavingsGoals({ user, onClose }) {
-  const [goals, setGoals]     = useState([])
-  const [loading, setLoading] = useState(true)
+  const [goals, setGoals]       = useState([])
+  const [loading, setLoading]   = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editGoal, setEditGoal] = useState(null)
 
@@ -32,14 +32,15 @@ export default function SavingsGoals({ user, onClose }) {
     await deleteDoc(doc(db, 'users', user.uid, 'savingsGoals', id))
   }
 
-  const totalTarget  = goals.reduce((s, g) => s + (g.targetAmount || 0), 0)
-  const totalSaved   = goals.reduce((s, g) => s + (g.currentAmount || 0), 0)
+  const goalsWithTarget = goals.filter(g => !g.noTarget)
+  const totalTarget = goalsWithTarget.reduce((s, g) => s + (g.targetAmount || 0), 0)
+  const totalSaved  = goals.reduce((s, g) => s + (g.currentAmount || 0), 0)
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal modal-tall">
         <div className="modal-header">
-          <h3>🎯 Cele oszczędnościowe</h3>
+          <h3><IconSavings size={18} style={{ marginRight: 6, verticalAlign: 'middle' }} />Cele oszczędnościowe</h3>
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
 
@@ -71,15 +72,32 @@ export default function SavingsGoals({ user, onClose }) {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {goals.map(goal => {
-                  const pct = goal.targetAmount > 0 ? Math.min(100, ((goal.currentAmount || 0) / goal.targetAmount) * 100) : 0
-                  const remaining = Math.max(0, (goal.targetAmount || 0) - (goal.currentAmount || 0))
+                  const color = goal.color || '#3B82F6'
+                  const pct = (!goal.noTarget && goal.targetAmount > 0)
+                    ? Math.min(100, ((goal.currentAmount || 0) / goal.targetAmount) * 100)
+                    : null
+                  const remaining = pct !== null ? Math.max(0, (goal.targetAmount || 0) - (goal.currentAmount || 0)) : null
                   return (
-                    <div key={goal.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: 14 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
-                        <span style={{ fontSize: 28 }}>{goal.emoji || '🎯'}</span>
+                    <div key={goal.id} style={{
+                      background: 'var(--surface)', border: '1px solid var(--border)',
+                      borderLeft: `4px solid ${color}`, borderRadius: 14, padding: 14,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: pct !== null ? 10 : 0 }}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                          background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color,
+                        }}>
+                          <IconSavings size={18} />
+                        </div>
                         <div style={{ flex: 1 }}>
                           <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{goal.name}</p>
                           {goal.notes && <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{goal.notes}</p>}
+                          {goal.noTarget && (
+                            <p style={{ margin: '4px 0 0', fontSize: 13, fontWeight: 700, color: '#27AE60' }}>
+                              {fmt(goal.currentAmount || 0)} odłożone
+                            </p>
+                          )}
                         </div>
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button className="t-btn" onClick={() => { setEditGoal(goal); setShowForm(true) }}><IconEdit size={13} /></button>
@@ -87,20 +105,22 @@ export default function SavingsGoals({ user, onClose }) {
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
-                        <span style={{ color: '#27AE60', fontWeight: 700 }}>{fmt(goal.currentAmount || 0)}</span>
-                        <span style={{ color: 'var(--text-muted)' }}>cel: {fmt(goal.targetAmount || 0)}</span>
-                      </div>
-
-                      <div className="progress-bar-wrap">
-                        <div className="progress-bar" style={{ width: `${pct}%`, background: pct >= 100 ? '#27AE60' : 'var(--primary)' }} />
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-                        <span>{Math.round(pct)}%</span>
-                        {pct < 100 && <span>brakuje {fmt(remaining)}</span>}
-                        {pct >= 100 && <span style={{ color: '#27AE60' }}>Cel osiągnięty!</span>}
-                      </div>
+                      {pct !== null && (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
+                            <span style={{ color: '#27AE60', fontWeight: 700 }}>{fmt(goal.currentAmount || 0)}</span>
+                            <span style={{ color: 'var(--text-muted)' }}>cel: {fmt(goal.targetAmount || 0)}</span>
+                          </div>
+                          <div className="progress-bar-wrap">
+                            <div className="progress-bar" style={{ width: `${pct}%`, background: pct >= 100 ? '#27AE60' : color }} />
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+                            <span>{Math.round(pct)}%</span>
+                            {pct < 100 && <span>brakuje {fmt(remaining)}</span>}
+                            {pct >= 100 && <span style={{ color: '#27AE60' }}>Cel osiągnięty!</span>}
+                          </div>
+                        </>
+                      )}
                     </div>
                   )
                 })}
@@ -119,22 +139,24 @@ export default function SavingsGoals({ user, onClose }) {
 
 function GoalForm({ user, editData, onClose }) {
   const [name, setName]         = useState(editData?.name || '')
-  const [emoji, setEmoji]       = useState(editData?.emoji || '🎯')
+  const [color, setColor]       = useState(editData?.color || GOAL_COLORS[9])
+  const [noTarget, setNoTarget] = useState(editData?.noTarget ?? false)
   const [target, setTarget]     = useState(editData?.targetAmount?.toString() || '')
   const [current, setCurrent]   = useState(editData?.currentAmount?.toString() || '')
   const [notes, setNotes]       = useState(editData?.notes || '')
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
-  const [emojiExpanded, setEmojiExpanded] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) { setError('Wpisz nazwę celu'); return }
-    if (!target || parseFloat(target) <= 0) { setError('Podaj kwotę docelową'); return }
+    if (!noTarget && (!target || parseFloat(target) <= 0)) { setError('Podaj kwotę docelową'); return }
     setSaving(true)
     const data = {
-      name: name.trim(), emoji,
-      targetAmount: parseFloat(target),
+      name: name.trim(),
+      color,
+      noTarget,
+      targetAmount: noTarget ? 0 : parseFloat(target),
       currentAmount: parseFloat(current) || 0,
       notes: notes.trim(),
       updatedAt: Timestamp.now()
@@ -157,49 +179,59 @@ function GoalForm({ user, editData, onClose }) {
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleSubmit} className="form">
-          <div className="form-group">
-            <label>Emoji</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 28 }}>{emoji}</span>
-              <input type="text" className="form-input" value={emoji}
-                onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setEmoji(v) }}
-                placeholder="emoji" maxLength={4}
-                style={{ width: 72, textAlign: 'center', fontSize: 18, margin: 0 }} />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
-            </div>
-            <div className="mood-emotions">
-              {(emojiExpanded ? GOAL_EMOJIS : GOAL_EMOJIS.slice(0, 15)).map(e => (
-                <button key={e} type="button"
-                  className={`mood-emotion-btn ${emoji === e ? 'active' : ''}`}
-                  style={emoji === e ? { borderColor: 'var(--primary)', background: 'rgba(201,75,40,0.1)', color: 'var(--text)' } : {}}
-                  onClick={() => setEmoji(e)}
-                >{e}</button>
-              ))}
-            </div>
-            <button type="button" onClick={() => setEmojiExpanded(v => !v)}
-              style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
-              {emojiExpanded ? '▲ Mniej' : `▼ Więcej (${GOAL_EMOJIS.length - 15})`}
-            </button>
-          </div>
 
           <div className="form-group">
             <label>Nazwa celu</label>
             <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)}
-              placeholder="np. Wakacje, Nowy laptop..." maxLength={50} />
+              placeholder="np. Wakacje, Nowy laptop, Wkład własny..." autoFocus maxLength={50} />
           </div>
 
-          <div className="form-row">
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Cel (kwota)</label>
-              <input type="number" inputMode="decimal" step="0.01" min="0" className="form-input" value={target}
-                onChange={e => setTarget(e.target.value)} placeholder="0,00" />
+          <div className="form-group">
+            <label>Kolor</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {GOAL_COLORS.map(c => (
+                <button key={c} type="button" onClick={() => setColor(c)} style={{
+                  width: 26, height: 26, borderRadius: '50%', background: c, cursor: 'pointer',
+                  border: `3px solid ${color === c ? 'var(--text)' : 'transparent'}`,
+                  transition: 'transform .15s', transform: color === c ? 'scale(1.2)' : 'scale(1)',
+                }} />
+              ))}
             </div>
-            <div className="form-group" style={{ flex: 1 }}>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
+              <input type="checkbox" checked={noTarget} onChange={e => setNoTarget(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }} />
+              Odkładanie bez celu kwotowego
+            </label>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+              Zaznacz, jeśli chcesz tylko śledzić ile odkładasz, bez konkretnej docelowej kwoty.
+            </p>
+          </div>
+
+          {!noTarget && (
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Cel (kwota)</label>
+                <input type="number" step="0.01" min="0" className="form-input" value={target}
+                  onChange={e => setTarget(e.target.value)} placeholder="0,00" />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>Odłożone dotąd</label>
+                <input type="number" step="0.01" min="0" className="form-input" value={current}
+                  onChange={e => setCurrent(e.target.value)} placeholder="0,00" />
+              </div>
+            </div>
+          )}
+
+          {noTarget && (
+            <div className="form-group">
               <label>Odłożone dotąd</label>
               <input type="number" inputMode="decimal" step="0.01" min="0" className="form-input" value={current}
                 onChange={e => setCurrent(e.target.value)} placeholder="0,00" />
             </div>
-          </div>
+          )}
 
           <div className="form-group">
             <label>Notatka (opcjonalna)</label>

@@ -3,7 +3,7 @@ import { collection, onSnapshot, orderBy, query, doc, updateDoc, arrayUnion, arr
 import { db } from '../../firebase/config'
 import { format, startOfWeek, addDays, subDays, subWeeks, addWeeks, startOfMonth, getDaysInMonth, getDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import HabitForm, { HABIT_CATEGORIES } from './HabitForm'
+import HabitForm, { HABIT_CATEGORIES, DEFAULT_HABIT_CATEGORIES } from './HabitForm'
 import PauseForm from './PauseForm'
 import { CatIcon, IconFlame, IconStar, IconCheck, IconPause } from '../Icons'
 import { Ring, Heatmap, Spark } from '../ChartPrimitives'
@@ -81,6 +81,7 @@ function buildHeatmapData(habits, weeks, pauses = []) {
 export default function HabitsDashboard({ user, onMoodClick }) {
   const [habits, setHabits]         = useState([])
   const [pauses, setPauses]         = useState([])
+  const [customCats, setCustomCats] = useState([])
   const [loading, setLoading]       = useState(true)
   const [showForm, setShowForm]     = useState(false)
   const [showPause, setShowPause]   = useState(false)
@@ -118,12 +119,18 @@ export default function HabitsDashboard({ user, onMoodClick }) {
     return onSnapshot(q, snap => setPauses(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
 
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'habitCategories'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, label: d.data().name, icon: 'IcTag', color: d.data().color }))))
+  }, [user.uid])
+
   const toggleDay = async (habit, date) => {
     const ref = doc(db, 'users', user.uid, 'habits', habit.id)
     const done = habit.completedDates?.includes(date)
     await updateDoc(ref, { completedDates: done ? arrayRemove(date) : arrayUnion(date) })
   }
 
+  const allCategories  = [...DEFAULT_HABIT_CATEGORIES, ...customCats]
   const activeHabits   = habits.filter(h => !h.archived)
   const archivedHabits = habits.filter(h => h.archived)
   const filtered = activeHabits.filter(h => filterCat === 'all' || h.category === filterCat)
@@ -226,35 +233,36 @@ export default function HabitsDashboard({ user, onMoodClick }) {
 
       {/* ===== DZIŚ ===== */}
       {view === 'today' && (() => {
-        const dayStrip = Array.from({ length: 7 }, (_, i) => {
-          const d = subDays(new Date(), 6 - i)
-          return { date: format(d, 'yyyy-MM-dd'), label: format(d, 'EEE', { locale: pl }), dayNum: format(d, 'd') }
-        })
         const selDue = filtered.filter(h => {
           const s = isHabitDue(h, selectedDay, pauses)
           return s !== 'before-start' && s !== 'after-end'
         })
+        const selDateObj  = new Date(selectedDay + 'T12:00:00')
+        const isToday     = selectedDay === TODAY
+        const isFuture    = selectedDay > TODAY
+        const dayLabel    = format(selDateObj, 'EEEE, d MMMM', { locale: pl })
+        const goBack  = () => setSelectedDay(format(subDays(selDateObj, 1), 'yyyy-MM-dd'))
+        const goFwd   = () => setSelectedDay(format(addDays(selDateObj, 1), 'yyyy-MM-dd'))
         return (
           <>
-            {/* Day strip */}
-            <div className="day-strip" style={{ marginBottom: 14 }}>
-              {dayStrip.map(d => (
-                <button key={d.date}
-                  className={`day-strip-item ${d.date === selectedDay ? 'active' : ''}`}
-                  onClick={() => setSelectedDay(d.date)}
-                >
-                  <span className="day-strip-lbl">{d.label}</span>
-                  <span className="day-strip-num">{d.dayNum}</span>
-                </button>
-              ))}
+            {/* Single day navigator */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px 14px', marginBottom: 14 }}>
+              <button className="month-btn" onClick={goBack} style={{ width: 32, height: 32 }}>‹</button>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'capitalize' }}>{dayLabel}</div>
+                {isToday && <div style={{ fontSize: 10, color: 'var(--primary)', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2 }}>Dziś</div>}
+              </div>
+              <button className="month-btn" onClick={goFwd} style={{ width: 32, height: 32, opacity: isToday ? 0.3 : 1 }} disabled={isToday}>›</button>
             </div>
 
             {/* Category filter */}
             {activeHabits.length > 0 && (
               <div className="habit-cat-filter" style={{ marginBottom: 12 }}>
                 <button className={`habit-cat-chip ${filterCat === 'all' ? 'active' : ''}`} onClick={() => setFilterCat('all')}>Wszystkie</button>
-                {HABIT_CATEGORIES.filter(c => activeHabits.some(h => h.category === c.id)).map(c => (
-                  <button key={c.id} className={`habit-cat-chip ${filterCat === c.id ? 'active' : ''}`} onClick={() => setFilterCat(c.id)}>
+                {allCategories.filter(c => activeHabits.some(h => h.category === c.id)).map(c => (
+                  <button key={c.id} className={`habit-cat-chip ${filterCat === c.id ? 'active' : ''}`}
+                    style={filterCat === c.id ? { borderColor: c.color, color: c.color, background: c.color + '22' } : {}}
+                    onClick={() => setFilterCat(c.id)}>
                     <CatIcon categoryId={c.id} emoji={c.icon} size={13} /> {c.label}
                   </button>
                 ))}

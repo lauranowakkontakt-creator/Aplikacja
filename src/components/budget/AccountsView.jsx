@@ -110,24 +110,45 @@ export default function AccountsView({ user, privateMode }) {
         <div className="accounts-list">
           {accounts.map(acc => {
             const excluded = excludedFromTotal.includes(acc.id)
+            const color = acc.color || '#3B82F6'
+            const balance = acc.balance || 0
+            const Ic = ACCOUNT_ICON_COMPS[acc.type] || IconBank
             return (
-              <div key={acc.id} className="account-item" onClick={() => setSelected(acc)}
-                style={{ opacity: excluded ? 0.45 : 1 }}
+              <div key={acc.id} onClick={() => setSelected(acc)} style={{
+                opacity: excluded ? 0.45 : 1,
+                background: `linear-gradient(135deg, ${color}08 0%, var(--surface) 60%)`,
+                border: '1px solid var(--border)',
+                borderLeft: `4px solid ${color}`,
+                borderRadius: 'var(--r)',
+                padding: '14px 16px',
+                display: 'flex', alignItems: 'center', gap: 14,
+                cursor: 'pointer', transition: 'background .15s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${color}14 0%, var(--surface2) 60%)`}
+                onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${color}08 0%, var(--surface) 60%)`}
               >
-                <div className="account-icon-wrap" style={{ background: acc.color + '1A', borderColor: acc.color + '40', color: acc.color }}>
-                  {(() => { const Ic = ACCOUNT_ICON_COMPS[acc.type] || IconBank; return <Ic size={22} /> })()}
+                <div style={{
+                  width: 46, height: 46, borderRadius: 13, flexShrink: 0,
+                  background: color + '22', border: `1px solid ${color}40`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color
+                }}>
+                  <Ic size={22} />
                 </div>
-                <div className="account-info">
-                  <span className="account-name">{acc.name}</span>
-                  <span className="account-type">{acc.typeName || acc.type}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{acc.name}</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>{acc.typeName || acc.type}</div>
                 </div>
-                <div className="account-right">
-                  <span className="account-balance">{privateMode ? '••••' : fmtAcc(acc.balance || 0, acc.currency || 'PLN')}</span>
-                  <button className="t-btn" title={excluded ? 'Uwzględnij w sumie' : 'Wyklucz z sumy'} onClick={(e) => toggleExcluded(acc.id, e)}>
-                    {excluded ? <IconEyeOff size={13} /> : <IconEye size={13} />}
-                  </button>
-                  <button className="t-btn" onClick={(e) => { e.stopPropagation(); setEditAccount(acc); setShowForm(true) }}><IconEdit size={13} /></button>
-                  <button className="t-btn delete" onClick={(e) => handleDelete(acc.id, e)}><IconTrash size={13} /></button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
+                    {privateMode ? '••••' : fmtAcc(balance, acc.currency || 'PLN')}
+                  </div>
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    <button className="t-btn" title={excluded ? 'Uwzględnij w sumie' : 'Wyklucz z sumy'} onClick={(e) => toggleExcluded(acc.id, e)}>
+                      {excluded ? <IconEyeOff size={13} /> : <IconEye size={13} />}
+                    </button>
+                    <button className="t-btn" onClick={(e) => { e.stopPropagation(); setEditAccount(acc); setShowForm(true) }}><IconEdit size={13} /></button>
+                    <button className="t-btn delete" onClick={(e) => handleDelete(acc.id, e)}><IconTrash size={13} /></button>
+                  </div>
                 </div>
               </div>
             )

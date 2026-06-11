@@ -247,10 +247,17 @@ export default function Dashboard({ user }) {
               {kicker('Saldo łączne')}
               {!privateMode ? (
                 <>
+                  {/* Primary PLN balance */}
                   <div style={{ fontSize: 32, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em', color: totalPLN >= 0 ? 'var(--income)' : 'var(--expense)' }}>
                     {fmtHero(totalPLN).int}
                     <span style={{ fontSize: 18, fontWeight: 400, color: 'var(--text-muted)' }}>{fmtHero(totalPLN).dec} zł</span>
                   </div>
+                  {/* Other currencies */}
+                  {Object.entries(totalsByCurrency).filter(([cur]) => cur !== 'PLN').map(([cur, amt]) => (
+                    <div key={cur} style={{ fontSize: 14, fontWeight: 600, color: amt >= 0 ? 'var(--income)' : 'var(--expense)', marginTop: 4, opacity: 0.75 }}>
+                      {fmtAcc(amt, cur)}
+                    </div>
+                  ))}
                   {expenseTrend !== null && (
                     <div style={{ fontSize: 11, color: expenseTrend > 0 ? 'var(--expense)' : 'var(--income)', marginTop: 6, fontWeight: 600 }}>
                       {expenseTrend > 0 ? '↑' : '↓'} {Math.abs(expenseTrend)}% vs poprzedni miesiąc
@@ -316,7 +323,7 @@ export default function Dashboard({ user }) {
                 data={barData}
                 height={130}
                 accent="var(--expense)"
-                fmt={v => fmtAcc(v)}
+                fmt={v => privateMode ? '••' : fmtAcc(v)}
               />
             </div>
 

@@ -8,7 +8,7 @@ import {
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag, IconCalendar, IconChevronDown } from '../Icons'
 import { Ring } from '../ChartPrimitives'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -27,11 +27,10 @@ const LIST_ICONS  = [
   '🙏','✝️','🕊️','📖','⚡','🎭','🌊','🏔️','🦁','🌸',
 ]
 const LIST_COLORS = [
-  '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',
-  '#22C55E','#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1',
-  '#8B5CF6','#A855F7','#EC4899','#F43F5E','#64748B','#6B7280',
-  '#059669','#0EA5E9','#DC2626','#7C3AED','#0D9488','#4F46E5',
-  '#BE185D','#6B9E72','#4A90D9','#1ABC9C','#E74C3C','#92400E',
+  '#EF4444','#F97316','#F59E0B','#EAB308','#84CC16','#22C55E',
+  '#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1','#8B5CF6',
+  '#A855F7','#EC4899','#F43F5E','#64748B','#0D9488','#0EA5E9',
+  '#DC2626','#7C3AED','#4F46E5','#BE185D','#059669','#1ABC9C',
 ]
 const pOrder      = { high: 0, medium: 1, low: 2 }
 
@@ -214,7 +213,7 @@ export default function TodoDashboard({ user }) {
                 >
                   <CatIcon categoryId={null} emoji={l.icon} size={12} /> {l.name}
                   {cnt > 0 && <span style={{ marginLeft: 5, fontSize: 10, background: 'var(--surface3)', borderRadius: 99, padding: '1px 6px' }}>{cnt}</span>}
-                  {isActive && <span onClick={e => { e.stopPropagation(); setEditList(l) }} style={{ marginLeft: 4, opacity: 0.6, fontSize: 11 }}>✏️</span>}
+                  {isActive && <span onClick={e => { e.stopPropagation(); setEditList(l) }} style={{ marginLeft: 4, opacity: 0.6, fontSize: 11, display: 'inline-flex', alignItems: 'center' }}><IconEdit size={10}/></span>}
                 </button>
               )
             })}
@@ -364,8 +363,8 @@ function TodoItem({ todo, lists, onToggle, onEdit, onDelete }) {
             </span>
           )}
           {date && (
-            <span style={{ fontSize: 11, fontWeight: overdue || dueToday ? 600 : 400, color: overdue ? '#E53935' : dueToday ? '#FB8C00' : 'var(--text-muted)' }}>
-              {overdue ? '⚠ ' : dueToday ? '⏰ ' : '📅 '}
+            <span style={{ fontSize: 11, fontWeight: overdue || dueToday ? 600 : 400, color: overdue ? '#E53935' : dueToday ? '#FB8C00' : 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <IconCalendar size={11} style={{ color: overdue ? '#E53935' : dueToday ? '#FB8C00' : 'var(--text-muted)', flexShrink: 0 }} />
               {format(date, 'd MMM', { locale: pl })}
             </span>
           )}
@@ -506,7 +505,7 @@ function TodoStats({ todos, lists }) {
                 done={l.done} active={l.active} />
             ))}
             {(noListDone > 0 || noListActive > 0) && (
-              <ListStatRow icon="📌" name="Bez listy" color="var(--text-muted)"
+              <ListStatRow icon="IconMore" name="Bez listy" color="var(--text-muted)"
                 done={noListDone} active={noListActive} />
             )}
           </div>

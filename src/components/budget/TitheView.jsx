@@ -146,7 +146,7 @@ export default function TitheView({ user, onClose }) {
             </div>
 
             <p className="tithe-note">
-              Kliknij ⚙️ aby wybrać które kategorie przychodów wliczają się w podstawę.
+              Kliknij <IconSettings size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 2 }} /> aby wybrać które kategorie przychodów wliczają się w podstawę.
               Kwoty "Już oddane" pobierane są z kategorii Dziesięcina i Ofiara w transakcjach.
             </p>
           </div>
