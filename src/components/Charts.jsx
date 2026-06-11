@@ -25,7 +25,7 @@ const PERIODS = [
   { id: 'year',  label: 'Rok'     },
 ]
 
-export default function Charts({ user }) {
+export default function Charts({ user, privateMode = false }) {
   const [tab, setTab]             = useState('general')
   const [chartType, setChartType] = useState('list')
   const [period, setPeriod]       = useState('month')
@@ -174,6 +174,7 @@ export default function Charts({ user }) {
               totalExp={totalExp} totalInc={totalInc} balance={balance}
               period={period} pivot={pivot} allTx={filtered}
               yearTx={accountFilter === 'all' ? allYearTx : allYearTx.filter(t => t.accountId === accountFilter)}
+              privateMode={privateMode}
             />
           )}
           {tab === 'expense' && (
@@ -181,6 +182,7 @@ export default function Charts({ user }) {
               transactions={expenses} total={totalExp}
               chartType={chartType} label="Wydatki" catColorMap={catColorMap}
               accentColor="var(--expense)"
+              privateMode={privateMode}
             />
           )}
           {tab === 'income' && (
@@ -188,6 +190,7 @@ export default function Charts({ user }) {
               transactions={incomes} total={totalInc}
               chartType={chartType} label="Dochody" catColorMap={catColorMap}
               accentColor="var(--income)"
+              privateMode={privateMode}
               key="income"
             />
           )}
@@ -198,7 +201,7 @@ export default function Charts({ user }) {
 }
 
 /* ─── General Tab ─── */
-function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pivot, allTx, yearTx = [] }) {
+function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pivot, allTx, yearTx = [], privateMode = false }) {
   const savingsRate = totalInc > 0 ? Math.round((balance / totalInc) * 100) : null
   const on = useMounted(80)
 
@@ -227,18 +230,18 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
           margin: '0 0 16px', fontSize: 36, fontWeight: 800, letterSpacing: '-0.02em',
           color: balance >= 0 ? 'var(--income)' : 'var(--expense)', lineHeight: 1.1,
         }}>
-          {balance >= 0 ? '+' : '−'}{fmt(Math.abs(balance))}
+          {privateMode ? '••' : `${balance >= 0 ? '+' : '−'}${fmt(Math.abs(balance))}`}
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1px 1fr', gap: 0, alignItems: 'center' }}>
           <div>
             <p style={{ margin: '0 0 2px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Przychody</p>
-            <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--income)' }}>+{fmt(totalInc)}</p>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--income)' }}>{privateMode ? '••' : `+${fmt(totalInc)}`}</p>
           </div>
           <div style={{ width: 1, height: 32, background: 'var(--border)', justifySelf: 'center' }} />
           <div style={{ paddingLeft: 16 }}>
             <p style={{ margin: '0 0 2px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Wydatki</p>
-            <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--expense)' }}>−{fmt(totalExp)}</p>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--expense)' }}>{privateMode ? '••' : `−${fmt(totalExp)}`}</p>
           </div>
         </div>
 
@@ -271,7 +274,7 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
             ...(totalExp > 0 ? [{ label: 'Wydatki', value: totalExp, color: 'var(--expense)' }] : []),
           ]} height={12} />
           <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
-            {[['var(--income)','Przychody', fmt(totalInc)],['var(--expense)','Wydatki', fmt(totalExp)]].map(([color, lbl, val]) => (
+            {[['var(--income)','Przychody', privateMode ? '••' : fmt(totalInc)],['var(--expense)','Wydatki', privateMode ? '••' : fmt(totalExp)]].map(([color, lbl, val]) => (
               <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lbl}</span>
@@ -291,11 +294,11 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
           <div className="g2">
             <div style={{ minWidth: 0 }}>
               <p style={{ margin: '0 0 8px', fontSize: 9, color: 'var(--income)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Przychody</p>
-              <BarChartSVG data={incomeData} height={110} accent="var(--income)" fmt={fmt} />
+              <BarChartSVG data={incomeData} height={110} accent="var(--income)" fmt={privateMode ? () => '••' : fmt} />
             </div>
             <div style={{ minWidth: 0 }}>
               <p style={{ margin: '0 0 8px', fontSize: 9, color: 'var(--expense)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Wydatki</p>
-              <BarChartSVG data={expenseData} height={110} accent="var(--expense)" fmt={fmt} />
+              <BarChartSVG data={expenseData} height={110} accent="var(--expense)" fmt={privateMode ? () => '••' : fmt} />
             </div>
           </div>
         </div>
@@ -305,7 +308,7 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
 }
 
 /* ─── Category Tab ─── */
-function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, accentColor }) {
+function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, accentColor, privateMode = false }) {
   const [drillDown, setDrillDown] = useState(null)
 
   const hasSubcatSet = new Set()
@@ -320,6 +323,20 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
   const data = Object.values(byCat).sort((a, b) => b.value - a.value)
   data.forEach((item, i) => {
     item.chartColor = catColorMap[item.categoryId] || FALLBACK_COLORS[i % FALLBACK_COLORS.length]
+  })
+
+  // Pre-compute subcategory breakdown for hover display
+  const subcatMap = {}
+  transactions.forEach(t => {
+    if (!t.subcategoryId) return
+    const cid = t.categoryId || 'Inne'
+    if (!subcatMap[cid]) subcatMap[cid] = {}
+    if (!subcatMap[cid][t.subcategoryId]) subcatMap[cid][t.subcategoryId] = { name: t.subcategoryLabel || 'Ogólne', value: 0 }
+    subcatMap[cid][t.subcategoryId].value += t.amount
+  })
+  data.forEach(item => {
+    const sc = subcatMap[item.categoryId]
+    if (sc) item.subcats = Object.values(sc).sort((a, b) => b.value - a.value)
   })
 
   if (drillDown) {
@@ -350,9 +367,9 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
         </button>
 
         {chartType === 'pie' ? (
-          <DonutChart data={subData} colors={subColors} total={subTotal} />
+          <DonutChart data={subData} colors={subColors} total={subTotal} privateMode={privateMode} />
         ) : (
-          <ProgressList data={subData} total={subTotal} colors={subColors} />
+          <ProgressList data={subData} total={subTotal} colors={subColors} privateMode={privateMode} />
         )}
       </div>
     )
@@ -368,7 +385,7 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {chartType === 'pie' ? (
-        <DonutChart data={data} colors={data.map(d => d.chartColor)} total={total} />
+        <DonutChart data={data} colors={data.map(d => d.chartColor)} total={total} privateMode={privateMode} />
       ) : (
         <ProgressList
           data={data} total={total}
@@ -381,6 +398,7 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
           renderIcon={(item) => (
             <CatIcon categoryId={item.categoryId} emoji={item.icon} size={15} />
           )}
+          privateMode={privateMode}
         />
       )}
     </div>
@@ -388,7 +406,8 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
 }
 
 /* ─── Progress bar list ─── */
-function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon }) {
+function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon, privateMode = false }) {
+  const [hoveredIdx, setHoveredIdx] = useState(null)
   const maxVal = data[0]?.value || 1
   const on = useMounted(100)
 
@@ -399,17 +418,21 @@ function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon 
         const relPct = (item.value / maxVal) * 100
         const color  = colors[i]
         const clickable = hasSubcat?.has(item.categoryId)
+        const isHovered = hoveredIdx === i
 
         return (
           <div
             key={item.name}
             onClick={() => onItemClick?.(item)}
             style={{
-              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14,
-              padding: '12px 14px', cursor: clickable ? 'pointer' : 'default', transition: 'border-color 0.15s, background 0.15s',
+              background: isHovered && clickable ? 'var(--surface2)' : 'var(--surface)',
+              border: `1px solid ${isHovered && clickable ? color : 'var(--border)'}`,
+              borderRadius: 14, padding: '12px 14px',
+              cursor: clickable ? 'pointer' : 'default',
+              transition: 'border-color 0.15s, background 0.15s',
             }}
-            onMouseEnter={e => { if (clickable) { e.currentTarget.style.borderColor = color; e.currentTarget.style.background = 'var(--surface2)' } }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface)' }}
+            onMouseEnter={() => setHoveredIdx(i)}
+            onMouseLeave={() => setHoveredIdx(null)}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
               <div style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color }}>
@@ -419,7 +442,7 @@ function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon 
                 <p style={{ margin: 0, fontSize: 14, fontWeight: 600, lineHeight: 1.2 }}>{item.name}</p>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <p style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{fmt(item.value)}</p>
+                <p style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{privateMode ? '••' : fmt(item.value)}</p>
                 <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>{pct.toFixed(1)}%</p>
               </div>
               {clickable && <span style={{ fontSize: 14, color: 'var(--text-muted)', flexShrink: 0 }}>›</span>}
@@ -430,6 +453,26 @@ function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon 
                 transition: `width .8s cubic-bezier(.4,0,.2,1) ${i * .05}s`,
               }} />
             </div>
+
+            {/* Subcategory breakdown on hover */}
+            {isHovered && item.subcats?.length > 0 && (
+              <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {item.subcats.slice(0, 6).map(sc => {
+                  const scPct = item.value > 0 ? (sc.value / item.value * 100) : 0
+                  return (
+                    <div key={sc.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 5, height: 5, borderRadius: '50%', background: color, opacity: 0.5, flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: 12, color: 'var(--text-muted)' }}>{sc.name}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)', minWidth: 36, textAlign: 'right' }}>{scPct.toFixed(0)}%</span>
+                      {!privateMode && <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500, minWidth: 60, textAlign: 'right' }}>{fmt(sc.value)}</span>}
+                    </div>
+                  )
+                })}
+                {item.subcats.length > 6 && (
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 13 }}>+{item.subcats.length - 6} więcej →</span>
+                )}
+              </div>
+            )}
           </div>
         )
       })}
@@ -437,14 +480,14 @@ function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon 
       {/* Total row */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--surface2)', borderRadius: 12, marginTop: 2 }}>
         <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>Łącznie</span>
-        <span style={{ fontSize: 17, fontWeight: 800 }}>{fmt(total)}</span>
+        <span style={{ fontSize: 17, fontWeight: 800 }}>{privateMode ? '••' : fmt(total)}</span>
       </div>
     </div>
   )
 }
 
 /* ─── Donut chart z SVG (zastępuje recharts PieChart) ─── */
-function DonutChart({ data, colors, total }) {
+function DonutChart({ data, colors, total, privateMode = false }) {
   const [active, setActive] = useState(null)
   const on = useMounted(120)
 
@@ -490,13 +533,13 @@ function DonutChart({ data, colors, total }) {
           {displayItem ? (
             <>
               <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{displayItem.name}</p>
-              <p style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 800, color: colors[active] }}>{fmt(displayItem.value)}</p>
+              <p style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 800, color: colors[active] }}>{privateMode ? '••' : fmt(displayItem.value)}</p>
               <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>{total > 0 ? (displayItem.value / total * 100).toFixed(1) : 0}%</p>
             </>
           ) : (
             <>
               <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Łącznie</p>
-              <p style={{ margin: '2px 0 0', fontSize: 20, fontWeight: 800 }}>{fmt(total)}</p>
+              <p style={{ margin: '2px 0 0', fontSize: 20, fontWeight: 800 }}>{privateMode ? '••' : fmt(total)}</p>
             </>
           )}
         </div>
@@ -514,7 +557,7 @@ function DonutChart({ data, colors, total }) {
             >
               <div style={{ width: 10, height: 10, borderRadius: 3, background: colors[i], flexShrink: 0 }} />
               <span style={{ flex: 1, fontSize: 13 }}>{item.name}</span>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{fmt(item.value)}</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{privateMode ? '••' : fmt(item.value)}</span>
               <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 40, textAlign: 'right' }}>{pct.toFixed(1)}%</span>
             </div>
           )

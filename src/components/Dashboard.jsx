@@ -511,7 +511,7 @@ export default function Dashboard({ user }) {
         </>
       )}
       {activeTab === 'accounts'  && <AccountsView user={user} privateMode={privateMode} />}
-      {activeTab === 'charts'    && <Charts user={user} />}
+      {activeTab === 'charts'    && <Charts user={user} privateMode={privateMode} />}
       {activeTab === 'regular'   && <RegularPayments user={user} />}
       {activeTab === 'shopping'  && <ShoppingList user={user} />}
 

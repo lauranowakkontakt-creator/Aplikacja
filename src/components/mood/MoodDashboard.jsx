@@ -9,6 +9,7 @@ import {
 import { IconTrash, IconChevronLeft, IconChevronRight } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import EmotionWheel, { ALL_EMOTIONS } from './EmotionWheel'
 
 // ── 5-level mood scale ────────────────────────────────────────────────────────
 const MOODS = [
@@ -58,7 +59,9 @@ function MoodFace({ mood, size = 30, active }) {
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
 
 function findEmotion(id) {
-  return EMOTION_CHIPS.find(e => e.id === id) || { id, label: id, color: 'var(--text-muted)' }
+  return ALL_EMOTIONS.find(e => e.id === id)
+    || EMOTION_CHIPS.find(e => e.id === id)
+    || { id, label: id, color: 'var(--text-muted)' }
 }
 
 // ── Root component ────────────────────────────────────────────────────────────
@@ -190,26 +193,32 @@ function TodayView({ user, logs, today }) {
           </div>
         </div>
 
-        {/* Emotion chips */}
+        {/* Emotion wheel */}
         <div>
           <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 12 }}>
-            Emocje · wybierz kilka
+            Emocje · kliknij na kole
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {EMOTION_CHIPS.map(em => {
-              const active = emotions.has(em.id)
-              return (
-                <button key={em.id} onClick={() => toggleEmotion(em.id)} style={{
-                  padding: '6px 14px', borderRadius: 99, fontSize: 13, cursor: 'pointer',
-                  border: `1.5px solid ${active ? em.color : 'var(--border)'}`,
-                  background: active ? em.color + '22' : 'transparent',
-                  color: active ? em.color : 'var(--text-sub)',
-                  fontWeight: active ? 700 : 400,
-                  transition: 'all .15s',
-                }}>{em.label}</button>
-              )
-            })}
-          </div>
+          <EmotionWheel
+            selected={emotions}
+            onToggle={(id) => {
+              if (id === null) { setEmotions(new Set()); return }
+              toggleEmotion(id)
+            }}
+          />
+          {emotions.size > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+              {Array.from(emotions).map(id => {
+                const em = findEmotion(id)
+                return (
+                  <span key={id} style={{
+                    padding: '3px 10px', borderRadius: 99, fontSize: 12,
+                    background: em.color + '22', color: em.color,
+                    border: `1px solid ${em.color}44`, fontWeight: 600,
+                  }}>{em.label}</span>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Note */}

@@ -1018,10 +1018,12 @@ input[type="date"]::-webkit-datetime-edit-fields-wrapper { padding: 0; }
 @media (max-width: 880px) {
   .mobile-only { display: block !important; }
   .desktop-only { display: none !important; }
+  .month-range-row.mobile-only { display: flex !important; }
 }
 @media (min-width: 881px) {
   .mobile-only { display: none !important; }
   .desktop-only { display: block !important; }
+  .month-nav.desktop-only { display: flex !important; }
 }
 
 /* ===== BOTTOM NAV SAFE AREA ===== */
