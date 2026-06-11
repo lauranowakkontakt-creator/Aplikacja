@@ -19,6 +19,7 @@ import CategoriesView from './budget/CategoriesView'
 import ShoppingList from './budget/ShoppingList'
 import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, CatIcon } from './Icons'
 import { Donut, FlowBar, BarChartSVG, Spark } from './ChartPrimitives'
+import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 
 const TABS = [
   { id: 'overview',     label: 'Przegląd',   Icon: IconChart },
@@ -120,6 +121,8 @@ export default function Dashboard({ user }) {
 
   const fmtAcc = (n, currency = 'PLN') =>
     new Intl.NumberFormat('pl-PL', { style: 'currency', currency }).format(n)
+  const curCode = getCurrencyCode()
+  const curSymbol = CURRENCIES.find(c => c.code === curCode)?.symbol || 'zł'
 
   const fmtHero = (n) => {
     const abs = Math.abs(n)
@@ -271,12 +274,12 @@ export default function Dashboard({ user }) {
               <div style={{ marginTop: 16 }}>
                 {kicker('Wydatki / zostało')}
                 <FlowBar segments={[
-                  { value: expenses, color: 'var(--expense)', label: `Wydatki: ${fmtShort(expenses)} zł` },
-                  { value: Math.max(0, income - expenses), color: 'var(--income)', label: `Zostało: ${fmtShort(Math.max(0, income - expenses))} zł` },
+                  { value: expenses, color: 'var(--expense)', label: `Wydatki: ${fmt(expenses)}` },
+                  { value: Math.max(0, income - expenses), color: 'var(--income)', label: `Zostało: ${fmt(Math.max(0, income - expenses))}` },
                 ]} height={10} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                  <span style={{ fontSize: 11, color: 'var(--expense)' }}>Wydatki {!privateMode && fmtAcc(expenses)}</span>
-                  <span style={{ fontSize: 11, color: 'var(--income)' }}>Przychody {!privateMode && fmtAcc(income)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--expense)' }}>Wydatki {!privateMode && fmt(expenses)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--income)' }}>Przychody {!privateMode && fmt(income)}</span>
                 </div>
               </div>
             </div>
@@ -302,7 +305,7 @@ export default function Dashboard({ user }) {
                       <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <div style={{ width: 8, height: 8, borderRadius: 2, background: d.color, flexShrink: 0 }} />
                         <span style={{ fontSize: 11, flex: 1, color: 'var(--text-sub)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.name}</span>
-                        {!privateMode && <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{fmtShort(d.value)} zł</span>}
+                        {!privateMode && <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{fmt(d.value)}</span>}
                       </div>
                     ))}
                   </div>
@@ -323,17 +326,17 @@ export default function Dashboard({ user }) {
                 data={barData}
                 height={130}
                 accent="var(--expense)"
-                fmt={v => privateMode ? '••' : fmtAcc(v)}
+                fmt={v => privateMode ? '••' : fmt(v)}
               />
             </div>
 
             {/* Right: 2x2 mini metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {[
-                { color: 'var(--warn)',    Icon: IconChart,    label: 'Śr. dzienne', val: !privateMode ? fmtShort(avgDaily) + ' zł' : '••', spark: null },
-                { color: balance>=0?'var(--income)':'var(--expense)', Icon: IconSavings, label: 'Saldo m-ca', val: !privateMode ? fmtShort(balance) + ' zł' : '••', spark: null },
-                { color: 'var(--income)', Icon: IconArrowUp,   label: 'Przychody',   val: !privateMode ? fmtShort(income) + ' zł' : '••', spark: sparkData.slice(0, 7), sparkColor: 'var(--income)' },
-                { color: 'var(--expense)',Icon: IconArrowDown,  label: 'Wydatki',     val: !privateMode ? fmtShort(expenses) + ' zł' : '••', spark: sparkData.slice(0, 7), sparkColor: 'var(--expense)' },
+                { color: 'var(--warn)',    Icon: IconChart,    label: 'Śr. dzienne', val: !privateMode ? fmt(avgDaily) : '••', spark: null },
+                { color: balance>=0?'var(--income)':'var(--expense)', Icon: IconSavings, label: 'Saldo m-ca', val: !privateMode ? fmt(balance) : '••', spark: null },
+                { color: 'var(--income)', Icon: IconArrowUp,   label: 'Przychody',   val: !privateMode ? fmt(income) : '••', spark: sparkData.slice(0, 7), sparkColor: 'var(--income)' },
+                { color: 'var(--expense)',Icon: IconArrowDown,  label: 'Wydatki',     val: !privateMode ? fmt(expenses) : '••', spark: sparkData.slice(0, 7), sparkColor: 'var(--expense)' },
               ].map((m, i) => (
                 <div key={i} className="card-hover-glow" style={{
                   background: `linear-gradient(145deg, var(--surface) 50%, color-mix(in oklab, ${m.color} 6%, var(--surface)) 100%)`,
@@ -414,7 +417,7 @@ export default function Dashboard({ user }) {
                           </div>
                         </div>
                         <div style={{ fontSize: 14, fontWeight: 700, flexShrink: 0, color: isExpense ? 'var(--expense)' : 'var(--income)' }}>
-                          {!privateMode ? `${isExpense ? '−' : '+'}${fmtAcc(t.amount)}` : '••'}
+                          {!privateMode ? `${isExpense ? '−' : '+'}${fmt(t.amount)}` : '••'}
                         </div>
                       </div>
                     )
@@ -469,7 +472,7 @@ export default function Dashboard({ user }) {
                   <div style={{ paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Saldo miesiąca</span>
                     <span style={{ fontSize: 15, fontWeight: 700, color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
-                      {fmtHero(balance).int}{fmtHero(balance).dec} zł
+                      {fmt(balance)}
                     </span>
                   </div>
                 </>
@@ -479,19 +482,19 @@ export default function Dashboard({ user }) {
                   <div className="balance-hero-label">Saldo miesiąca</div>
                   <div className="balance-hero-amount">
                     <span className="balance-hero-main" style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(balance).int}</span>
-                    <span className="balance-hero-cents" style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(balance).dec} zł</span>
+                    <span className="balance-hero-cents" style={{ color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(balance).dec} {curSymbol}</span>
                   </div>
                 </>
               )}
               <div className="balance-hero-row">
                 <div className="balance-hero-stat">
                   <span className="balance-hero-stat-label">Przychody</span>
-                  <span className="balance-hero-stat-value" style={{ color: 'var(--income)' }}>+{income.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł</span>
+                  <span className="balance-hero-stat-value" style={{ color: 'var(--income)' }}>+{fmt(income)}</span>
                 </div>
                 <div className="balance-hero-stat-sep" />
                 <div className="balance-hero-stat">
                   <span className="balance-hero-stat-label">Wydatki</span>
-                  <span className="balance-hero-stat-value" style={{ color: 'var(--expense)' }}>−{expenses.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł</span>
+                  <span className="balance-hero-stat-value" style={{ color: 'var(--expense)' }}>−{fmt(expenses)}</span>
                 </div>
               </div>
             </div>

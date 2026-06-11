@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './firebase/config'
 import Login from './components/Login'
@@ -11,6 +11,7 @@ import PrayerDashboard from './components/prayer/PrayerDashboard'
 import SettingsDrawer from './components/SettingsDrawer'
 import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconSettings } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
+import { getCurrencyCode, setCurrencyCode } from './utils/currency'
 
 const DEV_USER = { uid: 'dev-user', displayName: 'Laura', photoURL: null, email: 'laura@mojswiat.app' }
 const DEV_MODE = import.meta.env.DEV
@@ -44,6 +45,12 @@ export default function App() {
   const [modules, setModules] = useState(() => buildModules())
 
   const handleModuleIconChange = () => setModules(buildModules())
+
+  const [currencyCode, setCurrencyCodeState] = useState(getCurrencyCode)
+  const handleCurrencyChange = useCallback((code) => {
+    setCurrencyCode(code)
+    setCurrencyCodeState(code)
+  }, [])
 
   useEffect(() => {
     if (DEV_MODE) return
@@ -203,6 +210,7 @@ export default function App() {
         onModuleChange={(id) => { setActiveModule(id); setDrawerOpen(false) }}
         user={user}
         onIconChange={handleModuleIconChange}
+        onCurrencyChange={handleCurrencyChange}
       />
     </div>
   )

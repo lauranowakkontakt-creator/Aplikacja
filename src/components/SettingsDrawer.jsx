@@ -3,8 +3,9 @@ import { signOut } from 'firebase/auth'
 import { auth } from '../firebase/config'
 import { IconClose, ICON_CATALOG } from './Icons'
 import { saveModuleIcon } from '../utils/iconPrefs'
+import { CURRENCIES, getCurrencyCode, setCurrencyCode } from '../utils/currency'
 
-export default function SettingsDrawer({ open, onClose, activeModule, modules, onModuleChange, onIconChange, user }) {
+export default function SettingsDrawer({ open, onClose, activeModule, modules, onModuleChange, onIconChange, onCurrencyChange, user }) {
   const handleLogout = () => { signOut(auth); onClose() }
   const displayName = user.displayName || 'Laura'
   const initials = displayName[0]?.toUpperCase() || 'L'
@@ -80,7 +81,7 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
           <div className="drawer-section">
             <p className="drawer-section-title">Ustawienia — {activeModule.label}</p>
             <div className="drawer-settings-list">
-              {activeModule.id === 'budget' && <BudgetSettings />}
+              {activeModule.id === 'budget' && <BudgetSettings onCurrencyChange={onCurrencyChange} />}
               {activeModule.id === 'habits' && <HabitsSettings />}
             </div>
           </div>
@@ -138,13 +139,35 @@ function IconPickerPanel({ module, onPick, onCancel }) {
   )
 }
 
-function BudgetSettings() {
+function BudgetSettings({ onCurrencyChange }) {
+  const [current, setCurrent] = useState(getCurrencyCode)
+
+  const handleSelect = (code) => {
+    setCurrent(code)
+    setCurrencyCode(code)
+    onCurrencyChange?.(code)
+  }
+
   return (
     <>
-      <DrawerItem label="Waluta" value="PLN" />
+      <div className="drawer-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 8 }}>
+        <span className="drawer-item-label">Waluta wyświetlania</span>
+        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+          {CURRENCIES.map(c => (
+            <button key={c.code} onClick={() => handleSelect(c.code)} style={{
+              padding: '4px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
+              background: current === c.code ? 'var(--primary)' : 'var(--surface2)',
+              color: current === c.code ? '#fff' : 'var(--text-muted)',
+              border: `1px solid ${current === c.code ? 'var(--primary)' : 'var(--border)'}`,
+              fontWeight: current === c.code ? 700 : 400,
+              transition: 'all .15s',
+            }}>
+              {c.code} <span style={{ opacity: 0.7 }}>{c.symbol}</span>
+            </button>
+          ))}
+        </div>
+      </div>
       <DrawerItem label="Początek miesiąca" value="1. dzień" />
-      <DrawerItem label="Importuj stare budżety" action />
-      <DrawerItem label="Eksportuj dane (CSV)" action />
     </>
   )
 }
