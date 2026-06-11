@@ -9,7 +9,7 @@ const IconCurrency = (p) => (
   </svg>
 )
 
-export default function BudgetMenu({ onAction, privateMode }) {
+export default function BudgetMenu({ onAction, privateMode, onCurrencyChange }) {
   const [open, setOpen]         = useState(false)
   const [showCurrency, setShowCurrency] = useState(false)
   const [currentCurrency, setCurrentCurrency] = useState(getCurrencyCode())
@@ -43,7 +43,7 @@ export default function BudgetMenu({ onAction, privateMode }) {
     setCurrentCurrency(code)
     setShowCurrency(false)
     setOpen(false)
-    window.location.reload()
+    onCurrencyChange?.(code)
   }
 
   return (

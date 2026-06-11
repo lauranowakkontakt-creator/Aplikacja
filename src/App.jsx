@@ -171,7 +171,7 @@ export default function App() {
         {/* Content */}
         <div className="content" key={activeModule}>
           <div className="content-inner">
-            {activeModule === 'budget'   && <Dashboard user={user} />}
+            {activeModule === 'budget'   && <Dashboard user={user} onCurrencyChange={handleCurrencyChange} />}
             {activeModule === 'habits'   && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} />}
             {activeModule === 'mood'     && <MoodDashboard user={user} />}
             {activeModule === 'todo'     && <TodoDashboard user={user} />}

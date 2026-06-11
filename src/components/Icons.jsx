@@ -673,6 +673,8 @@ export const CATEGORY_ICON_MAP = {
   dziesiecina: IcCross,
   ofiara: IcCross,
   wynagrodzenie: IcBriefcase,
+  stypendium: IcBookOpen,
+  sprzedaz: IconShopping,
   freelance: IcLaptop,
   premia: IcBriefcase,
   zwrot: IconTransfer,

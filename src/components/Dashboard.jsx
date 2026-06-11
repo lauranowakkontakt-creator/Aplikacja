@@ -34,7 +34,7 @@ const kicker = (t) => (
   <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>{t}</div>
 )
 
-export default function Dashboard({ user }) {
+export default function Dashboard({ user, onCurrencyChange }) {
   const [transactions, setTransactions] = useState([])
   const [accounts, setAccounts]         = useState([])
   const [allTransactions, setAllTransactions] = useState([]) // for charts (last 6 months)
@@ -198,7 +198,7 @@ export default function Dashboard({ user }) {
         </div>
         <div className="mod-header-right">
           <button className="icon-btn" onClick={() => handleMenuAction('search')}><IconSearch size={16} /></button>
-          <BudgetMenu onAction={handleMenuAction} privateMode={privateMode} mobile />
+          <BudgetMenu onAction={handleMenuAction} privateMode={privateMode} onCurrencyChange={onCurrencyChange} mobile />
         </div>
       </div>
 
@@ -226,7 +226,7 @@ export default function Dashboard({ user }) {
             </button>
           ))}
         </div>
-        <span className="desktop-only"><BudgetMenu onAction={handleMenuAction} privateMode={privateMode} /></span>
+        <span className="desktop-only"><BudgetMenu onAction={handleMenuAction} privateMode={privateMode} onCurrencyChange={onCurrencyChange} /></span>
       </div>
 
       {/* Month navigation — desktop only */}
@@ -253,7 +253,7 @@ export default function Dashboard({ user }) {
                   {/* Primary PLN balance */}
                   <div style={{ fontSize: 32, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.02em', color: totalPLN >= 0 ? 'var(--income)' : 'var(--expense)' }}>
                     {fmtHero(totalPLN).int}
-                    <span style={{ fontSize: 18, fontWeight: 400, color: 'var(--text-muted)' }}>{fmtHero(totalPLN).dec} zł</span>
+                    <span style={{ fontSize: 18, fontWeight: 400, color: 'var(--text-muted)' }}>{fmtHero(totalPLN).dec} {curSymbol}</span>
                   </div>
                   {/* Other currencies */}
                   {Object.entries(totalsByCurrency).filter(([cur]) => cur !== 'PLN').map(([cur, amt]) => (
@@ -296,7 +296,7 @@ export default function Dashboard({ user }) {
                       thickness={16}
                       centerTop={donutHover ? donutHover.name : 'razem'}
                       centerMain={!privateMode ? (donutHover ? fmtShort(donutHover.value) : fmtShort(expenses)) : '••'}
-                      centerSub="zł"
+                      centerSub={curSymbol}
                       onHover={setDonutHover}
                     />
                   </div>
@@ -453,7 +453,7 @@ export default function Dashboard({ user }) {
                       return (
                         <div className="balance-hero-amount">
                           <span className="balance-hero-main" style={{ color: plnVal >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(plnVal).int}</span>
-                          <span className="balance-hero-cents" style={{ color: plnVal >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(plnVal).dec} zł</span>
+                          <span className="balance-hero-cents" style={{ color: plnVal >= 0 ? 'var(--income)' : 'var(--expense)' }}>{fmtHero(plnVal).dec} {curSymbol}</span>
                         </div>
                       )
                     }
