@@ -3,7 +3,7 @@ import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Times
 import { db } from '../../firebase/config'
 import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOfDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat } from '../Icons'
 import { Heatmap } from '../ChartPrimitives'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -109,11 +109,9 @@ export default function PrayerDashboard({ user }) {
           <button
             className="icon-btn"
             onClick={() => setCarMode(m => !m)}
-            style={carMode
-              ? { background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 10, padding: '6px 14px', fontSize: 15, fontWeight: 700, letterSpacing: '.04em' }
-              : { fontSize: 16, padding: '5px 10px', borderRadius: 8 }}
+            style={carMode ? { background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700 } : { fontSize: 13, padding: '4px 8px' }}
             title="Tryb auto"
-          >🚗</button>
+          >Auto</button>
           <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
             <IconFlame size={14} style={{ color: 'var(--primary)' }} />
             <span style={{ fontSize: 13, fontWeight: 700 }}>{streak}</span>
@@ -233,8 +231,6 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
     const prayedToday = allDates.includes(today)
     return { ...p, activeCount: active.length, days, prayedToday }
   }).sort((a, b) => {
-    if (a.activeCount === 0 && b.activeCount > 0) return 1
-    if (a.activeCount > 0 && b.activeCount === 0) return -1
     if (a.prayedToday && !b.prayedToday) return 1
     if (!a.prayedToday && b.prayedToday) return -1
     return (b.days ?? 999) - (a.days ?? 999)
@@ -269,23 +265,23 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
               background: isNeglected ? neglect.color + '0D' : 'var(--surface)',
               border: `1px solid ${isNeglected ? neglect.color + '55' : isAtRisk ? neglect.color + '44' : 'var(--border)'}`,
               borderLeft: `3px solid ${borderColor}`,
-              borderRadius: 12, padding: carMode ? '20px 22px' : '12px 14px',
+              borderRadius: 12, padding: carMode ? '16px 18px' : '12px 14px',
               display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer'
             }}>
-              <div style={{ width: carMode ? 68 : 44, height: carMode ? 68 : 44, borderRadius: 14, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#8b5cf6' }}>
-                <CatIcon categoryId={null} emoji={p.icon || 'IcUsers'} size={carMode ? 36 : 22} />
+              <div style={{ width: carMode ? 54 : 44, height: carMode ? 54 : 44, borderRadius: 12, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#8b5cf6' }}>
+                <CatIcon categoryId={null} emoji={p.icon || 'IcUsers'} size={carMode ? 28 : 22} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <p style={{ margin: 0, fontSize: carMode ? 24 : 14, fontWeight: 600 }}>{p.name}</p>
-                  {p.prayedToday && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(39,174,96,0.15)', color: '#27AE60' }}>✓ dziś</span>}
+                  <p style={{ margin: 0, fontSize: carMode ? 19 : 14, fontWeight: 600 }}>{p.name}</p>
+                  {p.prayedToday && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: 'rgba(39,174,96,0.15)', color: '#27AE60', display: 'inline-flex', alignItems: 'center', gap: 2 }}><IconCheck size={9} /> dziś</span>}
                   {(isNeglected || isAtRisk) && (
                     <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: neglect.color + '22', color: neglect.color, fontWeight: 700 }}>
                       L{neglect.level} · {neglect.label}
                     </span>
                   )}
                 </div>
-                <p style={{ margin: '4px 0 0', fontSize: carMode ? 16 : 11, color: 'var(--text-muted)' }}>
+                <p style={{ margin: '3px 0 0', fontSize: carMode ? 13 : 11, color: 'var(--text-muted)' }}>
                   {p.activeCount} {p.activeCount === 1 ? 'prośba' : p.activeCount < 5 ? 'prośby' : 'próśb'}
                   {p.days === 0 && ' · modlono dziś'}
                   {p.days !== null && p.days > 0 && ` · ${p.days} dni temu`}
@@ -296,7 +292,7 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
                 <button className="t-btn" onClick={e => { e.stopPropagation(); setEditPerson(p); setShowForm(true) }}><IconEdit size={13} /></button>
                 <button className="t-btn delete" onClick={e => handleDeletePerson(p.id, e)}><IconTrash size={13} /></button>
               </div>
-              <span style={{ color: 'var(--text-muted)', fontSize: 16, flexShrink: 0 }}>›</span>
+              <IconChevronRight size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             </div>
           )
         })
@@ -316,13 +312,6 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
   const [showEnded, setShowEnded]     = useState(false)
 
   const mine   = intentions.filter(i => i.personId === person.id)
-  const allDates   = mine.flatMap(i => i.prayedDates || [])
-  const lastDate   = allDates.length ? [...allDates].sort().reverse()[0] : null
-  const totalPrays = allDates.length
-  const daysSinceLast = lastDate ? differenceInDays(new Date(), parseISO(lastDate)) : null
-  const last30days = Array.from({ length: 30 }, (_, i) => format(subDays(new Date(), i), 'yyyy-MM-dd'))
-    .filter(d => allDates.includes(d)).length
-
   const active = mine.filter(i => i.status === 'active' || !i.status).sort((a, b) => {
     if ((a.priority || 3) === 5 && (b.priority || 3) !== 5) return -1
     if ((a.priority || 3) !== 5 && (b.priority || 3) === 5) return 1
@@ -378,7 +367,7 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button className="t-btn" onClick={onBack} style={{ fontSize: 20, padding: '4px 8px' }}>←</button>
+        <button className="t-btn" onClick={onBack} style={{ padding: '4px 8px' }}><IconChevronLeft size={18} /></button>
         <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
           <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={20} />
         </div>
@@ -387,24 +376,6 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
           {person.note && <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>{person.note}</p>}
         </div>
         <span style={{ fontSize: 12, color: '#8b5cf6', flexShrink: 0 }}>{active.length} aktywnych</span>
-      </div>
-
-      {/* Per-person stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-        <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#C9A24A' }}>{totalPrays}</div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Łącznie</div>
-        </div>
-        <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: '#8b5cf6' }}>{last30days}</div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Ostatnie 30 dni</div>
-        </div>
-        <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: '10px', textAlign: 'center' }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: daysSinceLast === null ? '#ef4444' : daysSinceLast === 0 ? '#27AE60' : daysSinceLast <= 6 ? '#eab308' : '#f97316' }}>
-            {daysSinceLast === null ? '—' : daysSinceLast === 0 ? 'Dziś' : `${daysSinceLast}d`}
-          </div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>Ostatnio</div>
-        </div>
       </div>
 
       {active.length === 0 && !showAddForm && (
@@ -445,19 +416,19 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
 
       {ended.length > 0 && (
         <div style={{ marginTop: 4 }}>
-          <button className="todo-done-toggle" onClick={() => setShowEnded(v => !v)}>
-            {showEnded ? '▾' : '▸'} Zarchiwizowane ({ended.length})
+          <button className="todo-done-toggle" onClick={() => setShowEnded(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {showEnded ? <IconChevronDown size={12} /> : <IconChevronRight size={12} />} Zarchiwizowane ({ended.length})
           </button>
           {showEnded && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
               {ended.map(item => (
                 <div key={item.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 14px', opacity: 0.65, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <span style={{ fontSize: 16, flexShrink: 0 }}>✅</span>
+                  <IconCheck size={16} style={{ flexShrink: 0, color: '#27AE60', marginTop: 1 }} />
                   <div style={{ flex: 1 }}>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{item.title}</p>
                     {item.endedNote && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>"{item.endedNote}"</p>}
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-muted)' }}>
-                      🙏 ×{item.prayedDates?.length || 0}
+                    <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <IconPrayer size={10} /> ×{item.prayedDates?.length || 0}
                       {item.autoArchived && ' · auto-zarchiwizowana'}
                     </p>
                   </div>
@@ -501,8 +472,8 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
     setEditingNoteId(null)
   }
 
-  const fs = carMode ? { title: 22, sub: 16, badge: 13, action: 17, note: 15 } : { title: 14, sub: 12, badge: 10, action: 12, note: 12 }
-  const pad = carMode ? '22px 24px' : '12px 14px'
+  const fs = carMode ? { title: 18, sub: 14, badge: 12, action: 15, note: 14 } : { title: 14, sub: 12, badge: 10, action: 12, note: 12 }
+  const pad = carMode ? '16px 18px' : '12px 14px'
 
   return (
     <div style={{
@@ -529,21 +500,21 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
           )}
           {item.note && <p style={{ margin: '3px 0 0', fontSize: fs.sub, color: 'var(--text-muted)' }}>{item.note}</p>}
           {item.dateTo && (
-            <p style={{ margin: '2px 0 0', fontSize: fs.badge, color: 'var(--text-muted)' }}>
-              📅 do {item.dateTo}
+            <p style={{ margin: '2px 0 0', fontSize: fs.badge, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <IconCalendar size={10} /> do {item.dateTo}
             </p>
           )}
           <div style={{ display: 'flex', gap: 10, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
             {item.prayedDates?.length > 0 && (
-              <span style={{ fontSize: fs.badge, color: 'var(--text-muted)' }}>
-                🙏 ×{item.prayedDates.length}
+              <span style={{ fontSize: fs.badge, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <IconPrayer size={10} /> ×{item.prayedDates.length}
                 {days === 0 && ' · dziś'}
                 {days !== null && days > 0 && ` · ${days} dni temu`}
               </span>
             )}
             {item.notes?.length > 0 && (
-              <button type="button" onClick={() => setShowNotes(v => !v)} style={{ fontSize: fs.badge, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
-                📝 {item.notes.length} {item.notes.length === 1 ? 'notatka' : 'notatki'}
+              <button type="button" onClick={() => setShowNotes(v => !v)} style={{ fontSize: fs.badge, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                <IconEdit size={10} /> {item.notes.length} {item.notes.length === 1 ? 'notatka' : 'notatki'}
               </button>
             )}
           </div>
@@ -594,7 +565,7 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
 
       <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
         <button type="button" onClick={() => onTogglePrayed(item, viewDate)} style={{
-          flex: 1, padding: carMode ? '18px' : '8px', borderRadius: 8, fontSize: fs.action, cursor: 'pointer', fontWeight: 600,
+          flex: 1, padding: carMode ? '13px' : '8px', borderRadius: 8, fontSize: fs.action, cursor: 'pointer', fontWeight: 600,
           border: `1px solid ${prayedToday ? '#27AE60' : 'var(--border)'}`,
           background: prayedToday ? 'rgba(39,174,96,0.15)' : 'transparent',
           color: prayedToday ? '#27AE60' : 'var(--text-muted)'
@@ -606,7 +577,7 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
           border: `1px solid ${addingNote ? 'var(--primary)' : 'var(--border)'}`,
           background: addingNote ? 'rgba(201,75,40,0.1)' : 'transparent',
           color: addingNote ? 'var(--primary)' : 'var(--text-muted)'
-        }}>📝</button>
+        }}><IconEdit size={carMode ? 18 : 13} /></button>
         {!carMode && (
           <button type="button" onClick={() => onArchive(item)} style={{
             padding: '8px 10px', borderRadius: 8, fontSize: 11, cursor: 'pointer',
@@ -697,10 +668,10 @@ function TodayView({ user, intentions, people, carMode }) {
 
       {activeIntentions.length > 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: carMode ? '18px' : '14px 16px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: carMode ? 52 : 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: carMode ? 34 : 18, color: 'var(--text-muted)' }}>/{activeIntentions.length}</span></p>
+          <p style={{ margin: 0, fontSize: carMode ? 36 : 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: carMode ? 24 : 18, color: 'var(--text-muted)' }}>/{activeIntentions.length}</span></p>
           <p style={{ margin: '2px 0 0', fontSize: carMode ? 14 : 12, color: 'var(--text-muted)' }}>modlono {isToday ? 'dziś' : dateLabel.toLowerCase()}</p>
           {prayedCount > 0 && prayedCount === activeIntentions.length && (
-            <p style={{ margin: '6px 0 0', fontSize: carMode ? 15 : 13, color: '#27AE60', fontWeight: 600 }}>🙌 Wszystkie prośby modlone!</p>
+            <p style={{ margin: '6px 0 0', fontSize: carMode ? 15 : 13, color: '#27AE60', fontWeight: 600 }}>Wszystkie prośby modlone!</p>
           )}
         </div>
       )}
@@ -745,14 +716,14 @@ function TodayView({ user, intentions, people, carMode }) {
                 display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6,
                 pointerEvents: 'none',
               }}>
-                <span style={{ fontSize: 16, flexShrink: 0 }}>✅</span>
+                <IconCheck size={16} style={{ flexShrink: 0, color: '#27AE60', marginTop: 1 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                     <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>{item.title}</p>
                     <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'var(--surface3)', color: 'var(--text-muted)' }}>archiwum</span>
                   </div>
                   {person && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{person.name}</p>}
-                  <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-muted)' }}>🙏 ×{item.prayedDates?.length || 0} łącznie</p>
+                  <p style={{ margin: '2px 0 0', fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}><IconPrayer size={10} /> ×{item.prayedDates?.length || 0} łącznie</p>
                 </div>
               </div>
             )
@@ -831,11 +802,11 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                      ↳ {p.totalPrays}× · {p.days === 0 ? 'dziś' : p.days !== null ? `${p.days} dni temu` : 'brak'}
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <IconPrayer size={10} /> {p.totalPrays}× · {p.days === 0 ? 'dziś' : p.days !== null ? `${p.days} dni temu` : 'brak'}
                     </div>
                   </div>
-                  <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>›</span>
+                  <IconChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
                 </div>
               )
             })}
@@ -893,8 +864,8 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
                         </span>
                       )}
                     </div>
-                    <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
-                      🙏 ×{p.totalPrays} · {p.totalIntentions} {p.totalIntentions === 1 ? 'prośba' : 'próśb'}
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <IconPrayer size={10} /> ×{p.totalPrays} · {p.totalIntentions} {p.totalIntentions === 1 ? 'prośba' : 'próśb'}
                       {p.days === 0 && ' · modlono dziś'}
                       {p.days !== null && p.days > 0 && ` · ${p.days} dni temu`}
                       {p.days === null && p.activeCount > 0 && ' · jeszcze nie modlono'}
@@ -994,8 +965,8 @@ function ArchiveView({ user, intentions, people }) {
                   <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em' }}>
                     {person ? person.name : 'Bez osoby'}
                   </span>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>
-                    {items.length} {items.length === 1 ? 'prośba' : 'próśb'} · 🙏×{groupPrays}
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 3 }}>
+                    {items.length} {items.length === 1 ? 'prośba' : 'próśb'} · <IconPrayer size={10} />×{groupPrays}
                   </span>
                 </div>
 
@@ -1025,7 +996,7 @@ function ArchiveView({ user, intentions, people }) {
                           <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>„{item.endedNote}"</p>
                         )}
                         <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>🙏 ×{item.prayedDates?.length || 0}</span>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}><IconPrayer size={10} /> ×{item.prayedDates?.length || 0}</span>
                           {item.endedAt && (
                             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                               Zarchiwizowano: {format(item.endedAt.toDate?.() || new Date(item.endedAt), 'd.MM.yyyy', { locale: pl })}
@@ -1050,12 +1021,12 @@ function ArchiveView({ user, intentions, people }) {
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
                         {item.prayedDates?.length > 0 && (
-                          <button className="t-btn" title="Historia" onClick={() => setExpandedId(v => v === item.id ? null : item.id)} style={{ fontSize: 11 }}>
-                            📅
+                          <button className="t-btn" title="Historia" onClick={() => setExpandedId(v => v === item.id ? null : item.id)}>
+                            <IconCalendar size={11} />
                           </button>
                         )}
-                        <button className="t-btn" title="Przywróć" onClick={() => restoreItem(item)} style={{ fontSize: 11 }}>
-                          ↩
+                        <button className="t-btn" title="Przywróć" onClick={() => restoreItem(item)}>
+                          <IconRepeat size={11} />
                         </button>
                         <button className="t-btn delete" title="Usuń" onClick={() => deleteItem(item.id)}>
                           <IconTrash size={12} />

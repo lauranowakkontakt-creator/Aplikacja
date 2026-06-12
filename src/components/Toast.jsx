@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react'
+import { IconCheck, IconClose, IconBell } from './Icons'
 
 const ToastContext = createContext(null)
 
@@ -31,8 +32,8 @@ export function ToastProvider({ children }) {
           <div key={t.id} className="toast-item" data-type={t.type}
             style={{ pointerEvents: 'auto' }}
             onClick={() => remove(t.id)}>
-            <span style={{ fontSize: 15 }}>
-              {t.type === 'error' ? '⚠️' : t.type === 'success' ? '✓' : 'ℹ'}
+            <span style={{ display: 'flex', alignItems: 'center' }}>
+              {t.type === 'error' ? <IconClose size={15} /> : t.type === 'success' ? <IconCheck size={15} /> : <IconBell size={15} />}
             </span>
             <span style={{ fontSize: 13, flex: 1 }}>{t.message}</span>
           </div>

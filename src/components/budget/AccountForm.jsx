@@ -1,15 +1,15 @@
 import { useState } from 'react'
 import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { IconClose } from '../Icons'
+import { IconClose, IconBank, IconCash, IconCard, IconRepeat, IconSavings, IconTrendUp } from '../Icons'
 
 const ACCOUNT_TYPES = [
-  { id: 'bank',       label: 'Konto bankowe', icon: '🏦' },
-  { id: 'cash',       label: 'Gotówka',        icon: '💵' },
-  { id: 'card',       label: 'Karta',          icon: '💳' },
-  { id: 'revolut',    label: 'Revolut/Mobile', icon: '📱' },
-  { id: 'savings',    label: 'Oszczędności',   icon: '🐷' },
-  { id: 'investment', label: 'Inwestycje',      icon: '📈' },
+  { id: 'bank',       label: 'Konto bankowe', Icon: IconBank },
+  { id: 'cash',       label: 'Gotówka',        Icon: IconCash },
+  { id: 'card',       label: 'Karta',          Icon: IconCard },
+  { id: 'revolut',    label: 'Revolut/Mobile', Icon: IconRepeat },
+  { id: 'savings',    label: 'Oszczędności',   Icon: IconSavings },
+  { id: 'investment', label: 'Inwestycje',      Icon: IconTrendUp },
 ]
 
 const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP']
@@ -60,7 +60,7 @@ export default function AccountForm({ user, onClose, editData }) {
                   className={`account-type-btn ${type === t.id ? 'active' : ''}`}
                   onClick={() => setType(t.id)}
                 >
-                  <span>{t.icon}</span>
+                  <t.Icon size={18} />
                   <span>{t.label}</span>
                 </button>
               ))}

@@ -8,7 +8,7 @@ import {
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag, IconCalendar, IconChevronDown } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag, IconChevronDown, IconChevronRight, IconCalendar, IconClock } from '../Icons'
 import { Ring } from '../ChartPrimitives'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -27,10 +27,11 @@ const LIST_ICONS  = [
   '🙏','✝️','🕊️','📖','⚡','🎭','🌊','🏔️','🦁','🌸',
 ]
 const LIST_COLORS = [
-  '#EF4444','#F97316','#F59E0B','#EAB308','#84CC16','#22C55E',
-  '#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1','#8B5CF6',
-  '#A855F7','#EC4899','#F43F5E','#64748B','#0D9488','#0EA5E9',
-  '#DC2626','#7C3AED','#4F46E5','#BE185D','#059669','#1ABC9C',
+  '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',
+  '#22C55E','#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1',
+  '#8B5CF6','#A855F7','#EC4899','#F43F5E','#64748B','#6B7280',
+  '#059669','#0EA5E9','#DC2626','#7C3AED','#0D9488','#4F46E5',
+  '#BE185D','#6B9E72','#4A90D9','#1ABC9C','#E74C3C','#92400E',
 ]
 const pOrder      = { high: 0, medium: 1, low: 2 }
 
@@ -136,7 +137,7 @@ export default function TodoDashboard({ user }) {
             }} onClick={() => setShowMenu(false)}>
               <button style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
                 onClick={() => { setShowDone(v => !v) }}>
-                {showDone ? '✓ ' : ''}Ukończone zadania
+                Ukończone zadania
               </button>
               <button style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
                 onClick={() => { setShowListForm(true) }}>
@@ -213,7 +214,7 @@ export default function TodoDashboard({ user }) {
                 >
                   <CatIcon categoryId={null} emoji={l.icon} size={12} /> {l.name}
                   {cnt > 0 && <span style={{ marginLeft: 5, fontSize: 10, background: 'var(--surface3)', borderRadius: 99, padding: '1px 6px' }}>{cnt}</span>}
-                  {isActive && <span onClick={e => { e.stopPropagation(); setEditList(l) }} style={{ marginLeft: 4, opacity: 0.6, fontSize: 11, display: 'inline-flex', alignItems: 'center' }}><IconEdit size={10}/></span>}
+                  {isActive && <span onClick={e => { e.stopPropagation(); setEditList(l) }} style={{ marginLeft: 4, opacity: 0.6, display: 'inline-flex' }}><IconEdit size={11} /></span>}
                 </button>
               )
             })}
@@ -268,7 +269,7 @@ export default function TodoDashboard({ user }) {
               <button onClick={() => setShowDone(v => !v)} style={{
                 fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', marginBottom: 6
               }}>
-                {showDone ? '▾' : '▸'} Zrobione ({done.length})
+                {showDone ? <IconChevronDown size={12} /> : <IconChevronRight size={12} />} Zrobione ({done.length})
               </button>
               {showDone && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, opacity: 0.55 }}>
@@ -363,8 +364,8 @@ function TodoItem({ todo, lists, onToggle, onEdit, onDelete }) {
             </span>
           )}
           {date && (
-            <span style={{ fontSize: 11, fontWeight: overdue || dueToday ? 600 : 400, color: overdue ? '#E53935' : dueToday ? '#FB8C00' : 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              <IconCalendar size={11} style={{ color: overdue ? '#E53935' : dueToday ? '#FB8C00' : 'var(--text-muted)', flexShrink: 0 }} />
+            <span style={{ fontSize: 11, fontWeight: overdue || dueToday ? 600 : 400, color: overdue ? '#E53935' : dueToday ? '#FB8C00' : 'var(--text-muted)' }}>
+              {overdue ? <IconFlag size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} /> : dueToday ? <IconClock size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} /> : <IconCalendar size={10} style={{ verticalAlign: 'middle', marginRight: 2 }} />}
               {format(date, 'd MMM', { locale: pl })}
             </span>
           )}
@@ -505,7 +506,7 @@ function TodoStats({ todos, lists }) {
                 done={l.done} active={l.active} />
             ))}
             {(noListDone > 0 || noListActive > 0) && (
-              <ListStatRow icon="IconMore" name="Bez listy" color="var(--text-muted)"
+              <ListStatRow icon="📌" name="Bez listy" color="var(--text-muted)"
                 done={noListDone} active={noListActive} />
             )}
           </div>
@@ -664,7 +665,7 @@ function TodoForm({ user, lists, editData, defaultListId, onClose }) {
 /* ─── ListForm (create + edit) ─── */
 function ListForm({ user, onClose, editData }) {
   const [name, setName]         = useState(editData?.name || '')
-  const [iconKey, setIconKey]   = useState(editData?.icon || 'IcFolder')
+  const [iconKey, setIconKey]   = useState(editData?.icon || 'IcBriefcase')
   const [iconSearch, setIconSearch] = useState('')
   const [color, setColor]       = useState(editData?.color || '#6366f1')
   const [saving, setSaving]     = useState(false)

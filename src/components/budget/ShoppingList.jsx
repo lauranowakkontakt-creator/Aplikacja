@@ -6,7 +6,7 @@ import { pl } from 'date-fns/locale'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { fmt, getCurrencyCode } from '../../utils/currency'
 import { EXPENSE_CATEGORIES } from '../TransactionForm'
-import { IconTrash, IconClose, IconTag } from '../Icons'
+import { IconTrash, IconClose, IconTag, IconShopping, IconCheck, IconChevronDown, IconChevronRight } from '../Icons'
 import { CAT_COLORS } from '../../utils/categories'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -106,7 +106,7 @@ export default function ShoppingList({ user }) {
                 const cat = categories.find(c => c.id === item.category)
                 return (
                   <div key={item.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 22 }}>{cat?.icon || '📦'}</span>
+                    {cat?.icon ? <span style={{ fontSize: 22 }}>{cat.icon}</span> : <IconShopping size={22} />}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{item.name}</p>
                       <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -162,7 +162,7 @@ export default function ShoppingList({ user }) {
               const cat = categories.find(c => c.id === item.category)
               return (
                 <div key={item.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, opacity: 0.75 }}>
-                  <span style={{ fontSize: 22 }}>{cat?.icon || '📦'}</span>
+                  {cat?.icon ? <span style={{ fontSize: 22 }}>{cat.icon}</span> : <IconShopping size={22} />}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: 14, fontWeight: 600, textDecoration: 'line-through', color: 'var(--text-muted)' }}>{item.name}</p>
                     <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -227,7 +227,7 @@ function ShopCategoryManager({ user, categories, onClose }) {
                 borderRadius: 10, padding: '8px 12px'
               }}>
                 <div style={{ width: 36, height: 36, borderRadius: 9, background: (cat.color || '#C94B28') + '33', border: `1.5px solid ${cat.color || '#C94B28'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 18 }}>{cat.icon || '📌'}</span>
+                  {cat.icon ? <span style={{ fontSize: 18 }}>{cat.icon}</span> : <IconTag size={18} />}
                 </div>
                 <span style={{ flex: 1, fontSize: 14 }}>{cat.label}</span>
                 <button className="t-btn delete" onClick={() => handleDelete(cat.id)}><IconTrash size={13} /></button>
@@ -296,7 +296,7 @@ function AddShopCategoryForm({ onAdd, onCancel, existingIds }) {
         </div>
         <button type="button" onClick={() => setEmojiExpanded(v => !v)}
           style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
-          {emojiExpanded ? '▲ Mniej' : `▼ Więcej (${SHOP_EMOJI_PRESETS.length - 15})`}
+          {emojiExpanded ? <><IconChevronDown size={11} /> Mniej</> : <><IconChevronRight size={11} /> Więcej ({SHOP_EMOJI_PRESETS.length - 15})</>}
         </button>
       </div>
 
@@ -353,7 +353,7 @@ function AddItemModal({ user, categories, onClose }) {
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>🛒 Dodaj do listy</h3>
+          <h3>Dodaj do listy</h3>
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <form onSubmit={handleAdd} className="form">
@@ -442,7 +442,7 @@ function BuyModal({ item, user, categories, onBuy, onClose }) {
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>✓ Kupione: {item.name}</h3>
+          <h3 style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCheck size={16} /> Kupione: {item.name}</h3>
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div className="form">

@@ -7,7 +7,7 @@ import {
   addMonths, subMonths, getDate
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight } from '../Icons'
+import { CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight, IconCheck, IconCalendar } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -302,7 +302,7 @@ export default function CalendarDashboard({ user }) {
                 })}
                 {selTodos.map(t => (
                   <div key={t.id} className="cal-event-row" style={{ borderLeftColor: '#6366f1', opacity: 0.8 }}>
-                    <span style={{ fontSize: 14 }}>✅</span>
+                    <IconCheck size={14} style={{ color: '#6366f1', flexShrink: 0 }} />
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', flex: 1 }}>
                       {t.title} <span style={{ fontSize: 10, color: '#6366f1', fontWeight: 600 }}>TERMIN ZADANIA</span>
                     </p>
@@ -481,7 +481,7 @@ function AgendaView({ events, categories, calPeople, filterPersonId, onAdd, onEd
       ) : dates.map(date => (
         <div key={date}>
           <p className="cal-agenda-date">
-            {isToday(parseISO(date)) ? '📌 DZIŚ' : format(parseISO(date), 'EEEE, d MMMM', { locale: pl })}
+            {isToday(parseISO(date)) ? 'DZIŚ' : format(parseISO(date), 'EEEE, d MMMM', { locale: pl })}
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {grouped[date].map(e => <EventRow key={e.id} e={e} categories={categories} calPeople={calPeople} onEdit={onEdit} onDelete={onDelete} />)}
@@ -491,7 +491,7 @@ function AgendaView({ events, categories, calPeople, filterPersonId, onAdd, onEd
       {past.length > 0 && (
         <details>
           <summary style={{ fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, listStyle: 'none', marginTop: 4 }}>
-            ▸ Minione ({past.length})
+            <IconChevronRight size={12} style={{ verticalAlign: 'middle' }} /> Minione ({past.length})
           </summary>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
             {past.map(e => <EventRow key={e.id} e={e} categories={categories} calPeople={calPeople} onEdit={onEdit} onDelete={onDelete} muted />)}

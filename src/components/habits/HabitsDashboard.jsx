@@ -5,7 +5,7 @@ import { format, startOfWeek, addDays, subDays, subWeeks, addWeeks, startOfMonth
 import { pl } from 'date-fns/locale'
 import HabitForm, { HABIT_CATEGORIES, DEFAULT_HABIT_CATEGORIES } from './HabitForm'
 import PauseForm from './PauseForm'
-import { CatIcon, IconFlame, IconStar, IconCheck, IconPause } from '../Icons'
+import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronRight } from '../Icons'
 import { Ring, Heatmap, Spark } from '../ChartPrimitives'
 
 function isPausedDay(dateStr, pauses) {
@@ -22,7 +22,7 @@ function isHabitDue(habit, dateStr, pauses = []) {
 
 function getPauseIcon(pauses, dateStr) {
   const p = pauses.find(p => dateStr >= p.from && dateStr <= p.to)
-  return p?.reasonIcon || '⏸️'
+  return p?.reasonIcon || null
 }
 
 function getStreak(completedDates, frequencyDays = [0,1,2,3,4,5,6], pauses = [], startDate = null) {
@@ -322,7 +322,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                           transition: 'all .2s var(--spring)',
                         }}
                       >
-                        {done ? <IconCheck size={14} /> : status === 'paused' ? <span style={{ fontSize: 12 }}>{getPauseIcon(pauses, selectedDay)}</span> : ''}
+                        {done ? <IconCheck size={14} /> : status === 'paused' ? (getPauseIcon(pauses, selectedDay) ? <span style={{ fontSize: 12 }}>{getPauseIcon(pauses, selectedDay)}</span> : <IconPause size={12} />) : ''}
                       </button>
                     </div>
                   )
@@ -400,7 +400,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                             color: '#fff', fontSize: 11,
                           }}
                         >
-                          {done ? <IconCheck size={12} /> : status === 'paused' ? <span style={{ fontSize: 9 }}>{getPauseIcon(pauses, d.date)}</span> : ''}
+                          {done ? <IconCheck size={12} /> : status === 'paused' ? (getPauseIcon(pauses, d.date) ? <span style={{ fontSize: 9 }}>{getPauseIcon(pauses, d.date)}</span> : <IconPause size={10} />) : ''}
                         </button>
                       )
                     })}
@@ -475,7 +475,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       {/* Archiwum */}
       {archivedHabits.length > 0 && (
         <button className="btn-show-archived" onClick={() => setShowArchived(v => !v)} style={{ marginTop: 16 }}>
-          Archiwum ({archivedHabits.length}) {showArchived ? '▲' : '▼'}
+          Archiwum ({archivedHabits.length}) {showArchived ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
         </button>
       )}
       {showArchived && (

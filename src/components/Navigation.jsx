@@ -1,6 +1,8 @@
+import { IconBudget, IconHabits } from './Icons'
+
 const MODULES = [
-  { id: 'budget', label: 'Budżet', icon: '💰' },
-  { id: 'habits', label: 'Nawyki', icon: '✅' },
+  { id: 'budget', label: 'Budżet', Icon: IconBudget },
+  { id: 'habits', label: 'Nawyki', Icon: IconHabits },
 ]
 
 export default function Navigation({ active, onChange }) {
@@ -15,7 +17,7 @@ export default function Navigation({ active, onChange }) {
             className={`sidebar-item ${active === m.id ? 'active' : ''}`}
             onClick={() => onChange(m.id)}
           >
-            <span className="nav-icon">{m.icon}</span>
+            <span className="nav-icon"><m.Icon size={20} /></span>
             <span className="nav-label">{m.label}</span>
           </button>
         ))}
@@ -29,7 +31,7 @@ export default function Navigation({ active, onChange }) {
             className={`bottom-nav-item ${active === m.id ? 'active' : ''}`}
             onClick={() => onChange(m.id)}
           >
-            <span className="nav-icon">{m.icon}</span>
+            <span className="nav-icon"><m.Icon size={20} /></span>
             <span className="nav-label">{m.label}</span>
           </button>
         ))}
