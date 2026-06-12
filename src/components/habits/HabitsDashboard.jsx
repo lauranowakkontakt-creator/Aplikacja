@@ -160,7 +160,10 @@ export default function HabitsDashboard({ user, onMoodClick }) {
   const todayLabel = format(new Date(), 'EEEE, d LLL', { locale: pl })
 
   const kicker = (t) => (
-    <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>{t}</div>
+    <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
+      {t}
+    </div>
   )
 
   return (
@@ -174,7 +177,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
         <div className="mod-header-right">
           <button className="icon-btn" title="Pauza" onClick={() => setShowPause(true)}><IconPause size={16}/></button>
           <button className="icon-btn" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk"
-            style={{ background: 'var(--primary)', color: 'var(--bg)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+            style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
             +
           </button>
         </div>
@@ -250,7 +253,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               <button className="month-btn" onClick={goBack} style={{ width: 32, height: 32 }}>‹</button>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'capitalize' }}>{dayLabel}</div>
-                {isToday && <div style={{ fontSize: 10, color: 'var(--primary)', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2 }}>Dziś</div>}
+                {isToday && <div style={{ fontSize: 10, color: 'var(--accent)', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2 }}>Dziś</div>}
               </div>
               <button className="month-btn" onClick={goFwd} style={{ width: 32, height: 32, opacity: isToday ? 0.3 : 1 }} disabled={isToday}>›</button>
             </div>
@@ -279,7 +282,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                   const streak = getStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)
                   const isFut  = selectedDay > TODAY
                   const cat    = HABIT_CATEGORIES.find(c => c.id === habit.category)
-                  const color  = habit.color || 'var(--primary)'
+                  const color  = habit.color || 'var(--accent)'
                   return (
                     <div key={habit.id} style={{
                       background: done ? color + '15' : 'var(--surface)',
@@ -361,7 +364,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
 
               {filtered.map((habit, idx) => {
                 const streak = getStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)
-                const color  = habit.color || 'var(--primary)'
+                const color  = habit.color || 'var(--accent)'
                 return (
                   <div key={habit.id} style={{
                     display: 'grid', gridTemplateColumns: '1fr repeat(7,36px)', gap: 4,
@@ -421,7 +424,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             const streak = getStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)
             const best   = getBestStreak(habit.completedDates, habit.frequencyDays, pauses)
             const cat    = HABIT_CATEGORIES.find(c => c.id === habit.category)
-            const color  = habit.color || 'var(--primary)'
+            const color  = habit.color || 'var(--accent)'
             const last30 = (() => {
               let exp = 0, done = 0
               for (let i = 0; i < 30; i++) {
@@ -484,9 +487,9 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             <div key={h.id} className="habit-row archived-row" onClick={() => { setEditHabit(h); setShowForm(true) }}>
               <div className="habit-name-col">
                 <span className="habit-emoji" style={{
-                  background: (h.color || 'var(--primary)') + '1A',
-                  border: `1px solid ${(h.color || 'var(--primary)') + '40'}`,
-                  color: h.color || 'var(--primary)',
+                  background: (h.color || 'var(--accent)') + '1A',
+                  border: `1px solid ${(h.color || 'var(--accent)') + '40'}`,
+                  color: h.color || 'var(--accent)',
                   opacity: 0.4,
                 }}>
                   <CatIcon categoryId={h.category} emoji={h.emoji} size={14} />

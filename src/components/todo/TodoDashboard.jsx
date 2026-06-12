@@ -36,7 +36,10 @@ const LIST_COLORS = [
 const pOrder      = { high: 0, medium: 1, low: 2 }
 
 const kicker = (t) => (
-  <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>{t}</div>
+  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+    <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
+    {t}
+  </div>
 )
 
 export default function TodoDashboard({ user }) {
@@ -125,7 +128,7 @@ export default function TodoDashboard({ user }) {
         </div>
         <div className="mod-header-right" style={{ position: 'relative' }}>
           <button className="icon-btn" onClick={() => { setShowSearch(s => !s); setSearchQuery('') }}
-            style={showSearch ? { color: 'var(--primary)' } : {}}>
+            style={showSearch ? { color: 'var(--accent)' } : {}}>
             <IconSearch size={16} />
           </button>
           <button className="icon-btn" onClick={() => setShowMenu(m => !m)}><IconMore size={16} /></button>
@@ -244,7 +247,7 @@ export default function TodoDashboard({ user }) {
           {/* Active tasks */}
           {active.length > 0 && (
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 8 }}>Aktywne</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />Aktywne</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {active.map(todo => (
                   <TodoItem key={todo.id} todo={todo} lists={lists}
@@ -475,7 +478,7 @@ function TodoStats({ todos, lists }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
         <StatCard value={doneInPeriod.length} label="Ukończonych" color="var(--income)" big />
-        <StatCard value={`${completionRate}%`} label="Ukończono" color="var(--primary)" big />
+        <StatCard value={`${completionRate}%`} label="Ukończono" color="var(--accent)" big />
       </div>
 
       {chartData.length > 0 && chartData.some(d => d.count > 0) && (

@@ -142,7 +142,7 @@ export default function RegularPayments({ user }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 14, fontWeight: 600 }}>{p.name}</span>
-                      {p.autoAdd && <span style={{ fontSize: 9, background: 'rgba(201,75,40,0.2)', color: 'var(--primary)', padding: '2px 5px', borderRadius: 4, fontWeight: 700 }}>AUTO</span>}
+                      {p.autoAdd && <span style={{ fontSize: 9, background: 'rgba(201,75,40,0.2)', color: 'var(--accent)', padding: '2px 5px', borderRadius: 4, fontWeight: 700 }}>AUTO</span>}
                       {done && <span style={{ fontSize: 9, background: 'rgba(39,174,96,0.2)', color: '#27AE60', padding: '2px 5px', borderRadius: 4, fontWeight: 700 }}>ZROBIONE</span>}
                       {!active && <span style={{ fontSize: 9, background: 'rgba(150,150,150,0.2)', color: 'var(--text-muted)', padding: '2px 5px', borderRadius: 4, fontWeight: 700 }}>NIEAKTYWNA</span>}
                     </div>

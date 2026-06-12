@@ -166,7 +166,7 @@ function TodayView({ user, logs, today }) {
 
         {/* Mood selector */}
         <div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 14 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 14 , display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
             Jak się masz teraz?
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 8 }}>
@@ -195,7 +195,7 @@ function TodayView({ user, logs, today }) {
 
         {/* Emotion wheel */}
         <div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 12 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 12 , display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
             Emocje · kliknij na kole
           </div>
           <EmotionWheel
@@ -243,7 +243,7 @@ function TodayView({ user, logs, today }) {
       {/* Today's entries */}
       {dayLogs.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>Wpisy dziś</div>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase' , display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />Wpisy dziś</div>
           {dayLogs.map(log => <LogEntry key={log.id} log={log} onDelete={() => handleDelete(log.id)} />)}
         </div>
       )}
@@ -359,7 +359,7 @@ function CalendarView({ logs, calMonth, setCalMonth, today }) {
                 }}>{dayNum}</span>
                 <div style={{
                   width: '60%', height: 3, borderRadius: 2,
-                  background: count > 0 ? (moodColor || 'var(--primary)') : 'transparent',
+                  background: count > 0 ? (moodColor || 'var(--accent)') : 'transparent',
                 }} />
               </button>
             )
@@ -445,7 +445,7 @@ function TrendsView({ logs }) {
       {/* Line chart — Nastrój w czasie */}
       {chartData.length > 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 14 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 14 , display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
             Nastrój w czasie
           </div>
           <ResponsiveContainer width="100%" height={140}>
@@ -483,7 +483,7 @@ function TrendsView({ logs }) {
 
       {/* Average score */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20 }}>
-        <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 8 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 8 , display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
           Średnia · {monthCapital}
         </div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
@@ -502,7 +502,7 @@ function TrendsView({ logs }) {
       {/* Most frequent emotions */}
       {topEms.length > 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 14 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 14 , display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
             Najczęstsze emocje
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

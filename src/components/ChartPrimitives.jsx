@@ -85,7 +85,7 @@ export function FlowBar({ segments, height = 14 }) {
 }
 
 // Pionowe słupki (trend miesięczny)
-export function BarChartSVG({ data, height = 150, accent = 'var(--primary)', fmt }) {
+export function BarChartSVG({ data, height = 150, accent = 'var(--accent)', fmt }) {
   const on = useMounted(120)
   const max = Math.max(...data.map(d => d.value)) * 1.12 || 1
   const [hover, setHover] = useState(null)
@@ -178,7 +178,7 @@ export function Heatmap({ weeks = 18, accentHex = '#E0B15A', data }) {
 }
 
 // Pierścień postępu (streak / procent)
-export function Ring({ value, size = 72, thickness = 7, color = 'var(--primary)', label }) {
+export function Ring({ value, size = 72, thickness = 7, color = 'var(--accent)', label }) {
   const on = useMounted(120)
   const r = (size - thickness) / 2
   const C = 2 * Math.PI * r
@@ -202,7 +202,7 @@ export function Ring({ value, size = 72, thickness = 7, color = 'var(--primary)'
 }
 
 // Spark bars (mini trend inline)
-export function Spark({ data, color = 'var(--primary)', height = 30, w = 4 }) {
+export function Spark({ data, color = 'var(--accent)', height = 30, w = 4 }) {
   const on = useMounted(80)
   const max = Math.max(...data) || 1
   return (

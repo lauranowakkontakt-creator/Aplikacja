@@ -64,7 +64,7 @@ export default function Reminders({ user, onClose }) {
                           <div key={p.id} style={{
                             display: 'flex', alignItems: 'center', gap: 12,
                             background: isToday ? 'rgba(201,75,40,0.1)' : 'var(--surface)',
-                            border: `1px solid ${isToday ? 'var(--primary)' : 'var(--border)'}`,
+                            border: `1px solid ${isToday ? 'var(--accent)' : 'var(--border)'}`,
                             borderRadius: 12, padding: '10px 14px'
                           }}>
                             <CatIcon categoryId={p.categoryId} emoji={p.categoryIcon} size={20} />
@@ -78,7 +78,7 @@ export default function Reminders({ user, onClose }) {
                               <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: p.type === 'income' ? '#27AE60' : 'var(--expense)' }}>
                                 {p.type === 'income' ? '+' : '-'}{fmt(p.amount)}
                               </p>
-                              <p style={{ margin: '2px 0 0', fontSize: 11, color: isToday ? 'var(--primary)' : 'var(--text-muted)', fontWeight: isToday ? 700 : 400 }}>
+                              <p style={{ margin: '2px 0 0', fontSize: 11, color: isToday ? 'var(--accent)' : 'var(--text-muted)', fontWeight: isToday ? 700 : 400 }}>
                                 {isToday ? 'Dziś!' : `za ${days} ${days === 1 ? 'dzień' : 'dni'}`}
                               </p>
                             </div>

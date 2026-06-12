@@ -289,7 +289,7 @@ function AddShopCategoryForm({ onAdd, onCancel, existingIds }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {(emojiExpanded ? SHOP_EMOJI_PRESETS : SHOP_EMOJI_PRESETS.slice(0, 15)).map(e => (
             <button key={e} type="button"
-              style={{ fontSize: 22, background: icon === e ? 'rgba(201,75,40,0.2)' : 'transparent', border: `1px solid ${icon === e ? 'var(--primary)' : 'var(--border)'}`, borderRadius: 8, padding: '4px 6px', cursor: 'pointer' }}
+              style={{ fontSize: 22, background: icon === e ? 'rgba(201,75,40,0.2)' : 'transparent', border: `1px solid ${icon === e ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 8, padding: '4px 6px', cursor: 'pointer' }}
               onClick={() => setIcon(e)}
             >{e}</button>
           ))}
@@ -374,7 +374,7 @@ function AddItemModal({ user, categories, onClose }) {
               {categories.map(c => (
                 <button key={c.id} type="button"
                   className={`mood-emotion-btn ${category === c.id ? 'active' : ''}`}
-                  style={category === c.id ? { borderColor: 'var(--primary)', background: 'rgba(201,75,40,0.1)', color: 'var(--text)' } : {}}
+                  style={category === c.id ? { borderColor: 'var(--accent)', background: 'rgba(201,75,40,0.1)', color: 'var(--text)' } : {}}
                   onClick={() => setCategory(c.id)}
                 >{c.icon} {c.label}</button>
               ))}

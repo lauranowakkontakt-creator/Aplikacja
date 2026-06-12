@@ -14,6 +14,7 @@ export const HABIT_CATEGORIES = [
   { id: 'work',    label: 'Praca',     icon: 'IcBriefcase' },
   { id: 'other',   label: 'Inne',      icon: 'IcTarget' },
 ]
+export const DEFAULT_HABIT_CATEGORIES = HABIT_CATEGORIES
 
 const HABIT_COLORS = [
   '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',

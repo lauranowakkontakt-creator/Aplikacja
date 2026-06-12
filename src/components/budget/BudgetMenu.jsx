@@ -65,7 +65,7 @@ export default function BudgetMenu({ onAction, privateMode, onCurrencyChange }) 
                 <button key={c.code} className="budget-menu-item" onClick={() => selectCurrency(c.code)}>
                   <span className="bmi-icon" style={{ fontSize: 14, width: 22 }}>{c.symbol}</span>
                   <span className="bmi-label">{c.name}</span>
-                  {c.code === currentCurrency && <IconCheck size={16} style={{ color: 'var(--primary)' }} />}
+                  {c.code === currentCurrency && <IconCheck size={16} style={{ color: 'var(--accent)' }} />}
                 </button>
               ))}
             </>

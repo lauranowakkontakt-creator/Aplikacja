@@ -39,7 +39,10 @@ function daysSince(dates) {
 }
 
 const kicker = (t) => (
-  <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>{t}</div>
+  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+    <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
+    {t}
+  </div>
 )
 
 export default function PrayerDashboard({ user }) {
@@ -109,11 +112,11 @@ export default function PrayerDashboard({ user }) {
           <button
             className="icon-btn"
             onClick={() => setCarMode(m => !m)}
-            style={carMode ? { background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700 } : { fontSize: 13, padding: '4px 8px' }}
+            style={carMode ? { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700 } : { fontSize: 13, padding: '4px 8px' }}
             title="Tryb auto"
           >Auto</button>
           <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
-            <IconFlame size={14} style={{ color: 'var(--primary)' }} />
+            <IconFlame size={14} style={{ color: 'var(--accent)' }} />
             <span style={{ fontSize: 13, fontWeight: 700 }}>{streak}</span>
           </div>
           <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
@@ -134,7 +137,8 @@ export default function PrayerDashboard({ user }) {
             position: 'absolute', top: -80, right: -60, width: 200, height: 200,
             background: '#C9A24A', borderRadius: '50%', filter: 'blur(70px)', opacity: .16, pointerEvents: 'none'
           }} />
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 16 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
             Werset dnia · {format(new Date(), 'd.MM', { locale: pl })}
           </div>
           <p style={{
@@ -159,7 +163,7 @@ export default function PrayerDashboard({ user }) {
           </div>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
             <IconFlame size={22} style={{ marginBottom: 4 }} />
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--primary)', lineHeight: 1 }}>{streak}</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{streak}</div>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Seria</div>
           </div>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
@@ -574,9 +578,9 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
         </button>
         <button type="button" onClick={() => setAddingNote(v => !v)} style={{
           padding: carMode ? '13px 16px' : '8px 11px', borderRadius: 8, fontSize: carMode ? 18 : 13, cursor: 'pointer',
-          border: `1px solid ${addingNote ? 'var(--primary)' : 'var(--border)'}`,
+          border: `1px solid ${addingNote ? 'var(--accent)' : 'var(--border)'}`,
           background: addingNote ? 'rgba(201,75,40,0.1)' : 'transparent',
-          color: addingNote ? 'var(--primary)' : 'var(--text-muted)'
+          color: addingNote ? 'var(--accent)' : 'var(--text-muted)'
         }}><IconEdit size={carMode ? 18 : 13} /></button>
         {!carMode && (
           <button type="button" onClick={() => onArchive(item)} style={{
@@ -661,7 +665,7 @@ function TodayView({ user, intentions, people, carMode }) {
         <button className="icon-btn" onClick={() => setViewDate(d => format(subDays(parseISO(d), 1), 'yyyy-MM-dd'))}><IconChevronLeft size={16} /></button>
         <div style={{ textAlign: 'center' }}>
           <p style={{ margin: 0, fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{dateLabel}</p>
-          {!isToday && <button onClick={() => setViewDate(TODAY())} style={{ fontSize: 10, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>wróć do dziś</button>}
+          {!isToday && <button onClick={() => setViewDate(TODAY())} style={{ fontSize: 10, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>wróć do dziś</button>}
         </div>
         <button className="icon-btn" onClick={() => setViewDate(d => format(addDays(parseISO(d), 1), 'yyyy-MM-dd'))}><IconChevronRight size={16} /></button>
       </div>
@@ -827,7 +831,7 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>regularność</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--primary)' }}>{streak}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>{streak}</div>
                 <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>seria dni</div>
               </div>
             </div>
@@ -1076,7 +1080,7 @@ function IntentionForm({ user, editData, personId, onClose }) {
   }
 
   return (
-    <div style={{ background: 'var(--surface2)', border: '1px solid var(--primary)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ background: 'var(--surface2)', border: '1px solid var(--accent)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
         {editData ? 'Edytuj prośbę' : 'Nowa prośba modlitewna'}
       </p>

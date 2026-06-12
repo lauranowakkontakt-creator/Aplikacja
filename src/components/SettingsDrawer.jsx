@@ -114,7 +114,7 @@ function IconPickerPanel({ module, onPick, onCancel }) {
           <button key={g} onClick={() => setActiveGroup(g)}
             style={{
               fontSize: 10, padding: '3px 8px', borderRadius: 99, border: 'none', cursor: 'pointer',
-              background: activeGroup === g ? 'var(--primary)' : 'var(--surface2)',
+              background: activeGroup === g ? 'var(--accent)' : 'var(--surface2)',
               color: activeGroup === g ? '#fff' : 'var(--text-muted)'
             }}>
             {g.split(' ')[0]}
@@ -156,9 +156,9 @@ function BudgetSettings({ onCurrencyChange }) {
           {CURRENCIES.map(c => (
             <button key={c.code} onClick={() => handleSelect(c.code)} style={{
               padding: '4px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer',
-              background: current === c.code ? 'var(--primary)' : 'var(--surface2)',
+              background: current === c.code ? 'var(--accent)' : 'var(--surface2)',
               color: current === c.code ? '#fff' : 'var(--text-muted)',
-              border: `1px solid ${current === c.code ? 'var(--primary)' : 'var(--border)'}`,
+              border: `1px solid ${current === c.code ? 'var(--accent)' : 'var(--border)'}`,
               fontWeight: current === c.code ? 700 : 400,
               transition: 'all .15s',
             }}>

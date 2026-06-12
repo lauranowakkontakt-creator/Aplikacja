@@ -57,7 +57,10 @@ const initials = (name) =>
   (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
 const kicker = (t) => (
-  <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase', marginBottom: 10 }}>{t}</div>
+  <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+    <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
+    {t}
+  </div>
 )
 
 /* ─── PersonBubble ─────────────────────────────────────────────────────── */
@@ -168,7 +171,7 @@ export default function CalendarDashboard({ user }) {
           <button className="icon-btn" onClick={() => setCurrentMonth(m => subMonths(m, 1))}><IconChevronLeft size={16} /></button>
           <button className="icon-btn" onClick={() => setCurrentMonth(m => addMonths(m, 1))}><IconChevronRight size={16} /></button>
           <button className="icon-btn" onClick={() => { setEditEvent(null); setShowForm(true) }}
-            style={{ background: 'var(--primary)', color: 'var(--bg)', border: 'none' }}>
+            style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none' }}>
             <span style={{ fontSize: 18 }}>+</span>
           </button>
         </div>
@@ -225,7 +228,8 @@ export default function CalendarDashboard({ user }) {
           {/* Left: calendar */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
             <div className="cal-inner-nav">
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
                 {format(currentMonth, 'LLLL yyyy', { locale: pl })}
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
@@ -261,9 +265,10 @@ export default function CalendarDashboard({ user }) {
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.15em', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
                   {format(selectedDay, 'EEEE', { locale: pl })}
-                  {isToday(selectedDay) && <span style={{ marginLeft: 8, background: 'var(--primary)', color: '#fff', padding: '1px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>DZIŚ</span>}
+                  {isToday(selectedDay) && <span style={{ marginLeft: 8, background: 'var(--accent)', color: '#fff', padding: '1px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>DZIŚ</span>}
                 </div>
                 <div className="cal-day-panel-date" style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.15, textTransform: 'capitalize', marginTop: 2 }}>
                   {format(selectedDay, 'd MMMM', { locale: pl })}
@@ -271,7 +276,7 @@ export default function CalendarDashboard({ user }) {
               </div>
               <button onClick={() => { setEditEvent(null); setShowForm(true) }} style={{
                 display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 20,
-                background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
               }}>+ Wydarzenie</button>
             </div>
 
@@ -941,7 +946,7 @@ function CategoryManager({ user, categories, onClose }) {
                 {(emojiExpanded ? CAT_ICONS : CAT_ICONS.slice(0, 15)).map(i => (
                   <button key={i} type="button" onClick={() => setIcon(i)} style={{
                     width: 34, height: 34, borderRadius: 8, fontSize: 17, cursor: 'pointer',
-                    border: `2px solid ${icon === i ? 'var(--primary)' : 'var(--border)'}`,
+                    border: `2px solid ${icon === i ? 'var(--accent)' : 'var(--border)'}`,
                     background: icon === i ? 'rgba(201,75,40,0.1)' : 'transparent'
                   }}>{i}</button>
                 ))}

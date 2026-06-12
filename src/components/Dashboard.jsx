@@ -368,7 +368,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {accounts.slice(0, 5).map(a => {
                     const acColors = { bank: '#3b82f6', cash: '#22c55e', card: '#f59e0b', savings: '#8b5cf6', investment: '#14b8a6', revolut: '#6366f1' }
-                    const color = acColors[a.type] || 'var(--primary)'
+                    const color = acColors[a.type] || 'var(--accent)'
                     return (
                       <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 6px', borderRadius: 10, borderLeft: `3px solid ${color}55`, transition: 'background .15s' }}
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}

@@ -203,7 +203,7 @@ function GoalForm({ user, editData, onClose }) {
           <div className="form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}>
               <input type="checkbox" checked={noTarget} onChange={e => setNoTarget(e.target.checked)}
-                style={{ width: 16, height: 16, accentColor: 'var(--primary)', cursor: 'pointer' }} />
+                style={{ width: 16, height: 16, accentColor: 'var(--accent)', cursor: 'pointer' }} />
               Odkładanie bez celu kwotowego
             </label>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
