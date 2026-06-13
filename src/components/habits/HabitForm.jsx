@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
-import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconChevronDown, IconChevronRight } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconArchive, IconRestore } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -24,14 +24,6 @@ const HABIT_COLORS = [
   '#4F46E5','#BE185D','#6B9E72','#4A90D9','#1ABC9C','#E74C3C',
 ]
 
-const EMOJIS = [
-  '💪','📖','🧘','🏃','💧','🥗','😴','🙏','✍️','🎯',
-  '🎸','🌿','☕','🧹','💊','🚶','🏋️','🧠','❤️','⭐',
-  '🌅','🛁','🎨','🥦','🚲','📝','🎵','🕯️','🌊','🍵',
-  '🦷','🧴','🏊','⚽','🎾','🥊','📷','🌱','🫀','🧬',
-  '✝️','📿','🌺','🦋','🍀','🎉','💎','🔥','🎓','🚀',
-]
-
 const FREQ_DAYS = [
   { id: 1, label: 'Pn' }, { id: 2, label: 'Wt' }, { id: 3, label: 'Śr' },
   { id: 4, label: 'Cz' }, { id: 5, label: 'Pt' }, { id: 6, label: 'So' }, { id: 0, label: 'Nd' },
@@ -39,7 +31,8 @@ const FREQ_DAYS = [
 
 export default function HabitForm({ user, onClose, editData }) {
   const [name, setName]           = useState(editData?.name || '')
-  const [emoji, setEmoji]         = useState(editData?.emoji || '💪')
+  const [iconKey, setIconKey]     = useState(editData?.emoji || 'IcTarget')
+  const [iconSearch, setIconSearch] = useState('')
   const [color, setColor]         = useState(editData?.color || HABIT_COLORS[1])
   const [category, setCategory]   = useState(editData?.category || 'health')
   const [frequency, setFrequency] = useState(editData?.frequency || 'daily')
@@ -49,7 +42,10 @@ export default function HabitForm({ user, onClose, editData }) {
   const [endDate, setEndDate]     = useState(editData?.endDate || '')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
-  const [emojiExpanded, setEmojiExpanded] = useState(false)
+
+  const filteredIcons = iconSearch.trim()
+    ? ICON_CATALOG.filter(ic => ic.label.toLowerCase().includes(iconSearch.toLowerCase()) || ic.group.toLowerCase().includes(iconSearch.toLowerCase()))
+    : ICON_CATALOG
 
   const toggleDay = (id) =>
     setFreqDays(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id])
@@ -67,7 +63,7 @@ export default function HabitForm({ user, onClose, editData }) {
     if (frequency === 'custom' && freqDays.length === 0) { setError('Wybierz co najmniej 1 dzień'); return }
     setSaving(true)
     const data = {
-      name: name.trim(), emoji, color, category, frequency, frequencyDays: getFreqDays(),
+      name: name.trim(), emoji: iconKey, color, category, frequency, frequencyDays: getFreqDays(),
       startDate, endDate: hasEnd && endDate ? endDate : null,
       updatedAt: Timestamp.now()
     }
@@ -102,26 +98,32 @@ export default function HabitForm({ user, onClose, editData }) {
         </div>
         <form onSubmit={handleSubmit} className="form">
 
-          {/* Emoji */}
+          {/* Ikona */}
           <div className="form-group">
             <label>Ikona</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 28 }}>{emoji}</span>
-              <input type="text" className="form-input" value={emoji}
-                onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setEmoji(v) }}
-                placeholder="emoji" maxLength={4}
-                style={{ width: 72, textAlign: 'center', fontSize: 18, margin: 0 }} />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 10, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color, border: `2px solid ${color}`, flexShrink: 0 }}>
+                <CatIcon categoryId={null} emoji={iconKey} size={24} />
+              </div>
+              <input type="text" className="form-input" value={iconSearch} onChange={e => setIconSearch(e.target.value)}
+                placeholder="Szukaj ikony..." style={{ margin: 0, flex: 1 }} />
             </div>
-            <div className="emoji-grid">
-              {(emojiExpanded ? EMOJIS : EMOJIS.slice(0, 15)).map(e => (
-                <button key={e} type="button" className={`emoji-btn ${emoji === e ? 'active' : ''}`} onClick={() => setEmoji(e)}>{e}</button>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, maxHeight: 168, overflowY: 'auto' }}>
+              {filteredIcons.map(ic => (
+                <button key={ic.key} type="button"
+                  onClick={() => setIconKey(ic.key)}
+                  title={ic.label}
+                  style={{
+                    width: '100%', aspectRatio: '1', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                    border: `2px solid ${iconKey === ic.key ? color : 'var(--border)'}`,
+                    background: iconKey === ic.key ? color + '22' : 'transparent',
+                    color: iconKey === ic.key ? color : 'var(--text-muted)',
+                    padding: 0
+                  }}>
+                  <CatIcon categoryId={null} emoji={ic.key} size={18} />
+                </button>
               ))}
             </div>
-            <button type="button" onClick={() => setEmojiExpanded(v => !v)}
-              style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
-              {emojiExpanded ? <><IconChevronDown size={11} /> Mniej</> : <><IconChevronRight size={11} /> Więcej ({EMOJIS.length - 15})</>}
-            </button>
           </div>
 
           {/* Nazwa */}
@@ -213,7 +215,9 @@ export default function HabitForm({ user, onClose, editData }) {
           {editData && (
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
               <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={handleArchive}>
-                {editData.archived ? '📤 Przywróć' : '📦 Archiwizuj'}
+                {editData.archived
+                  ? <><IconRestore size={14} /> Przywróć</>
+                  : <><IconArchive size={14} /> Archiwizuj</>}
               </button>
               <button type="button" className="btn-outline danger" style={{ flex: 1 }} onClick={handleDelete}>
                 <IconTrash size={14} /> Usuń

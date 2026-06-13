@@ -54,7 +54,7 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
     const data = {
       type, name: name.trim(), amount: parseFloat(amount),
       category: cat?.label || category, categoryId: category,
-      categoryIcon: cat?.icon || '🔄',
+      categoryIcon: cat?.icon || 'IconRepeat',
       frequency, dayOfMonth: parseInt(dayOfMonth) || 1,
       accountId: accountId || null,
       autoAdd,

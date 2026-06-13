@@ -315,6 +315,22 @@ export const IconHeart = (p) => (
   </Icon>
 )
 
+export const IconArchive = (p) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="4" rx="1" />
+    <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" />
+    <path d="M10 12h4" />
+  </Icon>
+)
+
+export const IconRestore = (p) => (
+  <Icon {...p}>
+    <rect x="3" y="4" width="18" height="4" rx="1" />
+    <path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8" />
+    <path d="M12 17v-5M9.5 14.5L12 12l2.5 2.5" />
+  </Icon>
+)
+
 export const IconLogo = (p) => (
   <Icon {...p}>
     <path d="M12 3l9 9-9 9-9-9z" />
@@ -678,6 +694,7 @@ export const CATEGORY_ICON_MAP = {
   freelance: IcLaptop,
   premia: IcBriefcase,
   zwrot: IconTransfer,
+  transfer: IconTransfer,
   inwestycje: IcChart,
   inne: IconMore,
   restauracje: IcPizza,

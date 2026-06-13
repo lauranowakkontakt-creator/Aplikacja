@@ -3,12 +3,12 @@ import { collection, addDoc, deleteDoc, doc, onSnapshot, Timestamp, orderBy, que
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { IconClose, IconTrash } from '../Icons'
+import { CatIcon, IconClose, IconTrash, IconPause } from '../Icons'
 
 const REASONS = [
-  { id: 'vacation', label: 'Wakacje', icon: '✈️' },
-  { id: 'illness',  label: 'Choroba', icon: '🤒' },
-  { id: 'other',    label: 'Inne',    icon: '⏸️' },
+  { id: 'vacation', label: 'Wakacje', icon: 'IcPlane' },
+  { id: 'illness',  label: 'Choroba', icon: 'IcThermo' },
+  { id: 'other',    label: 'Inne',    icon: 'IconMore' },
 ]
 
 export default function PauseForm({ user, onClose }) {
@@ -45,7 +45,7 @@ export default function PauseForm({ user, onClose }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>⏸️ Pauza nawyków</h3>
+          <h3 style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><IconPause size={16} /> Pauza nawyków</h3>
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div className="form">
@@ -58,7 +58,8 @@ export default function PauseForm({ user, onClose }) {
                 <button key={r.id} type="button"
                   className={`type-btn ${reason === r.id ? 'active expense' : ''}`}
                   onClick={() => setReason(r.id)}
-                >{r.icon} {r.label}</button>
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
+                ><CatIcon categoryId={null} emoji={r.icon} size={14} /> {r.label}</button>
               ))}
             </div>
           </div>
@@ -83,7 +84,7 @@ export default function PauseForm({ user, onClose }) {
               <p className="pause-list-title">Zapisane pauzy</p>
               {pauses.map(p => (
                 <div key={p.id} className="pause-item">
-                  <span className="pause-reason">{p.reasonIcon} {p.reasonLabel}</span>
+                  <span className="pause-reason" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CatIcon categoryId={null} emoji={p.reasonIcon} size={14} /> {p.reasonLabel}</span>
                   <span className="pause-dates">{fmtDate(p.from)} – {fmtDate(p.to)}</span>
                   <button className="t-btn delete" onClick={() => handleDelete(p.id)}><IconTrash size={13} /></button>
                 </div>

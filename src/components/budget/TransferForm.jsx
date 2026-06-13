@@ -3,7 +3,7 @@ import { collection, addDoc, onSnapshot, orderBy, query, Timestamp, doc, updateD
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { fmt, getCurrencyCode } from '../../utils/currency'
-import { IconClose } from '../Icons'
+import { IconClose, IconTransfer, IconArrowDown } from '../Icons'
 
 export default function TransferForm({ user, onClose }) {
   const [accounts, setAccounts] = useState([])
@@ -39,14 +39,14 @@ export default function TransferForm({ user, onClose }) {
     try {
       await addDoc(collection(db, 'users', user.uid, 'transactions'), {
         type: 'expense', amount: amt, category: 'Przelew', categoryId: 'transfer',
-        categoryIcon: '💸',
+        categoryIcon: 'IconTransfer',
         description: `→ ${toAcc?.name}${desc ? ` · ${desc}` : ''}`,
         transferTo: toId, transferComment: desc || '',
         date: d, accountId: fromId, createdAt: Timestamp.now(), updatedAt: Timestamp.now()
       })
       await addDoc(collection(db, 'users', user.uid, 'transactions'), {
         type: 'income', amount: amt, category: 'Przelew', categoryId: 'transfer',
-        categoryIcon: '💸',
+        categoryIcon: 'IconTransfer',
         description: `← ${fromAcc?.name}${desc ? ` · ${desc}` : ''}`,
         transferFrom: fromId, transferComment: desc || '',
         date: d, accountId: toId, createdAt: Timestamp.now(), updatedAt: Timestamp.now()
@@ -61,7 +61,7 @@ export default function TransferForm({ user, onClose }) {
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3>💸 Przelew między kontami</h3>
+          <h3 style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><IconTransfer size={18} /> Przelew między kontami</h3>
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         {accounts.length < 2 ? (
@@ -76,7 +76,7 @@ export default function TransferForm({ user, onClose }) {
                 {accounts.map(a => <option key={a.id} value={a.id}>{a.name} ({fmt(a.balance || 0)})</option>)}
               </select>
             </div>
-            <div className="transfer-arrow">↓</div>
+            <div className="transfer-arrow"><IconArrowDown size={18} /></div>
             <div className="form-group">
               <label>Na konto</label>
               <select className="form-input" value={toId} onChange={e => setToId(e.target.value)}>

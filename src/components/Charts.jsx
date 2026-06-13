@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { collection, query, where, orderBy, onSnapshot, Timestamp, getDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { CatIcon, IconChevronLeft, IconChevronRight } from './Icons'
+import { CatIcon, IconChevronLeft, IconChevronRight, IconChart } from './Icons'
 import { useMounted, BarChartSVG, FlowBar } from './ChartPrimitives'
 import {
   format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
@@ -163,7 +163,7 @@ export default function Charts({ user, privateMode = false }) {
       {/* Content */}
       {filtered.length === 0 ? (
         <div className="charts-empty">
-          <p style={{ fontSize: 32, marginBottom: 8 }}>📭</p>
+          <p style={{ marginBottom: 8, opacity: 0.4 }}><IconChart size={32} /></p>
           <p>Brak transakcji w tym okresie</p>
         </div>
       ) : (
@@ -317,7 +317,7 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
   const byCat = {}
   transactions.forEach(t => {
     const key = t.categoryId || t.category || 'Inne'
-    if (!byCat[key]) byCat[key] = { name: t.category || 'Inne', icon: t.categoryIcon || '📌', categoryId: t.categoryId, value: 0 }
+    if (!byCat[key]) byCat[key] = { name: t.category || 'Inne', icon: t.categoryIcon || 'IconMore', categoryId: t.categoryId, value: 0 }
     byCat[key].value += t.amount
   })
   const data = Object.values(byCat).sort((a, b) => b.value - a.value)
@@ -377,7 +377,7 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
 
   if (!data.length) return (
     <div className="charts-empty">
-      <p style={{ fontSize: 32, marginBottom: 8 }}>🗂️</p>
+      <p style={{ marginBottom: 8, opacity: 0.4 }}><IconChart size={32} /></p>
       <p>Brak {label.toLowerCase()}</p>
     </div>
   )

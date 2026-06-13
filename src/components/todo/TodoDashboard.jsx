@@ -18,14 +18,6 @@ const PRIORITY = [
   { id: 'medium', label: 'Średni',  color: '#FB8C00' },
   { id: 'low',    label: 'Niski',   color: '#43A047' },
 ]
-const LIST_ICONS  = [
-  '📁','🏠','💼','📚','🛒','💪','✈️','🎯','❤️','🌱',
-  '💡','🎨','🔧','📝','🎵','🌍','🏋️','🍕','☕','🐾',
-  '💰','🎮','🎬','📷','🚗','🧘','🏃','🧹','💊','🌺',
-  '⭐','🔑','📅','💌','🏆','🎁','🌙','☀️','🔥','💎',
-  '🧠','⚽','🎸','📱','💻','🏠','🌿','🦋','🍀','🎉',
-  '🙏','✝️','🕊️','📖','⚡','🎭','🌊','🏔️','🦁','🌸',
-]
 const LIST_COLORS = [
   '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',
   '#22C55E','#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1',
@@ -509,7 +501,7 @@ function TodoStats({ todos, lists }) {
                 done={l.done} active={l.active} />
             ))}
             {(noListDone > 0 || noListActive > 0) && (
-              <ListStatRow icon="📌" name="Bez listy" color="var(--text-muted)"
+              <ListStatRow icon="IconMore" name="Bez listy" color="var(--text-muted)"
                 done={noListDone} active={noListActive} />
             )}
           </div>

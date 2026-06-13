@@ -17,7 +17,7 @@ import SavingsGoals from './budget/SavingsGoals'
 import Reminders from './budget/Reminders'
 import CategoriesView from './budget/CategoriesView'
 import ShoppingList from './budget/ShoppingList'
-import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, CatIcon } from './Icons'
+import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconClock, CatIcon } from './Icons'
 import { Donut, FlowBar, BarChartSVG, Spark } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 
@@ -531,7 +531,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
       {modal === 'goals'       && <SavingsGoals   user={user} onClose={() => setModal(null)} />}
       {modal === 'reminders'   && <Reminders      user={user} onClose={() => setModal(null)} />}
       {modal === 'categories'  && <CategoriesView user={user} onClose={() => setModal(null)} />}
-      {modal === 'stats'       && <ComingSoon title="📊 Statystyki roczne" onClose={() => setModal(null)} />}
+      {modal === 'stats'       && <ComingSoon title="Statystyki roczne" onClose={() => setModal(null)} />}
 
       {showForm && (
         <TransactionForm
@@ -553,7 +553,7 @@ function ComingSoon({ title, onClose }) {
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div style={{ padding: '32px 20px', color: 'var(--text-muted)' }}>
-          <p style={{ fontSize: 40, marginBottom: 16 }}>🚧</p>
+          <p style={{ marginBottom: 16, opacity: 0.5, display: 'flex', justifyContent: 'center' }}><IconClock size={40} /></p>
           <p>Ta funkcja jest w przygotowaniu.</p>
         </div>
       </div>

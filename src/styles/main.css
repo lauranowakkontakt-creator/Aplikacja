@@ -470,11 +470,18 @@ button { touch-action: manipulation; }
   position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex;
   align-items: flex-end; justify-content: center; z-index: 200; backdrop-filter: blur(4px);
   overscroll-behavior: contain;
+  /* Allow the sheet to scroll as a whole if it ever exceeds the viewport */
+  overflow-y: auto; padding-top: env(safe-area-inset-top, 0px);
 }
+/* Lock background scroll while any modal/drawer is open so touch-scroll stays
+   inside the sheet (fixes unreachable buttons on mobile) */
+body:has(.modal-overlay),
+body:has(.drawer-overlay) { overflow: hidden; }
 @media (min-width: 600px) { .modal-overlay { align-items: center; } }
 .modal {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--r-lg) var(--r-lg) 0 0; padding: 28px 24px; width: 100%;
+  border-radius: var(--r-lg) var(--r-lg) 0 0; padding: 28px 24px;
+  padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); width: 100%;
   max-width: 480px; max-height: 92dvh; overflow-y: auto; animation: slideUp 0.25s ease;
   overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
 }
@@ -543,7 +550,7 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
   /* Forms — collapse rows */
   .form-row { flex-direction: column; gap: 8px; align-items: stretch; }
   .form { gap: 14px; }
-  .modal { padding: 20px 16px; }
+  .modal { padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
 
   /* Budget tabs: no label text, just icons + abbreviation */
   .budget-tab { font-size: 10px; padding: 7px 2px; }

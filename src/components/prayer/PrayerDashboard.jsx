@@ -861,7 +861,7 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                       <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{p.name}</p>
-                      {p.prayedToday && <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'rgba(39,174,96,0.15)', color: '#27AE60' }}>✓ dziś</span>}
+                      {p.prayedToday && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'rgba(39,174,96,0.15)', color: '#27AE60' }}><IconCheck size={9} /> dziś</span>}
                       {(isNeglected || isAtRisk) && (
                         <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: neglect.color + '20', color: neglect.color, fontWeight: 700 }}>
                           L{neglect.level} · {neglect.label}

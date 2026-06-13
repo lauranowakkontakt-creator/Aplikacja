@@ -6,20 +6,12 @@ import { pl } from 'date-fns/locale'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { fmt, getCurrencyCode } from '../../utils/currency'
 import { EXPENSE_CATEGORIES } from '../TransactionForm'
-import { IconTrash, IconClose, IconTag, IconShopping, IconCheck, IconChevronDown, IconChevronRight } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconTrash, IconClose, IconTag, IconShopping, IconCheck } from '../Icons'
 import { CAT_COLORS } from '../../utils/categories'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
 const COLORS = ['#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
-
-const SHOP_EMOJI_PRESETS = [
-  '🛒','🍕','☕','🏠','🚗','🎁','📚','💻','✈️','🎬',
-  '👕','📱','🐷','📌','💼','⭐','🎀','📈','🏦','💵',
-  '💳','🔧','🎮','🍔','🌿','💊','📦','🎵','🏋️','🐾',
-  '🌊','⚽','🎓','🛍️','💐','🍺','🥗','🍷','🎂','🍦',
-  '🥦','🍎','🥤','🍜','🧃','🚌','⛽','💆','🧴','💅',
-]
 
 export default function ShoppingList({ user }) {
   const [items, setItems]       = useState([])
@@ -106,7 +98,7 @@ export default function ShoppingList({ user }) {
                 const cat = categories.find(c => c.id === item.category)
                 return (
                   <div key={item.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {cat?.icon ? <span style={{ fontSize: 22 }}>{cat.icon}</span> : <IconShopping size={22} />}
+                    {cat?.icon ? <CatIcon categoryId={null} emoji={cat.icon} size={22} /> : <IconShopping size={22} />}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{item.name}</p>
                       <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -117,8 +109,8 @@ export default function ShoppingList({ user }) {
                     <div style={{ display: 'flex', gap: 6 }}>
                       <button
                         onClick={() => setShowTx(item)}
-                        style={{ fontSize: 12, padding: '5px 10px', background: 'rgba(39,174,96,0.15)', border: '1px solid #27AE6060', borderRadius: 8, color: '#27AE60', cursor: 'pointer', fontWeight: 700 }}>
-                        Kup ✓
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, padding: '5px 10px', background: 'rgba(39,174,96,0.15)', border: '1px solid #27AE6060', borderRadius: 8, color: '#27AE60', cursor: 'pointer', fontWeight: 700 }}>
+                        Kup <IconCheck size={13} />
                       </button>
                       <button className="t-btn delete" onClick={() => handleDelete(item.id)}><IconTrash size={13} /></button>
                     </div>
@@ -162,7 +154,7 @@ export default function ShoppingList({ user }) {
               const cat = categories.find(c => c.id === item.category)
               return (
                 <div key={item.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, opacity: 0.75 }}>
-                  {cat?.icon ? <span style={{ fontSize: 22 }}>{cat.icon}</span> : <IconShopping size={22} />}
+                  {cat?.icon ? <CatIcon categoryId={null} emoji={cat.icon} size={22} /> : <IconShopping size={22} />}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ margin: 0, fontSize: 14, fontWeight: 600, textDecoration: 'line-through', color: 'var(--text-muted)' }}>{item.name}</p>
                     <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
@@ -227,7 +219,7 @@ function ShopCategoryManager({ user, categories, onClose }) {
                 borderRadius: 10, padding: '8px 12px'
               }}>
                 <div style={{ width: 36, height: 36, borderRadius: 9, background: (cat.color || '#C94B28') + '33', border: `1.5px solid ${cat.color || '#C94B28'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {cat.icon ? <span style={{ fontSize: 18 }}>{cat.icon}</span> : <IconTag size={18} />}
+                  {cat.icon ? <CatIcon categoryId={null} emoji={cat.icon} size={18} /> : <IconTag size={18} />}
                 </div>
                 <span style={{ flex: 1, fontSize: 14 }}>{cat.label}</span>
                 <button className="t-btn delete" onClick={() => handleDelete(cat.id)}><IconTrash size={13} /></button>
@@ -255,10 +247,14 @@ function ShopCategoryManager({ user, categories, onClose }) {
 /* ─── AddShopCategoryForm ─── */
 function AddShopCategoryForm({ onAdd, onCancel, existingIds }) {
   const [label, setLabel]   = useState('')
-  const [icon, setIcon]     = useState('🛒')
+  const [icon, setIcon]     = useState('IconShopping')
   const [color, setColor]   = useState(CAT_COLORS[0])
   const [error, setError]   = useState('')
-  const [emojiExpanded, setEmojiExpanded] = useState(false)
+  const [iconSearch, setIconSearch] = useState('')
+
+  const filteredIcons = iconSearch.trim()
+    ? ICON_CATALOG.filter(ic => ic.label.toLowerCase().includes(iconSearch.toLowerCase()) || ic.group.toLowerCase().includes(iconSearch.toLowerCase()))
+    : ICON_CATALOG
 
   const handleAdd = () => {
     if (!label.trim()) { setError('Wpisz nazwę'); return }
@@ -278,26 +274,27 @@ function AddShopCategoryForm({ onAdd, onCancel, existingIds }) {
 
       <div className="form-group" style={{ margin: 0 }}>
         <label>Ikona</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 28 }}>{icon}</span>
-          <input type="text" className="form-input" value={icon}
-            onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setIcon(v) }}
-            placeholder="emoji" maxLength={4}
-            style={{ width: 80, textAlign: 'center', fontSize: 18, margin: 0 }} />
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          <div style={{ width: 42, height: 42, borderRadius: 10, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color, border: `2px solid ${color}`, flexShrink: 0 }}>
+            <CatIcon categoryId={null} emoji={icon} size={22} />
+          </div>
+          <input type="text" className="form-input" value={iconSearch} onChange={e => setIconSearch(e.target.value)}
+            placeholder="Szukaj ikony..." style={{ margin: 0, flex: 1 }} />
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {(emojiExpanded ? SHOP_EMOJI_PRESETS : SHOP_EMOJI_PRESETS.slice(0, 15)).map(e => (
-            <button key={e} type="button"
-              style={{ fontSize: 22, background: icon === e ? 'rgba(201,75,40,0.2)' : 'transparent', border: `1px solid ${icon === e ? 'var(--accent)' : 'var(--border)'}`, borderRadius: 8, padding: '4px 6px', cursor: 'pointer' }}
-              onClick={() => setIcon(e)}
-            >{e}</button>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, maxHeight: 150, overflowY: 'auto' }}>
+          {filteredIcons.map(ic => (
+            <button key={ic.key} type="button" title={ic.label}
+              onClick={() => setIcon(ic.key)}
+              style={{
+                width: '100%', aspectRatio: '1', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0,
+                border: `2px solid ${icon === ic.key ? color : 'var(--border)'}`,
+                background: icon === ic.key ? color + '22' : 'transparent',
+                color: icon === ic.key ? color : 'var(--text-muted)'
+              }}>
+              <CatIcon categoryId={null} emoji={ic.key} size={17} />
+            </button>
           ))}
         </div>
-        <button type="button" onClick={() => setEmojiExpanded(v => !v)}
-          style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
-          {emojiExpanded ? <><IconChevronDown size={11} /> Mniej</> : <><IconChevronRight size={11} /> Więcej ({SHOP_EMOJI_PRESETS.length - 15})</>}
-        </button>
       </div>
 
       <div className="form-group" style={{ margin: 0 }}>
@@ -374,9 +371,9 @@ function AddItemModal({ user, categories, onClose }) {
               {categories.map(c => (
                 <button key={c.id} type="button"
                   className={`mood-emotion-btn ${category === c.id ? 'active' : ''}`}
-                  style={category === c.id ? { borderColor: 'var(--accent)', background: 'rgba(201,75,40,0.1)', color: 'var(--text)' } : {}}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...(category === c.id ? { borderColor: 'var(--accent)', background: 'rgba(201,75,40,0.1)', color: 'var(--text)' } : {}) }}
                   onClick={() => setCategory(c.id)}
-                >{c.icon} {c.label}</button>
+                ><CatIcon categoryId={null} emoji={c.icon} size={15} /> {c.label}</button>
               ))}
             </div>
           </div>
@@ -422,7 +419,7 @@ function BuyModal({ item, user, categories, onBuy, onClose }) {
     setSaving(true)
     const actualPrice = parseFloat(price) || 0
     if (actualPrice > 0) {
-      const cat = categories.find(c => c.id === item.category) || { label: 'Zakupy', id: 'zakupy', icon: '🛒' }
+      const cat = categories.find(c => c.id === item.category) || { label: 'Zakupy', id: 'zakupy', icon: 'IconShopping' }
       await addDoc(collection(db, 'users', user.uid, 'transactions'), {
         type: 'expense', amount: actualPrice,
         category: cat.label, categoryId: cat.id, categoryIcon: cat.icon,

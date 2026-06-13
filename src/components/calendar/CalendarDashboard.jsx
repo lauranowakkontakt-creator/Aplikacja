@@ -7,23 +7,24 @@ import {
   addMonths, subMonths, getDate
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight, IconCheck, IconCalendar } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight, IconCheck, IconCalendar } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
+// `icon` holds an SVG icon-catalog key (see Icons.jsx) — never an emoji.
 const DEFAULT_CATEGORIES = [
-  { slug: 'work',     label: 'Praca',     icon: '💼', color: '#3b82f6' },
-  { slug: 'home',     label: 'Dom',       icon: '🏠', color: '#10b981' },
-  { slug: 'health',   label: 'Zdrowie',   icon: '❤️', color: '#ef4444' },
-  { slug: 'birthday', label: 'Urodziny',  icon: '🎉', color: '#f59e0b' },
-  { slug: 'study',    label: 'Nauka',     icon: '📚', color: '#8b5cf6' },
-  { slug: 'sport',    label: 'Sport',     icon: '💪', color: '#14b8a6' },
-  { slug: 'family',   label: 'Rodzina',   icon: '👨‍👩‍👧', color: '#ec4899' },
-  { slug: 'meeting',  label: 'Spotkania', icon: '🤝', color: '#6366f1' },
-  { slug: 'travel',   label: 'Wyjazdy',   icon: '✈️', color: '#C94B28' },
-  { slug: 'finance',  label: 'Finanse',   icon: '💰', color: '#84cc16' },
-  { slug: 'prayer',   label: 'Modlitwa',  icon: '🙏', color: '#a78bfa' },
-  { slug: 'other',    label: 'Inne',      icon: '📌', color: '#607D8B' },
+  { slug: 'work',     label: 'Praca',     icon: 'IcBriefcase', color: '#3b82f6' },
+  { slug: 'home',     label: 'Dom',       icon: 'IcSofa',      color: '#10b981' },
+  { slug: 'health',   label: 'Zdrowie',   icon: 'IconHeart',   color: '#ef4444' },
+  { slug: 'birthday', label: 'Urodziny',  icon: 'IcCake',      color: '#f59e0b' },
+  { slug: 'study',    label: 'Nauka',     icon: 'IcBookOpen',  color: '#8b5cf6' },
+  { slug: 'sport',    label: 'Sport',     icon: 'IcDumbbell',  color: '#14b8a6' },
+  { slug: 'family',   label: 'Rodzina',   icon: 'IcUsersGrp',  color: '#ec4899' },
+  { slug: 'meeting',  label: 'Spotkania', icon: 'IcHandshake', color: '#6366f1' },
+  { slug: 'travel',   label: 'Wyjazdy',   icon: 'IcPlane',     color: '#C94B28' },
+  { slug: 'finance',  label: 'Finanse',   icon: 'IcWallet',    color: '#84cc16' },
+  { slug: 'prayer',   label: 'Modlitwa',  icon: 'IcPray',      color: '#a78bfa' },
+  { slug: 'other',    label: 'Inne',      icon: 'IconMore',    color: '#607D8B' },
 ]
 
 const PERSON_COLORS = [
@@ -32,14 +33,6 @@ const PERSON_COLORS = [
   '#EC4899','#14B8A6','#84CC16','#6366F1',
 ]
 
-const CAT_ICONS = [
-  '💼','🏠','❤️','🎉','📚','💪','👨‍👩‍👧','🤝','✈️','💰',
-  '🙏','📌','🎵','🍽️','🎬','🏥','🎓','🛒','🌿','⚽',
-  '🎨','🔧','📞','🎂','🚗','💊','📸','🌙','☀️','🎯',
-  '🌍','🏆','🎸','🎤','🧘','🏋️','🐾','🌺','⭐','🔑',
-  '📅','💌','🎁','🔥','💎','🧠','💻','📱','🌊','🏔️',
-  '✝️','🕊️','🌸','🦋','🍀','🎭','🎪','🚀','⚡','🌈',
-]
 const CAT_COLORS = [
   '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',
   '#22C55E','#10B981','#14B8A6','#06B6D4','#3B82F6','#6366F1',
@@ -881,11 +874,15 @@ function PeopleManager({ user, calPeople, onClose }) {
 
 /* ─── CategoryManager ──────────────────────────────────────────────────── */
 function CategoryManager({ user, categories, onClose }) {
-  const [icon, setIcon]     = useState(CAT_ICONS[0])
+  const [icon, setIcon]     = useState('IconCalendar')
   const [label, setLabel]   = useState('')
   const [color, setColor]   = useState(CAT_COLORS[0])
   const [saving, setSaving] = useState(false)
-  const [emojiExpanded, setEmojiExpanded] = useState(false)
+  const [iconSearch, setIconSearch] = useState('')
+
+  const filteredIcons = iconSearch.trim()
+    ? ICON_CATALOG.filter(ic => ic.label.toLowerCase().includes(iconSearch.toLowerCase()) || ic.group.toLowerCase().includes(iconSearch.toLowerCase()))
+    : ICON_CATALOG
 
   const handleAdd = async (e) => {
     e.preventDefault()
@@ -934,27 +931,25 @@ function CategoryManager({ user, categories, onClose }) {
             </div>
             <div className="form-group">
               <label>Ikona</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 28 }}>{icon}</span>
-                <input type="text" className="form-input" value={icon}
-                  onChange={e => { const v = [...e.target.value].slice(-2).join(''); if (v) setIcon(v) }}
-                  placeholder="emoji" maxLength={4}
-                  style={{ width: 72, textAlign: 'center', fontSize: 18, margin: 0 }} />
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>lub wybierz:</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 42, height: 42, borderRadius: 10, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color, border: `2px solid ${color}`, flexShrink: 0 }}>
+                  <CatIcon categoryId={null} emoji={icon} size={22} />
+                </div>
+                <input type="text" className="form-input" value={iconSearch} onChange={e => setIconSearch(e.target.value)}
+                  placeholder="Szukaj ikony..." style={{ margin: 0, flex: 1 }} />
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                {(emojiExpanded ? CAT_ICONS : CAT_ICONS.slice(0, 15)).map(i => (
-                  <button key={i} type="button" onClick={() => setIcon(i)} style={{
-                    width: 34, height: 34, borderRadius: 8, fontSize: 17, cursor: 'pointer',
-                    border: `2px solid ${icon === i ? 'var(--accent)' : 'var(--border)'}`,
-                    background: icon === i ? 'rgba(201,75,40,0.1)' : 'transparent'
-                  }}>{i}</button>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5, maxHeight: 150, overflowY: 'auto' }}>
+                {filteredIcons.map(ic => (
+                  <button key={ic.key} type="button" title={ic.label} onClick={() => setIcon(ic.key)} style={{
+                    width: '100%', aspectRatio: '1', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0,
+                    border: `2px solid ${icon === ic.key ? color : 'var(--border)'}`,
+                    background: icon === ic.key ? color + '22' : 'transparent',
+                    color: icon === ic.key ? color : 'var(--text-muted)'
+                  }}>
+                    <CatIcon categoryId={null} emoji={ic.key} size={17} />
+                  </button>
                 ))}
               </div>
-              <button type="button" onClick={() => setEmojiExpanded(v => !v)}
-                style={{ fontSize: 12, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
-                {emojiExpanded ? '▲ Mniej' : `▼ Więcej (${CAT_ICONS.length - 15})`}
-              </button>
             </div>
             <div className="form-group">
               <label>Kolor</label>
