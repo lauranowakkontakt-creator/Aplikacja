@@ -276,8 +276,18 @@ button { touch-action: manipulation; }
   .content-inner { padding: 16px 16px 110px; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .hide-mobile { display: none !important; }
-  /* Force all flex/grid to not overflow */
-  .content { overflow-x: hidden; }
+  /* Mobile: scroll the page on <body>, not on .content. A position:fixed modal
+     placed inside a scroll container (.content has overflow + momentum scroll)
+     is trapped by iOS Safari and behaves like position:absolute — it scrolls
+     with the page and slides under the bottom nav. Moving the scroll to <body>
+     lets fixed overlays escape to the viewport and sit above everything.
+     Note: we must NOT set overflow-x:hidden on .content here — a single hidden
+     axis forces the other to `auto`, recreating the scroll container. */
+  html, body, #root { height: auto; min-height: 100%; }
+  body { overflow-x: hidden; }
+  .app { display: block; height: auto; min-height: 100dvh; }
+  .main { overflow: visible; }
+  .content { overflow: visible; }
 }
 @media (min-width: 881px) { .only-mobile { display: none !important; } }
 
@@ -474,9 +484,12 @@ button { touch-action: manipulation; }
   overflow-y: auto; padding-top: env(safe-area-inset-top, 0px);
 }
 /* Lock background scroll while any modal/drawer is open so touch-scroll stays
-   inside the sheet (fixes unreachable buttons on mobile) */
+   inside the sheet (fixes unreachable buttons on mobile). Lock both possible
+   scroll containers: <body> (mobile) and .content (desktop). */
 body:has(.modal-overlay),
 body:has(.drawer-overlay) { overflow: hidden; }
+body:has(.modal-overlay) .content,
+body:has(.drawer-overlay) .content { overflow: hidden; }
 @media (min-width: 600px) { .modal-overlay { align-items: center; } }
 .modal {
   background: var(--surface); border: 1px solid var(--border);
