@@ -5,7 +5,7 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import AccountForm from './AccountForm'
 import { fmt } from '../../utils/currency'
-import { CatIcon, IconBank, IconCash, IconCard, IconSavings, IconEdit, IconTrash, IconEye, IconEyeOff } from '../Icons'
+import { CatIcon, IconBank, IconCash, IconCard, IconSavings, IconEdit, IconTrash, IconEye, IconEyeOff, IconChevronLeft } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -204,7 +204,7 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button className="t-btn" onClick={onBack} style={{ fontSize: 20 }}>←</button>
+        <button className="t-btn" onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center' }}><IconChevronLeft size={18} /></button>
         <div style={{ flex: 1 }}>
           <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{account.name}</p>
           <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{account.typeName}</p>

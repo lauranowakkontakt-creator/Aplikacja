@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, CAT_COLORS, getSubcategoryColor } from '../../utils/categories'
-import { CatIcon, IconClose, IconTrash, IconTag, IconEdit, IconSearch, IconChevronDown, ICON_CATALOG } from '../Icons'
+import { CatIcon, IconClose, IconTrash, IconTag, IconEdit, IconSearch, IconChevronDown, IconArrowUp, IconArrowDown, ICON_CATALOG } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -140,8 +140,8 @@ export default function CategoriesView({ user, onClose }) {
                         </span>
                       )}
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="t-btn" onClick={() => move(cat.id, -1)} disabled={i === 0} style={{ opacity: i === 0 ? 0.3 : 1 }}>↑</button>
-                        <button className="t-btn" onClick={() => move(cat.id, +1)} disabled={i === cats.length - 1} style={{ opacity: i === cats.length - 1 ? 0.3 : 1 }}>↓</button>
+                        <button className="t-btn" onClick={() => move(cat.id, -1)} disabled={i === 0} style={{ opacity: i === 0 ? 0.3 : 1 }}><IconArrowUp size={13} /></button>
+                        <button className="t-btn" onClick={() => move(cat.id, +1)} disabled={i === cats.length - 1} style={{ opacity: i === cats.length - 1 ? 0.3 : 1 }}><IconArrowDown size={13} /></button>
                         <button className="t-btn" onClick={() => { setEditCat(cat); setShowAdd(false) }}><IconEdit size={13} /></button>
                         <button className="t-btn delete" onClick={() => deleteCat(cat.id)}><IconTrash size={13} /></button>
                         <button
@@ -300,7 +300,7 @@ function CategoryForm({ tab, initial, onSave, onCancel, isNew }) {
             <CatIcon categoryId="" emoji={icon} size={18} />
           </div>
           <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', textAlign: 'left' }}>{currentEntry ? currentEntry.label : icon}</span>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{pickerOpen ? '▲' : '▼'}</span>
+          <span style={{ display: 'inline-flex', color: 'var(--text-muted)' }}><IconChevronDown size={13} style={{ transform: pickerOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} /></span>
         </button>
         {pickerOpen && (
           <div style={{ marginTop: 6, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
@@ -408,7 +408,7 @@ function SubcategoryForm({ initial, onSave, onCancel, isNew, parentColor }) {
           <CatIcon categoryId="" emoji={icon} size={15} />
         </div>
         <span style={{ flex: 1, fontSize: 12, color: 'var(--text)', textAlign: 'left' }}>{currentEntry ? currentEntry.label : icon}</span>
-        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{pickerOpen ? '▲' : '▼'}</span>
+        <span style={{ display: 'inline-flex', color: 'var(--text-muted)' }}><IconChevronDown size={12} style={{ transform: pickerOpen ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} /></span>
       </button>
       {pickerOpen && (
         <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>

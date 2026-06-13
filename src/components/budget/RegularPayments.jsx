@@ -4,7 +4,7 @@ import { db } from '../../firebase/config'
 import { format, parseISO, isAfter, isBefore, startOfDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../../utils/currency'
-import { CatIcon, IconEdit, IconTrash, IconCheck, IconCalendar } from '../Icons'
+import { CatIcon, IconEdit, IconTrash, IconCheck, IconCalendar, IconRepeat } from '../Icons'
 import RegularPaymentForm from './RegularPaymentForm'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -168,9 +168,9 @@ export default function RegularPayments({ user }) {
                         </button>
                       )}
                       {done && (
-                        <button style={{ fontSize: 11, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer' }}
+                        <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, padding: '3px 8px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text-muted)', cursor: 'pointer' }}
                           onClick={() => markUndone(p)}>
-                          ↩ Cofnij
+                          <IconRepeat size={11} /> Cofnij
                         </button>
                       )}
                       <button className="t-btn" onClick={() => { setEditPayment(p); setShowForm(true) }}><IconEdit size={13} /></button>

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { signOut } from 'firebase/auth'
 import { auth } from '../firebase/config'
-import { IconClose, ICON_CATALOG } from './Icons'
+import { IconClose, IconChevronLeft, ICON_CATALOG } from './Icons'
 import { saveModuleIcon } from '../utils/iconPrefs'
 import { CURRENCIES, getCurrencyCode, setCurrencyCode } from '../utils/currency'
 
@@ -105,7 +105,7 @@ function IconPickerPanel({ module, onPick, onCancel }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}>← Wróć</button>
+        <button onClick={onCancel} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13 }}><IconChevronLeft size={13} /> Wróć</button>
         <span style={{ fontSize: 13, fontWeight: 600 }}>Ikona: {module.label}</span>
       </div>
       {/* Group tabs */}

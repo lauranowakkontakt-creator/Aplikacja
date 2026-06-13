@@ -1,6 +1,7 @@
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, getRedirectResult } from 'firebase/auth'
 import { useState, useEffect } from 'react'
 import { auth, googleProvider } from '../firebase/config'
+import { IconChevronLeft } from './Icons'
 
 export default function Login() {
   const [loading, setLoading] = useState(true)
@@ -113,8 +114,9 @@ export default function Login() {
               <button type="button" className="btn-email-toggle" onClick={() => setIsRegister(r => !r)}>
                 {isRegister ? 'Mam już konto' : 'Utwórz nowe konto'}
               </button>
-              <button type="button" className="btn-email-toggle" onClick={() => { setEmailMode(false); setError(null) }}>
-                ← Wróć
+              <button type="button" className="btn-email-toggle" onClick={() => { setEmailMode(false); setError(null) }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <IconChevronLeft size={13} /> Wróć
               </button>
             </div>
           </form>
