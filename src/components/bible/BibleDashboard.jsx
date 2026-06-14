@@ -5,6 +5,7 @@ import { BIBLE_BOOKS, TOTAL_CHAPTERS, chapterKey } from '../../utils/bibleData'
 import { IconBook, IconClose, IconCheck, IconChevronDown } from '../Icons'
 import { Ring } from '../ChartPrimitives'
 import { toast } from '../Toast'
+import BibleNotes from './BibleNotes'
 
 // Read-count → background intensity (heatmap). More readings = stronger colour.
 const INTENSITY = [40, 62, 80, 100]
@@ -19,6 +20,7 @@ export default function BibleDashboard({ user }) {
   const [filter, setFilter]     = useState('ALL')  // ALL | ST | NT
   const [openKey, setOpenKey]   = useState(null)   // { book, chapter }
   const [collapsed, setCollapsed] = useState({})
+  const [view, setView]         = useState('plan') // plan | notes
 
   const ref = doc(db, 'users', user.uid, 'bible', 'progress')
 
@@ -80,6 +82,22 @@ export default function BibleDashboard({ user }) {
         </div>
       </div>
 
+      {/* Zakładki */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
+        {[['plan', 'Plan czytania'], ['notes', 'Notatki']].map(([id, label]) => (
+          <button key={id} onClick={() => setView(id)} style={{
+            flex: 1, padding: '8px 0', borderRadius: 10, fontSize: 13, fontWeight: view === id ? 700 : 400,
+            background: view === id ? 'var(--surface3)' : 'transparent',
+            color: view === id ? 'var(--text)' : 'var(--text-muted)',
+            border: view === id ? '1px solid var(--border-strong)' : '1px solid transparent',
+            cursor: 'pointer', transition: 'all .18s',
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {view === 'notes' && <BibleNotes user={user} />}
+
+      {view === 'plan' && (<>
       {/* Hero / postęp */}
       <div className="bible-hero">
         <Ring value={pct} size={92} thickness={9} color="var(--accent)" label="całość" />
@@ -170,6 +188,7 @@ export default function BibleDashboard({ user }) {
           onSaveNote={(t) => saveNote(chapterKey(openKey.book, openKey.chapter), t)}
         />
       )}
+      </>)}
     </div>
   )
 }
