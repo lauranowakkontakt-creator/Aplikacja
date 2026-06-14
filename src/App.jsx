@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './firebase/config'
 import Login from './components/Login'
+import Pulpit from './components/Pulpit'
 import Dashboard from './components/Dashboard'
 import HabitsDashboard from './components/habits/HabitsDashboard'
 import MoodDashboard from './components/mood/MoodDashboard'
@@ -10,7 +11,8 @@ import CalendarDashboard from './components/calendar/CalendarDashboard'
 import PrayerDashboard from './components/prayer/PrayerDashboard'
 import BibleDashboard from './components/bible/BibleDashboard'
 import SettingsDrawer from './components/SettingsDrawer'
-import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings } from './components/Icons'
+import MoreSheet from './components/MoreSheet'
+import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
 import { getCurrencyCode, setCurrencyCode } from './utils/currency'
 
@@ -18,6 +20,7 @@ const DEV_USER = { uid: 'dev-user', displayName: 'Laura', photoURL: null, email:
 const DEV_MODE = import.meta.env.DEV
 
 const MODULE_ACCENTS = {
+  home:     '#7C8AF0',
   budget:   '#E0673E',
   habits:   '#E0B15A',
   mood:     '#9B7CF0',
@@ -27,9 +30,13 @@ const MODULE_ACCENTS = {
   bible:    '#4F74D9',
 }
 
+// Moduły widoczne na dolnym pasku (mobile). Reszta trafia do „Więcej".
+const PRIMARY_NAV = ['home', 'budget', 'habits', 'calendar']
+
 function buildModules() {
   const prefs = getModuleIcons()
   return [
+    { id: 'home',     label: 'Pulpit',    Icon: IconHome },
     { id: 'budget',   label: 'Budżet',    Icon: resolveIcon(prefs.budget,   IconBudget) },
     { id: 'habits',   label: 'Nawyki',    Icon: resolveIcon(prefs.habits,   IconHabits) },
     { id: 'mood',     label: 'Nastrój',   Icon: resolveIcon(prefs.mood,     IconMood) },
@@ -43,8 +50,9 @@ function buildModules() {
 export default function App() {
   const [user, setUser] = useState(DEV_MODE ? DEV_USER : null)
   const [loading, setLoading] = useState(!DEV_MODE)
-  const [activeModule, setActiveModule] = useState('budget')
+  const [activeModule, setActiveModule] = useState('home')
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const [modules, setModules] = useState(() => buildModules())
 
   const handleModuleIconChange = () => setModules(buildModules())
@@ -80,9 +88,14 @@ export default function App() {
     '--accent-soft': `color-mix(in oklab, ${accent} 15%, transparent)`,
   }
 
-  const navItems = modules.filter(m => !m.hidden && !m.soon)
-  const activeIdx = navItems.findIndex(m => m.id === activeModule)
-  const w = 100 / navItems.length
+  const goTo = (id) => { setActiveModule(id); setMoreOpen(false); setDrawerOpen(false) }
+
+  // Dolny pasek: moduły z PRIMARY_NAV + przycisk „Więcej"
+  const navItems = PRIMARY_NAV.map(id => modules.find(m => m.id === id)).filter(Boolean)
+  const slotCount = navItems.length + 1 // + „Więcej"
+  const w = 100 / slotCount
+  const inOverflow = !PRIMARY_NAV.includes(activeModule)
+  const activeIdx = inOverflow ? navItems.length : navItems.findIndex(m => m.id === activeModule)
 
   return (
     <div className="app" style={accentVars}>
@@ -174,6 +187,7 @@ export default function App() {
         {/* Content */}
         <div className="content" key={activeModule}>
           <div className="content-inner">
+            {activeModule === 'home'     && <Pulpit user={user} onNavigate={goTo} />}
             {activeModule === 'budget'   && <Dashboard user={user} onCurrencyChange={handleCurrencyChange} />}
             {activeModule === 'habits'   && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} />}
             {activeModule === 'mood'     && <MoodDashboard user={user} />}
@@ -196,14 +210,33 @@ export default function App() {
               key={m.id}
               className={`bottom-nav-item${isActive ? ' active' : ''}`}
               style={{ '--accent': modAccent }}
-              onClick={() => { setActiveModule(m.id); setDrawerOpen(false) }}
+              onClick={() => goTo(m.id)}
             >
               <m.Icon size={21}/>
               <span>{m.label}</span>
             </button>
           )
         })}
+        <button
+          className={`bottom-nav-item${inOverflow || moreOpen ? ' active' : ''}`}
+          style={{ '--accent': inOverflow ? accent : 'var(--primary)' }}
+          onClick={() => setMoreOpen(o => !o)}
+        >
+          <IconMore size={21}/>
+          <span>Więcej</span>
+        </button>
       </nav>
+
+      {/* Więcej — launcher wszystkich aplikacji */}
+      <MoreSheet
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        modules={modules}
+        activeModule={activeModule}
+        accents={MODULE_ACCENTS}
+        onSelect={goTo}
+        onSettings={() => { setMoreOpen(false); setDrawerOpen(true) }}
+      />
 
       {/* Settings drawer */}
       <SettingsDrawer

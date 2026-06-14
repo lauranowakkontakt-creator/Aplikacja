@@ -1476,3 +1476,118 @@ body { overscroll-behavior-y: none; }
   .bible-stats { grid-template-columns: repeat(2, 1fr); }
   .bible-grid { grid-template-columns: repeat(auto-fill, minmax(30px, 1fr)); gap: 4px; }
 }
+
+/* ===================================================================
+   PULPIT (ekran główny)
+   =================================================================== */
+.pulpit { display: flex; flex-direction: column; gap: 18px; }
+
+.pulpit-hero { padding: 4px 2px 0; }
+.pulpit-hero-kicker {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  letter-spacing: .14em; text-transform: uppercase;
+}
+.pulpit-hero-title {
+  font-size: clamp(24px, 5vw, 34px); font-weight: 700;
+  letter-spacing: -0.03em; margin: 4px 0 0; line-height: 1.1;
+}
+
+.pulpit-grid {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+@media (max-width: 560px) {
+  .pulpit-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+}
+
+.pulpit-card {
+  text-align: left; cursor: pointer; width: 100%;
+  background: linear-gradient(150deg, var(--surface) 55%, color-mix(in oklab, var(--card-accent) 9%, var(--surface)) 100%);
+  border: 1px solid var(--border);
+  border-top: 2px solid color-mix(in oklab, var(--card-accent) 75%, transparent);
+  border-radius: var(--r); padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+  transition: transform .18s var(--spring), border-color .18s, box-shadow .18s;
+}
+.pulpit-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in oklab, var(--card-accent) 35%, var(--border));
+  box-shadow: 0 10px 28px -14px color-mix(in oklab, var(--card-accent) 60%, transparent);
+}
+.pulpit-card:active { transform: scale(.985); }
+
+.pulpit-card-head { display: flex; align-items: center; gap: 8px; }
+.pulpit-card-icon {
+  width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in oklab, var(--card-accent) 16%, transparent);
+  color: var(--card-accent);
+}
+.pulpit-card-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.pulpit-card-body { display: flex; flex-direction: column; gap: 4px; min-height: 52px; justify-content: center; }
+
+.pulpit-value {
+  font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pulpit-value-dim { color: var(--text-muted); font-weight: 400; }
+.pulpit-sub { font-size: 11px; color: var(--text-muted); }
+.pulpit-row { display: flex; align-items: center; gap: 12px; }
+
+/* ===================================================================
+   MORE SHEET („Więcej" — launcher aplikacji)
+   =================================================================== */
+.more-overlay {
+  position: fixed; inset: 0; z-index: 38; background: rgba(0,0,0,.45);
+  opacity: 0; pointer-events: none; transition: opacity .25s;
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+}
+.more-overlay.open { opacity: 1; pointer-events: auto; }
+
+.more-sheet {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 39;
+  background: var(--surface); border-top: 1px solid var(--border);
+  border-radius: 22px 22px 0 0;
+  padding: 8px 18px calc(20px + env(safe-area-inset-bottom));
+  transform: translateY(110%); transition: transform .32s var(--spring);
+  box-shadow: 0 -12px 40px -10px rgba(0,0,0,.5);
+}
+.more-sheet.open { transform: translateY(0); }
+
+.more-handle {
+  width: 38px; height: 4px; border-radius: 99px; background: var(--border-strong, var(--border));
+  margin: 6px auto 12px;
+}
+.more-title {
+  font-size: 10px; font-weight: 700; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--text-muted); margin: 0 0 12px 2px;
+}
+.more-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 360px) { .more-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.more-item {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 14px 6px; border-radius: 14px; cursor: pointer;
+  background: var(--surface2); border: 1px solid transparent;
+  transition: transform .15s var(--spring), border-color .15s, background .15s;
+}
+.more-item:active { transform: scale(.94); }
+.more-item.active {
+  border-color: color-mix(in oklab, var(--card-accent) 45%, transparent);
+  background: color-mix(in oklab, var(--card-accent) 12%, var(--surface2));
+}
+.more-item-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in oklab, var(--card-accent) 16%, transparent);
+  color: var(--card-accent);
+}
+.more-item-label { font-size: 11px; font-weight: 600; color: var(--text-sub); }
+
+/* Pulpit + Więcej dostępne tylko na mobile (desktop ma sidebar) */
+@media (min-width: 881px) {
+  .more-sheet, .more-overlay { display: none; }
+}
