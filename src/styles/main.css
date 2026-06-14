@@ -1457,24 +1457,49 @@ body { overscroll-behavior-y: none; }
 .bible-tbar-label { font-size: 9px; font-weight: 700; letter-spacing: .08em; color: var(--text-muted); width: 16px; }
 .bible-tbar-pct { font-size: 10px; font-weight: 600; color: var(--text-sub); width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
 
-/* Czytaj dalej */
-.bible-continue {
-  width: 100%; display: flex; align-items: center; gap: 12px; margin-bottom: 16px;
-  padding: 12px 14px; border-radius: var(--r); cursor: pointer; text-align: left;
-  background: linear-gradient(135deg, var(--surface), color-mix(in oklab, var(--accent) 10%, var(--surface)));
-  border: 1px solid color-mix(in oklab, var(--accent) 28%, var(--border));
-  transition: transform .15s, box-shadow .15s, border-color .15s;
+/* Podróż przez Biblię (start → ukończenie → czas) */
+.bible-journey {
+  margin-bottom: 16px; padding: 14px 16px; border-radius: var(--r);
+  background: linear-gradient(150deg, var(--surface) 55%, color-mix(in oklab, var(--accent) 9%, var(--surface)));
+  border: 1px solid color-mix(in oklab, var(--accent) 26%, var(--border));
 }
-.bible-continue:hover { transform: translateY(-1px); box-shadow: 0 10px 26px -16px color-mix(in oklab, var(--accent) 70%, transparent); }
-.bible-continue--done { cursor: default; border-color: color-mix(in oklab, var(--income) 40%, var(--border)); }
-.bible-continue--done:hover { transform: none; box-shadow: none; }
-.bible-continue-icon {
-  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0; display: grid; place-items: center;
-  background: color-mix(in oklab, var(--accent) 16%, transparent); color: var(--accent);
+.bible-journey--done {
+  background:
+    radial-gradient(130% 130% at 100% 0%, color-mix(in oklab, var(--income) 16%, transparent) 0%, transparent 60%),
+    linear-gradient(150deg, var(--surface) 55%, color-mix(in oklab, var(--income) 10%, var(--surface)));
+  border-color: color-mix(in oklab, var(--income) 38%, var(--border));
 }
-.bible-continue--done .bible-continue-icon { background: color-mix(in oklab, var(--income) 18%, transparent); color: var(--income); }
-.bible-continue-kicker { font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); }
-.bible-continue-title { font-size: 15px; font-weight: 700; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bible-journey-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.bible-journey-kicker {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+}
+.bible-journey--done .bible-journey-kicker { color: var(--income); }
+.bible-journey-reset {
+  background: none; border: none; color: var(--text-muted); font-size: 11px; font-weight: 600; cursor: pointer;
+  padding: 2px 4px; border-radius: 6px;
+}
+.bible-journey-reset:hover { color: var(--text); }
+.bible-journey-intro { font-size: 13px; color: var(--text-sub); line-height: 1.5; margin-bottom: 12px; }
+.bible-journey-start { display: flex; gap: 8px; }
+.bible-journey-start .form-input { flex: 1; min-width: 0; }
+.bible-journey-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.bible-journey-bignum { font-size: 24px; font-weight: 700; line-height: 1.05; }
+.bible-journey--done .bible-journey-bignum { color: var(--income); }
+.bible-journey-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.bible-journey-pct { font-size: 20px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.bible-journey-range {
+  display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap;
+  font-size: 13px; font-weight: 600; color: var(--text-sub);
+}
+.bible-journey-range span { display: inline-flex; align-items: center; gap: 5px; }
+.bible-journey-arrow { color: var(--text-muted); }
+.bible-journey-finish {
+  width: 100%; margin-top: 12px; padding: 11px; border-radius: var(--r-sm); cursor: pointer;
+  background: var(--accent); color: #fff; border: none; font-size: 13px; font-weight: 700; font-family: inherit;
+  transition: background .15s;
+}
+.bible-journey-finish:hover { background: color-mix(in oklab, var(--accent) 82%, black); }
 
 /* Wyszukiwarka ksiąg */
 .bible-search {

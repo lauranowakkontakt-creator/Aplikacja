@@ -1,11 +1,24 @@
 import { useState, useEffect, useMemo } from 'react'
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import { differenceInDays, parseISO, format } from 'date-fns'
+import { pl } from 'date-fns/locale'
 import { BIBLE_BOOKS, TOTAL_CHAPTERS, chapterKey } from '../../utils/bibleData'
-import { IconBook, IconClose, IconCheck, IconChevronDown, IconChevronRight, IconSearch } from '../Icons'
+import { IconBook, IconClose, IconCheck, IconChevronDown, IconSearch, IconCalendar, IconFlag } from '../Icons'
 import { Ring } from '../ChartPrimitives'
 import { toast } from '../Toast'
 import BibleNotes from './BibleNotes'
+
+const todayISO = () => format(new Date(), 'yyyy-MM-dd')
+const fmtDate  = (iso) => format(parseISO(iso), 'd MMM yyyy', { locale: pl })
+// Polski opis długości w dniach (+ przybliżenie w miesiącach dla długich okresów).
+function durationText(days) {
+  const d = Math.max(0, days)
+  const dayWord = d === 1 ? 'dzień' : 'dni'
+  if (d < 45) return `${d} ${dayWord}`
+  const months = Math.round(d / 30.4)
+  return `${d} dni (≈ ${months} mies.)`
+}
 
 // Read-count → background intensity (heatmap). More readings = stronger colour.
 const INTENSITY = [40, 62, 80, 100]
@@ -28,8 +41,8 @@ export default function BibleDashboard({ user }) {
   useEffect(() => {
     return onSnapshot(ref, snap => {
       const d = snap.data() || {}
-      setProgress({ counts: d.counts || {}, notes: d.notes || {} })
-    }, () => setProgress({ counts: {}, notes: {} }))
+      setProgress({ counts: d.counts || {}, notes: d.notes || {}, startDate: d.startDate || null, finishedAt: d.finishedAt || null })
+    }, () => setProgress({ counts: {}, notes: {}, startDate: null, finishedAt: null }))
   }, [user.uid])
 
   const counts = progress?.counts || {}
@@ -44,6 +57,9 @@ export default function BibleDashboard({ user }) {
   }
   const saveNote = async (key, text) => {
     await setDoc(ref, { notes: { [key]: text }, updatedAt: serverTimestamp() }, { merge: true })
+  }
+  const saveJourney = async (patch) => {
+    await setDoc(ref, { ...patch, updatedAt: serverTimestamp() }, { merge: true })
   }
 
   // ── Statistics ──
@@ -72,16 +88,6 @@ export default function BibleDashboard({ user }) {
     (filter === 'ALL' || b.testament === filter) &&
     (!q || b.name.toLowerCase().includes(q))
   )
-
-  // Następny nieprzeczytany rozdział w kolejności kanonicznej
-  const nextUnread = useMemo(() => {
-    for (const b of BIBLE_BOOKS) {
-      for (let c = 1; c <= b.chapters; c++) {
-        if (!(counts[chapterKey(b.id, c)] > 0)) return { book: b.id, chapter: c, name: b.name }
-      }
-    }
-    return null
-  }, [counts])
 
   if (progress === null) return <div className="list-loading">Ładowanie...</div>
 
@@ -141,25 +147,15 @@ export default function BibleDashboard({ user }) {
         </div>
       </div>
 
-      {/* Czytaj dalej — następny nieprzeczytany rozdział */}
-      {nextUnread ? (
-        <button className="bible-continue" onClick={() => setOpenKey({ book: nextUnread.book, chapter: nextUnread.chapter })}>
-          <div className="bible-continue-icon"><IconBook size={16} /></div>
-          <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-            <div className="bible-continue-kicker">Czytaj dalej</div>
-            <div className="bible-continue-title">{nextUnread.name} {nextUnread.chapter}</div>
-          </div>
-          <IconChevronRight size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-        </button>
-      ) : (
-        <div className="bible-continue bible-continue--done">
-          <div className="bible-continue-icon"><IconCheck size={16} /></div>
-          <div style={{ flex: 1, textAlign: 'left' }}>
-            <div className="bible-continue-kicker">Gratulacje!</div>
-            <div className="bible-continue-title">Cała Biblia przeczytana 🎉</div>
-          </div>
-        </div>
-      )}
+      {/* Podróż przez Biblię — start → ukończenie */}
+      <BibleJourney
+        startDate={progress.startDate}
+        finishedAt={progress.finishedAt}
+        pct={pct}
+        onSetStart={(d) => saveJourney({ startDate: d })}
+        onFinish={() => saveJourney({ finishedAt: todayISO() })}
+        onReset={() => saveJourney({ startDate: null, finishedAt: null })}
+      />
 
       {/* Statystyki */}
       <div className="bible-stats">
@@ -266,6 +262,73 @@ function Stat({ label, value }) {
     <div className="bible-stat">
       <div className="bible-stat-value">{value}</div>
       <div className="bible-stat-label">{label}</div>
+    </div>
+  )
+}
+
+// Podróż przez Biblię: data rozpoczęcia → ukończenie → ile dni zajęło.
+function BibleJourney({ startDate, finishedAt, pct, onSetStart, onFinish, onReset }) {
+  const [draft, setDraft] = useState(todayISO())
+
+  // Faza 3 — ukończona
+  if (startDate && finishedAt) {
+    const days = differenceInDays(parseISO(finishedAt), parseISO(startDate))
+    return (
+      <div className="bible-journey bible-journey--done">
+        <div className="bible-journey-head">
+          <span className="bible-journey-kicker"><IconFlag size={11} /> Cała Biblia przeczytana 🎉</span>
+          <button className="bible-journey-reset" onClick={onReset} title="Zacznij od nowa">Od nowa</button>
+        </div>
+        <div className="bible-journey-bignum">{durationText(days)}</div>
+        <div className="bible-journey-range">
+          <span><IconCalendar size={12} /> {fmtDate(startDate)}</span>
+          <span className="bible-journey-arrow">→</span>
+          <span><IconFlag size={12} /> {fmtDate(finishedAt)}</span>
+        </div>
+      </div>
+    )
+  }
+
+  // Faza 2 — w trakcie
+  if (startDate) {
+    const days = differenceInDays(new Date(), parseISO(startDate))
+    return (
+      <div className="bible-journey">
+        <div className="bible-journey-head">
+          <span className="bible-journey-kicker"><IconCalendar size={11} /> Twoja podróż przez Biblię</span>
+          <button className="bible-journey-reset" onClick={onReset} title="Resetuj">Reset</button>
+        </div>
+        <div className="bible-journey-row">
+          <div>
+            <div className="bible-journey-bignum">{durationText(days)}</div>
+            <div className="bible-journey-sub">w drodze · od {fmtDate(startDate)}</div>
+          </div>
+          <div className="bible-journey-pct">{pct}%</div>
+        </div>
+        <div className="bible-progress-track" style={{ marginTop: 4 }}>
+          <div className="bible-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <button className="bible-journey-finish" onClick={onFinish}>
+          <IconCheck size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} />
+          Oznacz całą Biblię jako przeczytaną
+        </button>
+      </div>
+    )
+  }
+
+  // Faza 1 — start
+  return (
+    <div className="bible-journey">
+      <div className="bible-journey-head">
+        <span className="bible-journey-kicker"><IconCalendar size={11} /> Twoja podróż przez Biblię</span>
+      </div>
+      <p className="bible-journey-intro">Zaznacz datę rozpoczęcia, a po przeczytaniu całości sprawdzisz, ile Ci to zajęło.</p>
+      <div className="bible-journey-start">
+        <input type="date" className="form-input" value={draft} max={todayISO()} onChange={e => setDraft(e.target.value)} />
+        <button className="bible-journey-finish" style={{ marginTop: 0 }} onClick={() => onSetStart(draft || todayISO())}>
+          Rozpocznij
+        </button>
+      </div>
     </div>
   )
 }
