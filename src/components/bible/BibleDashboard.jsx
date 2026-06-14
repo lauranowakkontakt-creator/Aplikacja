@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { BIBLE_BOOKS, TOTAL_CHAPTERS, chapterKey } from '../../utils/bibleData'
-import { IconBook, IconClose, IconCheck, IconChevronDown } from '../Icons'
+import { IconBook, IconClose, IconCheck, IconChevronDown, IconChevronRight, IconSearch } from '../Icons'
 import { Ring } from '../ChartPrimitives'
 import { toast } from '../Toast'
 import BibleNotes from './BibleNotes'
@@ -21,6 +21,7 @@ export default function BibleDashboard({ user }) {
   const [openKey, setOpenKey]   = useState(null)   // { book, chapter }
   const [collapsed, setCollapsed] = useState({})
   const [view, setView]         = useState('plan') // plan | notes
+  const [search, setSearch]     = useState('')     // filtr ksiąg po nazwie
 
   const ref = doc(db, 'users', user.uid, 'bible', 'progress')
 
@@ -64,7 +65,23 @@ export default function BibleDashboard({ user }) {
   }, [counts])
 
   const pct = Math.round((stats.read / TOTAL_CHAPTERS) * 100)
-  const books = BIBLE_BOOKS.filter(b => filter === 'ALL' || b.testament === filter)
+  const stPct = stats.stTotal ? Math.round((stats.stRead / stats.stTotal) * 100) : 0
+  const ntPct = stats.ntTotal ? Math.round((stats.ntRead / stats.ntTotal) * 100) : 0
+  const q = search.trim().toLowerCase()
+  const books = BIBLE_BOOKS.filter(b =>
+    (filter === 'ALL' || b.testament === filter) &&
+    (!q || b.name.toLowerCase().includes(q))
+  )
+
+  // Następny nieprzeczytany rozdział w kolejności kanonicznej
+  const nextUnread = useMemo(() => {
+    for (const b of BIBLE_BOOKS) {
+      for (let c = 1; c <= b.chapters; c++) {
+        if (!(counts[chapterKey(b.id, c)] > 0)) return { book: b.id, chapter: c, name: b.name }
+      }
+    }
+    return null
+  }, [counts])
 
   if (progress === null) return <div className="list-loading">Ładowanie...</div>
 
@@ -109,8 +126,40 @@ export default function BibleDashboard({ user }) {
           <div className="bible-progress-track" style={{ marginTop: 10 }}>
             <div className="bible-progress-fill" style={{ width: `${pct}%` }} />
           </div>
+          <div className="bible-testament-bars">
+            <div className="bible-tbar">
+              <span className="bible-tbar-label">ST</span>
+              <div className="bible-progress-track"><div className="bible-progress-fill" style={{ width: `${stPct}%` }} /></div>
+              <span className="bible-tbar-pct">{stPct}%</span>
+            </div>
+            <div className="bible-tbar">
+              <span className="bible-tbar-label">NT</span>
+              <div className="bible-progress-track"><div className="bible-progress-fill" style={{ width: `${ntPct}%` }} /></div>
+              <span className="bible-tbar-pct">{ntPct}%</span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Czytaj dalej — następny nieprzeczytany rozdział */}
+      {nextUnread ? (
+        <button className="bible-continue" onClick={() => setOpenKey({ book: nextUnread.book, chapter: nextUnread.chapter })}>
+          <div className="bible-continue-icon"><IconBook size={16} /></div>
+          <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+            <div className="bible-continue-kicker">Czytaj dalej</div>
+            <div className="bible-continue-title">{nextUnread.name} {nextUnread.chapter}</div>
+          </div>
+          <IconChevronRight size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+        </button>
+      ) : (
+        <div className="bible-continue bible-continue--done">
+          <div className="bible-continue-icon"><IconCheck size={16} /></div>
+          <div style={{ flex: 1, textAlign: 'left' }}>
+            <div className="bible-continue-kicker">Gratulacje!</div>
+            <div className="bible-continue-title">Cała Biblia przeczytana 🎉</div>
+          </div>
+        </div>
+      )}
 
       {/* Statystyki */}
       <div className="bible-stats">
@@ -123,7 +172,7 @@ export default function BibleDashboard({ user }) {
       {/* Filtr testamentów */}
       <div className="type-toggle" style={{ marginBottom: 14 }}>
         {[{ id: 'ALL', label: 'Wszystko' }, { id: 'ST', label: 'Stary Test.' }, { id: 'NT', label: 'Nowy Test.' }].map(t => (
-          <button key={t.id} type="button" className={`type-btn ${filter === t.id ? 'active expense' : ''}`}
+          <button key={t.id} type="button" className={`type-btn ${filter === t.id ? 'active accent' : ''}`}
             onClick={() => setFilter(t.id)}>{t.label}</button>
         ))}
       </div>
@@ -138,8 +187,27 @@ export default function BibleDashboard({ user }) {
         <span>więcej</span>
       </div>
 
+      {/* Wyszukiwarka ksiąg */}
+      <div className="bible-search">
+        <IconSearch size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+        <input
+          className="bible-search-input"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Szukaj księgi..."
+        />
+        {search && (
+          <button className="bible-search-clear" onClick={() => setSearch('')} title="Wyczyść">
+            <IconClose size={14} />
+          </button>
+        )}
+      </div>
+
       {/* Księgi */}
       <div className="bible-books">
+        {books.length === 0 && (
+          <div className="list-empty"><p>Brak ksiąg dla „{search}"</p></div>
+        )}
         {books.map(book => {
           let bookRead = 0
           for (let c = 1; c <= book.chapters; c++) if (counts[chapterKey(book.id, c)] > 0) bookRead++
