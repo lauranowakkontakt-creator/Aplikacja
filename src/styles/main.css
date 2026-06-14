@@ -488,13 +488,22 @@ button { touch-action: manipulation; }
    scroll containers: <body> (mobile) and .content (desktop). */
 body:has(.modal-overlay),
 body:has(.drawer-overlay) { overflow: hidden; }
-body:has(.modal-overlay) .content,
-body:has(.drawer-overlay) .content { overflow: hidden; }
 /* Modals are rendered inside .content-inner, whose z-index:1 creates a stacking
    context that traps the modal (z-index:200) BELOW the bottom nav (z-index:30),
    hiding the save/add button behind the nav. While a modal is open, lift .content
-   above the nav. The modal's full-screen backdrop covers the nav anyway. */
+   above the nav. The modal's full-screen backdrop covers the nav anyway.
+   NOTE: position:relative + z-index here does NOT trap position:fixed (only
+   transform/filter/overflow-scroll do), so the modal still fills the viewport. */
 body:has(.modal-overlay) .content { position: relative; z-index: 300; }
+/* Lock the scroll container too. Desktop scrolls inside .content, so lock it
+   there. On MOBILE the page scrolls on <body> (locked above) and .content MUST
+   keep overflow:visible — an overflow scroll container + -webkit-overflow-
+   scrolling:touch traps position:fixed modals on iOS Safari (see note ~line 280),
+   sliding the save button under the bottom nav. So scope this to desktop only. */
+@media (min-width: 881px) {
+  body:has(.modal-overlay) .content,
+  body:has(.drawer-overlay) .content { overflow: hidden; }
+}
 @media (min-width: 600px) { .modal-overlay { align-items: center; } }
 .modal {
   background: var(--surface); border: 1px solid var(--border);
