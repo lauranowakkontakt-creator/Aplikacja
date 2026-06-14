@@ -7,7 +7,11 @@ import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
 const bookName = (id) => BIBLE_BOOKS.find(b => b.id === id)?.name || '?'
-const reference = (n) => `${bookName(n.book)} ${n.chapter}${n.verse ? ':' + n.verse : ''}`
+const verseRef = (n) => {
+  if (!n.verse) return ''
+  return ':' + n.verse + (n.verseEnd && n.verseEnd !== n.verse ? '-' + n.verseEnd : '')
+}
+const reference = (n) => `${bookName(n.book)} ${n.chapter}${verseRef(n)}`
 
 export default function BibleNotes({ user }) {
   const [notes, setNotes]       = useState([])
@@ -16,7 +20,7 @@ export default function BibleNotes({ user }) {
   const [editNote, setEditNote] = useState(null)
 
   useEffect(() => {
-    const q = query(collection(db, 'users', user.uid, 'bibleNotes'), orderBy('number', 'asc'))
+    const q = query(collection(db, 'users', user.uid, 'bibleNotes'), orderBy('number', 'desc'))
     return onSnapshot(q, snap => {
       setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
@@ -95,6 +99,7 @@ function NoteForm({ user, editData, nextNumber, onClose }) {
   const [book, setBook]       = useState(editData?.book || BIBLE_BOOKS[0].id)
   const [chapter, setChapter] = useState(editData?.chapter || 1)
   const [verse, setVerse]     = useState(editData?.verse || '')
+  const [verseEnd, setVerseEnd] = useState(editData?.verseEnd || '')
   const [text, setText]       = useState(editData?.text || '')
   const [saving, setSaving]   = useState(false)
 
@@ -113,6 +118,7 @@ function NoteForm({ user, editData, nextNumber, onClose }) {
       book,
       chapter: Number(chapter),
       verse: verse ? Number(verse) : null,
+      verseEnd: verse && verseEnd && Number(verseEnd) > Number(verse) ? Number(verseEnd) : null,
       text: text.trim(),
       updatedAt: Timestamp.now(),
     }
@@ -168,9 +174,15 @@ function NoteForm({ user, editData, nextNumber, onClose }) {
               </select>
             </div>
             <div className="form-group" style={{ flex: 1 }}>
-              <label>Werset (opcjonalnie)</label>
-              <input type="number" min="1" className="form-input" value={verse}
-                onChange={e => setVerse(e.target.value)} placeholder="np. 5" />
+              <label>Wersety (opcjonalnie)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input type="number" min="1" className="form-input" value={verse}
+                  onChange={e => setVerse(e.target.value)} placeholder="od" style={{ minWidth: 0 }} />
+                <span style={{ color: 'var(--text-sub)', fontWeight: 700 }}>–</span>
+                <input type="number" min="1" className="form-input" value={verseEnd}
+                  onChange={e => setVerseEnd(e.target.value)} placeholder="do"
+                  disabled={!verse} style={{ minWidth: 0 }} />
+              </div>
             </div>
           </div>
 
@@ -182,7 +194,7 @@ function NoteForm({ user, editData, nextNumber, onClose }) {
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
             <IconBook size={14} />
-            {bookObj.name} {chapter}{verse ? ':' + verse : ''}
+            {bookObj.name} {chapter}{verse ? ':' + verse + (verseEnd && Number(verseEnd) > Number(verse) ? '-' + verseEnd : '') : ''}
           </div>
 
           <div className="form-group">
