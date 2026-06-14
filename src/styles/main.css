@@ -490,6 +490,11 @@ body:has(.modal-overlay),
 body:has(.drawer-overlay) { overflow: hidden; }
 body:has(.modal-overlay) .content,
 body:has(.drawer-overlay) .content { overflow: hidden; }
+/* Modals are rendered inside .content-inner, whose z-index:1 creates a stacking
+   context that traps the modal (z-index:200) BELOW the bottom nav (z-index:30),
+   hiding the save/add button behind the nav. While a modal is open, lift .content
+   above the nav. The modal's full-screen backdrop covers the nav anyway. */
+body:has(.modal-overlay) .content { position: relative; z-index: 300; }
 @media (min-width: 600px) { .modal-overlay { align-items: center; } }
 .modal {
   background: var(--surface); border: 1px solid var(--border);
