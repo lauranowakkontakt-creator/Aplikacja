@@ -1,8 +1,6 @@
 import { fmt } from '../utils/currency'
+import CurrencyTiles from './budget/CurrencyTiles'
 const hide = '••••'
-
-const fmtCur = (n, cur = 'PLN') =>
-  new Intl.NumberFormat('pl-PL', { style: 'currency', currency: cur }).format(n)
 
 export default function Summary({ income, expenses, balance, privateMode, totalsByCurrency, hasAccounts }) {
   const p = privateMode
@@ -17,11 +15,7 @@ export default function Summary({ income, expenses, balance, privateMode, totals
           {p ? <span className="summary-amount">{hide}</span> : (
             entries.length <= 1
               ? <span className="summary-amount">{`${totalPLN >= 0 ? '+' : ''}${fmt(totalPLN)}`}</span>
-              : <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {entries.map(([cur, val]) => (
-                    <span key={cur} className="summary-amount" style={{ fontSize: '0.85em' }}>{`${val >= 0 ? '+' : ''}${fmtCur(val, cur)}`}</span>
-                  ))}
-                </div>
+              : <CurrencyTiles totals={totalsByCurrency} privateMode={p} compact />
           )}
         </div>
       )}

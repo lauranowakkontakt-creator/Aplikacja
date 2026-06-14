@@ -4,6 +4,7 @@ import { db } from '../../firebase/config'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import AccountForm from './AccountForm'
+import CurrencyTiles from './CurrencyTiles'
 import { fmt } from '../../utils/currency'
 import { CatIcon, IconBank, IconCash, IconCard, IconSavings, IconEdit, IconTrash, IconEye, IconEyeOff, IconChevronLeft } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
@@ -93,11 +94,7 @@ export default function AccountsView({ user, privateMode }) {
         ) : Object.keys(totalsByCurrency).length === 1 ? (
           <span className="accounts-total-amount">{fmtAcc(Object.values(totalsByCurrency)[0], Object.keys(totalsByCurrency)[0])}</span>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
-            {Object.entries(totalsByCurrency).map(([cur, amount]) => (
-              <span key={cur} className="accounts-total-amount">{fmtAcc(amount, cur)}</span>
-            ))}
-          </div>
+          <CurrencyTiles totals={totalsByCurrency} privateMode={privateMode} />
         )}
       </div>
 

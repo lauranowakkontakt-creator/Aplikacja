@@ -142,6 +142,9 @@ export default function Pulpit({ user, onNavigate }) {
 
   const curCode = getCurrencyCode()
   const curSymbol = CURRENCIES.find(c => c.code === curCode)?.symbol || 'zł'
+  const privateMode = (() => {
+    try { return localStorage.getItem('mw_privateMode') === 'true' } catch { return false }
+  })()
 
   const dateLabel = format(new Date(), 'EEEE, d MMMM', { locale: pl })
 
@@ -158,13 +161,15 @@ export default function Pulpit({ user, onNavigate }) {
 
         {/* BUDŻET */}
         <PulpitCard accent="#E0673E" Icon={IconBudget} label="Budżet" onClick={() => onNavigate('budget')}>
-          <div className="pulpit-value" style={{ color: budget.totalPLN >= 0 ? 'var(--income)' : 'var(--expense)' }}>
-            {fmt(budget.totalPLN)}
+          <div className="pulpit-value" style={{ color: privateMode ? 'var(--text-muted)' : (budget.totalPLN >= 0 ? 'var(--income)' : 'var(--expense)') }}>
+            {privateMode ? '••••' : fmt(budget.totalPLN)}
           </div>
           <div className="pulpit-sub">
-            {budget.others.length > 0
-              ? budget.others.map(([c, v]) => `${Math.round(v)} ${c}`).join(' · ')
-              : `Saldo łączne · ${budget.count} ${budget.count === 1 ? 'konto' : 'kont'}`}
+            {privateMode
+              ? `${budget.count} ${budget.count === 1 ? 'konto' : 'kont'}`
+              : budget.others.length > 0
+                ? budget.others.map(([c, v]) => `${Math.round(v)} ${c}`).join(' · ')
+                : `Saldo łączne · ${budget.count} ${budget.count === 1 ? 'konto' : 'kont'}`}
           </div>
         </PulpitCard>
 

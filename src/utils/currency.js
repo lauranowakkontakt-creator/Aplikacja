@@ -4,6 +4,7 @@ export const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'Dolar amerykański' },
   { code: 'GBP', symbol: '£', name: 'Funt brytyjski' },
   { code: 'CHF', symbol: 'CHF', name: 'Frank szwajcarski' },
+  { code: 'CZK', symbol: 'Kč', name: 'Korona czeska' },
 ]
 
 export function getCurrencyCode() {

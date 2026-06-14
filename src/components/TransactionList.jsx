@@ -3,17 +3,18 @@ import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../utils/currency'
-import { CatIcon, IconEdit, IconTrash } from './Icons'
+import { CatIcon, IconEdit, IconTrash, IconBank } from './Icons'
 import { confirmDialog } from './ConfirmModal'
 import { toast } from './Toast'
-import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../utils/categories'
+import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, isTransfer } from '../utils/categories'
 
 const ALL_CATS = [...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES]
 const getCatColor = (id, type) => ALL_CATS.find(c => c.id === id)?.color || (type === 'income' ? '#5FBF98' : '#E0673E')
 
 const hide = '••••'
 
-export default function TransactionList({ transactions, loading, onEdit, user, privateMode }) {
+export default function TransactionList({ transactions, accounts = [], loading, onEdit, user, privateMode }) {
+  const accName = (id) => accounts.find(a => a.id === id)?.name
   const handleDelete = async (t) => {
     const ok = await confirmDialog({ title: 'Usunąć transakcję?', message: 'Ta operacja jest nieodwracalna.' })
     if (!ok) return
@@ -45,7 +46,7 @@ export default function TransactionList({ transactions, loading, onEdit, user, p
       groups.push(seen[key])
     }
     seen[key].items.push(t)
-    seen[key].sum += t.type === 'income' ? t.amount : -t.amount
+    if (!isTransfer(t)) seen[key].sum += t.type === 'income' ? t.amount : -t.amount
   }
 
   const fmtSum = (s) => {
@@ -82,6 +83,11 @@ export default function TransactionList({ transactions, loading, onEdit, user, p
                       {t.category}{t.subcategoryLabel ? <span style={{ opacity: 0.7 }}> › {t.subcategoryLabel}</span> : ''}
                     </span>
                     {t.description && <span className="t-desc">{t.description}</span>}
+                    {accName(t.accountId) && (
+                      <span className="t-desc" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, opacity: 0.85 }}>
+                        <IconBank size={10} /> {accName(t.accountId)}
+                      </span>
+                    )}
                   </div>
                   <div className="t-right">
                     <span className={`t-amount ${t.type}`}>

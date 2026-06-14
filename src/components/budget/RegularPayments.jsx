@@ -52,6 +52,7 @@ export default function RegularPayments({ user }) {
       await addDoc(collection(db, 'users', user.uid, 'transactions'), {
         type: p.type, amount: p.amount,
         category: p.category, categoryId: p.categoryId, categoryIcon: p.categoryIcon,
+        subcategoryId: p.subcategoryId || null, subcategoryLabel: p.subcategoryLabel || null,
         description: p.name, accountId: p.accountId || null,
         date: Timestamp.now(), createdAt: Timestamp.now(), updatedAt: Timestamp.now(),
         fromRegular: p.id
@@ -147,7 +148,7 @@ export default function RegularPayments({ user }) {
                       {!active && <span style={{ fontSize: 9, background: 'rgba(150,150,150,0.2)', color: 'var(--text-muted)', padding: '2px 5px', borderRadius: 4, fontWeight: 700 }}>NIEAKTYWNA</span>}
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      {p.category} · {FREQ_LABELS[p.frequency]}{p.frequency === 'monthly' ? ` (${p.dayOfMonth}.)` : ''}
+                      {p.category}{p.subcategoryLabel ? ` › ${p.subcategoryLabel}` : ''} · {FREQ_LABELS[p.frequency]}{p.frequency === 'monthly' ? ` (${p.dayOfMonth}.)` : ''}
                       {acc ? ` · ${acc.name}` : ''}
                     </span>
                     {hasRange && (

@@ -12,6 +12,7 @@ import RegularPayments from './budget/RegularPayments'
 import BudgetMenu from './budget/BudgetMenu'
 import TransferForm from './budget/TransferForm'
 import SearchPanel from './budget/SearchPanel'
+import CurrencyTiles from './budget/CurrencyTiles'
 import TitheView from './budget/TitheView'
 import SavingsGoals from './budget/SavingsGoals'
 import Reminders from './budget/Reminders'
@@ -20,6 +21,7 @@ import ShoppingList from './budget/ShoppingList'
 import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconClock, CatIcon } from './Icons'
 import { Donut, FlowBar, BarChartSVG, Spark } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
+import { isTransfer } from '../utils/categories'
 
 const TABS = [
   { id: 'overview',     label: 'Przegląd',   Icon: IconChart },
@@ -27,7 +29,6 @@ const TABS = [
   { id: 'accounts',     label: 'Konta',       Icon: IconBank },
   { id: 'charts',       label: 'Wykresy',     Icon: IconChart },
   { id: 'regular',      label: 'Regularne',   Icon: IconStar },
-  { id: 'shopping',     label: 'Zakupy',      Icon: IconShopping },
 ]
 
 const kicker = (t) => (
@@ -92,8 +93,8 @@ export default function Dashboard({ user, onCurrencyChange }) {
     })
   }, [user.uid])
 
-  const income   = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
-  const expenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
+  const income   = transactions.filter(t => t.type === 'income' && !isTransfer(t)).reduce((s, t) => s + t.amount, 0)
+  const expenses = transactions.filter(t => t.type === 'expense' && !isTransfer(t)).reduce((s, t) => s + t.amount, 0)
   const balance  = income - expenses
 
   const excludedFromTotal = (() => {
@@ -120,6 +121,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
     if (id === 'goals')      return setModal('goals')
     if (id === 'reminders')  return setModal('reminders')
     if (id === 'categories') return setModal('categories')
+    if (id === 'shopping')   return setActiveTab('shopping')
   }
 
   const fmtAcc = (n, currency = 'PLN') =>
@@ -140,7 +142,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
 
   // Build donut data from expense categories
   const categoryMap = {}
-  transactions.filter(t => t.type === 'expense').forEach(t => {
+  transactions.filter(t => t.type === 'expense' && !isTransfer(t)).forEach(t => {
     const cat = t.category || 'Inne'
     categoryMap[cat] = (categoryMap[cat] || 0) + t.amount
   })
@@ -155,7 +157,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
     const m = subMonths(new Date(), 5 - i)
     const mStr = format(m, 'yyyy-MM')
     const mExpenses = allTransactions
-      .filter(t => t.type === 'expense' && format(t.date, 'yyyy-MM') === mStr)
+      .filter(t => t.type === 'expense' && !isTransfer(t) && format(t.date, 'yyyy-MM') === mStr)
       .reduce((s, t) => s + t.amount, 0)
     return {
       label: format(m, 'MMM', { locale: pl }),
@@ -170,7 +172,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
     target.setDate(target.getDate() - (13 - i))
     const dayStr = format(target, 'yyyy-MM-dd')
     return allTransactions
-      .filter(t => t.type === 'expense' && format(t.date instanceof Date ? t.date : new Date(t.date), 'yyyy-MM-dd') === dayStr)
+      .filter(t => t.type === 'expense' && !isTransfer(t) && format(t.date instanceof Date ? t.date : new Date(t.date), 'yyyy-MM-dd') === dayStr)
       .reduce((s, t) => s + t.amount, 0)
   })
 
@@ -180,7 +182,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
   const prevExpenses = allTransactions
     .filter(t => {
       const tDate = t.date instanceof Date ? t.date : t.date?.toDate?.() || new Date(t.date)
-      return t.type === 'expense' && tDate >= prevMonthStart && tDate <= prevMonthEnd
+      return t.type === 'expense' && !isTransfer(t) && tDate >= prevMonthStart && tDate <= prevMonthEnd
     })
     .reduce((s, t) => s + t.amount, 0)
   const expenseTrend = prevExpenses > 0
@@ -461,14 +463,8 @@ export default function Dashboard({ user, onCurrencyChange }) {
                       )
                     }
                     return (
-                      <div className="balance-hero-amount" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
-                        {entries.map(([cur, amount]) => (
-                          <div key={cur} style={{ display: 'flex', alignItems: 'baseline' }}>
-                            <span className="balance-hero-main" style={{ fontSize: '1.65rem', color: amount >= 0 ? 'var(--income)' : 'var(--expense)' }}>
-                              {fmtAcc(amount, cur)}
-                            </span>
-                          </div>
-                        ))}
+                      <div style={{ marginBottom: 10 }}>
+                        <CurrencyTiles totals={totalsByCurrency} privateMode={privateMode} compact />
                       </div>
                     )
                   })()}
@@ -509,6 +505,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
           </div>
           <TransactionList
             transactions={transactions}
+            accounts={accounts}
             loading={loading}
             onEdit={(t) => { setEditTransaction(t); setShowForm(true) }}
             user={user}

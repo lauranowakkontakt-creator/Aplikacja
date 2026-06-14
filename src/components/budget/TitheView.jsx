@@ -1,26 +1,39 @@
 import { useState, useEffect } from 'react'
 import { collection, query, where, orderBy, onSnapshot, Timestamp, doc, setDoc, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { startOfMonth, endOfMonth } from 'date-fns'
+import { startOfMonth, endOfMonth, format } from 'date-fns'
 import { INCOME_CATEGORIES } from '../TransactionForm'
 import { fmt } from '../../utils/currency'
-import { CatIcon, IconPrayer, IconSettings, IconClose } from '../Icons'
+import { CatIcon, IconPrayer, IconSettings, IconClose, IconRestore } from '../Icons'
 
-const DEFAULT_TITHE_CATS = INCOME_CATEGORIES.map(c => c.id)
+const MONTH_KEY = () => format(new Date(), 'yyyy-MM')
 
 export default function TitheView({ user, onClose }) {
   const [income, setIncome]         = useState(0)
   const [paid, setPaid]             = useState(0)
-  const [titheCats, setTitheCats]   = useState(DEFAULT_TITHE_CATS)
+  const [incCats, setIncCats]       = useState(INCOME_CATEGORIES)
+  const [titheCats, setTitheCats]   = useState(INCOME_CATEGORIES.map(c => c.id))
   const [titheIncome, setTitheIncome] = useState(0)
   const [showSettings, setShowSettings] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [zeroedMonths, setZeroedMonths] = useState([])
 
-  // Load saved category settings
+  const monthKey = MONTH_KEY()
+  const zeroed = zeroedMonths.includes(monthKey)
+
+  // Pobierz kategorie przychodów (własne, jeśli ustawione)
+  useEffect(() => {
+    getDoc(doc(db, 'users', user.uid, 'settings', 'categories')).then(d => {
+      if (d.exists() && d.data().income?.length) setIncCats(d.data().income)
+    })
+  }, [user.uid])
+
+  // Load saved tithe settings (kategorie + wyzerowane miesiące)
   useEffect(() => {
     getDoc(doc(db, 'users', user.uid, 'settings', 'tithe')).then(d => {
-      if (d.exists() && d.data().categories?.length) {
-        setTitheCats(d.data().categories)
+      if (d.exists()) {
+        if (d.data().categories?.length) setTitheCats(d.data().categories)
+        if (Array.isArray(d.data().zeroedMonths)) setZeroedMonths(d.data().zeroedMonths)
       }
     })
   }, [user.uid])
@@ -64,18 +77,24 @@ export default function TitheView({ user, onClose }) {
 
   const tithe    = titheIncome * 0.10
   const ofiara   = titheIncome * 0.05
-  const remaining = Math.max(0, tithe - paid)
-  const pct      = tithe > 0 ? Math.min(100, (paid / tithe) * 100) : 0
+  const remaining = zeroed ? 0 : Math.max(0, tithe - paid)
+  const pct      = zeroed ? 100 : (tithe > 0 ? Math.min(100, (paid / tithe) * 100) : 0)
 
   const saveSettings = async () => {
     setSaving(true)
-    await setDoc(doc(db, 'users', user.uid, 'settings', 'tithe'), { categories: titheCats })
+    await setDoc(doc(db, 'users', user.uid, 'settings', 'tithe'), { categories: titheCats }, { merge: true })
     setSaving(false)
     setShowSettings(false)
   }
 
   const toggleCat = (id) => {
     setTitheCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
+  }
+
+  const toggleZero = async () => {
+    const next = zeroed ? zeroedMonths.filter(m => m !== monthKey) : [...zeroedMonths, monthKey]
+    setZeroedMonths(next)
+    await setDoc(doc(db, 'users', user.uid, 'settings', 'tithe'), { zeroedMonths: next }, { merge: true })
   }
 
   return (
@@ -95,7 +114,7 @@ export default function TitheView({ user, onClose }) {
               Wybierz kategorie przychodów wliczane do podstawy dziesięciny:
             </p>
             <div className="mood-emotions">
-              {INCOME_CATEGORIES.map(cat => (
+              {incCats.map(cat => (
                 <button key={cat.id}
                   className={`mood-emotion-btn ${titheCats.includes(cat.id) ? 'active' : ''}`}
                   style={titheCats.includes(cat.id) ? { borderColor: '#27AE60', background: '#27AE6020', color: 'var(--text)' } : {}}
@@ -141,13 +160,29 @@ export default function TitheView({ user, onClose }) {
             </div>
 
             <div className="tithe-stat remaining">
-              <span>Pozostało (10%)</span>
-              <strong>{fmt(remaining)}</strong>
+              <span>Pozostało (10%){zeroed ? ' · wyzerowane' : ''}</span>
+              <strong style={zeroed ? { color: 'var(--text-muted)' } : {}}>{fmt(remaining)}</strong>
             </div>
 
+            {/* Wyzeruj ten miesiąc */}
+            <button
+              onClick={toggleZero}
+              style={{
+                width: '100%', marginTop: 6, padding: '10px', borderRadius: 10, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                border: `1px solid ${zeroed ? 'var(--accent)' : 'var(--border)'}`,
+                background: zeroed ? 'var(--accent-soft)' : 'transparent',
+                color: zeroed ? 'var(--accent)' : 'var(--text-muted)',
+              }}>
+              <IconRestore size={14} />
+              {zeroed ? 'Cofnij wyzerowanie tego miesiąca' : 'Wyzeruj ten miesiąc (nie płacę)'}
+            </button>
+
             <p className="tithe-note">
-              Kliknij <IconSettings size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 2 }} /> aby wybrać które kategorie przychodów wliczają się w podstawę.
-              Kwoty "Już oddane" pobierane są z kategorii Dziesięcina i Ofiara w transakcjach.
+              {zeroed
+                ? 'Ten miesiąc oznaczony jako wyzerowany — pozostała dziesięcina liczona jest jako 0.'
+                : <>Kliknij <IconSettings size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 2 }} /> aby wybrać które kategorie przychodów wliczają się w podstawę. Kwoty "Już oddane" pobierane są z kategorii Dziesięcina i Ofiara w transakcjach.</>}
             </p>
           </div>
         )}

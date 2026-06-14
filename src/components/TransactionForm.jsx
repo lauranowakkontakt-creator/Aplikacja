@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query, getDoc, increment } from 'firebase/firestore'
+import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query, getDoc, getDocs, limit, increment } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { getCurrencyCode } from '../utils/currency'
@@ -18,6 +18,8 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
   const [date, setDate]             = useState(editData?.date ? format(editData.date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
   const [accountId, setAccountId]   = useState(editData?.accountId || defaultAccountId || '')
   const [accounts, setAccounts]     = useState([])
+  const [accountUsage, setAccountUsage] = useState({})
+  const [showAllAccounts, setShowAllAccounts] = useState(false)
   const [expCats, setExpCats]       = useState(DEFAULT_EXPENSE_CATEGORIES)
   const [incCats, setIncCats]       = useState(DEFAULT_INCOME_CATEGORIES)
   const [saving, setSaving]         = useState(false)
@@ -29,6 +31,26 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
+
+  // Częstotliwość użycia kont (z ostatnich transakcji) → najczęściej używane na początku
+  useEffect(() => {
+    getDocs(query(collection(db, 'users', user.uid, 'transactions'), orderBy('createdAt', 'desc'), limit(200)))
+      .then(snap => {
+        const u = {}
+        snap.docs.forEach(d => { const a = d.data().accountId; if (a) u[a] = (u[a] || 0) + 1 })
+        setAccountUsage(u)
+      }).catch(() => {})
+  }, [user.uid])
+
+  const sortedAccounts = [...accounts].sort((a, b) => (accountUsage[b.id] || 0) - (accountUsage[a.id] || 0))
+
+  // Domyślnie wybierz najczęściej używane konto (brak opcji „bez konta")
+  useEffect(() => {
+    if (!accountId && !editData && accounts.length) {
+      const sorted = [...accounts].sort((a, b) => (accountUsage[b.id] || 0) - (accountUsage[a.id] || 0))
+      setAccountId(sorted[0].id)
+    }
+  }, [accounts, accountUsage]) // eslint-disable-line
 
   // Load custom categories
   useEffect(() => {
@@ -156,21 +178,33 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
             )
           })()}
 
-          {accounts.length > 0 && (
-            <div className="form-group">
-              <label>Konto</label>
-              <div className="account-chips">
-                <button type="button" className={`account-chip ${!accountId ? 'active' : ''}`} onClick={() => setAccountId('')}>Bez konta</button>
-                {accounts.map(acc => (
-                  <button key={acc.id} type="button"
-                    className={`account-chip ${accountId === acc.id ? 'active' : ''}`}
-                    style={accountId === acc.id ? { borderColor: acc.color, background: acc.color + '22' } : {}}
-                    onClick={() => setAccountId(acc.id)}
-                  >{acc.name}</button>
-                ))}
+          {accounts.length > 0 && (() => {
+            const top = sortedAccounts.slice(0, 4)
+            const visible = showAllAccounts
+              ? sortedAccounts
+              : (accountId && !top.some(a => a.id === accountId)
+                  ? [...top, sortedAccounts.find(a => a.id === accountId)].filter(Boolean)
+                  : top)
+            return (
+              <div className="form-group">
+                <label>Konto</label>
+                <div className="account-chips">
+                  {visible.map(acc => (
+                    <button key={acc.id} type="button"
+                      className={`account-chip ${accountId === acc.id ? 'active' : ''}`}
+                      style={accountId === acc.id ? { borderColor: acc.color, background: acc.color + '22' } : {}}
+                      onClick={() => setAccountId(acc.id)}
+                    >{acc.name}</button>
+                  ))}
+                  {sortedAccounts.length > 4 && (
+                    <button type="button" className="account-chip" onClick={() => setShowAllAccounts(v => !v)}>
+                      {showAllAccounts ? '− mniej' : `+${sortedAccounts.length - 4} więcej`}
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
 
           <div className="form-group">
             <label>Opis (opcjonalny)</label>

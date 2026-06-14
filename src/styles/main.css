@@ -776,6 +776,20 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 }
 .accounts-total-label { display: block; font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.16em; margin-bottom: 10px; }
 .accounts-total-amount { font-size: 38px; font-weight: 600; letter-spacing: -0.04em; }
+
+/* Kafelki walut (salda obok siebie) */
+.currency-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+.currency-tiles:not(.compact) { justify-content: center; }
+.currency-tile {
+  flex: 1 1 auto; min-width: 92px;
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 12px;
+}
+.currency-tile-code { font-size: 9px; font-weight: 700; letter-spacing: .12em; color: var(--text-muted); text-transform: uppercase; }
+.currency-tile-amount { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
+.currency-tiles.compact .currency-tile { padding: 8px 10px; }
+.currency-tiles.compact .currency-tile-amount { font-size: 15px; }
 .accounts-list { display: flex; flex-direction: column; gap: 8px; }
 .account-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: background 0.15s; }
 .account-item:hover { background: var(--surface2); }

@@ -11,7 +11,7 @@ import {
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../utils/currency'
-import { getSubcategoryColor, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../utils/categories'
+import { getSubcategoryColor, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, isTransfer } from '../utils/categories'
 
 const FALLBACK_COLORS = [
   '#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6',
@@ -34,6 +34,7 @@ export default function Charts({ user, privateMode = false }) {
   const [allYearTx, setAllYearTx] = useState([])
   const [accounts, setAccounts]   = useState([])
   const [accountFilter, setAccountFilter] = useState('all')
+  const [showAllAcc, setShowAllAcc] = useState(false)
   const [customCats, setCustomCats] = useState(null)
 
   const bounds = getBounds(period, pivot)
@@ -46,7 +47,7 @@ export default function Charts({ user, privateMode = false }) {
   useEffect(() => {
     getDoc(doc(db, 'users', user.uid, 'settings', 'categories')).then(d => {
       setCustomCats(d.exists() ? d.data() : {})
-    })
+    }).catch(() => setCustomCats({}))
   }, [user.uid])
 
   const catColorMap = useMemo(() => {
@@ -83,10 +84,23 @@ export default function Charts({ user, privateMode = false }) {
     )
   }, [user.uid])
 
+  // Najczęściej używane konta (z ostatnich 12 miesięcy) na początku
+  const accountUsage = useMemo(() => {
+    const u = {}
+    allYearTx.forEach(t => { if (t.accountId) u[t.accountId] = (u[t.accountId] || 0) + 1 })
+    return u
+  }, [allYearTx])
+  const sortedAccounts = useMemo(
+    () => [...accounts].sort((a, b) => (accountUsage[b.id] || 0) - (accountUsage[a.id] || 0)),
+    [accounts, accountUsage]
+  )
+
   const goBack = () => setPivot(p => shiftPivot(period, p, -1))
   const goFwd  = () => setPivot(p => shiftPivot(period, p, +1))
 
-  const filtered = accountFilter === 'all' ? transactions : transactions.filter(t => t.accountId === accountFilter)
+  // Przelewy między kontami nie są przychodem/wydatkiem — pomijamy w wykresach
+  const base = transactions.filter(t => !isTransfer(t))
+  const filtered = accountFilter === 'all' ? base : base.filter(t => t.accountId === accountFilter)
   const expenses = filtered.filter(t => t.type === 'expense')
   const incomes  = filtered.filter(t => t.type === 'income')
   const totalExp = expenses.reduce((s, t) => s + t.amount, 0)
@@ -116,24 +130,37 @@ export default function Charts({ user, privateMode = false }) {
         <button className="icon-btn" onClick={goFwd}><IconChevronRight size={16} /></button>
       </div>
 
-      {/* Account filter */}
-      {accounts.length > 0 && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <button
-            className={`account-chip ${accountFilter === 'all' ? 'active' : ''}`}
-            onClick={() => setAccountFilter('all')}>
-            Wszystkie
-          </button>
-          {accounts.map(a => (
-            <button key={a.id}
-              className={`account-chip ${accountFilter === a.id ? 'active' : ''}`}
-              style={accountFilter === a.id ? { borderColor: a.color, background: a.color + '22' } : {}}
-              onClick={() => setAccountFilter(a.id)}>
-              {a.name}
+      {/* Account filter — najczęściej używane na początku, reszta pod „więcej" */}
+      {accounts.length > 0 && (() => {
+        const top = sortedAccounts.slice(0, 4)
+        const visible = showAllAcc
+          ? sortedAccounts
+          : (accountFilter !== 'all' && !top.some(a => a.id === accountFilter)
+              ? [...top, sortedAccounts.find(a => a.id === accountFilter)].filter(Boolean)
+              : top)
+        return (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <button
+              className={`account-chip ${accountFilter === 'all' ? 'active' : ''}`}
+              onClick={() => setAccountFilter('all')}>
+              Wszystkie
             </button>
-          ))}
-        </div>
-      )}
+            {visible.map(a => (
+              <button key={a.id}
+                className={`account-chip ${accountFilter === a.id ? 'active' : ''}`}
+                style={accountFilter === a.id ? { borderColor: a.color, background: a.color + '22' } : {}}
+                onClick={() => setAccountFilter(a.id)}>
+                {a.name}
+              </button>
+            ))}
+            {sortedAccounts.length > 4 && (
+              <button className="account-chip" onClick={() => setShowAllAcc(v => !v)}>
+                {showAllAcc ? '− mniej' : `+${sortedAccounts.length - 4} więcej`}
+              </button>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Tab selector */}
       <div className="habit-view-tabs">
@@ -173,7 +200,7 @@ export default function Charts({ user, privateMode = false }) {
               expenses={expenses} incomes={incomes}
               totalExp={totalExp} totalInc={totalInc} balance={balance}
               period={period} pivot={pivot} allTx={filtered}
-              yearTx={accountFilter === 'all' ? allYearTx : allYearTx.filter(t => t.accountId === accountFilter)}
+              yearTx={(accountFilter === 'all' ? allYearTx : allYearTx.filter(t => t.accountId === accountFilter)).filter(t => !isTransfer(t))}
               privateMode={privateMode}
             />
           )}
@@ -209,6 +236,7 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
   const monthly12 = build12MonthTimeline(yearTx.length > 0 ? yearTx : allTx)
   const incomeData  = monthly12.map(d => ({ label: d.label, value: d.income }))
   const expenseData = monthly12.map(d => ({ label: d.label, value: d.expense }))
+  const balanceData = monthly12.map(d => ({ label: d.label, value: d.income - d.expense }))
   const hasTimeline = monthly12.some(d => d.income > 0 || d.expense > 0)
 
   return (
@@ -285,6 +313,24 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
         </div>
       )}
 
+      {/* Bilans miesięczny — dodatni niebieski w górę, ujemny czerwony w dół */}
+      {hasTimeline && (
+        <div className="card card-pad" style={{ overflow: 'hidden' }}>
+          <p style={{ margin: '0 0 16px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            Bilans miesięczny · ostatnie 12 miesięcy
+          </p>
+          <BalanceBars data={balanceData} privateMode={privateMode} />
+          <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
+            {[['var(--info)','Nadwyżka (na plus)'],['var(--expense)','Deficyt (na minus)']].map(([color, lbl]) => (
+              <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lbl}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Timeline chart */}
       {hasTimeline && (
         <div className="card card-pad" style={{ overflow: 'hidden' }}>
@@ -303,6 +349,54 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/* ─── Bilans miesięczny (rozbieżne słupki) ─── */
+function BalanceBars({ data, privateMode = false }) {
+  const [hover, setHover] = useState(null)
+  const on = useMounted(80)
+  const maxAbs = Math.max(1, ...data.map(d => Math.abs(d.value)))
+  const H = 64 // wysokość połowy (góra/dół)
+  const shortMoney = (n) => {
+    const a = Math.abs(n)
+    if (a >= 1000) return (n / 1000).toFixed(a >= 10000 ? 0 : 1).replace('.', ',') + 'k'
+    return Math.round(n).toString()
+  }
+  return (
+    <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
+      {data.map((d, i) => {
+        const pos = d.value >= 0
+        const h = Math.round((Math.abs(d.value) / maxAbs) * H)
+        const color = pos ? 'var(--info)' : 'var(--expense)'
+        const showLabel = hover === i || (hover === null && Math.abs(d.value) === maxAbs)
+        return (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'default' }}
+            onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+            {/* górna połowa (dodatnie w górę) */}
+            <div style={{ height: H, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
+              {showLabel && pos && d.value !== 0 && !privateMode && (
+                <span style={{ fontSize: 8, fontWeight: 700, color, marginBottom: 2, whiteSpace: 'nowrap' }}>{shortMoney(d.value)}</span>
+              )}
+              {pos && (
+                <div style={{ width: '72%', height: on ? h : 0, background: color, borderRadius: '4px 4px 0 0', transition: `height .6s cubic-bezier(.4,0,.2,1) ${i * .03}s`, opacity: hover === null || hover === i ? 1 : 0.5 }} />
+              )}
+            </div>
+            <div style={{ height: 1, background: 'var(--border-strong)', width: '100%' }} />
+            {/* dolna połowa (ujemne w dół) */}
+            <div style={{ height: H, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {!pos && d.value !== 0 && (
+                <div style={{ width: '72%', height: on ? h : 0, background: color, borderRadius: '0 0 4px 4px', transition: `height .6s cubic-bezier(.4,0,.2,1) ${i * .03}s`, opacity: hover === null || hover === i ? 1 : 0.5 }} />
+              )}
+              {showLabel && !pos && d.value !== 0 && !privateMode && (
+                <span style={{ fontSize: 8, fontWeight: 700, color, marginTop: 2, whiteSpace: 'nowrap' }}>{shortMoney(d.value)}</span>
+              )}
+            </div>
+            <span style={{ fontSize: 8, color: 'var(--text-muted)', marginTop: 4, textTransform: 'capitalize' }}>{d.label}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../../utils/categories'
+import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, getSubcategoryColor } from '../../utils/categories'
 import { getCurrencyCode } from '../../utils/currency'
 import { CatIcon, IconClose } from '../Icons'
 
@@ -16,6 +16,7 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
   const [name, setName]           = useState(editData?.name || '')
   const [amount, setAmount]       = useState(editData?.amount?.toString() || '')
   const [category, setCategory]   = useState(editData?.categoryId || '')
+  const [subcategoryId, setSubcategoryId] = useState(editData?.subcategoryId || '')
   const [frequency, setFrequency] = useState(editData?.frequency || 'monthly')
   const [dayOfMonth, setDay]      = useState(editData?.dayOfMonth?.toString() || '1')
   const [accountId, setAccountId] = useState(editData?.accountId || '')
@@ -35,6 +36,9 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
     return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
 
+  // Reset podkategorii gdy zmienia się kategoria lub typ
+  useEffect(() => { if (!editData) setSubcategoryId('') }, [category, type]) // eslint-disable-line
+
   useEffect(() => {
     getDoc(doc(db, 'users', user.uid, 'settings', 'categories')).then(d => {
       if (d.exists()) {
@@ -51,10 +55,13 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
     if (!category) { setError('Wybierz kategorię'); return }
     setSaving(true)
     const cat = categories.find(c => c.id === category)
+    const subcat = cat?.subcategories?.find(s => s.id === subcategoryId)
     const data = {
       type, name: name.trim(), amount: parseFloat(amount),
       category: cat?.label || category, categoryId: category,
       categoryIcon: cat?.icon || 'IconRepeat',
+      subcategoryId: subcat?.id || null,
+      subcategoryLabel: subcat?.label || null,
       frequency, dayOfMonth: parseInt(dayOfMonth) || 1,
       accountId: accountId || null,
       autoAdd,
@@ -111,6 +118,38 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
               ))}
             </div>
           </div>
+
+          {(() => {
+            const selectedCat = categories.find(c => c.id === category)
+            const subcats = selectedCat?.subcategories || []
+            if (!subcats.length) return null
+            return (
+              <div className="form-group">
+                <label>Podkategoria <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcjonalna)</span></label>
+                <div className="category-icons-grid">
+                  {subcats.map((sub, si) => {
+                    const subColor = getSubcategoryColor(selectedCat.color, si)
+                    const active = subcategoryId === sub.id
+                    return (
+                      <button key={sub.id} type="button"
+                        className={`cat-icon-btn ${active ? 'active' : ''}`}
+                        onClick={() => setSubcategoryId(active ? '' : sub.id)}
+                      >
+                        <div className="cat-circle" style={{
+                          background: active ? subColor : subColor + '33',
+                          borderColor: active ? subColor : 'transparent',
+                          color: active ? '#fff' : subColor
+                        }}>
+                          <CatIcon categoryId="" emoji={sub.icon} size={18} />
+                        </div>
+                        <span className="cat-label">{sub.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           {accounts.length > 0 && (
             <div className="form-group">

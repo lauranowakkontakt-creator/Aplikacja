@@ -1,3 +1,6 @@
+// Przelew między kontami — przesuwa pieniądze, więc nie liczy się jako przychód/wydatek.
+export const isTransfer = (t) => t?.categoryId === 'transfer' || !!t?.transferTo || !!t?.transferFrom
+
 // `icon` holds an SVG icon-catalog key (see Icons.jsx) — never an emoji.
 // CatIcon resolves it via CATEGORY_ICON_MAP[id] first, then the icon key.
 export const DEFAULT_EXPENSE_CATEGORIES = [

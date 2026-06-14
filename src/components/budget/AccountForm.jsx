@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { IconClose, IconBank, IconCash, IconCard, IconRepeat, IconSavings, IconTrendUp } from '../Icons'
+import { CURRENCIES as CURRENCY_LIST } from '../../utils/currency'
+import { IconClose, IconBank, IconCash, IconCard, IconRepeat, IconSavings, IconTrendUp, IconPlus } from '../Icons'
 
 const ACCOUNT_TYPES = [
   { id: 'bank',       label: 'Konto bankowe', Icon: IconBank },
@@ -12,13 +13,16 @@ const ACCOUNT_TYPES = [
   { id: 'investment', label: 'Inwestycje',      Icon: IconTrendUp },
 ]
 
-const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP']
+const CURRENCIES = CURRENCY_LIST.map(c => c.code)
 
 const COLORS = ['#C94B28', '#6B9E72', '#4A90D9', '#9B59B6', '#E67E22', '#1ABC9C', '#E74C3C', '#F39C12']
 
 export default function AccountForm({ user, onClose, editData }) {
+  // Konto z zapisanym typem spoza listy traktujemy jako „własny"
+  const isKnownType = (t) => ACCOUNT_TYPES.some(at => at.id === t)
   const [name, setName]         = useState(editData?.name || '')
-  const [type, setType]         = useState(editData?.type || 'bank')
+  const [type, setType]         = useState(editData ? (isKnownType(editData.type) ? editData.type : 'custom') : 'bank')
+  const [customType, setCustomType] = useState(editData && !isKnownType(editData.type) ? (editData.typeName || '') : '')
   const [balance, setBalance]   = useState(editData?.balance?.toString() || '0')
   const [currency, setCurrency] = useState(editData?.currency || 'PLN')
   const [color, setColor]       = useState(editData?.color || COLORS[0])
@@ -28,9 +32,14 @@ export default function AccountForm({ user, onClose, editData }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) { setError('Wpisz nazwę konta'); return }
+    if (type === 'custom' && !customType.trim()) { setError('Wpisz nazwę własnego typu'); return }
     setSaving(true)
-    const typeName = ACCOUNT_TYPES.find(t => t.id === type)?.label || type
-    const data = { name: name.trim(), type, typeName, balance: parseFloat(balance) || 0, currency, color }
+    const typeName = type === 'custom'
+      ? customType.trim()
+      : (ACCOUNT_TYPES.find(t => t.id === type)?.label || type)
+    // Dla własnego typu zapisujemy slug jako type, żeby filtry/ikony działały
+    const storedType = type === 'custom' ? `custom:${customType.trim().toLowerCase()}` : type
+    const data = { name: name.trim(), type: storedType, typeName, balance: parseFloat(balance) || 0, currency, color }
     try {
       if (editData) {
         await updateDoc(doc(db, 'users', user.uid, 'accounts', editData.id), data)
@@ -64,7 +73,20 @@ export default function AccountForm({ user, onClose, editData }) {
                   <span>{t.label}</span>
                 </button>
               ))}
+              <button type="button"
+                className={`account-type-btn ${type === 'custom' ? 'active' : ''}`}
+                onClick={() => setType('custom')}
+              >
+                <IconPlus size={18} />
+                <span>Własny</span>
+              </button>
             </div>
+            {type === 'custom' && (
+              <input type="text" className="form-input" value={customType}
+                onChange={e => setCustomType(e.target.value)}
+                placeholder="np. Kryptowaluty, Pożyczka, PayPal..." maxLength={30}
+                style={{ marginTop: 8 }} />
+            )}
           </div>
 
           {/* Nazwa */}
