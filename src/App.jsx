@@ -8,8 +8,9 @@ import MoodDashboard from './components/mood/MoodDashboard'
 import TodoDashboard from './components/todo/TodoDashboard'
 import CalendarDashboard from './components/calendar/CalendarDashboard'
 import PrayerDashboard from './components/prayer/PrayerDashboard'
+import BibleDashboard from './components/bible/BibleDashboard'
 import SettingsDrawer from './components/SettingsDrawer'
-import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconSettings } from './components/Icons'
+import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
 import { getCurrencyCode, setCurrencyCode } from './utils/currency'
 
@@ -23,6 +24,7 @@ const MODULE_ACCENTS = {
   todo:     '#5BB6D9',
   calendar: '#5FBF98',
   prayer:   '#C9A24A',
+  bible:    '#4F74D9',
 }
 
 function buildModules() {
@@ -34,6 +36,7 @@ function buildModules() {
     { id: 'todo',     label: 'To-do',     Icon: resolveIcon(prefs.todo,     IconTodo) },
     { id: 'calendar', label: 'Kalendarz', Icon: resolveIcon(prefs.calendar, IconCalendar) },
     { id: 'prayer',   label: 'Modlitwa',  Icon: resolveIcon(prefs.prayer,   IconPrayer) },
+    { id: 'bible',    label: 'Biblia',    Icon: resolveIcon(prefs.bible,    IconBook) },
   ]
 }
 
@@ -177,6 +180,7 @@ export default function App() {
             {activeModule === 'todo'     && <TodoDashboard user={user} />}
             {activeModule === 'calendar' && <CalendarDashboard user={user} />}
             {activeModule === 'prayer'   && <PrayerDashboard user={user} />}
+            {activeModule === 'bible'    && <BibleDashboard user={user} />}
           </div>
         </div>
       </div>
