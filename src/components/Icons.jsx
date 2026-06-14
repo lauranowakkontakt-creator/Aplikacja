@@ -66,11 +66,10 @@ export const IconCalendar = (p) => (
 
 export const IconPrayer = (p) => (
   <Icon {...p}>
-    <path d="M12 21V13a4 4 0 0 1 8 0" />
-    <path d="M12 21V13a4 4 0 0 0-8 0" />
-    <path d="M12 13V8" />
-    <path d="M9.5 6.5 Q12 3.5 14.5 6.5" />
-    <path d="M7 21h10" />
+    {/* Serce w otwartych dłoniach — modlitwa / ofiarowanie */}
+    <path d="M12 8c1.1-1.9 4.2-1.7 4.2 1 0 2-2.2 3.6-4.2 5-2-1.4-4.2-3-4.2-5C7.8 6.3 10.9 6.1 12 8z" />
+    <path d="M4.5 12.5c-.6 2.2 0 4.4 1.7 6L9 21" />
+    <path d="M19.5 12.5c.6 2.2 0 4.4-1.7 6L15 21" />
   </Icon>
 )
 
@@ -733,6 +732,8 @@ export const CATEGORY_ICON_MAP = {
 export function CatIcon({ categoryId, emoji, size = 18, style }) {
   const Comp = CATEGORY_ICON_MAP[categoryId] || ICON_KEY_MAP[emoji]
   if (Comp) return <Comp size={size} style={style} />
+  // Nierozpoznany klucz ikony (konwencja: zaczyna się od „Ic") — pokaż ikonę zastępczą zamiast surowego tekstu
+  if (emoji && /^Ic/.test(emoji)) return <IconUsers size={size} style={style} />
   if (emoji) return <span style={{ fontSize: size, lineHeight: 1, ...style }}>{emoji}</span>
   return <span style={{ fontSize: size, lineHeight: 1, opacity: 0.4, ...style }}>·</span>
 }

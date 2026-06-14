@@ -126,33 +126,6 @@ export default function PrayerDashboard({ user }) {
         </div>
       </div>
 
-      {/* Verse hero card */}
-      {!carMode && (
-        <div style={{
-          background: 'linear-gradient(140deg,var(--surface),var(--bg))',
-          border: '1px solid var(--border)', borderRadius: 'var(--r-lg)',
-          padding: 32, marginBottom: 18, position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{
-            position: 'absolute', top: -80, right: -60, width: 200, height: 200,
-            background: '#C9A24A', borderRadius: '50%', filter: 'blur(70px)', opacity: .16, pointerEvents: 'none'
-          }} />
-          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
-            Werset dnia · {format(new Date(), 'd.MM', { locale: pl })}
-          </div>
-          <p style={{
-            fontFamily: 'var(--font-sans)', fontSize: 'clamp(18px,3vw,26px)',
-            lineHeight: 1.5, fontStyle: 'italic', margin: 0, color: 'var(--text)'
-          }}>
-            „Bądź cicho przed Panem<br />i czekaj cierpliwie na Niego."
-          </p>
-          <div style={{ fontSize: 12, color: 'var(--text-sub)', marginTop: 14, letterSpacing: '.04em' }}>
-            — Psalm 37,7
-          </div>
-        </div>
-      )}
-
       {/* Stats tiles */}
       {!carMode && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
@@ -233,12 +206,22 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
     const lastDate = allDates.length ? [...allDates].sort().reverse()[0] : null
     const days = lastDate ? differenceInDays(new Date(), parseISO(lastDate)) : null
     const prayedToday = allDates.includes(today)
-    return { ...p, activeCount: active.length, days, prayedToday }
+    return { ...p, activeCount: active.length, totalPrays: allDates.length, days, prayedToday }
   }).sort((a, b) => {
-    if (a.prayedToday && !b.prayedToday) return 1
-    if (!a.prayedToday && b.prayedToday) return -1
-    return (b.days ?? 999) - (a.days ?? 999)
+    // Osoby bez aktywnych próśb na samym dole
+    const aHas = a.activeCount > 0, bHas = b.activeCount > 0
+    if (aHas !== bHas) return aHas ? -1 : 1
+    // Reszta wg liczby modlitw (najwięcej u góry)
+    if (b.totalPrays !== a.totalPrays) return b.totalPrays - a.totalPrays
+    return a.name.localeCompare(b.name)
   }), [people, intentions, today])
+
+  // Podpowiedź: najbardziej zaniedbana osoba z aktywną prośbą, jeszcze nie dziś
+  const suggestion = useMemo(() => {
+    const cand = withStats.filter(p => p.activeCount > 0 && !p.prayedToday)
+    if (!cand.length) return null
+    return [...cand].sort((a, b) => (b.days ?? 99999) - (a.days ?? 99999))[0]
+  }, [withStats])
 
   const handleDeletePerson = async (id, e) => {
     e.stopPropagation()
@@ -252,6 +235,29 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
       <button className="btn-add-habit" onClick={() => { setEditPerson(null); setShowForm(true) }}>
         + Dodaj osobę
       </button>
+
+      {!carMode && suggestion && (
+        <button onClick={() => onSelect(suggestion)} style={{
+          display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left', cursor: 'pointer',
+          background: 'linear-gradient(135deg, var(--surface), color-mix(in oklab, var(--accent) 12%, var(--surface)))',
+          border: '1px solid color-mix(in oklab, var(--accent) 30%, var(--border))',
+          borderRadius: 12, padding: '11px 14px',
+        }}>
+          <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, display: 'grid', placeItems: 'center', background: 'color-mix(in oklab, var(--accent) 16%, transparent)', color: 'var(--accent)' }}>
+            <IconPrayer size={18} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--accent)' }}>Pomódl się dziś za</div>
+            <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {suggestion.name}
+              <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)' }}>
+                {suggestion.days === null ? ' · jeszcze nie modlono' : ` · ${suggestion.days} dni temu`}
+              </span>
+            </div>
+          </div>
+          <IconChevronRight size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+        </button>
+      )}
 
       {people.length === 0 ? (
         <div className="list-empty">
@@ -285,11 +291,16 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
                     </span>
                   )}
                 </div>
-                <p style={{ margin: '3px 0 0', fontSize: carMode ? 13 : 11, color: 'var(--text-muted)' }}>
-                  {p.activeCount} {p.activeCount === 1 ? 'prośba' : p.activeCount < 5 ? 'prośby' : 'próśb'}
-                  {p.days === 0 && ' · modlono dziś'}
-                  {p.days !== null && p.days > 0 && ` · ${p.days} dni temu`}
-                  {p.days === null && p.activeCount > 0 && ' · jeszcze nie modlono'}
+                <p style={{ margin: '3px 0 0', fontSize: carMode ? 13 : 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                  <span>{p.activeCount} {p.activeCount === 1 ? 'prośba' : p.activeCount < 5 ? 'prośby' : 'próśb'}</span>
+                  {p.totalPrays > 0 && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      · <IconPrayer size={11} style={{ color: 'var(--accent)' }} /> ×{p.totalPrays}
+                    </span>
+                  )}
+                  {p.days === 0 && <span>· modlono dziś</span>}
+                  {p.days !== null && p.days > 0 && <span>· {p.days} dni temu</span>}
+                  {p.days === null && p.activeCount > 0 && <span>· jeszcze nie modlono</span>}
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -784,57 +795,18 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* 2-column layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        {/* Intencje — lista */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-          {kicker('Intencje')}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {personStats.slice(0, 4).map(p => {
-              const neglect = getNeglect(p.activeCount > 0 && !p.prayedToday ? p.days : -1)
-              const isNeglected = p.activeCount > 0 && !p.prayedToday && neglect.level >= 4
-              const isAtRisk    = p.activeCount > 0 && !p.prayedToday && neglect.level === 3
-              return (
-                <div key={p.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
-                  borderRadius: 10, cursor: 'pointer',
-                  background: isNeglected ? neglect.color + '08' : 'var(--surface2)',
-                  border: `1px solid ${isNeglected ? neglect.color + '40' : isAtRisk ? neglect.color + '30' : 'var(--border)'}`,
-                }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6', flexShrink: 0 }}>
-                    <CatIcon categoryId={null} emoji={p.icon || 'IcUsers'} size={16} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.name}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <IconPrayer size={10} /> {p.totalPrays}× · {p.days === 0 ? 'dziś' : p.days !== null ? `${p.days} dni temu` : 'brak'}
-                    </div>
-                  </div>
-                  <IconChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
-                </div>
-              )
-            })}
-            {personStats.length === 0 && (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>Brak osób</div>
-            )}
+      {/* Aktywność modlitwy */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
+        {kicker('Aktywność modlitwy')}
+        <Heatmap weeks={WEEKS} accentHex="#C9A24A" data={heatData} />
+        <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 12 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: '#C9A24A' }}>{regularPct}%</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>regularność</div>
           </div>
-        </div>
-
-        {/* Heatmap + stats */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-            {kicker('Aktywność modlitwy')}
-            <Heatmap weeks={WEEKS} accentHex="#C9A24A" data={heatData} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10 }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#C9A24A' }}>{regularPct}%</div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>regularność</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--accent)' }}>{streak}</div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>seria dni</div>
-              </div>
-            </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--accent)' }}>{streak}</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>seria dni</div>
           </div>
         </div>
       </div>
