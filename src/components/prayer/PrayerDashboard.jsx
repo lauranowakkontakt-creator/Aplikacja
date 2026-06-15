@@ -110,11 +110,17 @@ export default function PrayerDashboard({ user }) {
         </div>
         <div className="mod-header-right">
           <button
-            className="icon-btn"
             onClick={() => setCarMode(m => !m)}
-            style={carMode ? { background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700 } : { fontSize: 13, padding: '4px 8px' }}
-            title="Tryb auto"
-          >Auto</button>
+            style={{
+              width: 'auto', height: 32, padding: '0 12px', borderRadius: 8, cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap',
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              border: `1px solid ${carMode ? 'var(--accent)' : 'var(--border)'}`,
+              background: carMode ? 'var(--accent)' : 'var(--surface)',
+              color: carMode ? '#fff' : 'var(--text-sub)',
+            }}
+            title="Tryb auto (większe przyciski do prowadzenia)"
+          >🚗 Auto</button>
           <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
             <IconFlame size={14} style={{ color: 'var(--accent)' }} />
             <span style={{ fontSize: 13, fontWeight: 700 }}>{streak}</span>
@@ -547,18 +553,18 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
           {[...item.notes].sort((a, b) => b.date.localeCompare(a.date)).map(n => (
             <div key={n.id} style={{ background: 'var(--bg)', borderRadius: 8, padding: '7px 10px' }}>
               {editingNoteId === n.id ? (
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <textarea
                     className="form-input"
                     value={editNoteText}
                     onChange={e => setEditNoteText(e.target.value)}
-                    rows={2}
-                    style={{ flex: 1, margin: 0, fontSize: fs.note, resize: 'vertical' }}
-                   
+                    rows={3}
+                    autoFocus
+                    style={{ width: '100%', margin: 0, fontSize: fs.note, resize: 'vertical', minHeight: 72, lineHeight: 1.5, boxSizing: 'border-box' }}
                   />
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <button className="btn-save" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => submitEditNote(n)}>Zapisz</button>
-                    <button onClick={() => setEditingNoteId(null)} style={{ padding: '4px 10px', fontSize: 12, background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, cursor: 'pointer', color: 'var(--text-muted)' }}>Anuluj</button>
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button onClick={() => setEditingNoteId(null)} style={{ padding: '7px 14px', fontSize: 12, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', color: 'var(--text-muted)' }}>Anuluj</button>
+                    <button className="btn-save" style={{ width: 'auto', margin: 0, padding: '7px 16px', fontSize: 12 }} onClick={() => submitEditNote(n)}>Zapisz</button>
                   </div>
                 </div>
               ) : (
@@ -602,20 +608,25 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
       </div>
 
       {addingNote && (
-        <div style={{ marginTop: 8, display: 'flex', gap: 6 }}>
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <textarea
             className="form-input"
             placeholder="Notatka z modlitwy..."
             value={noteText}
             onChange={e => setNoteText(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.shiftKey && submitNote()}
-            rows={2}
-            style={{ flex: 1, margin: 0, fontSize: fs.note, resize: 'vertical' }}
-           
+            onKeyDown={e => e.key === 'Enter' && (e.metaKey || e.ctrlKey) && submitNote()}
+            rows={3}
+            autoFocus
+            style={{ width: '100%', margin: 0, fontSize: fs.note, resize: 'vertical', minHeight: 80, lineHeight: 1.5, boxSizing: 'border-box' }}
           />
-          <button className="btn-save" style={{ padding: '0 14px', fontSize: 13, alignSelf: 'flex-end' }} onClick={submitNote}>
-            Dodaj
-          </button>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button type="button" onClick={() => { setAddingNote(false); setNoteText('') }} style={{ padding: '8px 14px', fontSize: 13, background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-muted)', cursor: 'pointer' }}>
+              Anuluj
+            </button>
+            <button className="btn-save" style={{ width: 'auto', margin: 0, padding: '8px 18px', fontSize: 13 }} onClick={submitNote}>
+              Dodaj notatkę
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -86,7 +86,16 @@ export default function CalendarDashboard({ user }) {
   const [editEvent, setEditEvent]   = useState(null)
   const [showCatMgr, setShowCatMgr]       = useState(false)
   const [showPeopleMgr, setShowPeopleMgr] = useState(false)
+  const [editPerson, setEditPerson]       = useState(null)
   const [filterPersonId, setFilterPersonId] = useState(null)
+
+  const deletePerson = async (id) => {
+    const ok = await confirmDialog({ title: 'Usunąć osobę?', message: 'Jej wydarzenia pozostaną, ale stracą przypisanie do osoby.' })
+    if (!ok) return
+    await deleteDoc(doc(db, 'users', user.uid, 'calendarPeople', id))
+    if (filterPersonId === id) setFilterPersonId(null)
+  }
+  const openPersonEdit = (p) => { setEditPerson(p); setShowPeopleMgr(true) }
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarCategories'), orderBy('createdAt', 'asc'))
@@ -331,7 +340,9 @@ export default function CalendarDashboard({ user }) {
 
       {tab === 'people' && (
         <PeopleView calPeople={calPeople} events={events} categories={categories}
-          onManage={() => setShowPeopleMgr(true)}
+          onManage={() => { setEditPerson(null); setShowPeopleMgr(true) }}
+          onEditPerson={openPersonEdit}
+          onDeletePerson={deletePerson}
           onEdit={e => { setEditEvent(e); setShowForm(true) }}
           onDelete={handleDelete} />
       )}
@@ -342,7 +353,7 @@ export default function CalendarDashboard({ user }) {
           onClose={() => { setShowForm(false); setEditEvent(null) }} />
       )}
       {showCatMgr    && <CategoryManager user={user} categories={categories} onClose={() => setShowCatMgr(false)} />}
-      {showPeopleMgr && <PeopleManager   user={user} calPeople={calPeople}   onClose={() => setShowPeopleMgr(false)} />}
+      {showPeopleMgr && <PeopleManager   user={user} calPeople={calPeople} editData={editPerson} onClose={() => { setShowPeopleMgr(false); setEditPerson(null) }} />}
     </div>
   )
 }
@@ -414,28 +425,24 @@ function CalendarGrid({ currentMonth, selectedDay, categories, calPeople, events
                   {getDate(day)}
                 </div>
                 <div className="cal-chips">
-                  {multiDay.slice(0, 3).map((e, i) => {
-                    const pos   = getSpanPos(e, day)
-                    const color = getEventColor(categories, calPeople, e)
-                    const showTitle = pos === 'start' || pos === 'solo'
+                  {multiDay.slice(0, 3).map((e) => {
+                    const pos     = getSpanPos(e, day)
+                    const color   = getEventColor(categories, calPeople, e)
+                    const isStart = pos === 'start' || pos === 'solo'
+                    const isEnd   = pos === 'end'   || pos === 'solo'
                     return (
-                      <div key={e.id} style={{
-                        height: 10,
-                        background: color + (pos === 'mid' ? '50' : '38'),
-                        borderLeft:  (pos === 'start' || pos === 'solo') ? `2px solid ${color}` : 'none',
-                        borderRight: (pos === 'end'   || pos === 'solo') ? `2px solid ${color}` : 'none',
-                        borderTop: `1px solid ${color}55`, borderBottom: `1px solid ${color}55`,
-                        borderRadius: pos === 'start' ? '3px 0 0 3px' : pos === 'end' ? '0 3px 3px 0' : pos === 'solo' ? 3 : 0,
-                        marginLeft:  (pos === 'mid' || pos === 'end')   ? -3 : 0,
-                        marginRight: (pos === 'mid' || pos === 'start') ? -3 : 0,
-                        display: 'flex', alignItems: 'center', paddingLeft: showTitle ? 3 : 0,
-                        overflow: 'hidden',
+                      <div key={e.id} className="cal-mday" style={{
+                        background: color + '40',
+                        borderLeft:  isStart ? `2px solid ${color}` : `2px solid ${color}40`,
+                        borderRight: isEnd   ? `2px solid ${color}` : 'none',
+                        borderTop: `1px solid ${color}66`, borderBottom: `1px solid ${color}66`,
+                        borderTopLeftRadius:     isStart ? 3 : 0,
+                        borderBottomLeftRadius:  isStart ? 3 : 0,
+                        borderTopRightRadius:    isEnd ? 3 : 0,
+                        borderBottomRightRadius: isEnd ? 3 : 0,
+                        paddingLeft: isStart ? 4 : 0,
                       }}>
-                        {showTitle && (
-                          <span style={{ fontSize: 8, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
-                            {e.title}
-                          </span>
-                        )}
+                        {isStart && <span className="cal-mday-title">{e.title}</span>}
                       </div>
                     )
                   })}
@@ -536,7 +543,7 @@ function EventRow({ e, categories, calPeople, onEdit, onDelete, muted }) {
 }
 
 /* ─── PeopleView ───────────────────────────────────────────────────────── */
-function PeopleView({ calPeople, events, categories, onManage, onEdit, onDelete }) {
+function PeopleView({ calPeople, events, categories, onManage, onEditPerson, onDeletePerson, onEdit, onDelete }) {
   const today = format(new Date(), 'yyyy-MM-dd')
 
   const upcomingFor = (personId) =>
@@ -563,11 +570,15 @@ function PeopleView({ calPeople, events, categories, onManage, onEdit, onDelete 
           <div key={person.id} style={{ background: 'var(--surface)', border: `1px solid ${person.color}44`, borderRadius: 'var(--r)', overflow: 'hidden' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: person.color + '14', borderBottom: `1px solid ${person.color}22` }}>
               <PersonBubble person={person} size={40} />
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 700 }}>{person.name}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
                   {upcoming.length > 0 ? `${upcoming.length} nadchodzących wydarzeń` : 'Nic zaplanowanego'}
                 </div>
+              </div>
+              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                <button className="t-btn" title="Edytuj osobę" onClick={() => onEditPerson(person)}><IconEdit size={14} /></button>
+                <button className="t-btn delete" title="Usuń osobę" onClick={() => onDeletePerson(person.id)}><IconTrash size={14} /></button>
               </div>
             </div>
 
@@ -793,19 +804,27 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
 }
 
 /* ─── PeopleManager ────────────────────────────────────────────────────── */
-function PeopleManager({ user, calPeople, onClose }) {
-  const [name, setName]     = useState('')
-  const [color, setColor]   = useState(PERSON_COLORS[0])
+function PeopleManager({ user, calPeople, editData, onClose }) {
+  const [editId, setEditId] = useState(editData?.id || null)
+  const [name, setName]     = useState(editData?.name || '')
+  const [color, setColor]   = useState(editData?.color || PERSON_COLORS[0])
   const [saving, setSaving] = useState(false)
 
-  const handleAdd = async (e) => {
+  const resetForm = () => { setEditId(null); setName(''); setColor(PERSON_COLORS[0]) }
+  const startEdit = (p) => { setEditId(p.id); setName(p.name); setColor(p.color || PERSON_COLORS[0]) }
+
+  const handleSave = async (e) => {
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
-    await addDoc(collection(db, 'users', user.uid, 'calendarPeople'), {
-      name: name.trim(), color, createdAt: Timestamp.now()
-    })
-    setName('')
+    if (editId) {
+      await updateDoc(doc(db, 'users', user.uid, 'calendarPeople', editId), { name: name.trim(), color })
+    } else {
+      await addDoc(collection(db, 'users', user.uid, 'calendarPeople'), {
+        name: name.trim(), color, createdAt: Timestamp.now()
+      })
+    }
+    resetForm()
     setSaving(false)
   }
 
@@ -813,6 +832,7 @@ function PeopleManager({ user, calPeople, onClose }) {
     const ok = await confirmDialog({ title: 'Usunąć osobę?', message: 'Jej wydarzenia pozostaną, ale stracą przypisanie do osoby.' })
     if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'calendarPeople', id))
+    if (editId === id) resetForm()
   }
 
   return (
@@ -826,19 +846,20 @@ function PeopleManager({ user, calPeople, onClose }) {
           {calPeople.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
               {calPeople.map(p => (
-                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--surface2)', borderRadius: 10, border: `1px solid ${p.color}33` }}>
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: editId === p.id ? p.color + '18' : 'var(--surface2)', borderRadius: 10, border: `1px solid ${editId === p.id ? p.color : p.color + '33'}` }}>
                   <PersonBubble person={p} size={34} />
                   <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: p.color }}>{p.name}</span>
-                  <button className="t-btn delete" onClick={() => handleDelete(p.id)}><IconTrash size={13} /></button>
+                  <button className="t-btn" title="Edytuj" onClick={() => startEdit(p)}><IconEdit size={13} /></button>
+                  <button className="t-btn delete" title="Usuń" onClick={() => handleDelete(p.id)}><IconTrash size={13} /></button>
                 </div>
               ))}
             </div>
           )}
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '0 0 14px' }} />
-          <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700 }}>Dodaj osobę</p>
+          <p style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700 }}>{editId ? 'Edytuj osobę' : 'Dodaj osobę'}</p>
 
-          <form onSubmit={handleAdd}>
+          <form onSubmit={handleSave}>
             <div className="form-group">
               <label>Imię / nazwa</label>
               <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)}
@@ -862,9 +883,16 @@ function PeopleManager({ user, calPeople, onClose }) {
                 </div>
               )}
             </div>
-            <button type="submit" className="btn-save" disabled={saving || !name.trim()}>
-              {saving ? 'Dodawanie...' : '+ Dodaj osobę'}
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="submit" className="btn-save" disabled={saving || !name.trim()} style={{ flex: 1 }}>
+                {saving ? 'Zapisywanie...' : editId ? 'Zapisz zmiany' : '+ Dodaj osobę'}
+              </button>
+              {editId && (
+                <button type="button" onClick={resetForm} style={{ padding: '0 16px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14 }}>
+                  Anuluj
+                </button>
+              )}
+            </div>
           </form>
         </div>
       </div>
