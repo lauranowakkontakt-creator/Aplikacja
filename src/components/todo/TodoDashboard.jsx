@@ -5,11 +5,11 @@ import {
   format, isPast, isToday, parseISO,
   startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear,
   eachDayOfInterval, eachMonthOfInterval, isWithinInterval,
-  isSameMonth, isSameDay, getDate, addMonths, subMonths
+  isSameMonth, isSameDay, getDate, addMonths, subMonths, addDays, addWeeks
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag, IconChevronDown, IconChevronLeft, IconChevronRight, IconCalendar, IconClock } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag, IconChevronDown, IconChevronLeft, IconChevronRight, IconCalendar, IconClock, IconRepeat, IconPlus } from '../Icons'
 import { Ring } from '../ChartPrimitives'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -27,6 +27,15 @@ const LIST_COLORS = [
   '#BE185D','#6B9E72','#4A90D9','#1ABC9C','#E74C3C','#92400E',
 ]
 const pOrder      = { high: 0, medium: 1, low: 2 }
+const RECURRENCE = [
+  { id: '',        label: 'Brak' },
+  { id: 'daily',   label: 'Codziennie' },
+  { id: 'weekly',  label: 'Co tydzień' },
+  { id: 'monthly', label: 'Co miesiąc' },
+]
+const RECUR_LABEL = { daily: 'co dzień', weekly: 'co tydzień', monthly: 'co miesiąc' }
+const nextOccurrence = (base, rec) =>
+  rec === 'daily' ? addDays(base, 1) : rec === 'weekly' ? addWeeks(base, 1) : addMonths(base, 1)
 
 const kicker = (t) => (
   <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -63,9 +72,26 @@ export default function TodoDashboard({ user }) {
   }, [user.uid])
 
   const toggleDone = async (todo) => {
+    // Zadanie cykliczne: zamiast „zrobione" przesuwamy na kolejny termin i odznaczamy podzadania
+    if (!todo.done && todo.recurrence) {
+      const base = todo.dueDate ? parseISO(todo.dueDate) : new Date()
+      const next = nextOccurrence(base, todo.recurrence)
+      await updateDoc(doc(db, 'users', user.uid, 'todos', todo.id), {
+        dueDate: format(next, 'yyyy-MM-dd'),
+        subtasks: (todo.subtasks || []).map(s => ({ ...s, done: false })),
+        done: false, doneAt: null, lastDoneAt: Timestamp.now(), updatedAt: Timestamp.now()
+      })
+      toast.success(`Przeniesiono na ${format(next, 'd MMM', { locale: pl })}`)
+      return
+    }
     await updateDoc(doc(db, 'users', user.uid, 'todos', todo.id), {
       done: !todo.done, doneAt: todo.done ? null : Timestamp.now(), updatedAt: Timestamp.now()
     })
+  }
+
+  const toggleSubtask = async (todo, subId) => {
+    const subtasks = (todo.subtasks || []).map(s => s.id === subId ? { ...s, done: !s.done } : s)
+    await updateDoc(doc(db, 'users', user.uid, 'todos', todo.id), { subtasks, updatedAt: Timestamp.now() })
   }
 
   const handleDelete = async (id) => {
@@ -261,7 +287,7 @@ export default function TodoDashboard({ user }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {active.map(todo => (
                   <TodoItem key={todo.id} todo={todo} lists={lists}
-                    onToggle={toggleDone}
+                    onToggle={toggleDone} onToggleSubtask={toggleSubtask}
                     onEdit={() => { setEditTodo(todo); setShowForm(true) }}
                     onDelete={handleDelete} />
                 ))}
@@ -288,7 +314,7 @@ export default function TodoDashboard({ user }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, opacity: 0.55 }}>
                   {done.map(todo => (
                     <TodoItem key={todo.id} todo={todo} lists={lists}
-                      onToggle={toggleDone}
+                      onToggle={toggleDone} onToggleSubtask={toggleSubtask}
                       onEdit={() => { setEditTodo(todo); setShowForm(true) }}
                       onDelete={handleDelete} />
                   ))}
@@ -332,13 +358,15 @@ export default function TodoDashboard({ user }) {
 }
 
 /* ─── TodoItem ─── */
-function TodoItem({ todo, lists, onToggle, onEdit, onDelete }) {
+function TodoItem({ todo, lists, onToggle, onToggleSubtask, onEdit, onDelete }) {
   const list     = lists.find(l => l.id === todo.listId)
   const priority = PRIORITY.find(p => p.id === todo.priority)
   const date     = todo.dueDate ? parseISO(todo.dueDate) : null
   const overdue  = date && isPast(date) && !isToday(date) && !todo.done
   const dueToday = date && isToday(date) && !todo.done
   const listColor = list?.color || 'var(--border)'
+  const subs     = todo.subtasks || []
+  const subsDone = subs.filter(s => s.done).length
 
   return (
     <div style={{
@@ -382,7 +410,34 @@ function TodoItem({ todo, lists, onToggle, onEdit, onDelete }) {
               {format(date, 'd MMM', { locale: pl })}
             </span>
           )}
+          {todo.recurrence && (
+            <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 4, background: 'var(--sky)22', color: 'var(--sky)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+              <IconRepeat size={10} /> {RECUR_LABEL[todo.recurrence]}
+            </span>
+          )}
+          {subs.length > 0 && (
+            <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 4, background: 'var(--surface2)', color: 'var(--text-muted)', fontWeight: 600 }}>
+              {subsDone}/{subs.length}
+            </span>
+          )}
         </div>
+
+        {/* Podzadania */}
+        {subs.length > 0 && (
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {subs.map(s => (
+              <button key={s.id} type="button" onClick={() => onToggleSubtask?.(todo, s.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
+                <span style={{
+                  width: 16, height: 16, borderRadius: 5, flexShrink: 0, display: 'grid', placeItems: 'center',
+                  border: `1.5px solid ${s.done ? 'var(--income)' : 'var(--border-strong)'}`,
+                  background: s.done ? 'var(--income)' : 'transparent', color: '#fff',
+                }}>{s.done && <IconCheck size={10} />}</span>
+                <span style={{ fontSize: 12, textDecoration: s.done ? 'line-through' : 'none', color: s.done ? 'var(--text-muted)' : 'var(--text-sub)' }}>{s.title}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
@@ -699,8 +754,19 @@ function TodoForm({ user, lists, editData, defaultListId, defaultDueDate, onClos
   const [listId, setListId]     = useState(editData?.listId || defaultListId || '')
   const [priority, setPriority] = useState(editData?.priority || 'medium')
   const [dueDate, setDueDate]   = useState(editData?.dueDate || defaultDueDate || '')
+  const [recurrence, setRecurrence] = useState(editData?.recurrence || '')
+  const [subtasks, setSubtasks] = useState(editData?.subtasks || [])
+  const [subInput, setSubInput] = useState('')
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
+
+  const addSub = () => {
+    const t = subInput.trim()
+    if (!t) return
+    setSubtasks(prev => [...prev, { id: Date.now().toString(36), title: t, done: false }])
+    setSubInput('')
+  }
+  const removeSub = (id) => setSubtasks(prev => prev.filter(s => s.id !== id))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -710,6 +776,8 @@ function TodoForm({ user, lists, editData, defaultListId, defaultDueDate, onClos
       title: title.trim(), note: note.trim(),
       listId: listId || null, priority,
       dueDate: dueDate || null,
+      recurrence: recurrence || null,
+      subtasks,
       done: editData?.done ?? false,
       updatedAt: Timestamp.now()
     }
@@ -758,6 +826,43 @@ function TodoForm({ user, lists, editData, defaultListId, defaultDueDate, onClos
             <label>Termin (opcjonalnie)</label>
             <input type="date" className="form-input" value={dueDate} onChange={e => setDueDate(e.target.value)} />
           </div>
+
+          <div className="form-group">
+            <label>Powtarzanie</label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {RECURRENCE.map(r => (
+                <button key={r.id} type="button" onClick={() => setRecurrence(r.id)} style={{
+                  flex: '1 1 auto', minWidth: 70, padding: '8px 0', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                  fontWeight: recurrence === r.id ? 700 : 400,
+                  border: `1px solid ${recurrence === r.id ? 'var(--sky)' : 'var(--border)'}`,
+                  background: recurrence === r.id ? 'var(--sky)22' : 'transparent',
+                  color: recurrence === r.id ? 'var(--sky)' : 'var(--text-muted)',
+                }}>{r.label}</button>
+              ))}
+            </div>
+            {recurrence && <p style={{ margin: '6px 2px 0', fontSize: 11, color: 'var(--text-muted)' }}>Po odhaczeniu zadanie wróci z kolejnym terminem ({RECUR_LABEL[recurrence]}).</p>}
+          </div>
+
+          <div className="form-group">
+            <label>Podzadania (opcjonalnie)</label>
+            {subtasks.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                {subtasks.map(s => (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', borderRadius: 8, padding: '7px 10px' }}>
+                    <span style={{ flex: 1, fontSize: 13 }}>{s.title}</span>
+                    <button type="button" className="t-btn delete" onClick={() => removeSub(s.id)}><IconTrash size={12} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input type="text" className="form-input" value={subInput} onChange={e => setSubInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSub() } }}
+                placeholder="Dodaj krok..." maxLength={100} style={{ flex: 1, margin: 0 }} />
+              <button type="button" className="btn-save" style={{ width: 'auto', margin: 0, padding: '0 14px' }} onClick={addSub}><IconPlus size={16} /></button>
+            </div>
+          </div>
+
           {lists.length > 0 && (
             <div className="form-group">
               <label>Lista</label>
