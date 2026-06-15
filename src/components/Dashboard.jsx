@@ -19,7 +19,7 @@ import Reminders from './budget/Reminders'
 import CategoriesView from './budget/CategoriesView'
 import ShoppingList from './budget/ShoppingList'
 import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconClock, CatIcon } from './Icons'
-import { Donut, FlowBar, BarChartSVG, Spark } from './ChartPrimitives'
+import { Donut, FlowBar, Spark } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 import { isTransfer } from '../utils/categories'
 
@@ -27,7 +27,6 @@ const TABS = [
   { id: 'overview',     label: 'Przegląd',   Icon: IconChart },
   { id: 'transactions', label: 'Transakcje',  Icon: IconTransfer },
   { id: 'accounts',     label: 'Konta',       Icon: IconBank },
-  { id: 'charts',       label: 'Wykresy',     Icon: IconChart },
   { id: 'regular',      label: 'Regularne',   Icon: IconStar },
 ]
 
@@ -151,20 +150,6 @@ export default function Dashboard({ user, onCurrencyChange }) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 6)
     .map(([name, value], i) => ({ name, value, color: donutColors[i % donutColors.length] }))
-
-  // Bar chart: last 6 months expenses
-  const barData = Array.from({ length: 6 }, (_, i) => {
-    const m = subMonths(new Date(), 5 - i)
-    const mStr = format(m, 'yyyy-MM')
-    const mExpenses = allTransactions
-      .filter(t => t.type === 'expense' && !isTransfer(t) && format(t.date, 'yyyy-MM') === mStr)
-      .reduce((s, t) => s + t.amount, 0)
-    return {
-      label: format(m, 'MMM', { locale: pl }),
-      value: mExpenses,
-      active: i === 5
-    }
-  })
 
   // Real daily expense spark — last 14 days
   const sparkData = Array.from({ length: 14 }, (_, i) => {
@@ -321,22 +306,8 @@ export default function Dashboard({ user, onCurrencyChange }) {
             </div>
           </div>
 
-          {/* Row 2: Bar chart + mini metrics */}
-          <div className="g2-b">
-
-            {/* Left: Bar chart 6 months */}
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20, overflow: 'hidden' }}>
-              {kicker('Wydatki miesięczne')}
-              <BarChartSVG
-                data={barData}
-                height={130}
-                accent="var(--expense)"
-                fmt={v => privateMode ? '••' : fmt(v)}
-              />
-            </div>
-
-            {/* Right: 2x2 mini metrics */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {/* Row 2: mini metrics */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
               {[
                 { color: 'var(--warn)',    Icon: IconChart,    label: 'Śr. dzienne', val: !privateMode ? fmt(avgDaily) : '••', spark: null },
                 { color: balance>=0?'var(--income)':'var(--expense)', Icon: IconSavings, label: 'Saldo m-ca', val: !privateMode ? fmt(balance) : '••', spark: null },
@@ -355,7 +326,6 @@ export default function Dashboard({ user, onCurrencyChange }) {
                   {m.spark && <div style={{ marginTop: 6 }}><Spark data={m.spark} color={m.sparkColor} height={18} w={3} /></div>}
                 </div>
               ))}
-            </div>
           </div>
 
           {/* Row 3: Accounts + recent transactions */}
@@ -439,6 +409,12 @@ export default function Dashboard({ user, onCurrencyChange }) {
               )}
             </div>
           </div>
+
+          {/* Analiza — scalone z dawnej zakładki Wykresy */}
+          <div style={{ marginTop: 6, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
+            {kicker('Analiza i wykresy')}
+            <Charts user={user} privateMode={privateMode} />
+          </div>
         </div>
       )}
 
@@ -514,7 +490,6 @@ export default function Dashboard({ user, onCurrencyChange }) {
         </>
       )}
       {activeTab === 'accounts'  && <AccountsView user={user} privateMode={privateMode} />}
-      {activeTab === 'charts'    && <Charts user={user} privateMode={privateMode} />}
       {activeTab === 'regular'   && <RegularPayments user={user} />}
       {activeTab === 'shopping'  && <ShoppingList user={user} />}
 

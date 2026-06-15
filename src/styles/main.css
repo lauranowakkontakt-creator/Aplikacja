@@ -1607,6 +1607,34 @@ body { overscroll-behavior-y: none; }
   letter-spacing: -0.03em; margin: 4px 0 0; line-height: 1.1;
 }
 
+/* Pulpit — agenda „Dziś" */
+.pulpit-today {
+  margin: 16px 0 4px; padding: 14px 16px; border-radius: var(--r-lg);
+  background: linear-gradient(150deg, var(--surface) 55%, color-mix(in oklab, var(--info) 8%, var(--surface)));
+  border: 1px solid var(--border);
+}
+.pulpit-today-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.pulpit-today-kicker { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--text-muted); }
+.pulpit-today-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.pulpit-today-chip {
+  display: inline-flex; align-items: center; gap: 4px; cursor: pointer;
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; font-family: inherit;
+  color: var(--c); background: color-mix(in oklab, var(--c) 15%, transparent);
+  border: 1px solid color-mix(in oklab, var(--c) 35%, var(--border));
+}
+.pulpit-today-empty { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; padding: 4px 2px; }
+.pulpit-today-list { display: flex; flex-direction: column; }
+.pulpit-today-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; cursor: pointer;
+  background: none; border: none; padding: 8px 2px; border-top: 1px solid var(--border); font-family: inherit; color: var(--text);
+}
+.pulpit-today-item:first-child { border-top: none; }
+.pulpit-today-item:hover { background: var(--surface2); border-radius: 8px; }
+.pulpit-today-time { font-size: 11px; font-weight: 600; color: var(--text-muted); font-variant-numeric: tabular-nums; width: 40px; flex-shrink: 0; font-family: var(--font-mono); }
+.pulpit-today-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.pulpit-today-label { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pulpit-today-meta { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+
 .pulpit-grid {
   display: grid; gap: 12px;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

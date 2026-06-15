@@ -4,6 +4,8 @@ import { auth } from '../firebase/config'
 import { IconClose, IconChevronLeft, ICON_CATALOG } from './Icons'
 import { saveModuleIcon } from '../utils/iconPrefs'
 import { CURRENCIES, getCurrencyCode, setCurrencyCode } from '../utils/currency'
+import { exportAllJSON, exportTransactionsCSV } from '../utils/dataExport'
+import { toast } from './Toast'
 
 export default function SettingsDrawer({ open, onClose, activeModule, modules, onModuleChange, onIconChange, onCurrencyChange, user }) {
   const handleLogout = () => { signOut(auth); onClose() }
@@ -87,6 +89,12 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
           </div>
         )}
 
+        {/* Kopia danych */}
+        <div className="drawer-section">
+          <p className="drawer-section-title">Kopia danych</p>
+          <DataBackup uid={user.uid} />
+        </div>
+
         {/* Footer */}
         <div className="drawer-footer">
           <button className="drawer-logout" onClick={handleLogout}>Wyloguj się</button>
@@ -94,6 +102,36 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
         </div>
       </aside>
     </>
+  )
+}
+
+function DataBackup({ uid }) {
+  const [busy, setBusy] = useState(null)
+  const run = async (kind, fn) => {
+    setBusy(kind)
+    try { await fn(uid); toast.success('Plik pobrany') }
+    catch { toast.error('Nie udało się pobrać') }
+    setBusy(null)
+  }
+  const btn = {
+    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+    padding: '12px 14px', borderRadius: 10, background: 'var(--surface2)', border: '1px solid var(--border)',
+    color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 6,
+  }
+  return (
+    <div>
+      <button style={btn} disabled={busy} onClick={() => run('json', exportAllJSON)}>
+        <span>Pobierz pełną kopię</span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{busy === 'json' ? '...' : 'JSON'}</span>
+      </button>
+      <button style={btn} disabled={busy} onClick={() => run('csv', exportTransactionsCSV)}>
+        <span>Eksport transakcji</span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{busy === 'csv' ? '...' : 'CSV'}</span>
+      </button>
+      <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '2px 2px 0', lineHeight: 1.45 }}>
+        Kopia zapisuje wszystkie Twoje dane na telefon/komputer. Trzymaj ją w bezpiecznym miejscu.
+      </p>
+    </div>
   )
 }
 

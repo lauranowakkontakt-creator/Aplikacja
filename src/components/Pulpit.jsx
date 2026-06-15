@@ -5,7 +5,7 @@ import { format, subDays, parseISO, differenceInDays, isPast, isToday } from 'da
 import { pl } from 'date-fns/locale'
 import {
   IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook,
-  IconFlame, IconChevronRight,
+  IconFlame, IconChevronRight, IconCheck, IconClock, IconBills,
 } from './Icons'
 import { Ring } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
@@ -39,6 +39,7 @@ export default function Pulpit({ user, onNavigate }) {
   const [todos, setTodos]           = useState([])
   const [events, setEvents]         = useState([])
   const [intentions, setIntentions] = useState([])
+  const [payments, setPayments]     = useState([])
   const [bible, setBible]           = useState({ counts: {} })
 
   useEffect(() => {
@@ -60,6 +61,8 @@ export default function Pulpit({ user, onNavigate }) {
         s => setEvents(s.docs.map(d => ({ id: d.id, ...d.data() })))),
       onSnapshot(query(collection(db, 'users', user.uid, 'prayerIntentions'), orderBy('createdAt', 'desc')),
         s => setIntentions(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, 'users', user.uid, 'regularPayments'), orderBy('createdAt', 'asc')),
+        s => setPayments(s.docs.map(d => ({ id: d.id, ...d.data() })))),
     ]
     return () => subs.forEach(u => u())
   }, [user.uid])
@@ -140,6 +143,35 @@ export default function Pulpit({ user, onNavigate }) {
     return { read, pct: Math.round((read / TOTAL_CHAPTERS) * 100) }
   }, [bible])
 
+  /* ── DZIŚ — wspólna agenda ── */
+  const agenda = useMemo(() => {
+    const items = []
+    // Wydarzenia z kalendarza dziś
+    events.filter(e => today >= e.date && today <= (e.dateEnd || e.date)).forEach(e => {
+      items.push({
+        key: 'ev-' + e.id, module: 'calendar', color: e.color || '#5FBF98',
+        time: e.startTime || null, label: e.title,
+        meta: e.startTime ? (e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime) : 'cały dzień',
+      })
+    })
+    // Zadania na dziś (nieukończone)
+    todos.filter(t => !t.done && t.dueDate === today).forEach(t => {
+      items.push({ key: 'td-' + t.id, module: 'todo', color: '#5BB6D9', time: null, label: t.title, meta: 'zadanie' })
+    })
+    // Płatności na dziś (miesięczne, w dniu, jeszcze nieodhaczone)
+    const dayNum = new Date().getDate()
+    const period = format(new Date(), 'yyyy-MM')
+    payments.filter(p => p.frequency === 'monthly' && (p.dayOfMonth || 1) === dayNum && !p.donePeriods?.includes(period)
+      && (!p.dateFrom || p.dateFrom <= today) && (!p.dateTo || p.dateTo >= today)).forEach(p => {
+      items.push({ key: 'pm-' + p.id, module: 'budget', color: '#E0B15A', time: null, label: p.name, meta: `${p.type === 'income' ? '+' : '−'}${fmt(p.amount)}` })
+    })
+    // Sortuj: z godziną najpierw (wg godziny), reszta po
+    return items.sort((a, b) => (a.time ? 0 : 1) - (b.time ? 0 : 1) || (a.time || '').localeCompare(b.time || ''))
+  }, [events, todos, payments, today])
+
+  const habitsLeft = habitsStat.due - habitsStat.done
+  const prayerLeft = prayerStat.active - prayerStat.prayedToday
+
   const curCode = getCurrencyCode()
   const curSymbol = CURRENCIES.find(c => c.code === curCode)?.symbol || 'zł'
   const privateMode = (() => {
@@ -154,6 +186,43 @@ export default function Pulpit({ user, onNavigate }) {
       <div className="pulpit-hero">
         <div className="pulpit-hero-kicker" style={{ textTransform: 'capitalize' }}>{dateLabel}</div>
         <h1 className="pulpit-hero-title">{greeting()}, {(user?.displayName || 'Laura').split(' ')[0]}</h1>
+      </div>
+
+      {/* DZIŚ — wspólna agenda */}
+      <div className="pulpit-today">
+        <div className="pulpit-today-head">
+          <span className="pulpit-today-kicker"><IconClock size={12} /> Dziś</span>
+          {(habitsLeft > 0 || prayerLeft > 0) && (
+            <div className="pulpit-today-chips">
+              {habitsLeft > 0 && (
+                <button className="pulpit-today-chip" onClick={() => onNavigate('habits')} style={{ '--c': '#E0B15A' }}>
+                  <IconHabits size={11} /> {habitsLeft} {habitsLeft === 1 ? 'nawyk' : 'nawyki'}
+                </button>
+              )}
+              {prayerLeft > 0 && (
+                <button className="pulpit-today-chip" onClick={() => onNavigate('prayer')} style={{ '--c': '#C9A24A' }}>
+                  <IconPrayer size={11} /> {prayerLeft} do modlitwy
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        {agenda.length === 0 && habitsLeft <= 0 && prayerLeft <= 0 ? (
+          <div className="pulpit-today-empty"><IconCheck size={15} /> Wszystko ogarnięte — wolny dzień</div>
+        ) : agenda.length === 0 ? (
+          <div className="pulpit-today-empty">Brak wydarzeń i zadań na dziś</div>
+        ) : (
+          <div className="pulpit-today-list">
+            {agenda.map(it => (
+              <button key={it.key} className="pulpit-today-item" onClick={() => onNavigate(it.module)}>
+                <span className="pulpit-today-time">{it.time || '—'}</span>
+                <span className="pulpit-today-dot" style={{ background: it.color }} />
+                <span className="pulpit-today-label">{it.label}</span>
+                <span className="pulpit-today-meta">{it.meta}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Siatka kart */}
