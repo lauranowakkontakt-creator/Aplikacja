@@ -7,6 +7,7 @@ import HabitForm, { HABIT_CATEGORIES, DEFAULT_HABIT_CATEGORIES } from './HabitFo
 import PauseForm from './PauseForm'
 import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronRight } from '../Icons'
 import { Ring, Heatmap, Spark } from '../ChartPrimitives'
+import StatSummary from '../StatSummary'
 
 function isPausedDay(dateStr, pauses) {
   return pauses.some(p => dateStr >= p.from && dateStr <= p.to)
@@ -76,6 +77,31 @@ function buildHeatmapData(habits, weeks, pauses = []) {
     data.push(intensity)
   }
   return data
+}
+
+function habitStatsSummary(habits, pauses) {
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const active = habits.filter(h => !h.archived)
+  const build = (pref) => {
+    let completions = 0
+    const days = new Set()
+    active.forEach(h => (h.completedDates || []).forEach(d => {
+      if (d.startsWith(pref)) { completions++; if (d <= todayStr) days.add(d) }
+    }))
+    let perfect = 0
+    days.forEach(d => {
+      const due = active.filter(h => isHabitDue(h, d, pauses) === 'due')
+      if (due.length && due.every(h => h.completedDates?.includes(d))) perfect++
+    })
+    const bestStreak = active.reduce((m, h) => Math.max(m, getStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)), 0)
+    return [
+      { label: 'Wykonań', value: completions, color: 'var(--accent)' },
+      { label: 'Dni 100%', value: perfect },
+      { label: 'Aktywne', value: active.length },
+      { label: 'Najlepsza seria', value: bestStreak, sub: 'dni' },
+    ]
+  }
+  return { month: build(format(new Date(), 'yyyy-MM')), year: build(format(new Date(), 'yyyy')) }
 }
 
 export default function HabitsDashboard({ user, onMoodClick }) {
@@ -416,7 +442,9 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       )}
 
       {/* ===== STATYSTYKI ===== */}
-      {view === 'stats' && (
+      {view === 'stats' && (() => { const hs = habitStatsSummary(habits, pauses); return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <StatSummary title="Nawyki w liczbach" month={hs.month} year={hs.year} />
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
           {filtered.length === 0 ? (
             <div className="list-empty"><p>Brak nawyków</p></div>
@@ -473,7 +501,8 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             )
           })}
         </div>
-      )}
+        </div>
+      ) })()}
 
       {/* Archiwum */}
       {archivedHabits.length > 0 && (

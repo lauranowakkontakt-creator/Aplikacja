@@ -7,6 +7,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart, CartesianGrid,
 } from 'recharts'
 import { IconTrash, IconChevronLeft, IconChevronRight, IconClose } from '../Icons'
+import StatSummary from '../StatSummary'
 import { confirmDialog } from '../ConfirmModal'
 import EmotionWheel, { ALL_EMOTIONS } from './EmotionWheel'
 
@@ -540,8 +541,29 @@ function TrendsView({ logs }) {
 
   const fmtAvg = (v) => v.toFixed(1).replace('.', ',')
 
+  // „W liczbach" — miesiąc / rok
+  const summary = (() => {
+    const build = (pref) => {
+      const ls = logs.filter(l => l.date.startsWith(pref))
+      const valid = ls.filter(l => l.moodValue)
+      const a = valid.length ? valid.reduce((s, l) => s + l.moodValue, 0) / valid.length : 0
+      const emc = {}
+      ls.forEach(l => (l.emotions || []).forEach(id => { emc[id] = (emc[id] || 0) + 1 }))
+      const topEm = Object.entries(emc).sort((x, y) => y[1] - x[1])[0]
+      return [
+        { label: 'Wpisy', value: ls.length },
+        { label: 'Śr. nastrój', value: a ? fmtAvg(a) : '–', sub: a ? '/ 5' : null, color: a ? 'var(--accent)' : undefined },
+        { label: 'Dni z wpisem', value: new Set(ls.map(l => l.date)).size },
+        { label: 'Top emocja', value: topEm ? (findEmotion(topEm[0])?.label || '–') : '–', sub: topEm ? `×${topEm[1]}` : null },
+      ]
+    }
+    return { month: build(format(new Date(), 'yyyy-MM')), year: build(format(new Date(), 'yyyy')) }
+  })()
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+      <StatSummary title="Nastrój w liczbach" month={summary.month} year={summary.year} />
 
       {/* Wykres — nastrój w czasie */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>

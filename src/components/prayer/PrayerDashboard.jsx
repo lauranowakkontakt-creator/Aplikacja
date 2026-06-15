@@ -5,6 +5,7 @@ import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOf
 import { pl } from 'date-fns/locale'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat } from '../Icons'
 import { Heatmap } from '../ChartPrimitives'
+import StatSummary from '../StatSummary'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -771,6 +772,24 @@ function TodayView({ user, intentions, people, carMode }) {
 function StatsView({ intentions, people, allPrayedDates, streak }) {
   const today    = TODAY()
 
+  // „W liczbach" — miesiąc / rok
+  const summary = useMemo(() => {
+    const ym = format(new Date(), 'yyyy-MM'), yy = format(new Date(), 'yyyy')
+    const allDates = intentions.flatMap(i => i.prayedDates || [])
+    const active = intentions.filter(i => i.status === 'active' || !i.status).length
+    const build = (pref) => {
+      const inP = allDates.filter(d => d.startsWith(pref))
+      const peopleSet = new Set(intentions.filter(i => (i.prayedDates || []).some(d => d.startsWith(pref))).map(i => i.personId))
+      return [
+        { label: 'Dni modlitwy', value: new Set(inP).size },
+        { label: 'Modlitw', value: inP.length },
+        { label: 'Za osoby', value: peopleSet.size },
+        { label: 'Aktywne', value: active },
+      ]
+    }
+    return { month: build(ym), year: build(yy) }
+  }, [intentions])
+
   // Build heatmap data for 9 weeks
   const WEEKS = 9
   const heatData = Array.from({ length: WEEKS * 7 }, (_, i) => {
@@ -806,6 +825,8 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <StatSummary title="Modlitwa w liczbach" month={summary.month} year={summary.year} />
+
       {/* Aktywność modlitwy */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
         {kicker('Aktywność modlitwy')}

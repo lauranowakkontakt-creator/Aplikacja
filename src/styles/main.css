@@ -1607,6 +1607,26 @@ body { overscroll-behavior-y: none; }
   letter-spacing: -0.03em; margin: 4px 0 0; line-height: 1.1;
 }
 
+/* Wspólny panel „w liczbach" (StatSummary) */
+.stat-summary { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; }
+.stat-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.stat-summary-title { font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--text-muted); }
+.stat-summary-toggle { display: flex; gap: 2px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 2px; }
+.stat-summary-toggle button {
+  padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit;
+  background: none; border: none; color: var(--text-muted);
+}
+.stat-summary-toggle button.active { background: var(--accent); color: #fff; }
+.stat-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px; }
+.stat-summary-tile {
+  background: linear-gradient(150deg, var(--surface2) 60%, color-mix(in oklab, var(--accent) 8%, var(--surface2)));
+  border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+}
+.stat-summary-value { font-size: 22px; font-weight: 700; line-height: 1.05; letter-spacing: -0.02em; }
+.stat-summary-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 4px; }
+.stat-summary-sub { font-size: 11px; color: var(--text-sub); margin-top: 3px; }
+.stat-summary-note { font-size: 11px; color: var(--text-muted); margin: 10px 2px 0; line-height: 1.45; }
+
 /* Pulpit — agenda „Dziś" */
 .pulpit-today {
   margin: 16px 0 4px; padding: 14px 16px; border-radius: var(--r-lg);
