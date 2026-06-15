@@ -144,10 +144,21 @@ export default function Pulpit({ user, onNavigate }) {
   }, [bible])
 
   /* ── DZIŚ — wspólna agenda ── */
+  const occursToday = (e) => {
+    if (today < e.date) return false
+    if (e.recurUntil && today > e.recurUntil) return false
+    if (!e.recurrence) return today <= (e.dateEnd || e.date)
+    const start = parseISO(e.date), now = parseISO(today)
+    if (e.recurrence === 'daily')  return true
+    if (e.recurrence === 'weekly') return differenceInDays(now, start) % 7 === 0
+    if (e.recurrence === 'monthly') return start.getDate() === now.getDate()
+    if (e.recurrence === 'yearly')  return start.getDate() === now.getDate() && start.getMonth() === now.getMonth()
+    return false
+  }
   const agenda = useMemo(() => {
     const items = []
-    // Wydarzenia z kalendarza dziś
-    events.filter(e => today >= e.date && today <= (e.dateEnd || e.date)).forEach(e => {
+    // Wydarzenia z kalendarza dziś (z uwzględnieniem cykliczności)
+    events.filter(occursToday).forEach(e => {
       items.push({
         key: 'ev-' + e.id, module: 'calendar', color: e.color || '#5FBF98',
         time: e.startTime || null, label: e.title,

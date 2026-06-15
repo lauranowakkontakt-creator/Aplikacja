@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isToday, isSameDay, parseISO,
-  addMonths, subMonths, getDate
+  addMonths, subMonths, getDate, addDays, addWeeks, addYears, differenceInCalendarDays
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight, IconCheck, IconCalendar } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight, IconCheck, IconCalendar, IconRepeat } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -32,6 +32,40 @@ const PERSON_COLORS = [
   '#00BCD4','#009688','#4CAF50','#F59E0B','#FF9800','#FF5722',
   '#EC4899','#14B8A6','#84CC16','#6366F1',
 ]
+
+const RECURRENCE = [
+  { id: '',        label: 'Nie' },
+  { id: 'daily',   label: 'Codziennie' },
+  { id: 'weekly',  label: 'Co tydzień' },
+  { id: 'monthly', label: 'Co miesiąc' },
+  { id: 'yearly',  label: 'Co rok' },
+]
+const RECUR_LABEL = { daily: 'co dzień', weekly: 'co tydzień', monthly: 'co miesiąc', yearly: 'co rok' }
+const recStep = (d, rec) =>
+  rec === 'daily' ? addDays(d, 1) : rec === 'weekly' ? addWeeks(d, 1) : rec === 'monthly' ? addMonths(d, 1) : addYears(d, 1)
+
+// Rozwija wydarzenia cykliczne na konkretne wystąpienia w zakresie [rangeStart, rangeEnd] (stringi yyyy-MM-dd)
+function expandEvents(events, rangeStart, rangeEnd) {
+  const out = []
+  for (const e of events) {
+    if (!e.recurrence) {
+      if ((e.dateEnd || e.date) >= rangeStart && e.date <= rangeEnd) out.push(e)
+      continue
+    }
+    const durDays = e.dateEnd ? differenceInCalendarDays(parseISO(e.dateEnd), parseISO(e.date)) : 0
+    const hardEnd = e.recurUntil || rangeEnd
+    let cur = parseISO(e.date)
+    let guard = 0
+    while (guard++ < 900) {
+      const cd = format(cur, 'yyyy-MM-dd')
+      if (cd > rangeEnd || cd > hardEnd) break
+      const cdEnd = durDays ? format(addDays(cur, durDays), 'yyyy-MM-dd') : null
+      if ((cdEnd || cd) >= rangeStart) out.push({ ...e, date: cd, dateEnd: cdEnd, _baseId: e.id, _recurring: true })
+      cur = recStep(cur, e.recurrence)
+    }
+  }
+  return out
+}
 
 const CAT_COLORS = [
   '#C94B28','#E05A2B','#F97316','#F59E0B','#EAB308','#84CC16',
@@ -144,9 +178,16 @@ export default function CalendarDashboard({ user }) {
     await deleteDoc(doc(db, 'users', user.uid, 'calendarEvents', id))
   }
 
+  // Wydarzenia z rozwiniętą cyklicznością dla widocznego zakresu (miesiąc ± bufor + agenda do przodu)
+  const expandedEvents = useMemo(() => {
+    const rs = format(startOfWeek(startOfMonth(currentMonth), { weekStartsOn: 1 }), 'yyyy-MM-dd')
+    const re = format(endOfMonth(addMonths(currentMonth, 6)), 'yyyy-MM-dd')
+    return expandEvents(events, rs, re)
+  }, [events, currentMonth])
+
   const eventsOnDay = (day) => {
     const s = format(day, 'yyyy-MM-dd')
-    const all = events.filter(e => s >= e.date && s <= (e.dateEnd || e.date))
+    const all = expandedEvents.filter(e => s >= e.date && s <= (e.dateEnd || e.date))
     return filterPersonId ? all.filter(e => e.personId === filterPersonId) : all
   }
   const todosOnDay    = (day) => todos.filter(t => t.dueDate === format(day, 'yyyy-MM-dd'))
@@ -159,7 +200,7 @@ export default function CalendarDashboard({ user }) {
   const selTodos = todosOnDay(selectedDay)
   const selPmts  = paymentsOnDay(selectedDay)
   const monthStr = format(currentMonth, 'yyyy-MM')
-  const monthEvents = events.filter(e => e.date.startsWith(monthStr))
+  const monthEvents = expandedEvents.filter(e => e.date.startsWith(monthStr))
   const colorOf = (e) => getEventColor(categories, calPeople, e)
 
   return (
@@ -182,7 +223,7 @@ export default function CalendarDashboard({ user }) {
       {/* Tabs + category btn */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <div style={{ display: 'flex', flex: 1, gap: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-          {[['month','Miesiąc'],['agenda','Agenda'],['people','Osoby']].map(([key, label]) => (
+          {[['month','Miesiąc'],['week','Tydzień'],['agenda','Agenda'],['people','Osoby']].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)} style={{
               flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === key ? 700 : 400,
               background: tab === key ? 'var(--surface3)' : 'transparent',
@@ -247,7 +288,7 @@ export default function CalendarDashboard({ user }) {
               selectedDay={selectedDay}
               categories={categories}
               calPeople={calPeople}
-              events={events}
+              events={filterPersonId ? expandedEvents.filter(e => e.personId === filterPersonId) : expandedEvents}
               onDayClick={handleDayClick}
               todosOnDay={todosOnDay}
               paymentsOnDay={paymentsOnDay}
@@ -330,8 +371,26 @@ export default function CalendarDashboard({ user }) {
         </div>
       )}
 
+      {tab === 'week' && (
+        <WeekView
+          weekDate={selectedDay}
+          events={expandedEvents}
+          categories={categories}
+          calPeople={calPeople}
+          filterPersonId={filterPersonId}
+          todosOnDay={todosOnDay}
+          paymentsOnDay={paymentsOnDay}
+          onPrev={() => setSelectedDay(d => addDays(d, -7))}
+          onNext={() => setSelectedDay(d => addDays(d, 7))}
+          onToday={() => setSelectedDay(new Date())}
+          onAddOn={(day) => { setSelectedDay(day); setEditEvent(null); setShowForm(true) }}
+          onEdit={e => { setEditEvent(e); setShowForm(true) }}
+          onDelete={handleDelete}
+        />
+      )}
+
       {tab === 'agenda' && (
-        <AgendaView events={events} categories={categories} calPeople={calPeople}
+        <AgendaView events={expandedEvents} categories={categories} calPeople={calPeople}
           filterPersonId={filterPersonId}
           onAdd={() => { setEditEvent(null); setShowForm(true) }}
           onEdit={e => { setEditEvent(e); setShowForm(true) }}
@@ -339,7 +398,7 @@ export default function CalendarDashboard({ user }) {
       )}
 
       {tab === 'people' && (
-        <PeopleView calPeople={calPeople} events={events} categories={categories}
+        <PeopleView calPeople={calPeople} events={expandedEvents} categories={categories}
           onManage={() => { setEditPerson(null); setShowPeopleMgr(true) }}
           onEditPerson={openPersonEdit}
           onDeletePerson={deletePerson}
@@ -460,6 +519,81 @@ function CalendarGrid({ currentMonth, selectedDay, categories, calPeople, events
           })}
         </div>
       ))}
+    </div>
+  )
+}
+
+/* ─── WeekView ─────────────────────────────────────────────────────────── */
+function WeekView({ weekDate, events, categories, calPeople, filterPersonId, todosOnDay, paymentsOnDay, onPrev, onNext, onToday, onAddOn, onEdit, onDelete }) {
+  const start = startOfWeek(weekDate, { weekStartsOn: 1 })
+  const days  = eachDayOfInterval({ start, end: endOfWeek(weekDate, { weekStartsOn: 1 }) })
+  const evOn = (day) => {
+    const s = format(day, 'yyyy-MM-dd')
+    let all = events.filter(e => s >= e.date && s <= (e.dateEnd || e.date))
+    if (filterPersonId) all = all.filter(e => e.personId === filterPersonId)
+    return all.sort((a, b) => (a.startTime || '99').localeCompare(b.startTime || '99'))
+  }
+  const rangeLabel = `${format(start, 'd', { locale: pl })}–${format(days[6], 'd MMM yyyy', { locale: pl })}`
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button className="icon-btn" onClick={onPrev}><IconChevronLeft size={16} /></button>
+        <span style={{ flex: 1, textAlign: 'center', fontSize: 14, fontWeight: 700, textTransform: 'capitalize' }}>{rangeLabel}</span>
+        <button className="icon-btn" style={{ width: 'auto', padding: '0 10px', fontSize: 12 }} onClick={onToday}>Dziś</button>
+        <button className="icon-btn" onClick={onNext}><IconChevronRight size={16} /></button>
+      </div>
+
+      {days.map(day => {
+        const evts  = evOn(day)
+        const tds   = todosOnDay(day)
+        const pms   = paymentsOnDay(day)
+        const today = isToday(day)
+        const count = evts.length + tds.length + pms.length
+        return (
+          <div key={day.toISOString()} style={{
+            background: 'var(--surface)', border: `1px solid ${today ? 'color-mix(in oklab, var(--accent) 40%, var(--border))' : 'var(--border)'}`,
+            borderRadius: 12, overflow: 'hidden',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: today ? 'var(--accent-soft)' : 'var(--surface2)' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, textTransform: 'capitalize', color: today ? 'var(--accent)' : 'var(--text)' }}>
+                {format(day, 'EEEE', { locale: pl })}
+              </span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{format(day, 'd MMM', { locale: pl })}</span>
+              {today && <span style={{ fontSize: 8, fontWeight: 700, background: 'var(--accent)', color: '#fff', padding: '1px 6px', borderRadius: 4 }}>DZIŚ</span>}
+              <button className="t-btn" style={{ marginLeft: 'auto' }} title="Dodaj" onClick={() => onAddOn(day)}>+</button>
+            </div>
+            {count === 0 ? (
+              <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--text-muted)' }}>—</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px' }}>
+                {evts.map(e => {
+                  const color = getEventColor(categories, calPeople, e)
+                  return (
+                    <div key={e.id + e.date} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', borderLeft: `3px solid ${color}`, borderRadius: 8, padding: '7px 10px' }}>
+                      <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', width: 38, flexShrink: 0 }}>{e.startTime || '—'}</span>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</span>
+                      {e.recurrence && <IconRepeat size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />}
+                      <button className="t-btn" onClick={() => onEdit(e)}><IconEdit size={12} /></button>
+                      <button className="t-btn delete" onClick={() => onDelete(e.id)}><IconTrash size={12} /></button>
+                    </div>
+                  )
+                })}
+                {tds.map(t => (
+                  <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', fontSize: 12, color: 'var(--text-muted)' }}>
+                    <IconCheck size={12} style={{ color: '#6366f1' }} /> {t.title} <span style={{ fontSize: 9, color: '#6366f1', fontWeight: 700 }}>ZADANIE</span>
+                  </div>
+                ))}
+                {pms.map(p => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', fontSize: 12, color: 'var(--text-muted)' }}>
+                    <CatIcon categoryId={p.categoryId} emoji={p.categoryIcon} size={12} /> {p.name} <span style={{ fontSize: 9, color: '#f59e0b', fontWeight: 700 }}>PŁATNOŚĆ</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -641,6 +775,8 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
   const [note, setNote]             = useState(editData?.note || '')
   const [categoryId, setCategoryId] = useState(editData?.categoryId || '')
   const [personId, setPersonId]     = useState(editData?.personId || '')
+  const [recurrence, setRecurrence] = useState(editData?.recurrence || '')
+  const [recurUntil, setRecurUntil] = useState(editData?.recurUntil || '')
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
 
@@ -663,6 +799,8 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
       color: selectedPerson?.color || selectedCat?.color || '#607D8B',
       personId: personId || null,
       personName: selectedPerson?.name || null,
+      recurrence: recurrence || null,
+      recurUntil: recurrence && recurUntil ? recurUntil : null,
       updatedAt: Timestamp.now()
     }
     try {
@@ -759,6 +897,28 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
                 className={`type-btn ${!allDay ? 'active expense' : ''}`}
                 onClick={() => setAllDay(false)}>Z godzinami</button>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><IconRepeat size={13} /> Powtarzaj</label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {RECURRENCE.map(r => (
+                <button key={r.id} type="button" onClick={() => setRecurrence(r.id)} style={{
+                  flex: '1 1 auto', minWidth: 64, padding: '8px 0', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                  fontWeight: recurrence === r.id ? 700 : 400,
+                  border: `1px solid ${recurrence === r.id ? 'var(--accent)' : 'var(--border)'}`,
+                  background: recurrence === r.id ? 'var(--accent-soft)' : 'transparent',
+                  color: recurrence === r.id ? 'var(--accent)' : 'var(--text-muted)',
+                }}>{r.label}</button>
+              ))}
+            </div>
+            {recurrence && (
+              <div style={{ marginTop: 8 }}>
+                <label style={{ fontSize: 12 }}>Powtarzaj do (opcjonalnie)</label>
+                <input type="date" className="form-input" value={recurUntil} min={date}
+                  onChange={e => setRecurUntil(e.target.value)} />
+              </div>
+            )}
           </div>
 
           {!allDay && (
