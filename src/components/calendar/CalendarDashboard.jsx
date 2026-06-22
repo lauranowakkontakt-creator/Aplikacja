@@ -4,10 +4,10 @@ import { db } from '../../firebase/config'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isToday, isSameDay, parseISO,
-  addMonths, subMonths, getDate, addDays, addWeeks, addYears, differenceInCalendarDays
+  addMonths, subMonths, getDate, addDays, subDays, addWeeks, addYears, differenceInCalendarDays
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight, IconCheck, IconCalendar, IconRepeat } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight, IconChevronDown, IconCheck, IconCalendar, IconRepeat, IconPrayer } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -41,6 +41,21 @@ const RECURRENCE = [
   { id: 'yearly',  label: 'Co rok' },
 ]
 const RECUR_LABEL = { daily: 'co dzień', weekly: 'co tydzień', monthly: 'co miesiąc', yearly: 'co rok' }
+
+// Okna modlitwy względem daty wydarzenia
+const PRAYER_WINDOWS = [
+  { id: 'day-of', label: 'Tylko w dniu' },
+  { id: 'around', label: 'Dzień przed, w dniu i po' },
+  { id: 'until',  label: 'Od dziś do dnia' },
+  { id: 'custom', label: 'Własny zakres' },
+]
+const PRAYER_PRIOS = [
+  { v: 5, label: 'Pilna',   color: '#ef4444' },
+  { v: 4, label: 'Wysoka',  color: '#f97316' },
+  { v: 3, label: 'Średnia', color: '#f59e0b' },
+  { v: 2, label: 'Niska',   color: '#3b82f6' },
+  { v: 1, label: 'Mała',    color: '#9E9E9E' },
+]
 const recStep = (d, rec) =>
   rec === 'daily' ? addDays(d, 1) : rec === 'weekly' ? addWeeks(d, 1) : rec === 'monthly' ? addMonths(d, 1) : addYears(d, 1)
 
@@ -177,6 +192,13 @@ export default function CalendarDashboard({ user }) {
   const handleDelete = async (id) => {
     const ok = await confirmDialog({ title: 'Usunąć wydarzenie?' })
     if (!ok) return
+    // Powiązaną prośbę modlitewną archiwizujemy (zostaje w historii), nie kasujemy.
+    const ev = events.find(e => e.id === id)
+    if (ev?.prayer?.intentionId) {
+      await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', ev.prayer.intentionId), {
+        status: 'ended', endedAt: Timestamp.now(), autoArchived: true
+      }).catch(() => {})
+    }
     await deleteDoc(doc(db, 'users', user.uid, 'calendarEvents', id))
   }
 
@@ -368,7 +390,10 @@ export default function CalendarDashboard({ user }) {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {person && <PersonBubble person={person} size={26} />}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600 }}>{e.title}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {e.title}
+                            {e.prayer?.enabled && <IconPrayer size={12} style={{ color: '#a78bfa', flexShrink: 0 }} />}
+                          </div>
                           {e.startTime && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{e.startTime}{e.endTime ? ` – ${e.endTime}` : ''}</div>}
                         </div>
                         <button className="t-btn" onClick={() => { setEditEvent(e); setShowForm(true) }}><IconEdit size={12} /></button>
@@ -694,6 +719,7 @@ function EventRow({ e, categories, calPeople, onEdit, onDelete, muted }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
           {person && <PersonBubble person={person} size={20} />}
           <p style={{ margin: 0, fontSize: 14, fontWeight: 500 }}>{e.title}</p>
+          {e.prayer?.enabled && <IconPrayer size={12} style={{ color: '#a78bfa', flexShrink: 0 }} />}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {person && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 99, background: person.color + '22', color: person.color, fontWeight: 700 }}>{person.name}</span>}
@@ -815,6 +841,15 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
 
+  // Sekcja Modlitwa — tworzy/aktualizuje powiązaną prośbę modlitewną
+  const [prayerOpen, setPrayerOpen]         = useState(!!editData?.prayer?.enabled)
+  const [prayerEnabled, setPrayerEnabled]   = useState(!!editData?.prayer?.enabled)
+  const [prayerWindow, setPrayerWindow]     = useState(editData?.prayer?.window || 'around')
+  const [prayerFrom, setPrayerFrom]         = useState(editData?.prayer?.from || '')
+  const [prayerTo, setPrayerTo]             = useState(editData?.prayer?.to || '')
+  const [prayerPriority, setPrayerPriority] = useState(editData?.prayer?.priority || 3)
+  const [prayerTitle, setPrayerTitle]       = useState(editData?.prayer?.title || '')
+
   const selectedCat    = findCat(categories, categoryId)
   const selectedPerson = findPerson(calPeople, personId)
 
@@ -823,7 +858,7 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
     if (!title.trim()) { setError('Wpisz tytuł'); return }
     if (!date) { setError('Wybierz datę'); return }
     setSaving(true)
-    const data = {
+    const baseData = {
       title: title.trim(), date,
       dateEnd: dateEnd && dateEnd > date ? dateEnd : null,
       startTime: allDay ? null : (startTime || null),
@@ -839,11 +874,61 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
       recurUntil: recurrence && recurUntil ? recurUntil : null,
       updatedAt: Timestamp.now()
     }
+
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    const computeWindow = () => {
+      if (prayerWindow === 'day-of') return [date, date]
+      if (prayerWindow === 'around') return [format(subDays(parseISO(date), 1), 'yyyy-MM-dd'), format(addDays(parseISO(date), 1), 'yyyy-MM-dd')]
+      if (prayerWindow === 'until')  return [todayStr <= date ? todayStr : date, date]
+      const f = prayerFrom || date, t = prayerTo || date
+      return f <= t ? [f, t] : [t, f]
+    }
+
     try {
+      // 1. Zapis wydarzenia (potrzebujemy id do powiązania prośby)
+      let eventId = editData?.id
+      if (!editData) {
+        const ref = await addDoc(collection(db, 'users', user.uid, 'calendarEvents'), { ...baseData, createdAt: Timestamp.now() })
+        eventId = ref.id
+      }
+
+      // 2. Synchronizacja powiązanej prośby modlitewnej
+      let intentionId = editData?.prayer?.intentionId || null
+      let prayerField = editData?.prayer ? { ...editData.prayer } : null
+      const intRef = (id) => doc(db, 'users', user.uid, 'prayerIntentions', id)
+
+      if (prayerEnabled) {
+        const [sFrom, sTo] = computeWindow()
+        const intentionData = {
+          title: prayerTitle.trim() || title.trim(),
+          note: note.trim(),
+          personId: personId || null,
+          priority: prayerPriority,
+          scheduleFrom: sFrom, scheduleTo: sTo, dateTo: sTo,
+          eventId, eventDate: date,
+          updatedAt: Timestamp.now(),
+        }
+        if (intentionId) {
+          await updateDoc(intRef(intentionId), { ...intentionData, status: 'active', endedAt: null, autoArchived: null })
+        } else {
+          const iref = await addDoc(collection(db, 'users', user.uid, 'prayerIntentions'), {
+            ...intentionData, status: 'active', prayedDates: [], notes: [], createdAt: Timestamp.now()
+          })
+          intentionId = iref.id
+        }
+        prayerField = { enabled: true, window: prayerWindow, from: sFrom, to: sTo, priority: prayerPriority, title: prayerTitle.trim() || null, intentionId }
+      } else if (intentionId) {
+        // Wyłączono modlitwę → archiwizujemy powiązaną prośbę (zostaje w historii osoby)
+        await updateDoc(intRef(intentionId), { status: 'ended', endedAt: Timestamp.now(), autoArchived: true })
+        prayerField = { enabled: false, intentionId: null }
+      }
+
+      // 3. Zapis pola `prayer` na wydarzeniu
+      const finalData = { ...baseData, prayer: prayerField }
       if (editData) {
-        await updateDoc(doc(db, 'users', user.uid, 'calendarEvents', editData.id), data)
+        await updateDoc(doc(db, 'users', user.uid, 'calendarEvents', editData.id), finalData)
       } else {
-        await addDoc(collection(db, 'users', user.uid, 'calendarEvents'), { ...data, createdAt: Timestamp.now() })
+        await updateDoc(doc(db, 'users', user.uid, 'calendarEvents', eventId), { prayer: prayerField })
       }
       onClose()
     } catch { setError('Błąd zapisu'); setSaving(false) }
@@ -980,6 +1065,83 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
             <label>Opis / notatka</label>
             <input type="text" className="form-input" value={note} onChange={e => setNote(e.target.value)}
               maxLength={300} placeholder="Szczegóły, miejsce, link..." />
+          </div>
+
+          {/* ── Sekcja Modlitwa ── */}
+          <div className="form-group">
+            <button type="button" onClick={() => setPrayerOpen(o => !o)} style={{
+              display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 12px', cursor: 'pointer',
+              borderRadius: 10, fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+              border: `1px solid ${prayerEnabled ? '#a78bfa' : 'var(--border)'}`,
+              background: prayerEnabled ? 'rgba(167,139,250,0.12)' : 'var(--surface2)',
+              color: prayerEnabled ? '#a78bfa' : 'var(--text)',
+            }}>
+              <IconPrayer size={15} />
+              <span style={{ flex: 1, textAlign: 'left' }}>Modlitwa{prayerEnabled ? ' · włączona' : ''}</span>
+              {prayerOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+            </button>
+
+            {prayerOpen && (
+              <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 12, padding: 12, border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 13 }}>
+                  <input type="checkbox" checked={prayerEnabled} onChange={e => setPrayerEnabled(e.target.checked)} />
+                  Dodaj do próśb modlitewnych{personId ? '' : ' (uwaga: bez przypisanej osoby)'}
+                </label>
+
+                {prayerEnabled && (
+                  <>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label>O co się modlić?</label>
+                      <input type="text" className="form-input" value={prayerTitle} onChange={e => setPrayerTitle(e.target.value)}
+                        maxLength={150} placeholder={title || 'np. Szczęśliwy i bezpieczny wyjazd...'} />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label>Kiedy się modlić</label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {PRAYER_WINDOWS.map(w => (
+                          <button key={w.id} type="button" onClick={() => setPrayerWindow(w.id)} style={{
+                            flex: '1 1 auto', minWidth: 120, padding: '8px 10px', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                            fontWeight: prayerWindow === w.id ? 700 : 400,
+                            border: `1px solid ${prayerWindow === w.id ? '#a78bfa' : 'var(--border)'}`,
+                            background: prayerWindow === w.id ? 'rgba(167,139,250,0.15)' : 'transparent',
+                            color: prayerWindow === w.id ? '#a78bfa' : 'var(--text-muted)',
+                          }}>{w.label}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {prayerWindow === 'custom' && (
+                      <div className="form-row">
+                        <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                          <label>Od</label>
+                          <input type="date" className="form-input" value={prayerFrom} onChange={e => setPrayerFrom(e.target.value)} />
+                        </div>
+                        <div className="form-group" style={{ flex: 1, margin: 0 }}>
+                          <label>Do</label>
+                          <input type="date" className="form-input" value={prayerTo} min={prayerFrom} onChange={e => setPrayerTo(e.target.value)} />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label>Priorytet</label>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {PRAYER_PRIOS.slice().reverse().map(p => (
+                          <button key={p.v} type="button" onClick={() => setPrayerPriority(p.v)} style={{
+                            flex: 1, padding: '7px 0', borderRadius: 8, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit',
+                            fontWeight: prayerPriority === p.v ? 700 : 400,
+                            border: `2px solid ${prayerPriority === p.v ? p.color : 'var(--border)'}`,
+                            background: prayerPriority === p.v ? p.color + '22' : 'transparent',
+                            color: prayerPriority === p.v ? p.color : 'var(--text-muted)',
+                          }}>{p.v}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {error && <p className="form-error">{error}</p>}

@@ -25,6 +25,13 @@ const NEGLECT_LEVELS = [
   { min: 30, max: 9999,level: 5, label: 'zapomniana',  color: '#ef4444' },
 ]
 
+// Wspólna paleta kolorów osób (ta sama co w Kalendarzu) — osoba jest współdzielona między modułami.
+const PERSON_COLORS = [
+  '#E74C3C','#E91E63','#9C27B0','#8B5CF6','#3F51B5','#2196F3',
+  '#00BCD4','#009688','#4CAF50','#F59E0B','#FF9800','#FF5722',
+  '#EC4899','#14B8A6','#84CC16','#6366F1',
+]
+
 const TODAY     = () => format(new Date(), 'yyyy-MM-dd')
 const findPrio  = (v) => PRIORITY_CFG.find(p => p.v === v) || PRIORITY_CFG[2]
 
@@ -63,7 +70,8 @@ export default function PrayerDashboard({ user }) {
   }, [user.uid])
 
   useEffect(() => {
-    const q = query(collection(db, 'users', user.uid, 'prayerPeople'), orderBy('createdAt', 'asc'))
+    // Wspólna baza osób z Kalendarzem — ta sama kolekcja `calendarPeople`.
+    const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
 
@@ -81,7 +89,12 @@ export default function PrayerDashboard({ user }) {
 
   const today            = TODAY()
   const activeIntentions = intentions.filter(i => i.status === 'active' || !i.status)
-  const prayedToday      = activeIntentions.filter(i => i.prayedDates?.includes(today)).length
+  // Na dziś = prośby bez okna (codzienne) + te, których okno obejmuje dzisiaj
+  const dueToday         = activeIntentions.filter(i => {
+    if (!i.scheduleFrom && !i.scheduleTo) return true
+    return today >= (i.scheduleFrom || '0000-01-01') && today <= (i.scheduleTo || '9999-12-31')
+  })
+  const prayedToday      = dueToday.filter(i => i.prayedDates?.includes(today)).length
 
   const allPrayedDates = useMemo(() => new Set(intentions.flatMap(i => i.prayedDates || [])), [intentions])
   const streak = useMemo(() => {
@@ -128,7 +141,7 @@ export default function PrayerDashboard({ user }) {
           </div>
           <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
             <IconPrayer size={14} style={{ color: 'var(--warn)' }} />
-            <span style={{ fontSize: 13, fontWeight: 700 }}>{prayedToday}/{activeIntentions.length}</span>
+            <span style={{ fontSize: 13, fontWeight: 700 }}>{prayedToday}/{dueToday.length}</span>
           </div>
         </div>
       </div>
@@ -232,9 +245,9 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
 
   const handleDeletePerson = async (id, e) => {
     e.stopPropagation()
-    const ok = await confirmDialog({ title: 'Usunąć osobę?', message: 'Wszystkie prośby tej osoby zostaną usunięte.' })
+    const ok = await confirmDialog({ title: 'Usunąć osobę?', message: 'Osoba zniknie też z Kalendarza, a jej prośby stracą przypisanie.' })
     if (!ok) return
-    await deleteDoc(doc(db, 'users', user.uid, 'prayerPeople', id))
+    await deleteDoc(doc(db, 'users', user.uid, 'calendarPeople', id))
   }
 
   return (
@@ -521,7 +534,12 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
             </p>
           )}
           {item.note && <p style={{ margin: '3px 0 0', fontSize: fs.sub, color: 'var(--text-muted)' }}>{item.note}</p>}
-          {item.dateTo && (
+          {item.eventId ? (
+            <p style={{ margin: '2px 0 0', fontSize: fs.badge, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <IconCalendar size={10} /> z kalendarza{item.eventDate ? ` · ${item.eventDate}` : ''}
+              {item.scheduleFrom && ` · modlitwa ${item.scheduleFrom}–${item.scheduleTo}`}
+            </p>
+          ) : item.dateTo && (
             <p style={{ margin: '2px 0 0', fontSize: fs.badge, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
               <IconCalendar size={10} /> do {item.dateTo}
             </p>
@@ -639,6 +657,13 @@ function TodayView({ user, intentions, people, carMode }) {
   const [viewDate, setViewDate] = useState(TODAY())
 
   const activeIntentions   = intentions.filter(i => i.status === 'active' || !i.status)
+  // Prośby z oknem czasowym (np. z wydarzenia) pokazują się tylko w swoich dniach; bez okna — codziennie.
+  const visibleIntentions  = activeIntentions.filter(i => {
+    if (!i.scheduleFrom && !i.scheduleTo) return true
+    const from = i.scheduleFrom || '0000-01-01'
+    const to   = i.scheduleTo   || '9999-12-31'
+    return viewDate >= from && viewDate <= to
+  })
   const archivedPrayedOnDate = useMemo(
     () => intentions.filter(i => i.status === 'ended' && i.prayedDates?.includes(viewDate)),
     [intentions, viewDate]
@@ -667,7 +692,7 @@ function TodayView({ user, intentions, people, carMode }) {
     await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { notes: arrayRemove(note) })
   }
 
-  const sorted = [...activeIntentions].sort((a, b) => {
+  const sorted = [...visibleIntentions].sort((a, b) => {
     if ((a.priority || 3) === 5 && (b.priority || 3) !== 5) return -1
     if ((a.priority || 3) !== 5 && (b.priority || 3) === 5) return 1
     const ap = a.prayedDates?.includes(viewDate)
@@ -677,7 +702,7 @@ function TodayView({ user, intentions, people, carMode }) {
     return (b.priority || 3) - (a.priority || 3)
   })
 
-  const prayedCount = activeIntentions.filter(i => i.prayedDates?.includes(viewDate)).length
+  const prayedCount = visibleIntentions.filter(i => i.prayedDates?.includes(viewDate)).length
   const isToday     = viewDate === TODAY()
   const dateLabel   = isToday ? 'Dziś' : format(parseISO(viewDate), 'EEEE, d MMMM', { locale: pl })
 
@@ -693,11 +718,11 @@ function TodayView({ user, intentions, people, carMode }) {
         <button className="icon-btn" onClick={() => setViewDate(d => format(addDays(parseISO(d), 1), 'yyyy-MM-dd'))}><IconChevronRight size={16} /></button>
       </div>
 
-      {activeIntentions.length > 0 && (
+      {visibleIntentions.length > 0 && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: carMode ? '18px' : '14px 16px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: carMode ? 36 : 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: carMode ? 24 : 18, color: 'var(--text-muted)' }}>/{activeIntentions.length}</span></p>
+          <p style={{ margin: 0, fontSize: carMode ? 36 : 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: carMode ? 24 : 18, color: 'var(--text-muted)' }}>/{visibleIntentions.length}</span></p>
           <p style={{ margin: '2px 0 0', fontSize: carMode ? 14 : 12, color: 'var(--text-muted)' }}>modlono {isToday ? 'dziś' : dateLabel.toLowerCase()}</p>
-          {prayedCount > 0 && prayedCount === activeIntentions.length && (
+          {prayedCount > 0 && prayedCount === visibleIntentions.length && (
             <p style={{ margin: '6px 0 0', fontSize: carMode ? 15 : 13, color: '#27AE60', fontWeight: 600 }}>Wszystkie prośby modlone!</p>
           )}
         </div>
@@ -758,10 +783,10 @@ function TodayView({ user, intentions, people, carMode }) {
         </div>
       )}
 
-      {activeIntentions.length === 0 && archivedPrayedOnDate.length === 0 && (
+      {visibleIntentions.length === 0 && archivedPrayedOnDate.length === 0 && (
         <div className="list-empty">
-          <p>Brak aktywnych próśb</p>
-          <p className="list-empty-hint">Przejdź do zakładki Osoby i dodaj prośby modlitewne</p>
+          <p>Brak próśb na ten dzień</p>
+          <p className="list-empty-hint">{isToday ? 'Dodaj prośby w zakładce Osoby lub przy wydarzeniu w Kalendarzu' : 'Tego dnia nic nie zaplanowano'}</p>
         </div>
       )}
     </div>
@@ -1153,6 +1178,7 @@ function PersonForm({ user, editData, onClose }) {
   const [name, setName]         = useState(editData?.name || '')
   const [note, setNote]         = useState(editData?.note || '')
   const [iconKey, setIconKey]   = useState(editData?.icon || 'IcUsers')
+  const [color, setColor]       = useState(editData?.color || PERSON_COLORS[Math.floor(Math.random() * PERSON_COLORS.length)])
   const [iconSearch, setIconSearch] = useState('')
   const [saving, setSaving]     = useState(false)
 
@@ -1164,12 +1190,13 @@ function PersonForm({ user, editData, onClose }) {
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
-    const data = { name: name.trim(), note: note.trim(), icon: iconKey, updatedAt: Timestamp.now() }
+    // Osoba jest współdzielona z Kalendarzem → zapis do `calendarPeople`. Kolor używa Kalendarz, ikona/notatka — Modlitwa.
+    const data = { name: name.trim(), note: note.trim(), icon: iconKey, color, updatedAt: Timestamp.now() }
     try {
       if (editData) {
-        await updateDoc(doc(db, 'users', user.uid, 'prayerPeople', editData.id), data)
+        await updateDoc(doc(db, 'users', user.uid, 'calendarPeople', editData.id), data)
       } else {
-        await addDoc(collection(db, 'users', user.uid, 'prayerPeople'), { ...data, createdAt: Timestamp.now() })
+        await addDoc(collection(db, 'users', user.uid, 'calendarPeople'), { ...data, createdAt: Timestamp.now() })
       }
       onClose()
     } catch { setSaving(false) }
@@ -1220,6 +1247,19 @@ function PersonForm({ user, editData, onClose }) {
             <label>Notatka (opcjonalnie)</label>
             <input type="text" className="form-input" value={note} onChange={e => setNote(e.target.value)}
               maxLength={200} placeholder="np. Chora na raka, szuka Boga..." />
+          </div>
+
+          <div className="form-group">
+            <label>Kolor (w Kalendarzu)</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {PERSON_COLORS.map(c => (
+                <button key={c} type="button" onClick={() => setColor(c)} style={{
+                  width: 32, height: 32, borderRadius: '50%', background: c, cursor: 'pointer', border: 'none',
+                  boxShadow: color === c ? `0 0 0 3px var(--bg), 0 0 0 5px ${c}` : 'none',
+                  transition: 'box-shadow .15s',
+                }} />
+              ))}
+            </div>
           </div>
           <button type="submit" className="btn-save" disabled={saving || !name.trim()}>
             {saving ? 'Zapisywanie...' : editData ? 'Zapisz' : 'Dodaj osobę'}
