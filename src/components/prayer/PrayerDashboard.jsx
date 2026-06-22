@@ -3,11 +3,12 @@ import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Times
 import { db } from '../../firebase/config'
 import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOfDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat, IconArchive, IconRestore } from '../Icons'
 import { Heatmap } from '../ChartPrimitives'
 import StatSummary from '../StatSummary'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { setPersonHidden, purgePerson } from '../../utils/people'
 
 const PRIORITY_CFG = [
   { v: 5, label: 'Pilna',   color: '#ef4444' },
@@ -217,9 +218,12 @@ export default function PrayerDashboard({ user }) {
 function PeopleView({ user, people, intentions, carMode, onSelect }) {
   const [showForm, setShowForm] = useState(false)
   const [editPerson, setEditPerson] = useState(null)
+  const [showArchive, setShowArchive] = useState(false)
   const today = TODAY()
 
-  const withStats = useMemo(() => people.map(p => {
+  const archivedPeople = people.filter(p => p.hiddenInPrayer)
+
+  const withStats = useMemo(() => people.filter(p => !p.hiddenInPrayer).map(p => {
     const active = intentions.filter(i => i.personId === p.id && (i.status === 'active' || !i.status))
     const all    = intentions.filter(i => i.personId === p.id)
     const allDates = all.flatMap(i => i.prayedDates || [])
@@ -243,11 +247,16 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
     return [...cand].sort((a, b) => (b.days ?? 99999) - (a.days ?? 99999))[0]
   }, [withStats])
 
+  const archivePersonH = async (id, e) => { e.stopPropagation(); await setPersonHidden(user.uid, id, 'prayer', true) }
+  const restorePersonH = async (id, e) => { e.stopPropagation(); await setPersonHidden(user.uid, id, 'prayer', false) }
   const handleDeletePerson = async (id, e) => {
     e.stopPropagation()
-    const ok = await confirmDialog({ title: 'Usunąć osobę?', message: 'Osoba zniknie też z Kalendarza, a jej prośby stracą przypisanie.' })
+    const ok = await confirmDialog({
+      title: 'Usunąć osobę trwale?',
+      message: 'Usunie też WSZYSTKIE jej prośby modlitewne i wydarzenia w Kalendarzu. Tego nie da się cofnąć. (Aby tylko ukryć w modlitwie — użyj Ukryj.)'
+    })
     if (!ok) return
-    await deleteDoc(doc(db, 'users', user.uid, 'calendarPeople', id))
+    await purgePerson(user.uid, id)
   }
 
   return (
@@ -279,13 +288,14 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
         </button>
       )}
 
-      {people.length === 0 ? (
+      {withStats.length === 0 && archivedPeople.length === 0 && (
         <div className="list-empty">
           <p>Brak osób</p>
           <p className="list-empty-hint">Dodaj osoby za które chcesz się modlić</p>
         </div>
-      ) : (
-        withStats.map(p => {
+      )}
+
+      {withStats.map(p => {
           const neglect = getNeglect(p.activeCount > 0 ? p.days : -1)
           const isNeglected  = p.activeCount > 0 && !p.prayedToday && neglect.level >= 4
           const isAtRisk     = p.activeCount > 0 && !p.prayedToday && neglect.level === 3
@@ -324,13 +334,55 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                <button className="t-btn" onClick={e => { e.stopPropagation(); setEditPerson(p); setShowForm(true) }}><IconEdit size={13} /></button>
-                <button className="t-btn delete" onClick={e => handleDeletePerson(p.id, e)}><IconTrash size={13} /></button>
+                <button className="t-btn" title="Edytuj" onClick={e => { e.stopPropagation(); setEditPerson(p); setShowForm(true) }}><IconEdit size={13} /></button>
+                <button className="t-btn" title="Ukryj w modlitwie (zostaje w bazie Osób)" onClick={e => archivePersonH(p.id, e)}><IconArchive size={13} /></button>
+                <button className="t-btn delete" title="Usuń trwale (z prośbami i wydarzeniami)" onClick={e => handleDeletePerson(p.id, e)}><IconTrash size={13} /></button>
               </div>
               <IconChevronRight size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             </div>
           )
-        })
+        })}
+
+      {archivedPeople.length > 0 && (
+        <div>
+          <button onClick={() => setShowArchive(v => !v)} style={{
+            display: 'flex', alignItems: 'center', gap: 6, width: '100%', padding: '9px 12px', cursor: 'pointer',
+            background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 10,
+            color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', marginTop: 4,
+          }}>
+            <IconArchive size={13} />
+            <span style={{ flex: 1, textAlign: 'left' }}>Ukryte w modlitwie ({archivedPeople.length})</span>
+            {showArchive ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+          </button>
+          {showArchive && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
+              {archivedPeople.map(p => {
+                const all = intentions.filter(i => i.personId === p.id)
+                const prays = all.flatMap(i => i.prayedDates || []).length
+                return (
+                  <div key={p.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, opacity: 0.75 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(139,92,246,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#8b5cf6' }}>
+                      <CatIcon categoryId={null} emoji={p.icon || 'IcUsers'} size={20} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {p.name}
+                        <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: 'var(--surface3)', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Ukr.</span>
+                      </p>
+                      <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                        {all.length} {all.length === 1 ? 'prośba' : 'próśb'} · <IconPrayer size={10} /> ×{prays}
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                      <button className="t-btn" title="Pokaż w modlitwie" onClick={e => restorePersonH(p.id, e)}><IconRestore size={13} /></button>
+                      <button className="t-btn delete" title="Usuń trwale" onClick={e => handleDeletePerson(p.id, e)}><IconTrash size={13} /></button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
       )}
 
       {showForm && (
