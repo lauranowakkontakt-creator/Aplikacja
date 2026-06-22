@@ -82,6 +82,8 @@ const getEventColor = (cats, ppl, e) =>
   findPerson(ppl, e.personId)?.color || findCat(cats, e.categoryId)?.color || e.color || '#607D8B'
 const initials = (name) =>
   (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+// Etykieta „kogo dotyczy": osoba z systemu Osób lub wolny tekst `who`
+const whoOf = (e) => e.personName || e.who || ''
 
 const kicker = (t) => (
   <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -202,6 +204,8 @@ export default function CalendarDashboard({ user }) {
   const monthStr = format(currentMonth, 'yyyy-MM')
   const monthEvents = expandedEvents.filter(e => e.date.startsWith(monthStr))
   const colorOf = (e) => getEventColor(categories, calPeople, e)
+  const peekToday    = eventsOnDay(new Date())
+  const peekTomorrow = eventsOnDay(addDays(new Date(), 1))
 
   return (
     <div className="calendar-dashboard">
@@ -264,6 +268,34 @@ export default function CalendarDashboard({ user }) {
           ))}
         </div>
       )}
+
+      {/* Dziś / Jutro — szybki podgląd (zawsze widoczny) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+        {[['Dziś', peekToday], ['Jutro', peekTomorrow]].map(([lbl, list]) => (
+          <div key={lbl} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 12 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.14em', textTransform: 'uppercase', marginBottom: 8 }}>{lbl}</div>
+            {list.length === 0 ? (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Brak wydarzeń</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {list.map(e => {
+                  const c = colorOf(e)
+                  const who = whoOf(e)
+                  return (
+                    <div key={e.id + e.date} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', borderLeft: `3px solid ${c}`, borderRadius: 8, padding: '6px 9px' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</div>
+                        {who && <div style={{ fontSize: 11, fontWeight: 600, color: c, marginTop: 1 }}>{who}</div>}
+                      </div>
+                      {e.startTime && <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', flexShrink: 0 }}>{e.startTime}</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
 
       {/* MONTH TAB */}
       {tab === 'month' && (
@@ -343,6 +375,7 @@ export default function CalendarDashboard({ user }) {
                         <button className="t-btn delete" onClick={() => handleDelete(e.id)}><IconTrash size={12} /></button>
                       </div>
                       {person && <div style={{ fontSize: 11, color: person.color, fontWeight: 600, marginTop: 5 }}>{person.name}</div>}
+                      {!person && e.who && <div style={{ fontSize: 11, fontWeight: 600, marginTop: 5 }}>Dla: <span style={{ color }}>{e.who}</span></div>}
                       {!person && cat && <div style={{ fontSize: 10, color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginTop: 4 }}>{cat.label}</div>}
                       {e.note && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>{e.note}</div>}
                     </div>
@@ -664,6 +697,7 @@ function EventRow({ e, categories, calPeople, onEdit, onDelete, muted }) {
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
           {person && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 99, background: person.color + '22', color: person.color, fontWeight: 700 }}>{person.name}</span>}
+          {!person && e.who && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 99, background: 'var(--surface3)', color: 'var(--text)', fontWeight: 600 }}>{e.who}</span>}
           {cat    && <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 99, background: color + '18', color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{cat.label}</span>}
         </div>
         {e.note && <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>{e.note}</p>}
@@ -775,6 +809,7 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
   const [note, setNote]             = useState(editData?.note || '')
   const [categoryId, setCategoryId] = useState(editData?.categoryId || '')
   const [personId, setPersonId]     = useState(editData?.personId || '')
+  const [who, setWho]               = useState(editData?.who || '')
   const [recurrence, setRecurrence] = useState(editData?.recurrence || '')
   const [recurUntil, setRecurUntil] = useState(editData?.recurUntil || '')
   const [saving, setSaving]         = useState(false)
@@ -799,6 +834,7 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
       color: selectedPerson?.color || selectedCat?.color || '#607D8B',
       personId: personId || null,
       personName: selectedPerson?.name || null,
+      who: who.trim() || null,
       recurrence: recurrence || null,
       recurUntil: recurrence && recurUntil ? recurUntil : null,
       updatedAt: Timestamp.now()
@@ -859,6 +895,13 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
               </div>
             </div>
           )}
+
+          {/* Kogo dotyczy — wolny tekst, zawsze dostępny */}
+          <div className="form-group">
+            <label>Kogo dotyczy? (opcjonalnie)</label>
+            <input type="text" className="form-input" value={who} onChange={e => setWho(e.target.value)}
+              maxLength={60} placeholder="np. Mama, Tata, ja, cała rodzina..." />
+          </div>
 
           {/* Kategoria — opcjonalna */}
           <div className="form-group">
@@ -1048,6 +1091,7 @@ function PeopleManager({ user, calPeople, editData, onClose }) {
 
 /* ─── CategoryManager ──────────────────────────────────────────────────── */
 function CategoryManager({ user, categories, onClose }) {
+  const [editId, setEditId] = useState(null)
   const [icon, setIcon]     = useState('IconCalendar')
   const [label, setLabel]   = useState('')
   const [color, setColor]   = useState(CAT_COLORS[0])
@@ -1058,20 +1102,26 @@ function CategoryManager({ user, categories, onClose }) {
     ? ICON_CATALOG.filter(ic => ic.label.toLowerCase().includes(iconSearch.toLowerCase()) || ic.group.toLowerCase().includes(iconSearch.toLowerCase()))
     : ICON_CATALOG
 
-  const handleAdd = async (e) => {
+  const resetForm = () => { setEditId(null); setLabel(''); setIcon('IconCalendar'); setColor(CAT_COLORS[0]); setIconSearch('') }
+  const startEdit = (cat) => { setEditId(cat.id); setLabel(cat.label); setIcon(cat.icon || 'IconCalendar'); setColor(cat.color || CAT_COLORS[0]); setIconSearch('') }
+
+  const handleSave = async (e) => {
     e.preventDefault()
     if (!label.trim()) return
     setSaving(true)
-    await addDoc(collection(db, 'users', user.uid, 'calendarCategories'), {
-      label: label.trim(), icon, color, createdAt: Timestamp.now()
-    })
-    setLabel(''); setSaving(false)
+    if (editId) {
+      await updateDoc(doc(db, 'users', user.uid, 'calendarCategories', editId), { label: label.trim(), icon, color })
+    } else {
+      await addDoc(collection(db, 'users', user.uid, 'calendarCategories'), { label: label.trim(), icon, color, createdAt: Timestamp.now() })
+    }
+    resetForm(); setSaving(false)
   }
 
   const handleDelete = async (id) => {
     const ok = await confirmDialog({ title: 'Usunąć kategorię?' })
     if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'calendarCategories', id))
+    if (editId === id) resetForm()
   }
 
   return (
@@ -1084,20 +1134,21 @@ function CategoryManager({ user, categories, onClose }) {
         <div className="form">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>
             {categories.map(cat => (
-              <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--surface2)', borderRadius: 10 }}>
+              <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: editId === cat.id ? cat.color + '18' : 'var(--surface2)', borderRadius: 10, border: `1px solid ${editId === cat.id ? cat.color : 'transparent'}` }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color }}>
                   <CatIcon categoryId={cat.slug} emoji={cat.icon} size={17} />
                 </div>
                 <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{cat.label}</span>
                 <div style={{ width: 14, height: 14, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
-                <button className="t-btn delete" onClick={() => handleDelete(cat.id)}><IconTrash size={13} /></button>
+                <button className="t-btn" title="Edytuj" onClick={() => startEdit(cat)}><IconEdit size={13} /></button>
+                <button className="t-btn delete" title="Usuń" onClick={() => handleDelete(cat.id)}><IconTrash size={13} /></button>
               </div>
             ))}
           </div>
 
           <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '12px 0' }} />
-          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>Dodaj kategorię</p>
-          <form onSubmit={handleAdd}>
+          <p style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700 }}>{editId ? 'Edytuj kategorię' : 'Dodaj kategorię'}</p>
+          <form onSubmit={handleSave}>
             <div className="form-group">
               <label>Nazwa</label>
               <input type="text" className="form-input" value={label} onChange={e => setLabel(e.target.value)}
@@ -1136,9 +1187,16 @@ function CategoryManager({ user, categories, onClose }) {
                 ))}
               </div>
             </div>
-            <button type="submit" className="btn-save" disabled={saving || !label.trim()}>
-              {saving ? 'Dodawanie...' : '+ Dodaj kategorię'}
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="submit" className="btn-save" disabled={saving || !label.trim()} style={{ flex: 1 }}>
+                {saving ? 'Zapisywanie...' : editId ? 'Zapisz zmiany' : '+ Dodaj kategorię'}
+              </button>
+              {editId && (
+                <button type="button" onClick={resetForm} style={{ padding: '0 16px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14 }}>
+                  Anuluj
+                </button>
+              )}
+            </div>
           </form>
         </div>
       </div>
