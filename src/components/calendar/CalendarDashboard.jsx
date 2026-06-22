@@ -933,20 +933,6 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
               </div>
             </div>
           )}
-          {people?.length > 0 && (
-            <div className="form-group">
-              <label>Osoba (opcjonalnie)</label>
-              <div className="account-chips">
-                <button type="button" className={`account-chip ${!personId ? 'active' : ''}`} onClick={() => setPersonId('')}>Brak</button>
-                {people.map(p => (
-                  <button key={p.id} type="button"
-                    className={`account-chip ${personId === p.id ? 'active' : ''}`}
-                    onClick={() => setPersonId(p.id)}
-                  >{p.name}</button>
-                ))}
-              </div>
-            </div>
-          )}
           <div className="form-group">
             <label>Opis / notatka</label>
             <input type="text" className="form-input" value={note} onChange={e => setNote(e.target.value)}
