@@ -10,7 +10,7 @@ import {
 import { confirmDialog } from '../ConfirmModal'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS, getEmotion, getCategory,
-  parseMentions, parseSymbols, dreamPeopleIds, scrubSymbolFromDreams,
+  parseMentions, dreamPeopleIds, scrubSymbolFromDreams,
 } from '../../utils/dreams'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
@@ -58,36 +58,37 @@ const nameStem = (name) => {
   return s.length >= 3 ? s.replace(/(a|e|o|y|i|ą|ę|u|ó)$/u, '') : s
 }
 
-/* Treść snu z podświetlonymi osobami (po rdzeniu imienia, więc i odmiany) i #symbolami */
-function DreamText({ text, highlightPeople = [], symbolsById = {} }) {
+/* Treść snu z podświetlonymi osobami i symbolami (po rdzeniu — łapie też odmiany).
+   Tokenizujemy słowa bez lookbehind, żeby działało też na starszym Safari/iOS. */
+const WORD_RE = /^[\p{L}\p{N}]+$/u
+function DreamText({ text, highlightPeople = [], highlightSymbols = [] }) {
   if (!text) return null
-  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const pats = highlightPeople
+  const baseStyle = { margin: 0, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }
+
+  const people = highlightPeople
     .filter(p => p.name?.trim())
     .map(p => ({ person: p, stem: nameStem(p.name) }))
     .filter(p => p.stem.length >= 2)
     .sort((a, b) => b.stem.length - a.stem.length)
-  const sNames = Object.values(symbolsById).map(s => s.name).filter(Boolean).sort((a, b) => b.length - a.length).map(esc)
+  const syms = highlightSymbols
+    .filter(s => s.name?.trim())
+    .map(s => ({ sym: s, name: s.name.toLowerCase(), stem: nameStem(s.name).toLowerCase() }))
+    .sort((a, b) => b.name.length - a.name.length)
 
-  const alts = []
-  // Osoby: rdzeń (z wielkiej litery) + ewentualne dalsze litery odmiany, na granicy słowa
-  if (pats.length) alts.push(`(?<![\\p{L}])(?:${pats.map(p => esc(p.stem)).join('|')})[\\p{L}]*`)
-  if (sNames.length) alts.push(`#(?:${sNames.join('|')})`)
-  const baseStyle = { margin: 0, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }
-  if (!alts.length) return <p style={baseStyle}>{text}</p>
+  if (!people.length && !syms.length) return <p style={baseStyle}>{text}</p>
 
-  const parts = text.split(new RegExp(`(${alts.join('|')})`, 'gu'))
+  const parts = text.split(/([\p{L}\p{N}]+)/u)
   return (
     <p style={baseStyle}>
       {parts.map((seg, i) => {
         if (!seg) return null
-        if (seg.startsWith('#')) {
-          const sym = Object.values(symbolsById).find(s => s.name === seg.slice(1))
-          if (sym) return <span key={i} style={{ color: sym.color || '#5BB6D9', fontWeight: 600 }}>{seg}</span>
-          return <span key={i}>{seg}</span>
+        if (WORD_RE.test(seg)) {
+          const low = seg.toLowerCase()
+          const sym = syms.find(s => low === s.name || (s.stem.length >= 3 && low.startsWith(s.stem)))
+          if (sym) return <span key={i} style={{ color: sym.sym.color || '#5BB6D9', fontWeight: 600 }}>{seg}</span>
+          const hit = people.find(p => seg.startsWith(p.stem)) // imiona z wielkiej litery
+          if (hit) return <span key={i} style={{ color: hit.person.color || 'var(--accent)', fontWeight: 600 }}>{seg}</span>
         }
-        const hit = pats.find(p => seg.startsWith(p.stem))
-        if (hit) return <span key={i} style={{ color: hit.person.color || 'var(--accent)', fontWeight: 600 }}>{seg}</span>
         return <span key={i}>{seg}</span>
       })}
     </p>
@@ -427,7 +428,7 @@ function DreamDetail({ dream, peopleById, symbolsById, onBack, onOpenSymbol, onE
 
       {dream.text && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-          <DreamText text={dream.text} highlightPeople={linkedPeople} symbolsById={symbolsById} />
+          <DreamText text={dream.text} highlightPeople={linkedPeople} highlightSymbols={syms} />
         </div>
       )}
 
@@ -487,6 +488,7 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
   const [emotions, setEmotions] = useState(editData?.emotions || [])
   const [interpretation, setInterpretation] = useState(editData?.interpretation || '')
   const [peopleIds, setPeopleIds] = useState(editData?.peopleIds || [])
+  const [symbolIds, setSymbolIds] = useState(editData?.symbolIds || [])
   const [localSymbols, setLocalSymbols] = useState([]) // symbole utworzone w tej sesji
   const [saving, setSaving]     = useState(false)
 
@@ -541,12 +543,14 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
   // @ tylko wybiera osobę — wstawiamy samo imię (bez @), które można potem odmienić.
   // Powiązanie ze snem trzyma lista osób (peopleIds), więc edycja słowa go nie zrywa.
   const pickPerson = (p) => { if (!peopleIds.includes(p.id)) setPeopleIds([...peopleIds, p.id]); insertToken('', p.name) }
-  const pickSymbol = (s) => insertToken('#', s.name)
+  // # tylko wybiera symbol — wstawiamy samo słowo (bez #); powiązanie trzyma lista symbolIds.
+  const pickSymbol = (s) => { if (!symbolIds.includes(s.id)) setSymbolIds([...symbolIds, s.id]); insertToken('', s.name) }
   const createAndPick = async () => {
     const n = trigger.query.trim()
     const sym = await onCreateSymbol(n)
     setLocalSymbols(prev => [...prev, sym])
-    insertToken('#', sym.name)
+    setSymbolIds(prev => prev.includes(sym.id) ? prev : [...prev, sym.id])
+    insertToken('', sym.name)
   }
 
   // Przywróć kursor po wstawieniu
@@ -558,10 +562,10 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
     }
   }, [caretPos, text])
 
-  // Symbole obecne w tekście (podgląd na żywo)
+  // Symbole przypięte do snu (jawnie, niezależnie od treści) — klik usuwa
   const usedSymbols = useMemo(
-    () => parseSymbols(text, allSymbols).map(id => allSymbols.find(s => s.id === id)).filter(Boolean),
-    [text, allSymbols]
+    () => symbolIds.map(id => allSymbols.find(s => s.id === id)).filter(Boolean),
+    [symbolIds, allSymbols]
   )
 
   const showDrop = trigger && (
@@ -574,7 +578,6 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
     if (!title.trim() && !text.trim()) return
     setSaving(true)
     const mentionIds = parseMentions(text, people)
-    const symbolIds  = parseSymbols(text, allSymbols)
     const data = {
       title: title.trim(), date, text: text.trim(),
       interpretation: interpretation.trim(),
@@ -650,8 +653,13 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
             )}
 
             {usedSymbols.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
-                {usedSymbols.map(s => <SymbolChip key={s.id} symbol={s} />)}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Symbole:</span>
+                {usedSymbols.map(s => (
+                  <Chip key={s.id} color={s.color || '#5BB6D9'} onClick={() => setSymbolIds(symbolIds.filter(id => id !== s.id))}>
+                    {s.name} <IconClose size={11} />
+                  </Chip>
+                ))}
               </div>
             )}
           </div>
