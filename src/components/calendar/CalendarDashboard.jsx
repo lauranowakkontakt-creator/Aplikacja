@@ -1051,7 +1051,7 @@ function EventForm({ user, editData, defaultDate, categories, calPeople, onClose
                   className={`cal-cat-btn ${categoryId === cat.id ? 'active' : ''}`}
                   style={categoryId === cat.id ? { borderColor: cat.color, background: cat.color + '22' } : {}}
                   onClick={() => setCategoryId(categoryId === cat.id ? '' : cat.id)}>
-                  <span className="cal-cat-icon" style={categoryId === cat.id ? { background: cat.color + '33' } : {}}><CatIcon categoryId={cat.slug} emoji={cat.icon} size={15} /></span>
+                  <span className="cal-cat-icon" style={categoryId === cat.id ? { background: cat.color + '33' } : {}}><CatIcon categoryId={null} emoji={cat.icon} size={15} /></span>
                   <span className="cal-cat-label">{cat.label}</span>
                 </button>
               ))}
@@ -1370,7 +1370,7 @@ function CategoryManager({ user, categories, onClose }) {
             {categories.map(cat => (
               <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: editId === cat.id ? cat.color + '18' : 'var(--surface2)', borderRadius: 10, border: `1px solid ${editId === cat.id ? cat.color : 'transparent'}` }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color }}>
-                  <CatIcon categoryId={cat.slug} emoji={cat.icon} size={17} />
+                  <CatIcon categoryId={null} emoji={cat.icon} size={17} />
                 </div>
                 <span style={{ flex: 1, fontSize: 14, fontWeight: 500 }}>{cat.label}</span>
                 <div style={{ width: 14, height: 14, borderRadius: '50%', background: cat.color, flexShrink: 0 }} />
