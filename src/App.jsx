@@ -14,6 +14,7 @@ import PeopleHub from './components/people/PeopleHub'
 import DreamDashboard from './components/dream/DreamDashboard'
 import SettingsDrawer from './components/SettingsDrawer'
 import MoreSheet from './components/MoreSheet'
+import ErrorBoundary from './components/ErrorBoundary'
 import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore, IconUsers, IconMoon } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
 import { getCurrencyCode, setCurrencyCode } from './utils/currency'
@@ -196,6 +197,7 @@ export default function App() {
         {/* Content */}
         <div className="content" key={activeModule}>
           <div className="content-inner">
+            <ErrorBoundary moduleId={activeModule}>
             {activeModule === 'home'     && <Pulpit user={user} onNavigate={goTo} />}
             {activeModule === 'budget'   && <Dashboard user={user} onCurrencyChange={handleCurrencyChange} />}
             {activeModule === 'habits'   && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} />}
@@ -206,6 +208,7 @@ export default function App() {
             {activeModule === 'bible'    && <BibleDashboard user={user} />}
             {activeModule === 'people'   && <PeopleHub user={user} onOpenDream={openDream} />}
             {activeModule === 'dream'    && <DreamDashboard user={user} focusId={dreamFocus} onFocusConsumed={() => setDreamFocus(null)} />}
+            </ErrorBoundary>
           </div>
         </div>
       </div>
