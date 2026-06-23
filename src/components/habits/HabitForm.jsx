@@ -1,10 +1,11 @@
-import { useState } from 'react'
-import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore'
+import { useState, useEffect } from 'react'
+import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
-import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconArchive, IconRestore } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconArchive, IconRestore, IconEdit } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import HabitCategoryManager from './HabitCategoryManager'
 
 export const HABIT_CATEGORIES = [
   { id: 'health',  label: 'Zdrowie',   icon: 'IcDrop' },
@@ -42,6 +43,15 @@ export default function HabitForm({ user, onClose, editData }) {
   const [endDate, setEndDate]     = useState(editData?.endDate || '')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
+  const [customCats, setCustomCats] = useState([])
+  const [showCatMgr, setShowCatMgr] = useState(false)
+
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'habitCategories'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, label: d.data().name, icon: d.data().icon || 'IcTag', color: d.data().color }))))
+  }, [user.uid])
+
+  const categories = [...HABIT_CATEGORIES, ...customCats]
 
   const filteredIcons = iconSearch.trim()
     ? ICON_CATALOG.filter(ic => ic.label.toLowerCase().includes(iconSearch.toLowerCase()) || ic.group.toLowerCase().includes(iconSearch.toLowerCase()))
@@ -135,9 +145,17 @@ export default function HabitForm({ user, onClose, editData }) {
 
           {/* Kategoria */}
           <div className="form-group">
-            <label>Kategoria</label>
-            <div className="habit-cat-grid">
-              {HABIT_CATEGORIES.map(cat => (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ margin: 0 }}>Kategoria</label>
+              <button type="button" onClick={() => setShowCatMgr(true)} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none',
+                color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: 0, fontFamily: 'inherit',
+              }}>
+                <IconEdit size={12} /> Zarządzaj
+              </button>
+            </div>
+            <div className="habit-cat-grid" style={{ marginTop: 8 }}>
+              {categories.map(cat => (
                 <button key={cat.id} type="button"
                   className={`habit-cat-btn ${category === cat.id ? 'active' : ''}`}
                   onClick={() => setCategory(cat.id)}
@@ -226,6 +244,7 @@ export default function HabitForm({ user, onClose, editData }) {
           )}
         </form>
       </div>
+      {showCatMgr && <HabitCategoryManager user={user} onClose={() => setShowCatMgr(false)} />}
     </div>
   )
 }

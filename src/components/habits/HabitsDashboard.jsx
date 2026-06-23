@@ -147,7 +147,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitCategories'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, label: d.data().name, icon: 'IcTag', color: d.data().color }))))
+    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, label: d.data().name, icon: d.data().icon || 'IcTag', color: d.data().color }))))
   }, [user.uid])
 
   const toggleDay = async (habit, date) => {
@@ -307,7 +307,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                   const done   = habit.completedDates?.includes(selectedDay)
                   const streak = getStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)
                   const isFut  = selectedDay > TODAY
-                  const cat    = HABIT_CATEGORIES.find(c => c.id === habit.category)
+                  const cat    = allCategories.find(c => c.id === habit.category)
                   const color  = habit.color || 'var(--accent)'
                   return (
                     <div key={habit.id} style={{
@@ -451,7 +451,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           ) : filtered.map(habit => {
             const streak = getStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)
             const best   = getBestStreak(habit.completedDates, habit.frequencyDays, pauses)
-            const cat    = HABIT_CATEGORIES.find(c => c.id === habit.category)
+            const cat    = allCategories.find(c => c.id === habit.category)
             const color  = habit.color || 'var(--accent)'
             const last30 = (() => {
               let exp = 0, done = 0
