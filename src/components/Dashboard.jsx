@@ -68,7 +68,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
       orderBy('date', 'desc')
     )
     return onSnapshot(q, snap => {
-      const txs = snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() }))
+      const txs = snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) }))
       txs.sort((a, b) => {
         const at = a.createdAt?.toMillis() ?? a.date?.getTime() ?? 0
         const bt = b.createdAt?.toMillis() ?? b.date?.getTime() ?? 0
@@ -88,7 +88,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
       orderBy('date', 'desc')
     )
     return onSnapshot(q, snap => {
-      setAllTransactions(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() })))
+      setAllTransactions(snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) })))
     })
   }, [user.uid])
 

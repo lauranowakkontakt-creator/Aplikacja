@@ -189,7 +189,7 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
       )
     }
     return onSnapshot(q, snap => {
-      setTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() })))
+      setTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) })))
       setLoading(false)
     })
   }, [user.uid, account.id, months])

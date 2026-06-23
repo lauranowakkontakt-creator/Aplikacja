@@ -67,7 +67,7 @@ export default function Charts({ user, privateMode = false }) {
       orderBy('date', 'asc')
     )
     return onSnapshot(q, snap =>
-      setTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() })))
+      setTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) })))
     )
   }, [user.uid, period, pivot])
 
@@ -80,7 +80,7 @@ export default function Charts({ user, privateMode = false }) {
       orderBy('date', 'asc')
     )
     return onSnapshot(q, snap =>
-      setAllYearTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date.toDate() })))
+      setAllYearTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) })))
     )
   }, [user.uid])
 
