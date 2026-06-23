@@ -4,7 +4,7 @@ import { db } from '../firebase/config'
 import { format, subDays, addDays, parseISO, differenceInDays, isPast, isToday } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
-  IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook,
+  IconBudget, IconHabits, IconMood, IconTodo, IconPrayer, IconBook,
   IconFlame, IconChevronRight, IconCheck, IconClock, IconBills,
 } from './Icons'
 import { Ring } from './ChartPrimitives'
@@ -111,15 +111,6 @@ export default function Pulpit({ user, onNavigate }) {
     const dueToday = active.filter(t => t.dueDate && isToday(parseISO(t.dueDate)))
     return { active: active.length, overdue: overdue.length, dueToday: dueToday.length }
   }, [todos])
-
-  /* ── KALENDARZ ── */
-  const calStat = useMemo(() => {
-    const upcoming = events
-      .filter(e => (e.dateEnd || e.date) >= today)
-      .sort((a, b) => a.date.localeCompare(b.date))
-    const todayEvents = events.filter(e => today >= e.date && today <= (e.dateEnd || e.date))
-    return { next: upcoming[0] || null, todayCount: todayEvents.length }
-  }, [events, today])
 
   /* ── MODLITWA ── */
   const prayerStat = useMemo(() => {
@@ -284,25 +275,6 @@ export default function Pulpit({ user, onNavigate }) {
               <div className="pulpit-sub">{habitsStat.due > 0 ? 'zrobione dziś' : 'brak na dziś'}</div>
             </div>
           </div>
-        </PulpitCard>
-
-        {/* KALENDARZ */}
-        <PulpitCard accent="#5FBF98" Icon={IconCalendar} label="Kalendarz" onClick={() => onNavigate('calendar')}>
-          {calStat.next ? (
-            <>
-              <div className="pulpit-value" style={{ fontSize: 17, lineHeight: 1.25 }}>{calStat.next.title}</div>
-              <div className="pulpit-sub" style={{ textTransform: 'capitalize' }}>
-                {isToday(parseISO(calStat.next.date))
-                  ? `Dziś${calStat.next.startTime ? ' · ' + calStat.next.startTime : ''}`
-                  : format(parseISO(calStat.next.date), 'EEEE, d MMM', { locale: pl })}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="pulpit-value" style={{ fontSize: 17 }}>Nic w planach</div>
-              <div className="pulpit-sub">Dodaj wydarzenie</div>
-            </>
-          )}
         </PulpitCard>
 
         {/* TO-DO */}
