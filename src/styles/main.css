@@ -533,8 +533,43 @@ body:has(.modal-overlay) .content { position: relative; z-index: 300; }
 .form-group label { font-size: 9px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.16em; }
 .form-input { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: var(--r-sm); padding: 12px 14px; font-size: 16px; width: 100%; outline: none; transition: border-color 0.2s, background 0.15s; }
 .form-input:focus { border-color: var(--accent); background: var(--surface2); }
+
+/* ── Pola daty/czasu — ciemny motyw, tło dopasowane do reszty (bez żółtego) ── */
 .form-input[type="date"],
-.form-input[type="date"]::-webkit-calendar-picker-indicator { color-scheme: dark; filter: invert(0.7); }
+.form-input[type="time"],
+.form-input[type="datetime-local"],
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  color-scheme: dark;            /* natywny popup i tekst w ciemnym motywie */
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+}
+.form-input[type="date"]:focus,
+.form-input[type="time"]:focus,
+.form-input[type="datetime-local"]:focus { background: var(--surface2); }
+/* Ikona kalendarza/zegara — czytelna na ciemnym tle */
+.form-input[type="date"]::-webkit-calendar-picker-indicator,
+.form-input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator { opacity: 0.6; cursor: pointer; }
+.form-input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+
+/* Wygaś żółte tło autouzupełniania (Chrome) — wszędzie, gdzie wpisuje się dane */
+.form-input:-webkit-autofill,
+.form-input:-webkit-autofill:hover,
+.form-input:-webkit-autofill:focus,
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--text);
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+  box-shadow: 0 0 0 1000px var(--surface) inset;
+  caret-color: var(--text);
+  transition: background-color 99999s ease-in-out 0s;
+}
 select.form-input, select.form-input option { background: var(--bg); color: var(--text); }
 .category-grid { display: flex; flex-wrap: wrap; gap: 6px; }
 .category-chip { padding: 6px 14px; background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); border-radius: 20px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
@@ -1087,9 +1122,11 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .driving-mode .mod-header-title { font-size: 22px; }
 
 /* ===== iOS input fix ===== */
-input[type="time"], input[type="date"] { color-scheme: dark; -webkit-appearance: none; appearance: none; }
+/* Bez appearance:none — zostawiamy natywny wybór daty/czasu (czytelny, spójny) */
 input[type="time"]::-webkit-datetime-edit-fields-wrapper,
 input[type="date"]::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+input[type="time"]::-webkit-datetime-edit,
+input[type="date"]::-webkit-datetime-edit { color: var(--text); }
 
 /* ===== TOAST NOTIFICATIONS ===== */
 .toast-item {
