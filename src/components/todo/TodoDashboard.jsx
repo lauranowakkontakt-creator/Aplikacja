@@ -101,14 +101,20 @@ export default function TodoDashboard({ user }) {
   }
 
   const handleQuickAdd = async (e) => {
-    e.preventDefault()
-    if (!quickInput.trim()) return
-    await addDoc(collection(db, 'users', user.uid, 'todos'), {
-      title: quickInput.trim(), note: '', listId: activeList || null,
-      priority: 'medium', dueDate: null, done: false,
-      createdAt: Timestamp.now(), updatedAt: Timestamp.now(), doneAt: null
-    })
-    setQuickInput('')
+    e?.preventDefault?.()
+    const title = quickInput.trim()
+    if (!title) return
+    try {
+      await addDoc(collection(db, 'users', user.uid, 'todos'), {
+        title, note: '', listId: activeList || null,
+        priority: 'medium', dueDate: null, done: false,
+        createdAt: Timestamp.now(), updatedAt: Timestamp.now(), doneAt: null
+      })
+      setQuickInput('')
+      toast.success('Dodano zadanie')
+    } catch (err) {
+      toast.error('Nie udało się dodać zadania: ' + (err?.message || 'błąd'))
+    }
   }
 
   const sortActive = (arr) => [...arr].sort((a, b) => {
@@ -134,9 +140,6 @@ export default function TodoDashboard({ user }) {
 
   const dueToday = active.filter(t => t.dueDate && isToday(parseISO(t.dueDate)))
   const highCount = active.filter(t => t.priority === 'high').length
-  const totalForList = byList.length
-  const doneForList = byList.filter(t => t.done).length
-  const pct = totalForList > 0 ? Math.round((doneForList / totalForList) * 100) : 0
 
   return (
     <div className="todo-dashboard">
@@ -282,7 +285,6 @@ export default function TodoDashboard({ user }) {
                 {highCount > 0 ? `${highCount} z wysokim priorytetem` : 'brak pilnych'}
               </div>
             </div>
-            <Ring value={pct} size={52} thickness={6} color="var(--sky)" />
           </div>
 
           {/* Active tasks */}
@@ -339,10 +341,16 @@ export default function TodoDashboard({ user }) {
                 <input
                   value={quickInput}
                   onChange={e => setQuickInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleQuickAdd(e) } }}
                   placeholder="Dodaj zadanie..."
                   style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: 'var(--text)' }}
                 />
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--surface2)', padding: '2px 6px', borderRadius: 4 }}>↵</span>
+                <button type="submit" disabled={!quickInput.trim()} title="Dodaj" style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                  padding: '6px 12px', borderRadius: 8, border: 'none', cursor: quickInput.trim() ? 'pointer' : 'default',
+                  background: quickInput.trim() ? 'var(--accent)' : 'var(--surface2)',
+                  color: quickInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                }}>Dodaj</button>
               </div>
             </form>
           </div>

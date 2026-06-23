@@ -6,10 +6,10 @@ import { pl } from 'date-fns/locale'
 import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart, CartesianGrid,
 } from 'recharts'
-import { IconTrash, IconChevronLeft, IconChevronRight, IconClose } from '../Icons'
+import { IconTrash, IconChevronLeft, IconChevronRight } from '../Icons'
 import StatSummary from '../StatSummary'
 import { confirmDialog } from '../ConfirmModal'
-import EmotionWheel, { ALL_EMOTIONS } from './EmotionWheel'
+import { ALL_EMOTIONS } from './EmotionWheel'
 
 // ── 5-stopniowa skala nastroju ────────────────────────────────────────────────
 const MOODS = [
@@ -28,17 +28,26 @@ export const RATING_CATS = [
   { id: 'relacje', label: 'Relacje', color: '#EC4899' },
 ]
 
-// Stare chipy emocji — tylko fallback dla wpisów sprzed nowego koła
-const LEGACY_EMOTIONS = [
+// Emocje do wyboru (pigułki) — prosty, czytelny zestaw zamiast koła Plutchika
+const PILL_EMOTIONS = [
   { id: 'spokój',      label: 'spokój',      color: '#5FBF98' },
   { id: 'wdzięczność', label: 'wdzięczność', color: '#9B7CF0' },
+  { id: 'radość',      label: 'radość',      color: '#E6C04A' },
   { id: 'ciekawość',   label: 'ciekawość',   color: '#3B82F6' },
+  { id: 'miłość',      label: 'miłość',      color: '#E8607A' },
+  { id: 'nadzieja',    label: 'nadzieja',    color: '#14B8A6' },
+  { id: 'duma',        label: 'duma',        color: '#F97316' },
+  { id: 'ulga',        label: 'ulga',        color: '#84CC16' },
   { id: 'zmęczenie',   label: 'zmęczenie',   color: '#06B6D4' },
   { id: 'frustracja',  label: 'frustracja',  color: '#E0673E' },
   { id: 'lęk',         label: 'lęk',         color: '#8B5CF6' },
-  { id: 'duma',        label: 'duma',        color: '#F97316' },
-  { id: 'ulga',        label: 'ulga',        color: '#84CC16' },
-  { id: 'nadzieja',    label: 'nadzieja',    color: '#14B8A6' },
+  { id: 'smutek',      label: 'smutek',      color: '#6E89DE' },
+  { id: 'złość',       label: 'złość',       color: '#E66A4E' },
+  { id: 'samotność',   label: 'samotność',   color: '#9FB2EC' },
+  { id: 'stres',       label: 'stres',       color: '#D98B5F' },
+]
+// Stare chipy — fallback dla wpisów sprzed pigułek
+const LEGACY_EMOTIONS = [
   { id: 'przerażenie', label: 'przerażenie', color: '#339666' },
 ]
 
@@ -64,7 +73,8 @@ function MoodFace({ mood, size = 30, active }) {
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
 
 function findEmotion(id) {
-  return ALL_EMOTIONS.find(e => e.id === id)
+  return PILL_EMOTIONS.find(e => e.id === id)
+    || ALL_EMOTIONS.find(e => e.id === id)
     || LEGACY_EMOTIONS.find(e => e.id === id)
     || { id, label: id, color: '#9A9DB5' }
 }
@@ -197,25 +207,23 @@ function MoodEntryForm({ user, date, onSaved }) {
         </div>
       </div>
 
-      {/* Koło emocji */}
+      {/* Emocje — wybierz kilka */}
       <div>
-        {kicker('Emocje · kliknij na kole', { marginBottom: 12 })}
-        <EmotionWheel selected={emotions} onToggle={toggleEmotion} />
-        {emotions.size > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-            {Array.from(emotions).map(id => {
-              const em = findEmotion(id)
-              return (
-                <button key={id} onClick={() => toggleEmotion(id)} style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 4,
-                  padding: '3px 10px', borderRadius: 99, fontSize: 12, cursor: 'pointer',
-                  background: em.color + '22', color: em.color,
-                  border: `1px solid ${em.color}44`, fontWeight: 600,
-                }}>{em.label} <IconClose size={11} /></button>
-              )
-            })}
-          </div>
-        )}
+        {kicker('Emocje · wybierz kilka', { marginBottom: 12 })}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {PILL_EMOTIONS.map(em => {
+            const on = emotions.has(em.id)
+            return (
+              <button key={em.id} onClick={() => toggleEmotion(em.id)} style={{
+                padding: '7px 14px', borderRadius: 99, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                fontWeight: on ? 700 : 500,
+                background: on ? em.color + '26' : 'var(--surface2)',
+                border: `1px solid ${on ? em.color : 'var(--border)'}`,
+                color: on ? em.color : 'var(--text-sub)', transition: 'all .15s',
+              }}>{em.label}</button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Oceny dnia 1–5 */}

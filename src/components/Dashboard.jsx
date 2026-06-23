@@ -18,7 +18,7 @@ import SavingsGoals from './budget/SavingsGoals'
 import Reminders from './budget/Reminders'
 import CategoriesView from './budget/CategoriesView'
 import ShoppingList from './budget/ShoppingList'
-import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconClock, CatIcon } from './Icons'
+import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconClock, IconEye, IconEyeOff, CatIcon } from './Icons'
 import { Donut, FlowBar, Spark } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 import { isTransfer } from '../utils/categories'
@@ -236,7 +236,19 @@ export default function Dashboard({ user, onCurrencyChange }) {
           <div className="g2-11">
 
             {/* Left: Saldo */}
-            <div className="card-hover-glow" style={{ background: 'linear-gradient(140deg,var(--surface) 40%,color-mix(in oklab,var(--expense) 5%,var(--surface)) 100%)', border: '1px solid var(--border)', borderTop: `2px solid color-mix(in oklab,${totalPLN>=0?'var(--income)':'var(--expense)'} 80%,transparent)`, borderRadius: 'var(--r)', padding: 20, overflow: 'hidden' }}>
+            <div className="card-hover-glow" style={{ position: 'relative', background: 'linear-gradient(140deg,var(--surface) 40%,color-mix(in oklab,var(--expense) 5%,var(--surface)) 100%)', border: '1px solid var(--border)', borderTop: `2px solid color-mix(in oklab,${totalPLN>=0?'var(--income)':'var(--expense)'} 80%,transparent)`, borderRadius: 'var(--r)', padding: 20, overflow: 'hidden' }}>
+              <button
+                onClick={() => setPrivateMode(m => { const n = !m; try { localStorage.setItem('mw_privateMode', n) } catch {} return n })}
+                title={privateMode ? 'Pokaż kwoty' : 'Ukryj kwoty'}
+                style={{
+                  position: 'absolute', top: 12, right: 12, display: 'inline-flex', alignItems: 'center', gap: 5,
+                  padding: '5px 10px', borderRadius: 99, cursor: 'pointer', zIndex: 2,
+                  background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text-muted)',
+                  fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
+                }}>
+                {privateMode ? <IconEye size={13} /> : <IconEyeOff size={13} />}
+                {privateMode ? 'Pokaż' : 'Ukryj'}
+              </button>
               {kicker('Saldo łączne')}
               {!privateMode ? (
                 <>

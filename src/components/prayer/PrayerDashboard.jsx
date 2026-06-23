@@ -710,6 +710,7 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
 /* ─── TodayView ──────────────────────────────────────────────────────────── */
 function TodayView({ user, intentions, people, carMode }) {
   const [viewDate, setViewDate] = useState(TODAY())
+  const [editItem, setEditItem] = useState(null)
 
   const hiddenIds          = useMemo(() => new Set(people.filter(p => p.hiddenInPrayer).map(p => p.id)), [people])
   const activeIntentions   = intentions.filter(i => (i.status === 'active' || !i.status) && !(i.personId && hiddenIds.has(i.personId)))
@@ -798,7 +799,7 @@ function TodayView({ user, intentions, people, carMode }) {
             onEditNote={editNote}
             onDeleteNote={deleteNote}
             onArchive={async (item) => updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { status: 'ended', endedAt: Timestamp.now() })}
-            onEdit={() => {}}
+            onEdit={() => setEditItem(item)}
             onDelete={async (id) => { const _ok = await confirmDialog({ title: 'Usunąć prośbę?' })
               if (_ok) await deleteDoc(doc(db, 'users', user.uid, 'prayerIntentions', id)) }}
             showPerson
@@ -806,6 +807,10 @@ function TodayView({ user, intentions, people, carMode }) {
           />
         )
       })}
+
+      {editItem && (
+        <IntentionForm user={user} editData={editItem} personId={editItem.personId} onClose={() => setEditItem(null)} />
+      )}
 
       {/* Archived intentions that were prayed on this date */}
       {archivedPrayedOnDate.length > 0 && (
