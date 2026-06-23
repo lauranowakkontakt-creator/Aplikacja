@@ -145,6 +145,10 @@ body {
 .content-inner { max-width: 1180px; margin: 0 auto; padding: clamp(20px, 3vw, 32px) clamp(18px, 4vw, 36px) 80px; }
 
 /* ===== BOTTOM NAV (mobile) ===== */
+/* Nastrój: górny rząd (wykres + średnia/emocje) — 2 kolumny na szerszych ekranach */
+.mood-top { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 760px) { .mood-top { grid-template-columns: 1.6fr 1fr; } }
+
 /* To-do: pasek szybkiego dodawania zadania */
 .todo-quickadd {
   position: sticky; bottom: 0; z-index: 20;

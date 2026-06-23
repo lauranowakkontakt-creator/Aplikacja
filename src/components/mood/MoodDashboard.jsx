@@ -1,13 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { format, subDays, startOfMonth, getDaysInMonth, addDays, subMonths, addMonths } from 'date-fns'
+import { format, startOfMonth, getDaysInMonth, addDays, subMonths, addMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart, CartesianGrid,
 } from 'recharts'
 import { IconTrash, IconChevronLeft, IconChevronRight } from '../Icons'
-import StatSummary from '../StatSummary'
 import { confirmDialog } from '../ConfirmModal'
 import { ALL_EMOTIONS } from './EmotionWheel'
 
@@ -90,14 +89,9 @@ const kicker = (t, extra) => (
 export default function MoodDashboard({ user }) {
   const [logs, setLogs]       = useState([])
   const [loading, setLoading] = useState(true)
-  const [view, setView]       = useState('today')
-  const [calMonth, setCalMonth] = useState(new Date())
 
   useEffect(() => {
-    const q = query(
-      collection(db, 'users', user.uid, 'moodLogs'),
-      orderBy('createdAt', 'desc')
-    )
+    const q = query(collection(db, 'users', user.uid, 'moodLogs'), orderBy('createdAt', 'desc'))
     return onSnapshot(q, snap => {
       setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
@@ -120,17 +114,7 @@ export default function MoodDashboard({ user }) {
           <div className="mod-header-title">{format(new Date(), 'EEEE, d MMMM', { locale: pl })}</div>
         </div>
       </div>
-
-      {/* Tabs */}
-      <div className="view-tabs" style={{ marginBottom: 0 }}>
-        {[['today','Dziś'],['calendar','Kalendarz'],['trends','Statystyki']].map(([id, lbl]) => (
-          <button key={id} className={`tab-btn${view === id ? ' active' : ''}`} onClick={() => setView(id)}>{lbl}</button>
-        ))}
-      </div>
-
-      {view === 'today'    && <EntryView    user={user} logs={logs} onDelete={handleDelete} />}
-      {view === 'calendar' && <CalendarView user={user} logs={logs} calMonth={calMonth} setCalMonth={setCalMonth} today={TODAY()} onDelete={handleDelete} />}
-      {view === 'trends'   && <TrendsView   logs={logs} />}
+      <MoodPage user={user} logs={logs} onDelete={handleDelete} />
     </div>
   )
 }
@@ -281,75 +265,166 @@ function MoodEntryForm({ user, date, onSaved }) {
 }
 
 /* ============================================================
-   WIDOK „DZIŚ" — z wyborem daty (także wstecz)
+   JEDEN WIDOK — wykres + średnia + emocje + wpis + kalendarz
    ============================================================ */
-function EntryView({ user, logs, onDelete }) {
+function MoodPage({ user, logs, onDelete }) {
+  const [month, setMonth]     = useState(new Date())
   const [selDate, setSelDate] = useState(TODAY())
+  const today = TODAY()
 
-  // Pasek ostatnich 7 dni
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = subDays(new Date(), 6 - i)
-    return {
-      date: format(d, 'yyyy-MM-dd'),
-      lbl: format(d, 'EEE', { locale: pl }),
-      num: format(d, 'd'),
-    }
+  const monthStr = format(month, 'yyyy-MM')
+  const monthLbl = (() => { const l = format(month, 'LLLL', { locale: pl }); return l.charAt(0).toUpperCase() + l.slice(1) })()
+  const mStart = startOfMonth(month)
+  const daysCount = getDaysInMonth(month)
+  const monthLogs = useMemo(() => logs.filter(l => l.date.startsWith(monthStr)), [logs, monthStr])
+
+  // Średnia + zmiana m/m
+  const valid = monthLogs.filter(l => l.moodValue)
+  const monthAvg = valid.length ? valid.reduce((s, l) => s + l.moodValue, 0) / valid.length : 0
+  const prevStr = format(subMonths(month, 1), 'yyyy-MM')
+  const prevValid = logs.filter(l => l.date.startsWith(prevStr) && l.moodValue)
+  const prevAvg = prevValid.length ? prevValid.reduce((s, l) => s + l.moodValue, 0) / prevValid.length : 0
+  const diff = prevAvg > 0 && monthAvg > 0 ? monthAvg - prevAvg : null
+  const fmtAvg = v => v.toFixed(1).replace('.', ',')
+
+  // Wykres dzienny
+  const chartData = useMemo(() => Array.from({ length: daysCount }, (_, i) => {
+    const d = format(addDays(mStart, i), 'yyyy-MM-dd')
+    const dl = logs.filter(l => l.date === d)
+    const a = dl.length ? dl.reduce((s, l) => s + (l.moodValue || 0), 0) / dl.length : null
+    return { day: String(i + 1), value: a }
+  }).filter(d => d.value !== null), [logs, monthStr]) // eslint-disable-line
+
+  // Najczęstsze emocje
+  const topEms = useMemo(() => {
+    const c = {}
+    monthLogs.forEach(l => (l.emotions || []).forEach(id => { c[id] = (c[id] || 0) + 1 }))
+    return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, n]) => ({ ...findEmotion(id), count: n }))
+  }, [monthLogs])
+  const maxEm = topEms[0]?.count || 1
+
+  // Kalendarz
+  const firstDow = (mStart.getDay() + 6) % 7
+  const calDays = Array.from({ length: daysCount }, (_, i) => {
+    const d = format(addDays(mStart, i), 'yyyy-MM-dd')
+    const dl = logs.filter(l => l.date === d)
+    const avgV = dl.length ? dl.reduce((s, l) => s + (l.moodValue || 0), 0) / dl.length : null
+    const mObj = avgV ? MOODS.reduce((p, c) => Math.abs(c.value - avgV) < Math.abs(p.value - avgV) ? c : p) : null
+    return { date: d, dayNum: format(addDays(mStart, i), 'd'), count: dl.length, color: mObj?.color }
   })
 
-  const dayLogs = useMemo(() =>
-    logs.filter(l => l.date === selDate)
-        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
-  , [logs, selDate])
-
-  const isToday = selDate === TODAY()
+  const dayLogs = logs.filter(l => l.date === selDate).sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+  const canAdd = selDate <= today
   const selLabel = format(new Date(selDate + 'T12:00:00'), 'd MMMM yyyy', { locale: pl })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-      {/* Wybór dnia */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '12px 12px 10px' }}>
-        <div className="day-strip">
-          {days.map(d => {
-            const hasEntry = logs.some(l => l.date === d.date)
-            return (
-              <button key={d.date}
-                className={`day-strip-item${selDate === d.date ? ' active' : ''}`}
-                onClick={() => setSelDate(d.date)}>
-                <span className="day-strip-lbl">{d.lbl}</span>
-                <span className="day-strip-num">{d.num}</span>
-                <span style={{
-                  width: 4, height: 4, borderRadius: 99,
-                  background: hasEntry ? (selDate === d.date ? 'var(--bg)' : 'var(--accent)') : 'transparent',
-                }} />
-              </button>
-            )
-          })}
+      {/* GÓRA: wykres + średnia/emocje */}
+      <div className="mood-top">
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            {kicker('Nastrój w czasie')}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button className="month-btn" style={{ width: 26, height: 26 }} onClick={() => setMonth(m => subMonths(m, 1))}><IconChevronLeft size={12} /></button>
+              <span style={{ padding: '4px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: 'var(--surface2)', border: '1px solid var(--border-strong)' }}>{monthLbl}</span>
+              <button className="month-btn" style={{ width: 26, height: 26 }} onClick={() => setMonth(m => addMonths(m, 1))}><IconChevronRight size={12} /></button>
+            </div>
+          </div>
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={150}>
+              <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -30, bottom: 0 }}>
+                <defs><linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                </linearGradient></defs>
+                <CartesianGrid stroke="rgba(255,255,255,.055)" vertical={false} />
+                <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                <YAxis domain={[0.5, 5.5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 9, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }}
+                  formatter={v => [MOODS.find(m => Math.abs(m.value - v) < 0.5)?.label || v.toFixed(1), 'nastrój']} labelFormatter={d => `${d} ${monthLbl.toLowerCase()}`} />
+                <Area type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2.5} fill="url(#moodGrad)"
+                  dot={{ r: 3, fill: 'var(--bg)', stroke: 'var(--accent)', strokeWidth: 2 }} activeDot={{ r: 5, fill: 'var(--accent)' }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '30px 0' }}>Brak wpisów w tym miesiącu</div>
+          )}
         </div>
-        {/* Dowolna data wstecz */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>Inna data:</span>
-          <input type="date" className="form-input" value={selDate} max={TODAY()}
-            onChange={e => e.target.value && setSelDate(e.target.value)}
-            style={{ padding: '6px 10px', fontSize: 13, width: 'auto', flex: 1, maxWidth: 180 }} />
-          {!isToday && (
-            <button onClick={() => setSelDate(TODAY())} style={{
-              fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)',
-              border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', flexShrink: 0,
-            }}>Dziś</button>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
+            {kicker(`Średnia · ${monthLbl}`, { marginBottom: 8 })}
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <span style={{ fontSize: 40, fontWeight: 400, lineHeight: 1, fontFamily: 'Georgia, serif' }}>{monthAvg > 0 ? fmtAvg(monthAvg) : '—'}</span>
+              {monthAvg > 0 && <span style={{ fontSize: 16, color: 'var(--text-muted)' }}>/ 5</span>}
+            </div>
+            {diff !== null && Math.abs(diff) > 0.01 && (
+              <div style={{ marginTop: 6, fontSize: 12, fontWeight: 600, color: diff > 0 ? '#5FBF98' : '#E05A2B' }}>
+                {diff > 0 ? '↑' : '↓'} {fmtAvg(Math.abs(diff))} vs poprzedni
+              </div>
+            )}
+          </div>
+          {topEms.length > 0 && (
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16, flex: 1 }}>
+              {kicker('Najczęstsze emocje', { marginBottom: 12 })}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {topEms.map(em => (
+                  <div key={em.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-sub)', width: 90, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{em.label}</span>
+                    <div style={{ flex: 1, height: 8, borderRadius: 99, background: 'var(--surface3)', overflow: 'hidden' }}>
+                      <AnimBar pct={(em.count / maxEm) * 100} color={em.color} />
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 20, textAlign: 'right' }}>{em.count}×</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
 
-      <MoodEntryForm user={user} date={selDate} />
+      {/* ŚRODEK: wpis nastroju (dla wybranego dnia) */}
+      {canAdd && <MoodEntryForm key={selDate} user={user} date={selDate} />}
 
       {/* Wpisy wybranego dnia */}
       {dayLogs.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {kicker(isToday ? 'Wpisy dziś' : `Wpisy · ${selLabel}`)}
+          {kicker(selDate === today ? 'Wpisy dziś' : `Wpisy · ${selLabel}`)}
           {dayLogs.map(log => <LogEntry key={log.id} log={log} onDelete={() => onDelete(log.id)} />)}
         </div>
       )}
+
+      {/* DÓŁ: kalendarz miesiąca (klik = wybór dnia powyżej) */}
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <button className="month-btn" onClick={() => setMonth(m => subMonths(m, 1))}><IconChevronLeft size={14} /></button>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Miesiąc · {monthLbl}</span>
+          <button className="month-btn" onClick={() => setMonth(m => addMonths(m, 1))}><IconChevronRight size={14} /></button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 6 }}>
+          {['P', 'W', 'Ś', 'C', 'P', 'S', 'N'].map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: 9, fontWeight: 600, color: 'var(--text-muted)' }}>{d}</div>)}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+          {Array.from({ length: firstDow }, (_, i) => <div key={'e' + i} />)}
+          {calDays.map(({ date, dayNum, count, color }) => {
+            const isSel = date === selDate
+            const isToday = date === today
+            return (
+              <button key={date} onClick={() => setSelDate(date)} style={{
+                aspectRatio: '1', borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between',
+                padding: '6px 4px 4px', background: color ? color + '28' : 'var(--surface2)',
+                border: `1.5px solid ${isSel ? (color || 'var(--accent)') : isToday ? 'var(--accent)' : 'transparent'}`,
+                cursor: 'pointer', transition: 'all .15s',
+              }}>
+                <span style={{ fontSize: 12, fontWeight: isToday ? 700 : 500, color: isToday ? 'var(--accent)' : 'var(--text)', lineHeight: 1 }}>{dayNum}</span>
+                <div style={{ width: '60%', height: 3, borderRadius: 2, background: count > 0 ? (color || 'var(--accent)') : 'transparent' }} />
+              </button>
+            )
+          })}
+        </div>
+        {!canAdd && <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>Wybrany dzień jest w przyszłości — nie można dodać wpisu.</p>}
+      </div>
     </div>
   )
 }
@@ -400,292 +475,6 @@ function LogEntry({ log, onDelete }) {
   )
 }
 
-/* ============================================================
-   KALENDARZ — podgląd, dodawanie i usuwanie wpisów wstecz
-   ============================================================ */
-function CalendarView({ user, logs, calMonth, setCalMonth, today, onDelete }) {
-  const [selected, setSelected] = useState(null)
-  const [showForm, setShowForm] = useState(false)
-
-  const start     = startOfMonth(calMonth)
-  const firstDow  = (start.getDay() + 6) % 7
-  const daysCount = getDaysInMonth(calMonth)
-
-  const monthDays = Array.from({ length: daysCount }, (_, i) => {
-    const d       = format(addDays(start, i), 'yyyy-MM-dd')
-    const dayLogs = logs.filter(l => l.date === d)
-    const avgVal  = dayLogs.length > 0
-      ? dayLogs.reduce((s, l) => s + (l.moodValue || 0), 0) / dayLogs.length
-      : null
-    const moodObj = avgVal
-      ? MOODS.reduce((p, c) => Math.abs(c.value - avgVal) < Math.abs(p.value - avgVal) ? c : p)
-      : null
-    return { date: d, dayNum: format(addDays(start, i), 'd'), count: dayLogs.length, moodColor: moodObj?.color }
-  })
-
-  const selectedLogs = selected
-    ? logs.filter(l => l.date === selected).sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
-    : []
-
-  const monthLabel = format(calMonth, 'LLLL', { locale: pl }).toUpperCase()
-  const canAdd = selected && selected <= today
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-      {/* Karta kalendarza */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '16px 14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <button className="month-btn" onClick={() => setCalMonth(m => subMonths(m, 1))}><IconChevronLeft size={14} /></button>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-            Miesiąc · {monthLabel}
-          </span>
-          <button className="month-btn" onClick={() => setCalMonth(m => addMonths(m, 1))}><IconChevronRight size={14} /></button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 6 }}>
-          {['P','W','Ś','C','P','S','N'].map((d, i) => (
-            <div key={i} style={{ textAlign: 'center', fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '.06em', paddingBottom: 2 }}>{d}</div>
-          ))}
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
-          {Array.from({ length: firstDow }, (_, i) => <div key={'e'+i} />)}
-          {monthDays.map(({ date, dayNum, count, moodColor }) => {
-            const isSel   = date === selected
-            const isToday = date === today
-            const bg      = moodColor ? moodColor + '28' : 'var(--surface2)'
-            return (
-              <button key={date} onClick={() => { setSelected(date === selected ? null : date); setShowForm(false) }} style={{
-                aspectRatio: '1', borderRadius: 10, display: 'flex', flexDirection: 'column',
-                alignItems: 'center', justifyContent: 'space-between',
-                padding: '6px 4px 4px',
-                background: bg,
-                border: `1.5px solid ${isToday ? 'var(--accent)' : isSel ? (moodColor || 'var(--border-strong)') : 'transparent'}`,
-                cursor: 'pointer', transition: 'all .15s',
-              }}>
-                <span style={{
-                  fontSize: 12, fontWeight: isToday ? 700 : 500,
-                  color: isToday ? 'var(--accent)' : 'var(--text)',
-                  lineHeight: 1,
-                }}>{dayNum}</span>
-                <div style={{
-                  width: '60%', height: 3, borderRadius: 2,
-                  background: count > 0 ? (moodColor || 'var(--accent)') : 'transparent',
-                }} />
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Szczegóły wybranego dnia */}
-      {selected && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {kicker(format(new Date(selected + 'T12:00:00'), 'd MMMM yyyy', { locale: pl }) + (selectedLogs.length === 0 ? ' · brak wpisów' : ''))}
-            {canAdd && !showForm && (
-              <button onClick={() => setShowForm(true)} style={{
-                fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'var(--accent-soft)',
-                border: 'none', borderRadius: 8, padding: '6px 12px', cursor: 'pointer',
-              }}>+ Dodaj wpis</button>
-            )}
-          </div>
-          {selectedLogs.map(log => <LogEntry key={log.id} log={log} onDelete={() => onDelete(log.id)} />)}
-          {showForm && canAdd && (
-            <MoodEntryForm user={user} date={selected} onSaved={() => setShowForm(false)} />
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ============================================================
-   STATYSTYKI
-   ============================================================ */
-function TrendsView({ logs }) {
-  const [viewMonth, setViewMonth] = useState(new Date())
-
-  const monthStr    = format(viewMonth, 'yyyy-MM')
-  const prevStr     = format(subMonths(viewMonth, 1), 'yyyy-MM')
-  const monthLabel  = format(viewMonth, 'LLLL', { locale: pl })
-  const monthCapital = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
-
-  const monthLogs = logs.filter(l => l.date.startsWith(monthStr))
-  const prevLogs  = logs.filter(l => l.date.startsWith(prevStr))
-
-  const avg = (arr) => {
-    const valid = arr.filter(l => l.moodValue)
-    return valid.length ? valid.reduce((s, l) => s + l.moodValue, 0) / valid.length : 0
-  }
-  const monthAvg = avg(monthLogs)
-  const prevAvg  = avg(prevLogs)
-  const diff     = prevAvg > 0 && monthAvg > 0 ? monthAvg - prevAvg : null
-
-  // Dane wykresu — jeden punkt na dzień
-  const daysCount = getDaysInMonth(viewMonth)
-  const start     = startOfMonth(viewMonth)
-  const chartData = Array.from({ length: daysCount }, (_, i) => {
-    const d       = format(addDays(start, i), 'yyyy-MM-dd')
-    const dayLogs = logs.filter(l => l.date === d)
-    const dayAvg  = dayLogs.length > 0
-      ? dayLogs.reduce((s, l) => s + (l.moodValue || 0), 0) / dayLogs.length
-      : null
-    return { day: String(i + 1), value: dayAvg }
-  }).filter(d => d.value !== null)
-
-  // Najczęstsze emocje
-  const emCount = {}
-  monthLogs.forEach(l => (l.emotions || []).forEach(id => { emCount[id] = (emCount[id] || 0) + 1 }))
-  const topEms  = Object.entries(emCount).sort((a, b) => b[1] - a[1]).slice(0, 7).map(([id, count]) => ({ ...findEmotion(id), count }))
-  const maxEm   = topEms[0]?.count || 1
-
-  // Średnie ocen dnia per kategoria
-  const ratingAvgs = RATING_CATS.map(c => {
-    const vals = monthLogs.map(l => l.ratings?.[c.id]).filter(v => v > 0)
-    return { ...c, avg: vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null, n: vals.length }
-  }).filter(c => c.avg !== null)
-
-  const fmtAvg = (v) => v.toFixed(1).replace('.', ',')
-
-  // „W liczbach" — miesiąc / rok
-  const summary = (() => {
-    const build = (pref) => {
-      const ls = logs.filter(l => l.date.startsWith(pref))
-      const valid = ls.filter(l => l.moodValue)
-      const a = valid.length ? valid.reduce((s, l) => s + l.moodValue, 0) / valid.length : 0
-      const emc = {}
-      ls.forEach(l => (l.emotions || []).forEach(id => { emc[id] = (emc[id] || 0) + 1 }))
-      const topEm = Object.entries(emc).sort((x, y) => y[1] - x[1])[0]
-      return [
-        { label: 'Wpisy', value: ls.length },
-        { label: 'Śr. nastrój', value: a ? fmtAvg(a) : '–', sub: a ? '/ 5' : null, color: a ? 'var(--accent)' : undefined },
-        { label: 'Dni z wpisem', value: new Set(ls.map(l => l.date)).size },
-        { label: 'Top emocja', value: topEm ? (findEmotion(topEm[0])?.label || '–') : '–', sub: topEm ? `×${topEm[1]}` : null },
-      ]
-    }
-    return { month: build(format(new Date(), 'yyyy-MM')), year: build(format(new Date(), 'yyyy')) }
-  })()
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-      <StatSummary title="Nastrój w liczbach" month={summary.month} year={summary.year} />
-
-      {/* Wykres — nastrój w czasie */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          {kicker('Nastrój w czasie')}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <button className="month-btn" style={{ width: 28, height: 28 }} onClick={() => setViewMonth(m => subMonths(m, 1))}><IconChevronLeft size={12} /></button>
-            <span style={{
-              padding: '5px 14px', borderRadius: 99, fontSize: 12, fontWeight: 600,
-              background: 'var(--surface2)', border: '1px solid var(--border-strong)', color: 'var(--text)',
-            }}>{monthCapital}</span>
-            <button className="month-btn" style={{ width: 28, height: 28 }} onClick={() => setViewMonth(m => addMonths(m, 1))}><IconChevronRight size={12} /></button>
-          </div>
-        </div>
-
-        {chartData.length > 0 ? (
-          <>
-            <ResponsiveContainer width="100%" height={170}>
-              <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="rgba(255,255,255,.055)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0.5, 5.5]} ticks={[1,2,3,4,5]} tick={{ fontSize: 9, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }}
-                  formatter={v => [MOODS.find(m => Math.abs(m.value - v) < 0.5)?.label || v.toFixed(1), 'nastrój']}
-                  labelFormatter={d => `${d} ${monthLabel}`}
-                />
-                <Area type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2.5}
-                  fill="url(#moodGrad)"
-                  dot={{ r: 3.5, fill: 'var(--bg)', stroke: 'var(--accent)', strokeWidth: 2 }}
-                  activeDot={{ r: 5, fill: 'var(--accent)' }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 10, flexWrap: 'wrap' }}>
-              {MOODS.map(m => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'var(--text-muted)' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: 2, background: m.color }} />
-                  {m.label}
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '32px 0' }}>
-            Brak wpisów w tym miesiącu
-          </div>
-        )}
-      </div>
-
-      {/* Średnia */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20 }}>
-        {kicker(`Średnia · ${monthCapital}`, { marginBottom: 10 })}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ fontSize: 52, fontWeight: 400, letterSpacing: '-0.02em', lineHeight: 1, fontFamily: "Georgia, 'Times New Roman', serif" }}>
-            {monthAvg > 0 ? fmtAvg(monthAvg) : '—'}
-          </span>
-          {monthAvg > 0 && <span style={{ fontSize: 20, color: 'var(--text-muted)', fontWeight: 400 }}>/ 5</span>}
-        </div>
-        {diff !== null && Math.abs(diff) > 0.01 && (
-          <div style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: diff > 0 ? '#5FBF98' : '#E05A2B', display: 'flex', alignItems: 'center', gap: 4 }}>
-            {diff > 0 ? '↑' : '↓'} {fmtAvg(Math.abs(diff))} vs. {format(subMonths(viewMonth, 1), 'LLLL', { locale: pl })}
-          </div>
-        )}
-      </div>
-
-      {/* Oceny dnia — średnie */}
-      {ratingAvgs.length > 0 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-          {kicker('Oceny dnia · średnie', { marginBottom: 14 })}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {ratingAvgs.map(c => (
-              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-sub)', width: 70, flexShrink: 0 }}>{c.label}</span>
-                <div style={{ flex: 1, height: 10, borderRadius: 99, background: 'var(--surface3)', overflow: 'hidden' }}>
-                  <AnimBar pct={(c.avg / 5) * 100} color={c.color} />
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 700, color: c.color, width: 34, textAlign: 'right', flexShrink: 0 }}>{fmtAvg(c.avg)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Najczęstsze emocje */}
-      {topEms.length > 0 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-          {kicker('Najczęstsze emocje', { marginBottom: 14 })}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-            {topEms.map(em => (
-              <div key={em.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 12, color: 'var(--text-sub)', width: 100, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{em.label}</span>
-                <div style={{ flex: 1, height: 10, borderRadius: 99, background: 'var(--surface3)', overflow: 'hidden' }}>
-                  <AnimBar pct={(em.count / maxEm) * 100} color={em.color} />
-                </div>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 22, textAlign: 'right', flexShrink: 0 }}>{em.count}×</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {monthLogs.length === 0 && prevLogs.length === 0 && chartData.length === 0 && (
-        <div className="list-empty"><p>Brak wpisów</p><p className="list-empty-hint">Zacznij od zakładki Dziś</p></div>
-      )}
-    </div>
-  )
-}
 
 function AnimBar({ pct, color }) {
   const [w, setW] = useState(0)
