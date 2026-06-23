@@ -736,12 +736,13 @@ export const CATEGORY_ICON_MAP = {
   travel: IcPlane,
 }
 
-// Renders SVG icon for a category — checks ID map, then icon-key map, then emoji fallback
+// Renderuje ikonę SVG kategorii — najpierw mapa po ID, potem po kluczu ikony.
+// W aplikacji NIE używamy emotek: jeśli zapisana wartość nie jest znanym kluczem
+// ikony (np. to emotka ze starszych danych), pokazujemy neutralną ikonę SVG —
+// nigdy surowej emotki/tekstu.
 export function CatIcon({ categoryId, emoji, size = 18, style }) {
   const Comp = CATEGORY_ICON_MAP[categoryId] || ICON_KEY_MAP[emoji]
   if (Comp) return <Comp size={size} style={style} />
-  // Nierozpoznany klucz ikony (konwencja: zaczyna się od „Ic") — pokaż ikonę zastępczą zamiast surowego tekstu
-  if (emoji && /^Ic/.test(emoji)) return <IconUsers size={size} style={style} />
-  if (emoji) return <span style={{ fontSize: size, lineHeight: 1, ...style }}>{emoji}</span>
+  if (emoji) return <IconTag size={size} style={style} />
   return <span style={{ fontSize: size, lineHeight: 1, opacity: 0.4, ...style }}>·</span>
 }
