@@ -5,11 +5,12 @@ import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
   CatIcon, IconMoon, IconEdit, IconTrash, IconClose, IconChevronLeft, IconChevronRight,
-  IconUsers, IconCheck, IconCalendar,
+  IconUsers, IconCheck, IconCalendar, IconTag, IconPlus,
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import {
-  DREAM_EMOTIONS, DREAM_CATEGORIES, getEmotion, getCategory, parseMentions, dreamPeopleIds,
+  DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS, getEmotion, getCategory,
+  parseMentions, parseSymbols, dreamPeopleIds, scrubSymbolFromDreams,
 } from '../../utils/dreams'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
@@ -43,21 +44,33 @@ const Chip = ({ color, children, onClick, active }) => (
   }}>{children}</span>
 )
 
-/* Treść snu z podświetlonymi @wzmiankami */
-function DreamText({ text, peopleById }) {
+// Pigułka symbolu — z prefiksem #
+const SymbolChip = ({ symbol, onClick }) => (
+  <Chip color={symbol.color || '#5BB6D9'} onClick={onClick}>
+    <span style={{ opacity: 0.65 }}>#</span>{symbol.name}
+  </Chip>
+)
+
+/* Treść snu z podświetlonymi @osobami i #symbolami */
+function DreamText({ text, peopleById, symbolsById }) {
   if (!text) return null
-  const names = Object.values(peopleById).map(p => p.name).filter(Boolean)
-    .sort((a, b) => b.length - a.length).map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  const parts = names.length
-    ? text.split(new RegExp(`(@(?:${names.join('|')}))`, 'gu'))
-    : [text]
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pNames = Object.values(peopleById).map(p => p.name).filter(Boolean).sort((a, b) => b.length - a.length).map(esc)
+  const sNames = Object.values(symbolsById).map(s => s.name).filter(Boolean).sort((a, b) => b.length - a.length).map(esc)
+  const alts = []
+  if (pNames.length) alts.push(`@(?:${pNames.join('|')})`)
+  if (sNames.length) alts.push(`#(?:${sNames.join('|')})`)
+  const parts = alts.length ? text.split(new RegExp(`(${alts.join('|')})`, 'gu')) : [text]
   return (
     <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
       {parts.map((seg, i) => {
         if (seg?.startsWith('@')) {
-          const name = seg.slice(1)
-          const person = Object.values(peopleById).find(p => p.name === name)
+          const person = Object.values(peopleById).find(p => p.name === seg.slice(1))
           return <span key={i} style={{ color: person?.color || 'var(--accent)', fontWeight: 600 }}>{seg}</span>
+        }
+        if (seg?.startsWith('#')) {
+          const sym = Object.values(symbolsById).find(s => s.name === seg.slice(1))
+          if (sym) return <span key={i} style={{ color: sym.color || '#5BB6D9', fontWeight: 600 }}>{seg}</span>
         }
         return <span key={i}>{seg}</span>
       })}
@@ -68,8 +81,11 @@ function DreamText({ text, peopleById }) {
 export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
   const [dreams, setDreams]   = useState([])
   const [people, setPeople]   = useState([])
+  const [symbols, setSymbols] = useState([])
   const [loading, setLoading] = useState(true)
+  const [tab, setTab]         = useState('dreams') // 'dreams' | 'symbols'
   const [selectedId, setSelectedId] = useState(null)
+  const [selectedSymbolId, setSelectedSymbolId] = useState(null)
   const [showForm, setShowForm]     = useState(false)
   const [editDream, setEditDream]   = useState(null)
 
@@ -81,13 +97,26 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
     const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'dreamSymbols'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setSymbols(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
 
   // Wejście z innego modułu (np. z karty osoby w „Osoby")
   useEffect(() => {
-    if (focusId) { setSelectedId(focusId); onFocusConsumed?.() }
+    if (focusId) { setSelectedId(focusId); setTab('dreams'); onFocusConsumed?.() }
   }, [focusId])
 
-  const peopleById = useMemo(() => Object.fromEntries(people.map(p => [p.id, p])), [people])
+  const peopleById  = useMemo(() => Object.fromEntries(people.map(p => [p.id, p])), [people])
+  const symbolsById = useMemo(() => Object.fromEntries(symbols.map(s => [s.id, s])), [symbols])
+
+  // Liczba snów per symbol
+  const symbolCounts = useMemo(() => {
+    const m = {}
+    symbols.forEach(s => { m[s.id] = 0 })
+    dreams.forEach(d => (d.symbolIds || []).forEach(sid => { if (m[sid] != null) m[sid]++ }))
+    return m
+  }, [symbols, dreams])
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -100,12 +129,22 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
     if (selectedId === id) setSelectedId(null)
   }
 
+  const createSymbol = async (name) => {
+    const color = SYMBOL_COLORS[Math.floor(Math.random() * SYMBOL_COLORS.length)]
+    const ref = await addDoc(collection(db, 'users', user.uid, 'dreamSymbols'), {
+      name: name.trim(), color, createdAt: Timestamp.now(),
+    })
+    return { id: ref.id, name: name.trim(), color }
+  }
+
+  const openSymbol = (id) => { setSelectedId(null); setTab('symbols'); setSelectedSymbolId(id) }
+
   return (
     <div className="dream-dashboard">
       <div className="mod-header">
         <div>
           <div className="mod-header-kicker">Sen</div>
-          <div className="mod-header-title">{selected ? (selected.title || 'Sen') : 'Dziennik snów'}</div>
+          <div className="mod-header-title">{selected ? (selected.title || 'Sen') : tab === 'symbols' ? 'Symbole' : 'Dziennik snów'}</div>
         </div>
         <div className="mod-header-right">
           <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
@@ -119,72 +158,65 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
         <DreamDetail
           dream={selected}
           peopleById={peopleById}
+          symbolsById={symbolsById}
           onBack={() => setSelectedId(null)}
+          onOpenSymbol={openSymbol}
           onEdit={() => { setEditDream(selected); setShowForm(true) }}
           onDelete={() => deleteDream(selected.id)}
         />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button className="btn-add-habit" onClick={() => { setEditDream(null); setShowForm(true) }}>
-            + Zapisz sen
-          </button>
+        <>
+          {/* Zakładki */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
+            {[['dreams', 'Sny'], ['symbols', 'Symbole']].map(([id, label]) => (
+              <button key={id} onClick={() => { setTab(id); setSelectedSymbolId(null) }} style={{
+                flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 12, fontWeight: tab === id ? 700 : 400,
+                background: tab === id ? 'var(--surface3)' : 'transparent',
+                color: tab === id ? 'var(--text)' : 'var(--text-muted)',
+                border: tab === id ? '1px solid var(--border-strong)' : '1px solid transparent',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>{label}</button>
+            ))}
+          </div>
 
-          {dreams.length === 0 ? (
-            <div className="list-empty">
-              <p>Brak zapisanych snów</p>
-              <p className="list-empty-hint">Zapisz, co Ci się śniło — emocje, kategorię i osoby, które się pojawiły</p>
-            </div>
-          ) : dreams.map(d => {
-            const cat = getCategory(d.category)
-            const linked = dreamPeopleIds(d).map(id => peopleById[id]).filter(Boolean)
-            return (
-              <div key={d.id} onClick={() => setSelectedId(d.id)} style={{
-                background: 'var(--surface)', border: '1px solid var(--border)',
-                borderLeft: `3px solid ${cat?.color || 'var(--accent)'}`,
-                borderRadius: 12, padding: '12px 14px', cursor: 'pointer',
-                display: 'flex', flexDirection: 'column', gap: 8,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{d.title || 'Sen bez tytułu'}</p>
-                    <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <IconCalendar size={11} /> {fmtDate(d.date)}
-                    </p>
-                  </div>
-                  {cat && <Chip color={cat.color}>{cat.label}</Chip>}
-                  <IconChevronRight size={16} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 4 }} />
+          {tab === 'dreams' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button className="btn-add-habit" onClick={() => { setEditDream(null); setShowForm(true) }}>
+                + Zapisz sen
+              </button>
+
+              {dreams.length === 0 ? (
+                <div className="list-empty">
+                  <p>Brak zapisanych snów</p>
+                  <p className="list-empty-hint">Zapisz, co Ci się śniło — emocje, kategorię, osoby (@) i symbole (#)</p>
                 </div>
-                {d.text && (
-                  <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                    {d.text}
-                  </p>
-                )}
-                {(d.emotions?.length > 0 || linked.length > 0) && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    {d.emotions?.slice(0, 4).map(eid => {
-                      const e = getEmotion(eid); if (!e) return null
-                      return <Chip key={eid} color={e.color}>{e.label}</Chip>
-                    })}
-                    {d.emotions?.length > 4 && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>+{d.emotions.length - 4}</span>}
-                    {linked.length > 0 && (
-                      <div style={{ display: 'flex', marginLeft: 'auto' }}>
-                        {linked.slice(0, 5).map((p, i) => (
-                          <div key={p.id} style={{ marginLeft: i ? -8 : 0 }}><Bubble person={p} size={24} /></div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+              ) : dreams.map(d => (
+                <DreamCard key={d.id} dream={d} peopleById={peopleById} symbolsById={symbolsById} onClick={() => setSelectedId(d.id)} />
+              ))}
+            </div>
+          ) : (
+            <SymbolsView
+              user={user}
+              symbols={symbols}
+              dreams={dreams}
+              counts={symbolCounts}
+              peopleById={peopleById}
+              symbolsById={symbolsById}
+              selectedSymbolId={selectedSymbolId}
+              onSelectSymbol={setSelectedSymbolId}
+              onOpenDream={(id) => setSelectedId(id)}
+              onCreateSymbol={createSymbol}
+            />
+          )}
+        </>
       )}
 
       {showForm && (
         <DreamForm
           user={user}
           people={people}
+          symbols={symbols}
+          onCreateSymbol={createSymbol}
           editData={editDream}
           onClose={() => { setShowForm(false); setEditDream(null) }}
         />
@@ -193,12 +225,163 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
   )
 }
 
+/* ─── Kafelek snu na liście ──────────────────────────────────────────────── */
+function DreamCard({ dream: d, peopleById, symbolsById, onClick }) {
+  const cat = getCategory(d.category)
+  const linked = dreamPeopleIds(d).map(id => peopleById[id]).filter(Boolean)
+  const syms = (d.symbolIds || []).map(id => symbolsById[id]).filter(Boolean)
+  return (
+    <div onClick={onClick} style={{
+      background: 'var(--surface)', border: '1px solid var(--border)',
+      borderLeft: `3px solid ${cat?.color || 'var(--accent)'}`,
+      borderRadius: 12, padding: '12px 14px', cursor: 'pointer',
+      display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{d.title || 'Sen bez tytułu'}</p>
+          <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <IconCalendar size={11} /> {fmtDate(d.date)}
+          </p>
+        </div>
+        {cat && <Chip color={cat.color}>{cat.label}</Chip>}
+        <IconChevronRight size={16} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 4 }} />
+      </div>
+      {d.text && (
+        <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+          {d.text}
+        </p>
+      )}
+      {(d.emotions?.length > 0 || syms.length > 0 || linked.length > 0) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {d.emotions?.slice(0, 3).map(eid => {
+            const e = getEmotion(eid); if (!e) return null
+            return <Chip key={eid} color={e.color}>{e.label}</Chip>
+          })}
+          {syms.slice(0, 3).map(s => <SymbolChip key={s.id} symbol={s} />)}
+          {linked.length > 0 && (
+            <div style={{ display: 'flex', marginLeft: 'auto' }}>
+              {linked.slice(0, 5).map((p, i) => (
+                <div key={p.id} style={{ marginLeft: i ? -8 : 0 }}><Bubble person={p} size={24} /></div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── Widok Symbole (katalog + sny danego symbolu) ───────────────────────── */
+function SymbolsView({ user, symbols, dreams, counts, peopleById, symbolsById, selectedSymbolId, onSelectSymbol, onOpenDream, onCreateSymbol }) {
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
+
+  const selected = symbols.find(s => s.id === selectedSymbolId)
+
+  const sorted = useMemo(
+    () => [...symbols].sort((a, b) => (counts[b.id] || 0) - (counts[a.id] || 0) || a.name.localeCompare(b.name)),
+    [symbols, counts]
+  )
+
+  const add = async () => {
+    const n = name.trim()
+    if (!n) return
+    if (!symbols.some(s => s.name.toLowerCase() === n.toLowerCase())) await onCreateSymbol(n)
+    setName(''); setAdding(false)
+  }
+
+  const remove = async (s) => {
+    const ok = await confirmDialog({
+      title: `Usunąć symbol „${s.name}"?`,
+      message: 'Zniknie ze spisu i zostanie odpięty od snów (same sny zostają).',
+    })
+    if (!ok) return
+    await scrubSymbolFromDreams(user.uid, s.id)
+    await deleteDoc(doc(db, 'users', user.uid, 'dreamSymbols', s.id))
+    if (selectedSymbolId === s.id) onSelectSymbol(null)
+  }
+
+  // Widok pojedynczego symbolu — jego sny
+  if (selected) {
+    const its = dreams.filter(d => (d.symbolIds || []).includes(selected.id))
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button className="t-btn" onClick={() => onSelectSymbol(null)} style={{ padding: '4px 8px' }}><IconChevronLeft size={18} /></button>
+          <SymbolChip symbol={selected} />
+          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>w {its.length} {its.length === 1 ? 'śnie' : 'snach'}</span>
+          <button className="t-btn delete" title="Usuń symbol" onClick={() => remove(selected)} style={{ marginLeft: 'auto' }}><IconTrash size={14} /></button>
+        </div>
+        {its.length === 0 ? (
+          <div className="list-empty"><p>Brak snów z tym symbolem</p></div>
+        ) : its.map(d => (
+          <DreamCard key={d.id} dream={d} peopleById={peopleById} symbolsById={symbolsById} onClick={() => onOpenDream(d.id)} />
+        ))}
+      </div>
+    )
+  }
+
+  // Katalog symboli
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {adding ? (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input className="form-input" value={name} autoFocus placeholder="np. drzewo, dom, woda..."
+            maxLength={40} onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') add(); if (e.key === 'Escape') { setAdding(false); setName('') } }}
+            style={{ flex: 1, minWidth: 0 }} />
+          <button className="btn-save" style={{ width: 'auto', margin: 0, padding: '0 16px' }} onClick={add}>Dodaj</button>
+        </div>
+      ) : (
+        <button className="btn-add-habit" onClick={() => setAdding(true)}>+ Dodaj symbol</button>
+      )}
+
+      {symbols.length === 0 ? (
+        <div className="list-empty">
+          <p>Brak symboli</p>
+          <p className="list-empty-hint">Dodaj symbol tutaj lub wpisz # w treści snu (np. #drzewo)</p>
+        </div>
+      ) : sorted.map(s => {
+        const c = counts[s.id] || 0
+        return (
+          <div key={s.id} onClick={() => onSelectSymbol(s.id)} style={{
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderLeft: `3px solid ${s.color || '#5BB6D9'}`,
+            borderRadius: 12, padding: '11px 14px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 9, flexShrink: 0, display: 'grid', placeItems: 'center',
+              background: (s.color || '#5BB6D9') + '22', color: s.color || '#5BB6D9',
+            }}>
+              <IconTag size={17} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>
+                <span style={{ opacity: 0.5 }}>#</span>{s.name}
+              </p>
+              <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
+                {c === 0 ? 'jeszcze w żadnym śnie' : `w ${c} ${c === 1 ? 'śnie' : c < 5 ? 'snach' : 'snach'}`}
+              </p>
+            </div>
+            <span style={{ fontSize: 15, fontWeight: 700, color: s.color || '#5BB6D9', flexShrink: 0 }}>{c}</span>
+            <button className="t-btn delete" title="Usuń" onClick={e => { e.stopPropagation(); remove(s) }}><IconTrash size={13} /></button>
+            <IconChevronRight size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 /* ─── Szczegóły snu ───────────────────────────────────────────────────────── */
-function DreamDetail({ dream, peopleById, onBack, onEdit, onDelete }) {
+function DreamDetail({ dream, peopleById, symbolsById, onBack, onOpenSymbol, onEdit, onDelete }) {
   const cat = getCategory(dream.category)
   const participants = (dream.peopleIds || []).map(id => peopleById[id]).filter(Boolean)
   const mentioned = (dream.mentionIds || []).filter(id => !(dream.peopleIds || []).includes(id))
     .map(id => peopleById[id]).filter(Boolean)
+  const syms = (dream.symbolIds || []).map(id => symbolsById[id]).filter(Boolean)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -226,7 +409,18 @@ function DreamDetail({ dream, peopleById, onBack, onEdit, onDelete }) {
 
       {dream.text && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-          <DreamText text={dream.text} peopleById={peopleById} />
+          <DreamText text={dream.text} peopleById={peopleById} symbolsById={symbolsById} />
+        </div>
+      )}
+
+      {syms.length > 0 && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.16em', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IconTag size={12} /> Symbole
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {syms.map(s => <SymbolChip key={s.id} symbol={s} onClick={() => onOpenSymbol(s.id)} />)}
+          </div>
         </div>
       )}
 
@@ -258,19 +452,26 @@ function DreamDetail({ dream, peopleById, onBack, onEdit, onDelete }) {
 }
 
 /* ─── Formularz snu ───────────────────────────────────────────────────────── */
-function DreamForm({ user, people, editData, onClose }) {
+function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose }) {
   const [title, setTitle]       = useState(editData?.title || '')
   const [date, setDate]         = useState(editData?.date || TODAY())
   const [text, setText]         = useState(editData?.text || '')
   const [category, setCategory] = useState(editData?.category || '')
   const [emotions, setEmotions] = useState(editData?.emotions || [])
   const [peopleIds, setPeopleIds] = useState(editData?.peopleIds || [])
+  const [localSymbols, setLocalSymbols] = useState([]) // symbole utworzone w tej sesji
   const [saving, setSaving]     = useState(false)
 
   const textRef = useRef(null)
-  // Autouzupełnianie @wzmianek
-  const [mention, setMention] = useState(null) // { query, start } | null
+  const [trigger, setTrigger]   = useState(null) // { type:'person'|'symbol', query, start }
   const [caretPos, setCaretPos] = useState(null)
+
+  // Pełny katalog symboli widoczny w formularzu (z bazy + utworzone teraz)
+  const allSymbols = useMemo(() => {
+    const m = {}
+    ;[...symbols, ...localSymbols].forEach(s => { m[s.id] = s })
+    return Object.values(m)
+  }, [symbols, localSymbols])
 
   const toggle = (arr, setArr, id) =>
     setArr(arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id])
@@ -280,28 +481,45 @@ function DreamForm({ user, people, editData, onClose }) {
     setText(val)
     const caret = e.target.selectionStart
     const before = val.slice(0, caret)
-    const m = before.match(/@([\p{L}\p{N}]*)$/u)
-    setMention(m ? { query: m[1], start: caret - m[1].length - 1 } : null)
+    const m = before.match(/([@#])([\p{L}\p{N}]*)$/u)
+    setTrigger(m ? { type: m[1] === '#' ? 'symbol' : 'person', query: m[2], start: caret - m[2].length - 1 } : null)
   }
 
-  const mentionMatches = useMemo(() => {
-    if (!mention) return []
-    const q = mention.query.toLowerCase()
+  const personMatches = useMemo(() => {
+    if (trigger?.type !== 'person') return []
+    const q = trigger.query.toLowerCase()
     return people.filter(p => p.name?.toLowerCase().includes(q)).slice(0, 6)
-  }, [mention, people])
+  }, [trigger, people])
 
-  const insertMention = (person) => {
+  const symbolMatches = useMemo(() => {
+    if (trigger?.type !== 'symbol') return []
+    const q = trigger.query.toLowerCase()
+    return allSymbols.filter(s => s.name?.toLowerCase().includes(q)).slice(0, 6)
+  }, [trigger, allSymbols])
+
+  const canCreateSymbol = trigger?.type === 'symbol' && trigger.query.trim() &&
+    !allSymbols.some(s => s.name.toLowerCase() === trigger.query.trim().toLowerCase())
+
+  const insertToken = (prefix, name) => {
     const ta = textRef.current
     const caret = ta ? ta.selectionStart : text.length
-    const insert = '@' + person.name + ' '
-    const next = text.slice(0, mention.start) + insert + text.slice(caret)
+    const insert = prefix + name + ' '
+    const next = text.slice(0, trigger.start) + insert + text.slice(caret)
     setText(next)
-    if (!peopleIds.includes(person.id)) setPeopleIds([...peopleIds, person.id])
-    setMention(null)
-    setCaretPos(mention.start + insert.length)
+    setTrigger(null)
+    setCaretPos(trigger.start + insert.length)
   }
 
-  // Przywróć kursor po wstawieniu wzmianki
+  const pickPerson = (p) => { if (!peopleIds.includes(p.id)) setPeopleIds([...peopleIds, p.id]); insertToken('@', p.name) }
+  const pickSymbol = (s) => insertToken('#', s.name)
+  const createAndPick = async () => {
+    const n = trigger.query.trim()
+    const sym = await onCreateSymbol(n)
+    setLocalSymbols(prev => [...prev, sym])
+    insertToken('#', sym.name)
+  }
+
+  // Przywróć kursor po wstawieniu
   useLayoutEffect(() => {
     if (caretPos != null && textRef.current) {
       textRef.current.focus()
@@ -310,27 +528,31 @@ function DreamForm({ user, people, editData, onClose }) {
     }
   }, [caretPos, text])
 
+  // Symbole obecne w tekście (podgląd na żywo)
+  const usedSymbols = useMemo(
+    () => parseSymbols(text, allSymbols).map(id => allSymbols.find(s => s.id === id)).filter(Boolean),
+    [text, allSymbols]
+  )
+
+  const showDrop = trigger && (
+    (trigger.type === 'person' && personMatches.length > 0) ||
+    (trigger.type === 'symbol' && (symbolMatches.length > 0 || canCreateSymbol))
+  )
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!title.trim() && !text.trim()) return
     setSaving(true)
     const mentionIds = parseMentions(text, people)
+    const symbolIds  = parseSymbols(text, allSymbols)
     const data = {
-      title: title.trim(),
-      date,
-      text: text.trim(),
-      category: category || null,
-      emotions,
-      peopleIds,
-      mentionIds,
+      title: title.trim(), date, text: text.trim(),
+      category: category || null, emotions, peopleIds, mentionIds, symbolIds,
       updatedAt: Timestamp.now(),
     }
     try {
-      if (editData) {
-        await updateDoc(doc(db, 'users', user.uid, 'dreams', editData.id), data)
-      } else {
-        await addDoc(collection(db, 'users', user.uid, 'dreams'), { ...data, createdAt: Timestamp.now() })
-      }
+      if (editData) await updateDoc(doc(db, 'users', user.uid, 'dreams', editData.id), data)
+      else await addDoc(collection(db, 'users', user.uid, 'dreams'), { ...data, createdAt: Timestamp.now() })
       onClose()
     } catch { setSaving(false) }
   }
@@ -355,32 +577,51 @@ function DreamForm({ user, people, editData, onClose }) {
           </div>
 
           <div className="form-group" style={{ position: 'relative' }}>
-            <label>Treść snu <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— wpisz @ aby wspomnieć osobę</span></label>
+            <label>Treść snu <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— @ osoba, # symbol</span></label>
             <textarea ref={textRef} className="form-input" value={text} onChange={onTextChange}
-              rows={6} placeholder="Opisz, co Ci się śniło... Wpisz @ i imię, aby oznaczyć osobę."
+              rows={6} placeholder="Opisz, co Ci się śniło... Wpisz @ aby oznaczyć osobę, # aby oznaczyć symbol (np. #drzewo)."
               style={{ resize: 'vertical', minHeight: 130, lineHeight: 1.6 }} />
-            {mention && mentionMatches.length > 0 && (
+
+            {showDrop && (
               <div style={{
                 position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 20, marginTop: -6,
                 background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 10,
                 boxShadow: '0 8px 24px rgba(0,0,0,0.18)', overflow: 'hidden',
               }}>
-                {mentionMatches.map(p => (
-                  <button type="button" key={p.id} onClick={() => insertMention(p)} style={{
-                    display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px',
-                    background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)',
-                    cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                  }}>
+                {trigger.type === 'person' && personMatches.map(p => (
+                  <button type="button" key={p.id} onClick={() => pickPerson(p)} style={dropItemStyle}>
                     <Bubble person={p} size={26} />
                     <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{p.name}</span>
                     {p.note && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.note}</span>}
                   </button>
                 ))}
+                {trigger.type === 'symbol' && symbolMatches.map(s => (
+                  <button type="button" key={s.id} onClick={() => pickSymbol(s)} style={dropItemStyle}>
+                    <span style={{ width: 26, height: 26, borderRadius: 7, display: 'grid', placeItems: 'center', background: (s.color || '#5BB6D9') + '22', color: s.color || '#5BB6D9', flexShrink: 0 }}>
+                      <IconTag size={14} />
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>#{s.name}</span>
+                  </button>
+                ))}
+                {trigger.type === 'symbol' && canCreateSymbol && (
+                  <button type="button" onClick={createAndPick} style={{ ...dropItemStyle, color: 'var(--accent)' }}>
+                    <span style={{ width: 26, height: 26, borderRadius: 7, display: 'grid', placeItems: 'center', background: 'var(--accent-soft)', color: 'var(--accent)', flexShrink: 0 }}>
+                      <IconPlus size={14} />
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>Utwórz symbol „{trigger.query.trim()}"</span>
+                  </button>
+                )}
               </div>
             )}
-            {mention && mentionMatches.length === 0 && people.length === 0 && (
+            {trigger?.type === 'person' && personMatches.length === 0 && people.length === 0 && (
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
                 Brak osób w bazie — dodaj je w module „Osoby".
+              </div>
+            )}
+
+            {usedSymbols.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8 }}>
+                {usedSymbols.map(s => <SymbolChip key={s.id} symbol={s} />)}
               </div>
             )}
           </div>
@@ -444,4 +685,10 @@ function DreamForm({ user, people, editData, onClose }) {
       </div>
     </div>
   )
+}
+
+const dropItemStyle = {
+  display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px',
+  background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)',
+  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
 }

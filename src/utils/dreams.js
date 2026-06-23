@@ -63,6 +63,36 @@ export function parseMentions(text, people) {
 export const dreamPeopleIds = (dream) =>
   [...new Set([...(dream.peopleIds || []), ...(dream.mentionIds || [])])]
 
+// ─── Symbole snów ───────────────────────────────────────────────────────────
+// Katalog symboli: `users/{uid}/dreamSymbols` (np. drzewo, dom, woda).
+// W treści snu oznaczane przez #nazwa; przy zapisie parsujemy listę `symbolIds`.
+export const SYMBOL_COLORS = [
+  '#5BB6D9', '#5FBF98', '#9B7CF0', '#E0B15A', '#E8607A', '#7BCBB0',
+  '#B79AE0', '#EA964B', '#6E89DE', '#C9A24A', '#A878DC', '#7C8AF0',
+]
+
+// Wyłuskaj z treści snu symbole oznaczone przez #nazwa (najdłuższe dopasowanie pierwsze).
+export function parseSymbols(text, symbols) {
+  if (!text) return []
+  const found = new Set()
+  const sorted = [...symbols].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0))
+  for (const s of sorted) {
+    if (!s.name) continue
+    const esc = s.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const re = new RegExp('#' + esc + '(?![\\p{L}\\p{N}])', 'u')
+    if (re.test(text)) found.add(s.id)
+  }
+  return [...found]
+}
+
+// Przy usunięciu symbolu — odpiąć go od snów (sny zostają).
+export async function scrubSymbolFromDreams(uid, symbolId) {
+  const snap = await getDocs(query(
+    collection(db, 'users', uid, 'dreams'), where('symbolIds', 'array-contains', symbolId)
+  ))
+  await Promise.all(snap.docs.map(d => updateDoc(d.ref, { symbolIds: arrayRemove(symbolId) })))
+}
+
 // Przy trwałym usunięciu osoby — odpiąć ją od snów (sny zostają).
 export async function scrubPersonFromDreams(uid, personId) {
   for (const field of ['peopleIds', 'mentionIds']) {
