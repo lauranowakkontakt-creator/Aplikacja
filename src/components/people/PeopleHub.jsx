@@ -5,10 +5,11 @@ import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
   ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconCalendar, IconPrayer,
-  IconChevronRight, IconChevronLeft, IconUsers, IconEye, IconEyeOff, IconCheck
+  IconChevronRight, IconChevronLeft, IconUsers, IconEye, IconEyeOff, IconCheck, IconMoon
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { setPersonHidden, purgePerson } from '../../utils/people'
+import { getCategory, dreamPeopleIds } from '../../utils/dreams'
 
 const PERSON_COLORS = [
   '#E74C3C','#E91E63','#9C27B0','#8B5CF6','#3F51B5','#2196F3',
@@ -32,10 +33,11 @@ function Bubble({ person, size = 44 }) {
   )
 }
 
-export default function PeopleHub({ user }) {
+export default function PeopleHub({ user, onOpenDream }) {
   const [people, setPeople]         = useState([])
   const [events, setEvents]         = useState([])
   const [intentions, setIntentions] = useState([])
+  const [dreams, setDreams]         = useState([])
   const [loading, setLoading]       = useState(true)
   const [selectedId, setSelectedId] = useState(null)
   const [showForm, setShowForm]     = useState(false)
@@ -53,14 +55,19 @@ export default function PeopleHub({ user }) {
     const q = query(collection(db, 'users', user.uid, 'prayerIntentions'), orderBy('createdAt', 'desc'))
     return onSnapshot(q, snap => setIntentions(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'dreams'), orderBy('date', 'desc'))
+    return onSnapshot(q, snap => setDreams(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
 
   const stats = useMemo(() => {
     const m = {}
-    people.forEach(p => { m[p.id] = { events: 0, intentions: 0 } })
+    people.forEach(p => { m[p.id] = { events: 0, intentions: 0, dreams: 0 } })
     events.forEach(e => { if (e.personId && m[e.personId]) m[e.personId].events++ })
     intentions.forEach(i => { if (i.personId && m[i.personId]) m[i.personId].intentions++ })
+    dreams.forEach(d => { dreamPeopleIds(d).forEach(pid => { if (m[pid]) m[pid].dreams++ }) })
     return m
-  }, [people, events, intentions])
+  }, [people, events, intentions, dreams])
 
   const toggleHidden = async (person, module) => {
     const field = module === 'calendar' ? 'hiddenInCalendar' : 'hiddenInPrayer'
@@ -101,6 +108,8 @@ export default function PeopleHub({ user }) {
           person={selected}
           events={events.filter(e => e.personId === selected.id)}
           intentions={intentions.filter(i => i.personId === selected.id)}
+          dreams={dreams.filter(d => dreamPeopleIds(d).includes(selected.id))}
+          onOpenDream={onOpenDream}
           onBack={() => setSelectedId(null)}
           onToggleHidden={toggleHidden}
           onEdit={() => { setEditPerson(selected); setShowForm(true) }}
@@ -130,6 +139,7 @@ export default function PeopleHub({ user }) {
                   <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconCalendar size={11} /> {s.events}</span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconPrayer size={11} /> {s.intentions}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconMoon size={11} /> {s.dreams}</span>
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -167,8 +177,9 @@ function VisToggle({ active, label, Icon, onClick }) {
 }
 
 /* ─── PersonDetail ─────────────────────────────────────────────────────── */
-function PersonDetail({ uid, person, events, intentions, onBack, onToggleHidden, onEdit, onDelete }) {
+function PersonDetail({ uid, person, events, intentions, dreams = [], onOpenDream, onBack, onToggleHidden, onEdit, onDelete }) {
   const today = TODAY()
+  const personDreams = [...dreams].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
   const upcoming = events.filter(e => (e.dateEnd || e.date) >= today).sort((a, b) => a.date.localeCompare(b.date))
   const past     = events.filter(e => (e.dateEnd || e.date) < today).sort((a, b) => b.date.localeCompare(a.date))
   const activeInt = intentions.filter(i => i.status === 'active' || !i.status)
@@ -223,6 +234,37 @@ function PersonDetail({ uid, person, events, intentions, onBack, onToggleHidden,
                 </div>
               </Row>
             ))}
+          </div>
+        )}
+      </Section>
+
+      {/* Sny */}
+      <Section title="Sny" icon={<IconMoon size={13} />}>
+        {personDreams.length === 0 ? (
+          <Empty>Brak snów z tą osobą</Empty>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {personDreams.map(d => {
+              const cat = getCategory(d.category)
+              return (
+                <div key={d.id} onClick={() => onOpenDream?.(d.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                  background: 'var(--surface2)', borderLeft: `3px solid ${cat?.color || '#6366F1'}`,
+                  borderRadius: 8, padding: '8px 10px',
+                }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    {(() => { try { return format(parseISO(d.date), 'd MMM yy', { locale: pl }) } catch { return d.date } })()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {d.title || 'Sen bez tytułu'}
+                    </div>
+                    {cat && <div style={{ fontSize: 10, color: cat.color }}>{cat.label}</div>}
+                  </div>
+                  <IconChevronRight size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                </div>
+              )
+            })}
           </div>
         )}
       </Section>

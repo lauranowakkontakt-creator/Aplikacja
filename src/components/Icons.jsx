@@ -73,6 +73,14 @@ export const IconPrayer = (p) => (
   </Icon>
 )
 
+export const IconMoon = (p) => (
+  <Icon {...p}>
+    {/* Księżyc z gwiazdką — sny */}
+    <path d="M20 13.5A8 8 0 1 1 10.5 4a6.2 6.2 0 0 0 9.5 9.5z" />
+    <path d="M18 3.5l.6 1.6L20 5.7l-1.4.6L18 8l-.6-1.7L16 5.7l1.4-.6z" />
+  </Icon>
+)
+
 export const IconSettings = (p) => (
   <Icon {...p}>
     <circle cx="12" cy="12" r="3" />

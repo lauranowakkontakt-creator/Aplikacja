@@ -52,9 +52,10 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
     }
   }, [accounts, accountUsage]) // eslint-disable-line
 
-  // Load custom categories
+  // Load custom categories — na żywo (onSnapshot), żeby nowo dodane/zmienione
+  // kategorie pojawiały się od razu, bez „zacinania" na starych domyślnych.
   useEffect(() => {
-    getDoc(doc(db, 'users', user.uid, 'settings', 'categories')).then(d => {
+    return onSnapshot(doc(db, 'users', user.uid, 'settings', 'categories'), d => {
       if (d.exists()) {
         if (d.data().expense?.length) setExpCats(d.data().expense)
         if (d.data().income?.length)  setIncCats(d.data().income)

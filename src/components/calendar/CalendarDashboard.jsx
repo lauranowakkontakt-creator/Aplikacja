@@ -547,6 +547,12 @@ function CalendarGrid({ currentMonth, selectedDay, categories, calPeople, events
             const visibleSingle = singleItems.slice(0, Math.max(0, 3 - multiDay.length))
             const overflow = singleItems.length - visibleSingle.length + Math.max(0, multiDay.length - 3)
 
+            // Mobile: każde wydarzenie/zadanie/płatność jako kolorowa kropka (widać wszystkie)
+            const dotColors = [
+              ...multiDay.map(e => getEventColor(categories, calPeople, e)),
+              ...singleItems.map(it => it.color),
+            ]
+
             return (
               <button
                 key={day.toISOString()}
@@ -587,6 +593,12 @@ function CalendarGrid({ currentMonth, selectedDay, categories, calPeople, events
                   {overflow > 0 && (
                     <div className="cal-chip-more">+{overflow}</div>
                   )}
+                </div>
+                <div className="cal-dots">
+                  {dotColors.slice(0, 9).map((c, i) => (
+                    <span key={i} className="cal-dot" style={{ background: c }} />
+                  ))}
+                  {dotColors.length > 9 && <span className="cal-dots-more">+{dotColors.length - 9}</span>}
                 </div>
               </button>
             )

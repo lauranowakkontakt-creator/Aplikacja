@@ -45,9 +45,9 @@ export default function Charts({ user, privateMode = false }) {
   }, [user.uid])
 
   useEffect(() => {
-    getDoc(doc(db, 'users', user.uid, 'settings', 'categories')).then(d => {
-      setCustomCats(d.exists() ? d.data() : {})
-    }).catch(() => setCustomCats({}))
+    return onSnapshot(doc(db, 'users', user.uid, 'settings', 'categories'),
+      d => setCustomCats(d.exists() ? d.data() : {}),
+      () => setCustomCats({}))
   }, [user.uid])
 
   const catColorMap = useMemo(() => {

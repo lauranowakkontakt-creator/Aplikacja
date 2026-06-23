@@ -1,5 +1,6 @@
 import { collection, query, where, getDocs, deleteDoc, updateDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { scrubPersonFromDreams } from './dreams'
 
 // Osoba jest współdzielona przez wszystkie moduły (kolekcja `calendarPeople`).
 // Widoczność jest sterowana per moduł: `hiddenInCalendar`, `hiddenInPrayer`.
@@ -20,5 +21,7 @@ export async function purgePerson(uid, personId) {
     const snap = await getDocs(query(collection(db, 'users', uid, col), where('personId', '==', personId)))
     await Promise.all(snap.docs.map(d => deleteDoc(d.ref)))
   }
+  // Sny zostają — odpinamy tylko osobę od ich list uczestników/wzmianek.
+  await scrubPersonFromDreams(uid, personId)
   await deleteDoc(doc(db, 'users', uid, 'calendarPeople', personId))
 }

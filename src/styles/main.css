@@ -1042,16 +1042,18 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
   .cal-day { min-height: 60px; padding: 3px 2px 4px; }
 }
 
-/* ── Mobile (≤640px): chips → dots ── */
+/* Kropki dnia — domyślnie ukryte (desktop pokazuje tekstowe chipy) */
+.cal-dots { display: none; }
+
+/* ── Mobile (≤640px): tekstowe chipy → kolorowe kropki (wszystkie wydarzenia) ── */
 @media (max-width: 640px) {
-  .cal-chip-dot { display: block; }
-  .cal-chip-text, .cal-chip-icon, .cal-chip-more { display: none; }
-  /* !important needed to override inline background/borderLeft on the chip element */
-  .cal-chip { background: transparent !important; border-left: none !important; padding: 2px 0 !important; gap: 0; }
-  .cal-chips { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 4px; padding-top: 2px; }
-  /* Paski wielodniowe zajmują pełny wiersz (nad kropkami), żeby pokazać cały wyjazd */
-  .cal-mday { flex: 0 0 100%; height: 7px; order: -1; }
-  .cal-mday-title { display: none; }
+  .cal-chips { display: none; }
+  .cal-dots {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+    gap: 3px; width: 100%; padding-top: 3px;
+  }
+  .cal-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .cal-dots-more { font-size: 8px; line-height: 1; color: var(--text-muted); margin-left: 1px; }
 }
 
 /* ── Mobile (≤480px): compact cells ── */
