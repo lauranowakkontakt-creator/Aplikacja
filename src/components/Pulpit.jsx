@@ -39,6 +39,7 @@ export default function Pulpit({ user, onNavigate }) {
   const [todos, setTodos]           = useState([])
   const [events, setEvents]         = useState([])
   const [intentions, setIntentions] = useState([])
+  const [people, setPeople]         = useState([])
   const [payments, setPayments]     = useState([])
   const [bible, setBible]           = useState({ counts: {} })
 
@@ -61,6 +62,8 @@ export default function Pulpit({ user, onNavigate }) {
         s => setEvents(s.docs.map(d => ({ id: d.id, ...d.data() })))),
       onSnapshot(query(collection(db, 'users', user.uid, 'prayerIntentions'), orderBy('createdAt', 'desc')),
         s => setIntentions(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc')),
+        s => setPeople(s.docs.map(d => ({ id: d.id, ...d.data() })))),
       onSnapshot(query(collection(db, 'users', user.uid, 'regularPayments'), orderBy('createdAt', 'asc')),
         s => setPayments(s.docs.map(d => ({ id: d.id, ...d.data() })))),
     ]
@@ -120,16 +123,19 @@ export default function Pulpit({ user, onNavigate }) {
 
   /* ── MODLITWA ── */
   const prayerStat = useMemo(() => {
+    // Osoby ukryte w modlitwie — ich prośby nie liczą się (zostają tylko w archiwum modułu).
+    const hiddenIds = new Set(people.filter(p => p.hiddenInPrayer).map(p => p.id))
+    const live = intentions.filter(i => !(i.personId && hiddenIds.has(i.personId)))
     // „Na dziś" — tak samo jak w module Modlitwa: aktywne prośby,
     // bez okna (codzienne) lub z oknem obejmującym dziś, jeszcze przed terminem.
-    const dueToday = intentions.filter(i => {
+    const dueToday = live.filter(i => {
       if (!(i.status === 'active' || !i.status)) return false
       if (i.dateTo && i.dateTo < today) return false
       if (!i.scheduleFrom && !i.scheduleTo) return true
       return today >= (i.scheduleFrom || '0000-01-01') && today <= (i.scheduleTo || '9999-12-31')
     })
     const prayedToday = dueToday.filter(i => i.prayedDates?.includes(today)).length
-    const allDates = new Set(intentions.flatMap(i => i.prayedDates || []))
+    const allDates = new Set(live.flatMap(i => i.prayedDates || []))
     let streak = 0
     for (let i = 0; i < 365; i++) {
       const d = format(subDays(new Date(), i), 'yyyy-MM-dd')
@@ -138,7 +144,7 @@ export default function Pulpit({ user, onNavigate }) {
       else if (d < today) break
     }
     return { active: dueToday.length, prayedToday, streak }
-  }, [intentions, today])
+  }, [intentions, people, today])
 
   /* ── BIBLIA ── */
   const bibleStat = useMemo(() => {

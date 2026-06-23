@@ -89,7 +89,10 @@ export default function PrayerDashboard({ user }) {
   }, [intentions])
 
   const today            = TODAY()
-  const activeIntentions = intentions.filter(i => i.status === 'active' || !i.status)
+  // Osoby ukryte w modlitwie — ich prośby nie liczą się w aktywnym widoku/licznikach
+  const hiddenPersonIds  = useMemo(() => new Set(people.filter(p => p.hiddenInPrayer).map(p => p.id)), [people])
+  const liveIntentions   = intentions.filter(i => !(i.personId && hiddenPersonIds.has(i.personId)))
+  const activeIntentions = liveIntentions.filter(i => i.status === 'active' || !i.status)
   // Na dziś = prośby bez okna (codzienne) + te, których okno obejmuje dzisiaj
   const dueToday         = activeIntentions.filter(i => {
     if (!i.scheduleFrom && !i.scheduleTo) return true
@@ -97,7 +100,7 @@ export default function PrayerDashboard({ user }) {
   })
   const prayedToday      = dueToday.filter(i => i.prayedDates?.includes(today)).length
 
-  const allPrayedDates = useMemo(() => new Set(intentions.flatMap(i => i.prayedDates || [])), [intentions])
+  const allPrayedDates = useMemo(() => new Set(liveIntentions.flatMap(i => i.prayedDates || [])), [liveIntentions])
   const streak = useMemo(() => {
     let s = 0
     for (let i = 0; i < 365; i++) {
@@ -708,7 +711,8 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
 function TodayView({ user, intentions, people, carMode }) {
   const [viewDate, setViewDate] = useState(TODAY())
 
-  const activeIntentions   = intentions.filter(i => i.status === 'active' || !i.status)
+  const hiddenIds          = useMemo(() => new Set(people.filter(p => p.hiddenInPrayer).map(p => p.id)), [people])
+  const activeIntentions   = intentions.filter(i => (i.status === 'active' || !i.status) && !(i.personId && hiddenIds.has(i.personId)))
   // Prośby z oknem czasowym (np. z wydarzenia) pokazują się tylko w swoich dniach; bez okna — codziennie.
   const visibleIntentions  = activeIntentions.filter(i => {
     if (!i.scheduleFrom && !i.scheduleTo) return true
