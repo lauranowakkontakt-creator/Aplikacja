@@ -1642,6 +1642,14 @@ body { overscroll-behavior-y: none; }
   color: var(--c); background: color-mix(in oklab, var(--c) 15%, transparent);
   border: 1px solid color-mix(in oklab, var(--c) 35%, var(--border));
 }
+.pulpit-today-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 18px; }
+.pulpit-today-col { min-width: 0; }
+.pulpit-today-col + .pulpit-today-col { padding-left: 18px; border-left: 1px solid var(--border); }
+.pulpit-today-coltitle { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--text-muted); margin-bottom: 4px; }
+@media (max-width: 520px) {
+  .pulpit-today-cols { grid-template-columns: 1fr; gap: 14px; }
+  .pulpit-today-col + .pulpit-today-col { padding-left: 0; border-left: none; padding-top: 12px; border-top: 1px solid var(--border); }
+}
 .pulpit-today-empty { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; padding: 4px 2px; }
 .pulpit-today-list { display: flex; flex-direction: column; }
 .pulpit-today-item {

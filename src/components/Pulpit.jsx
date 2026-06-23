@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { collection, query, onSnapshot, orderBy, doc } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { format, subDays, parseISO, differenceInDays, isPast, isToday } from 'date-fns'
+import { format, subDays, addDays, parseISO, differenceInDays, isPast, isToday } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
   IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook,
@@ -143,42 +143,49 @@ export default function Pulpit({ user, onNavigate }) {
     return { read, pct: Math.round((read / TOTAL_CHAPTERS) * 100) }
   }, [bible])
 
-  /* ── DZIŚ — wspólna agenda ── */
-  const occursToday = (e) => {
-    if (today < e.date) return false
-    if (e.recurUntil && today > e.recurUntil) return false
-    if (!e.recurrence) return today <= (e.dateEnd || e.date)
-    const start = parseISO(e.date), now = parseISO(today)
+  const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd')
+
+  /* ── DZIŚ / JUTRO — wspólna agenda ── */
+  const occursOn = (e, dateStr) => {
+    if (dateStr < e.date) return false
+    if (e.recurUntil && dateStr > e.recurUntil) return false
+    if (!e.recurrence) return dateStr <= (e.dateEnd || e.date)
+    const start = parseISO(e.date), now = parseISO(dateStr)
     if (e.recurrence === 'daily')  return true
     if (e.recurrence === 'weekly') return differenceInDays(now, start) % 7 === 0
     if (e.recurrence === 'monthly') return start.getDate() === now.getDate()
     if (e.recurrence === 'yearly')  return start.getDate() === now.getDate() && start.getMonth() === now.getMonth()
     return false
   }
-  const agenda = useMemo(() => {
+  const buildAgenda = (dateStr) => {
     const items = []
-    // Wydarzenia z kalendarza dziś (z uwzględnieniem cykliczności)
-    events.filter(occursToday).forEach(e => {
+    const d = parseISO(dateStr)
+    // Wydarzenia z kalendarza (z uwzględnieniem cykliczności) — z osobą w nazwie
+    events.filter(e => occursOn(e, dateStr)).forEach(e => {
+      const person = e.personName || e.who || ''
       items.push({
-        key: 'ev-' + e.id, module: 'calendar', color: e.color || '#5FBF98',
-        time: e.startTime || null, label: e.title,
+        key: 'ev-' + e.id + '-' + dateStr, module: 'calendar', color: e.color || '#5FBF98',
+        time: e.startTime || null,
+        label: person ? `${e.title} · ${person}` : e.title,
         meta: e.startTime ? (e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime) : 'cały dzień',
       })
     })
-    // Zadania na dziś (nieukończone)
-    todos.filter(t => !t.done && t.dueDate === today).forEach(t => {
-      items.push({ key: 'td-' + t.id, module: 'todo', color: '#5BB6D9', time: null, label: t.title, meta: 'zadanie' })
+    // Zadania na dany dzień (nieukończone)
+    todos.filter(t => !t.done && t.dueDate === dateStr).forEach(t => {
+      items.push({ key: 'td-' + t.id + '-' + dateStr, module: 'todo', color: '#5BB6D9', time: null, label: t.title, meta: 'zadanie' })
     })
-    // Płatności na dziś (miesięczne, w dniu, jeszcze nieodhaczone)
-    const dayNum = new Date().getDate()
-    const period = format(new Date(), 'yyyy-MM')
+    // Płatności (miesięczne, w dniu, jeszcze nieodhaczone)
+    const dayNum = d.getDate()
+    const period = format(d, 'yyyy-MM')
     payments.filter(p => p.frequency === 'monthly' && (p.dayOfMonth || 1) === dayNum && !p.donePeriods?.includes(period)
-      && (!p.dateFrom || p.dateFrom <= today) && (!p.dateTo || p.dateTo >= today)).forEach(p => {
-      items.push({ key: 'pm-' + p.id, module: 'budget', color: '#E0B15A', time: null, label: p.name, meta: `${p.type === 'income' ? '+' : '−'}${fmt(p.amount)}` })
+      && (!p.dateFrom || p.dateFrom <= dateStr) && (!p.dateTo || p.dateTo >= dateStr)).forEach(p => {
+      items.push({ key: 'pm-' + p.id + '-' + dateStr, module: 'budget', color: '#E0B15A', time: null, label: p.name, meta: `${p.type === 'income' ? '+' : '−'}${fmt(p.amount)}` })
     })
     // Sortuj: z godziną najpierw (wg godziny), reszta po
     return items.sort((a, b) => (a.time ? 0 : 1) - (b.time ? 0 : 1) || (a.time || '').localeCompare(b.time || ''))
-  }, [events, todos, payments, today])
+  }
+  const agenda         = useMemo(() => buildAgenda(today),    [events, todos, payments, today])
+  const agendaTomorrow = useMemo(() => buildAgenda(tomorrow), [events, todos, payments, tomorrow])
 
   const habitsLeft = habitsStat.due - habitsStat.done
   const prayerLeft = prayerStat.active - prayerStat.prayedToday
@@ -199,10 +206,10 @@ export default function Pulpit({ user, onNavigate }) {
         <h1 className="pulpit-hero-title">{greeting()}, {(user?.displayName || 'Laura').split(' ')[0]}</h1>
       </div>
 
-      {/* DZIŚ — wspólna agenda */}
+      {/* DZIŚ i JUTRO — wspólna agenda */}
       <div className="pulpit-today">
         <div className="pulpit-today-head">
-          <span className="pulpit-today-kicker"><IconClock size={12} /> Dziś</span>
+          <span className="pulpit-today-kicker"><IconClock size={12} /> Dziś i jutro</span>
           {(habitsLeft > 0 || prayerLeft > 0) && (
             <div className="pulpit-today-chips">
               {habitsLeft > 0 && (
@@ -218,22 +225,22 @@ export default function Pulpit({ user, onNavigate }) {
             </div>
           )}
         </div>
-        {agenda.length === 0 && habitsLeft <= 0 && prayerLeft <= 0 ? (
-          <div className="pulpit-today-empty"><IconCheck size={15} /> Wszystko ogarnięte — wolny dzień</div>
-        ) : agenda.length === 0 ? (
-          <div className="pulpit-today-empty">Brak wydarzeń i zadań na dziś</div>
-        ) : (
-          <div className="pulpit-today-list">
-            {agenda.map(it => (
-              <button key={it.key} className="pulpit-today-item" onClick={() => onNavigate(it.module)}>
-                <span className="pulpit-today-time">{it.time || '—'}</span>
-                <span className="pulpit-today-dot" style={{ background: it.color }} />
-                <span className="pulpit-today-label">{it.label}</span>
-                <span className="pulpit-today-meta">{it.meta}</span>
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="pulpit-today-cols">
+          <AgendaColumn
+            title="Dziś"
+            items={agenda}
+            onNavigate={onNavigate}
+            empty={habitsLeft <= 0 && prayerLeft <= 0
+              ? <><IconCheck size={15} /> Wszystko ogarnięte — wolny dzień</>
+              : 'Brak wydarzeń i zadań na dziś'}
+          />
+          <AgendaColumn
+            title="Jutro"
+            items={agendaTomorrow}
+            onNavigate={onNavigate}
+            empty="Brak wydarzeń i zadań na jutro"
+          />
+        </div>
       </div>
 
       {/* Siatka kart */}
@@ -338,6 +345,28 @@ export default function Pulpit({ user, onNavigate }) {
         </PulpitCard>
 
       </div>
+    </div>
+  )
+}
+
+function AgendaColumn({ title, items, empty, onNavigate }) {
+  return (
+    <div className="pulpit-today-col">
+      <div className="pulpit-today-coltitle">{title}</div>
+      {items.length === 0 ? (
+        <div className="pulpit-today-empty">{empty}</div>
+      ) : (
+        <div className="pulpit-today-list">
+          {items.map(it => (
+            <button key={it.key} className="pulpit-today-item" onClick={() => onNavigate(it.module)}>
+              <span className="pulpit-today-time">{it.time || '—'}</span>
+              <span className="pulpit-today-dot" style={{ background: it.color }} />
+              <span className="pulpit-today-label">{it.label}</span>
+              <span className="pulpit-today-meta">{it.meta}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
