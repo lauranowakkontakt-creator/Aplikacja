@@ -51,27 +51,43 @@ const SymbolChip = ({ symbol, onClick }) => (
   </Chip>
 )
 
-/* Treść snu z podświetlonymi @osobami i #symbolami */
-function DreamText({ text, peopleById, symbolsById }) {
+// Rdzeń imienia — bez końcowej samogłoski, żeby łapać polskie odmiany
+// (Kasia → Kasi → Kasię/Kasią/Kasi, Ola → Ol → Olę/Olą...).
+const nameStem = (name) => {
+  const s = (name || '').trim()
+  return s.length >= 3 ? s.replace(/(a|e|o|y|i|ą|ę|u|ó)$/u, '') : s
+}
+
+/* Treść snu z podświetlonymi osobami (po rdzeniu imienia, więc i odmiany) i #symbolami */
+function DreamText({ text, highlightPeople = [], symbolsById = {} }) {
   if (!text) return null
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const pNames = Object.values(peopleById).map(p => p.name).filter(Boolean).sort((a, b) => b.length - a.length).map(esc)
+  const pats = highlightPeople
+    .filter(p => p.name?.trim())
+    .map(p => ({ person: p, stem: nameStem(p.name) }))
+    .filter(p => p.stem.length >= 2)
+    .sort((a, b) => b.stem.length - a.stem.length)
   const sNames = Object.values(symbolsById).map(s => s.name).filter(Boolean).sort((a, b) => b.length - a.length).map(esc)
+
   const alts = []
-  if (pNames.length) alts.push(`@(?:${pNames.join('|')})`)
+  // Osoby: rdzeń (z wielkiej litery) + ewentualne dalsze litery odmiany, na granicy słowa
+  if (pats.length) alts.push(`(?<![\\p{L}])(?:${pats.map(p => esc(p.stem)).join('|')})[\\p{L}]*`)
   if (sNames.length) alts.push(`#(?:${sNames.join('|')})`)
-  const parts = alts.length ? text.split(new RegExp(`(${alts.join('|')})`, 'gu')) : [text]
+  const baseStyle = { margin: 0, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }
+  if (!alts.length) return <p style={baseStyle}>{text}</p>
+
+  const parts = text.split(new RegExp(`(${alts.join('|')})`, 'gu'))
   return (
-    <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+    <p style={baseStyle}>
       {parts.map((seg, i) => {
-        if (seg?.startsWith('@')) {
-          const person = Object.values(peopleById).find(p => p.name === seg.slice(1))
-          return <span key={i} style={{ color: person?.color || 'var(--accent)', fontWeight: 600 }}>{seg}</span>
-        }
-        if (seg?.startsWith('#')) {
+        if (!seg) return null
+        if (seg.startsWith('#')) {
           const sym = Object.values(symbolsById).find(s => s.name === seg.slice(1))
           if (sym) return <span key={i} style={{ color: sym.color || '#5BB6D9', fontWeight: 600 }}>{seg}</span>
+          return <span key={i}>{seg}</span>
         }
+        const hit = pats.find(p => seg.startsWith(p.stem))
+        if (hit) return <span key={i} style={{ color: hit.person.color || 'var(--accent)', fontWeight: 600 }}>{seg}</span>
         return <span key={i}>{seg}</span>
       })}
     </p>
@@ -381,6 +397,8 @@ function DreamDetail({ dream, peopleById, symbolsById, onBack, onOpenSymbol, onE
   const participants = (dream.peopleIds || []).map(id => peopleById[id]).filter(Boolean)
   const mentioned = (dream.mentionIds || []).filter(id => !(dream.peopleIds || []).includes(id))
     .map(id => peopleById[id]).filter(Boolean)
+  const linkedPeople = [...new Set([...(dream.peopleIds || []), ...(dream.mentionIds || [])])]
+    .map(id => peopleById[id]).filter(Boolean)
   const syms = (dream.symbolIds || []).map(id => symbolsById[id]).filter(Boolean)
 
   return (
@@ -409,7 +427,16 @@ function DreamDetail({ dream, peopleById, symbolsById, onBack, onOpenSymbol, onE
 
       {dream.text && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-          <DreamText text={dream.text} peopleById={peopleById} symbolsById={symbolsById} />
+          <DreamText text={dream.text} highlightPeople={linkedPeople} symbolsById={symbolsById} />
+        </div>
+      )}
+
+      {dream.interpretation && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderLeft: '3px solid var(--accent)', borderRadius: 'var(--r)', padding: 16 }}>
+          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.16em', textTransform: 'uppercase', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IconMoon size={12} /> Interpretacja
+          </div>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap', color: 'var(--text-sub)' }}>{dream.interpretation}</p>
         </div>
       )}
 
@@ -458,6 +485,7 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
   const [text, setText]         = useState(editData?.text || '')
   const [category, setCategory] = useState(editData?.category || '')
   const [emotions, setEmotions] = useState(editData?.emotions || [])
+  const [interpretation, setInterpretation] = useState(editData?.interpretation || '')
   const [peopleIds, setPeopleIds] = useState(editData?.peopleIds || [])
   const [localSymbols, setLocalSymbols] = useState([]) // symbole utworzone w tej sesji
   const [saving, setSaving]     = useState(false)
@@ -510,7 +538,9 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
     setCaretPos(trigger.start + insert.length)
   }
 
-  const pickPerson = (p) => { if (!peopleIds.includes(p.id)) setPeopleIds([...peopleIds, p.id]); insertToken('@', p.name) }
+  // @ tylko wybiera osobę — wstawiamy samo imię (bez @), które można potem odmienić.
+  // Powiązanie ze snem trzyma lista osób (peopleIds), więc edycja słowa go nie zrywa.
+  const pickPerson = (p) => { if (!peopleIds.includes(p.id)) setPeopleIds([...peopleIds, p.id]); insertToken('', p.name) }
   const pickSymbol = (s) => insertToken('#', s.name)
   const createAndPick = async () => {
     const n = trigger.query.trim()
@@ -547,6 +577,7 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
     const symbolIds  = parseSymbols(text, allSymbols)
     const data = {
       title: title.trim(), date, text: text.trim(),
+      interpretation: interpretation.trim(),
       category: category || null, emotions, peopleIds, mentionIds, symbolIds,
       updatedAt: Timestamp.now(),
     }
@@ -577,9 +608,9 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
           </div>
 
           <div className="form-group" style={{ position: 'relative' }}>
-            <label>Treść snu <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— @ osoba, # symbol</span></label>
+            <label>Treść snu <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— @ osoba (imię można potem odmienić), # symbol</span></label>
             <textarea ref={textRef} className="form-input" value={text} onChange={onTextChange}
-              rows={6} placeholder="Opisz, co Ci się śniło... Wpisz @ aby oznaczyć osobę, # aby oznaczyć symbol (np. #drzewo)."
+              rows={6} placeholder={'Opisz, co Ci się śniło... Wpisz @ aby wstawić imię osoby (możesz je odmienić, np. „Kasią”), # aby oznaczyć symbol (np. #drzewo).'}
               style={{ resize: 'vertical', minHeight: 130, lineHeight: 1.6 }} />
 
             {showDrop && (
@@ -592,7 +623,6 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
                   <button type="button" key={p.id} onClick={() => pickPerson(p)} style={dropItemStyle}>
                     <Bubble person={p} size={26} />
                     <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{p.name}</span>
-                    {p.note && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.note}</span>}
                   </button>
                 ))}
                 {trigger.type === 'symbol' && symbolMatches.map(s => (
@@ -676,6 +706,13 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
                 })}
               </div>
             )}
+          </div>
+
+          <div className="form-group">
+            <label>Interpretacja <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— opcjonalnie</span></label>
+            <textarea className="form-input" value={interpretation} onChange={e => setInterpretation(e.target.value)}
+              rows={4} placeholder="Co ten sen może oznaczać? Twoje przemyślenia, skojarzenia..."
+              style={{ resize: 'vertical', minHeight: 90, lineHeight: 1.6 }} />
           </div>
 
           <button type="submit" className="btn-save" disabled={saving || (!title.trim() && !text.trim())}>
