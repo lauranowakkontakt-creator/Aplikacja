@@ -276,7 +276,7 @@ function BibleJourney({ startDate, finishedAt, pct, onSetStart, onFinish, onRese
     return (
       <div className="bible-journey bible-journey--done">
         <div className="bible-journey-head">
-          <span className="bible-journey-kicker"><IconFlag size={11} /> Cała Biblia przeczytana 🎉</span>
+          <span className="bible-journey-kicker"><IconFlag size={11} /> Cała Biblia przeczytana</span>
           <button className="bible-journey-reset" onClick={onReset} title="Zacznij od nowa">Od nowa</button>
         </div>
         <div className="bible-journey-bignum">{durationText(days)}</div>
