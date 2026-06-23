@@ -120,8 +120,15 @@ export default function Pulpit({ user, onNavigate }) {
 
   /* ── MODLITWA ── */
   const prayerStat = useMemo(() => {
-    const active = intentions.filter(i => i.status === 'active' || !i.status)
-    const prayedToday = active.filter(i => i.prayedDates?.includes(today)).length
+    // „Na dziś" — tak samo jak w module Modlitwa: aktywne prośby,
+    // bez okna (codzienne) lub z oknem obejmującym dziś, jeszcze przed terminem.
+    const dueToday = intentions.filter(i => {
+      if (!(i.status === 'active' || !i.status)) return false
+      if (i.dateTo && i.dateTo < today) return false
+      if (!i.scheduleFrom && !i.scheduleTo) return true
+      return today >= (i.scheduleFrom || '0000-01-01') && today <= (i.scheduleTo || '9999-12-31')
+    })
+    const prayedToday = dueToday.filter(i => i.prayedDates?.includes(today)).length
     const allDates = new Set(intentions.flatMap(i => i.prayedDates || []))
     let streak = 0
     for (let i = 0; i < 365; i++) {
@@ -130,7 +137,7 @@ export default function Pulpit({ user, onNavigate }) {
       if (allDates.has(d)) streak++
       else if (d < today) break
     }
-    return { active: active.length, prayedToday, streak }
+    return { active: dueToday.length, prayedToday, streak }
   }, [intentions, today])
 
   /* ── BIBLIA ── */
