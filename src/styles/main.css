@@ -145,6 +145,16 @@ body {
 .content-inner { max-width: 1180px; margin: 0 auto; padding: clamp(20px, 3vw, 32px) clamp(18px, 4vw, 36px) 80px; }
 
 /* ===== BOTTOM NAV (mobile) ===== */
+/* To-do: pasek szybkiego dodawania zadania */
+.todo-quickadd {
+  position: sticky; bottom: 0; z-index: 20;
+  background: var(--bg); padding: 8px 0 12px; border-top: 1px solid var(--border); margin-top: 8px;
+}
+@media (max-width: 880px) {
+  /* Uniesienie nad dolną nawigację (fixed), inaczej pole „Dodaj zadanie" jest przykryte */
+  .todo-quickadd { bottom: calc(62px + env(safe-area-inset-bottom, 0px)); }
+}
+
 .bottom-nav {
   display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
   background: rgba(15,17,26,.92); backdrop-filter: blur(18px);

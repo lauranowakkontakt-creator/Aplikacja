@@ -147,6 +147,11 @@ export default function TodoDashboard({ user }) {
           <div className="mod-header-title">{headerTitle}</div>
         </div>
         <div className="mod-header-right" style={{ position: 'relative' }}>
+          <button className="icon-btn" title="Nowe zadanie"
+            onClick={() => { setEditTodo(null); setFormDefaultDue(''); setShowForm(true) }}
+            style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: 'none' }}>
+            <IconPlus size={16} />
+          </button>
           <button className="icon-btn" onClick={() => { setShowSearch(s => !s); setSearchQuery('') }}
             style={showSearch ? { color: 'var(--accent)' } : {}}>
             <IconSearch size={16} />
@@ -324,10 +329,7 @@ export default function TodoDashboard({ user }) {
           )}
 
           {/* Sticky quick-add */}
-          <div style={{
-            position: 'sticky', bottom: 0, background: 'var(--bg)', paddingBottom: 12, paddingTop: 8,
-            borderTop: '1px solid var(--border)', marginTop: 8,
-          }}>
+          <div className="todo-quickadd">
             <form onSubmit={handleQuickAdd}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
