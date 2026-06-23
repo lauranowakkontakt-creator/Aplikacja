@@ -3,7 +3,7 @@ import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Times
 import { db } from '../../firebase/config'
 import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOfDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat, IconArchive, IconRestore } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat, IconArchive, IconRestore, IcCar } from '../Icons'
 import { Heatmap } from '../ChartPrimitives'
 import StatSummary from '../StatSummary'
 import { confirmDialog } from '../ConfirmModal'
@@ -138,7 +138,7 @@ export default function PrayerDashboard({ user }) {
               color: carMode ? '#fff' : 'var(--text-sub)',
             }}
             title="Tryb auto (większe przyciski do prowadzenia)"
-          >🚗 Auto</button>
+          ><IcCar size={15} /> Auto</button>
           <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
             <IconFlame size={14} style={{ color: 'var(--accent)' }} />
             <span style={{ fontSize: 13, fontWeight: 700 }}>{streak}</span>
