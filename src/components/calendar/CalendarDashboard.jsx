@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
+import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, getDoc, getDocs, setDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
@@ -159,20 +159,35 @@ export default function CalendarDashboard({ user }) {
   }
   const openPersonEdit = (p) => { setEditPerson(p); setShowPeopleMgr(true) }
 
+  // Zasiew domyślnych kategorii TYLKO RAZ (gdy użytkownik nigdy ich nie miał).
+  // Flaga w settings/calendar zapobiega ponownemu zasiewowi po usunięciu —
+  // wcześniej puste = ciągłe odtwarzanie domyślnych, przez co „usuwanie nie działało".
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const flagRef = doc(db, 'users', user.uid, 'settings', 'calendar')
+        const flag = await getDoc(flagRef)
+        if (cancelled || (flag.exists() && flag.data().seededCategories)) return
+        const snap = await getDocs(collection(db, 'users', user.uid, 'calendarCategories'))
+        if (cancelled) return
+        if (snap.empty) {
+          for (let i = 0; i < DEFAULT_CATEGORIES.length; i++) {
+            await addDoc(collection(db, 'users', user.uid, 'calendarCategories'), {
+              ...DEFAULT_CATEGORIES[i], createdAt: Timestamp.fromMillis(Date.now() + i * 10)
+            })
+          }
+        }
+        await setDoc(flagRef, { seededCategories: true }, { merge: true })
+      } catch { /* brak sieci itp. — pomiń */ }
+    })()
+    return () => { cancelled = true }
+  }, [user.uid])
+
+  // Live subskrypcja kategorii (bez zasiewu — usunięcia są trwałe)
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarCategories'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, async snap => {
-      if (snap.empty) {
-        for (let i = 0; i < DEFAULT_CATEGORIES.length; i++) {
-          const c = DEFAULT_CATEGORIES[i]
-          await addDoc(collection(db, 'users', user.uid, 'calendarCategories'), {
-            ...c, createdAt: Timestamp.fromMillis(Date.now() + i * 10)
-          })
-        }
-        return
-      }
-      setCategories(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    })
+    return onSnapshot(q, snap => setCategories(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
 
   useEffect(() => {
