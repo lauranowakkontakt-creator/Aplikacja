@@ -6,7 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && gh-pages -d dist"
+    "test": "node --test test/*.test.js",
+    "check": "node --test test/*.test.js && vite build",
+    "deploy": "npm run check && gh-pages -d dist"
   },
   "dependencies": {
     "react": "^18.3.1",

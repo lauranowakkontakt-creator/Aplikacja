@@ -10,7 +10,7 @@ import {
 import { confirmDialog } from '../ConfirmModal'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS, getEmotion, getCategory,
-  parseMentions, dreamPeopleIds, scrubSymbolFromDreams,
+  parseMentions, dreamPeopleIds, scrubSymbolFromDreams, nameStem,
 } from '../../utils/dreams'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
@@ -50,13 +50,6 @@ const SymbolChip = ({ symbol, onClick }) => (
     <span style={{ opacity: 0.65 }}>#</span>{symbol.name}
   </Chip>
 )
-
-// Rdzeń imienia — bez końcowej samogłoski, żeby łapać polskie odmiany
-// (Kasia → Kasi → Kasię/Kasią/Kasi, Ola → Ol → Olę/Olą...).
-const nameStem = (name) => {
-  const s = (name || '').trim()
-  return s.length >= 3 ? s.replace(/(a|e|o|y|i|ą|ę|u|ó)$/u, '') : s
-}
 
 /* Treść snu z podświetlonymi osobami i symbolami (po rdzeniu — łapie też odmiany).
    Tokenizujemy słowa bez lookbehind, żeby działało też na starszym Safari/iOS. */
