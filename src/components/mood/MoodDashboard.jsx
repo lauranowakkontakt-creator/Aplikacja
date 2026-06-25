@@ -412,7 +412,7 @@ function MoodPage({ user, logs, onDelete }) {
             const isToday = date === today
             return (
               <button key={date} onClick={() => setSelDate(date)} style={{
-                aspectRatio: '1', borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between',
+                height: 46, borderRadius: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between',
                 padding: '6px 4px 4px', background: color ? color + '28' : 'var(--surface2)',
                 border: `1.5px solid ${isSel ? (color || 'var(--accent)') : isToday ? 'var(--accent)' : 'transparent'}`,
                 cursor: 'pointer', transition: 'all .15s',

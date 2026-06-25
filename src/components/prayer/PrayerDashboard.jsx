@@ -1170,10 +1170,13 @@ function IntentionForm({ user, editData, personId, onClose }) {
   }
 
   return (
-    <div style={{ background: 'var(--surface2)', border: '1px solid var(--accent)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-        {editData ? 'Edytuj prośbę' : 'Nowa prośba modlitewna'}
-      </p>
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <h3>{editData ? 'Edytuj prośbę' : 'Nowa prośba modlitewna'}</h3>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       <div className="form-group" style={{ margin: 0 }}>
         <label>Prośba</label>
@@ -1218,6 +1221,8 @@ function IntentionForm({ user, editData, personId, onClose }) {
           flex: 1, background: 'transparent', border: '1px solid var(--border)',
           color: 'var(--text-muted)', borderRadius: 'var(--radius)', padding: 12, cursor: 'pointer', fontSize: 14
         }}>Anuluj</button>
+      </div>
+        </div>
       </div>
     </div>
   )

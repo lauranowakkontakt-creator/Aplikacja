@@ -492,7 +492,7 @@ button { touch-action: manipulation; }
 /* ===== MODAL ===== */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex;
-  align-items: flex-end; justify-content: center; z-index: 200; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  align-items: flex-end; justify-content: center; z-index: 200;
   overscroll-behavior: contain;
   /* Allow the sheet to scroll as a whole if it ever exceeds the viewport */
   overflow-y: auto; padding-top: env(safe-area-inset-top, 0px);
@@ -755,7 +755,7 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 }
 
 /* ===== SETTINGS DRAWER ===== */
-.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+.drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.66); z-index: 200; }
 .drawer {
   position: fixed; top: 0; right: 0; width: 320px; max-width: 90vw; height: 100dvh;
   background: var(--surface); border-left: 1px solid var(--border); z-index: 201;
@@ -1765,9 +1765,8 @@ body { overscroll-behavior-y: none; }
    MORE SHEET („Więcej" — launcher aplikacji)
    =================================================================== */
 .more-overlay {
-  position: fixed; inset: 0; z-index: 38; background: rgba(0,0,0,.45);
+  position: fixed; inset: 0; z-index: 38; background: rgba(0,0,0,.55);
   opacity: 0; pointer-events: none; transition: opacity .25s;
-  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
 }
 .more-overlay.open { opacity: 1; pointer-events: auto; }
 

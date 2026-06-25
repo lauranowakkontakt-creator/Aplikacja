@@ -322,7 +322,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                         display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                         background: color + '1A', border: `1px solid ${color + '40'}`, color,
                       }}>
-                        <CatIcon categoryId={habit.category} emoji={habit.emoji} size={20} />
+                        <CatIcon categoryId={null} emoji={habit.emoji} size={20} />
                       </div>
 
                       {/* Body */}
@@ -378,7 +378,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           ) : (
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
               {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr repeat(7,36px)', gap: 4, padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(58px,1.2fr) repeat(7,minmax(0,1fr))', gap: 4, padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em' }}>NAWYK</div>
                 {weekDays.map(d => (
                   <div key={d.date} style={{ textAlign: 'center' }}>
@@ -393,7 +393,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                 const color  = habit.color || 'var(--accent)'
                 return (
                   <div key={habit.id} style={{
-                    display: 'grid', gridTemplateColumns: '1fr repeat(7,36px)', gap: 4,
+                    display: 'grid', gridTemplateColumns: 'minmax(58px,1.2fr) repeat(7,minmax(0,1fr))', gap: 4,
                     padding: '10px 14px', alignItems: 'center',
                     borderBottom: idx < filtered.length - 1 ? '1px solid var(--border)' : 'none',
                   }}>
@@ -404,7 +404,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         background: color + '1A', color,
                       }}>
-                        <CatIcon categoryId={habit.category} emoji={habit.emoji} size={14} />
+                        <CatIcon categoryId={null} emoji={habit.emoji} size={14} />
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{habit.name}</div>
@@ -477,7 +477,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     background: color + '1A', border: `1px solid ${color + '40'}`, color,
                   }}>
-                    <CatIcon categoryId={habit.category} emoji={habit.emoji} size={18} />
+                    <CatIcon categoryId={null} emoji={habit.emoji} size={18} />
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{habit.name}</div>
@@ -521,7 +521,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                   color: h.color || 'var(--accent)',
                   opacity: 0.4,
                 }}>
-                  <CatIcon categoryId={h.category} emoji={h.emoji} size={14} />
+                  <CatIcon categoryId={null} emoji={h.emoji} size={14} />
                 </span>
                 <span className="habit-name" style={{ opacity: .4 }}>{h.name}</span>
               </div>
