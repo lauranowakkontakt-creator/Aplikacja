@@ -8,6 +8,7 @@ import {
   IconUsers, IconCheck, IconCalendar, IconTag, IconPlus,
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS, getEmotion, getCategory,
   parseMentions, dreamPeopleIds, scrubSymbolFromDreams,
@@ -86,11 +87,12 @@ function DreamText({ text, highlightPeople = [], highlightSymbols = [] }) {
       {chunks.map((chunk, ci) => {
         if (chunk && chunk.startsWith('@') && personByName[chunk.slice(1)]) {
           const person = personByName[chunk.slice(1)]
-          // Pełna wzmianka (także dwuczłonowe imię) nie łamie się w połowie i czyta się jako całość — bez znaku @.
+          // Pokaż tylko imię (pierwszy człon) — bez znaku @ i bez nazwiska; wzmianka nie łamie się w połowie.
+          const firstName = (person.name || '').trim().split(/\s+/)[0]
           return (
-            <span key={ci} style={{
+            <span key={ci} title={person.name} style={{
               color: person.color || 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap',
-            }}>{person.name}</span>
+            }}>{firstName}</span>
           )
         }
         return <span key={ci}>{renderSymbols(chunk || '', `c${ci}`)}</span>
@@ -326,9 +328,16 @@ function SymbolsView({ user, symbols, dreams, counts, peopleById, symbolsById, s
       message: 'Zniknie ze spisu i zostanie odpięty od snów (same sny zostają).',
     })
     if (!ok) return
-    await scrubSymbolFromDreams(user.uid, s.id)
-    await deleteDoc(doc(db, 'users', user.uid, 'dreamSymbols', s.id))
-    if (selectedSymbolId === s.id) onSelectSymbol(null)
+    try {
+      // Najpierw kasujemy sam symbol (główna akcja) — nawet gdyby odpinanie od snów zawiodło.
+      await deleteDoc(doc(db, 'users', user.uid, 'dreamSymbols', s.id))
+      if (selectedSymbolId === s.id) onSelectSymbol(null)
+      // Odpięcie od snów jest poboczne — błąd tutaj nie może blokować usunięcia symbolu.
+      try { await scrubSymbolFromDreams(user.uid, s.id) } catch {}
+      toast.success('Symbol usunięty')
+    } catch (err) {
+      toast.error('Nie udało się usunąć symbolu: ' + (err?.message || 'błąd'))
+    }
   }
 
   // Widok pojedynczego symbolu — jego sny
