@@ -281,19 +281,16 @@ function DreamCard({ dream: d, peopleById, symbolsById, onClick }) {
           })}
           {syms.slice(0, 3).map(s => <SymbolChip key={s.id} symbol={s} />)}
           {linked.length > 0 && (
-            <div style={{ display: 'flex', marginLeft: 'auto', alignItems: 'center', paddingLeft: 4 }}>
-              {linked.slice(0, 4).map((p, i) => (
-                <div key={p.id} style={{
-                  marginLeft: i ? -7 : 0, borderRadius: '50%',
-                  boxShadow: '0 0 0 2px var(--surface)', zIndex: 10 - i, position: 'relative',
-                }}><Bubble person={p} size={24} /></div>
+            <div style={{ display: 'flex', marginLeft: 'auto', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+              {linked.slice(0, 4).map(p => (
+                <Bubble key={p.id} person={p} size={24} />
               ))}
               {linked.length > 4 && (
                 <div style={{
-                  marginLeft: -7, width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
-                  background: 'var(--surface3)', boxShadow: '0 0 0 2px var(--surface)',
+                  width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
+                  background: 'var(--surface3)', border: '1px solid var(--border)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', position: 'relative', zIndex: 1,
+                  fontSize: 10, fontWeight: 700, color: 'var(--text-muted)',
                 }}>+{linked.length - 4}</div>
               )}
             </div>
