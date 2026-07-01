@@ -817,7 +817,7 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .budget-tab:hover:not(.active) { background: var(--surface2); color: var(--text); }
 
 /* ===== ACCOUNTS ===== */
-.accounts-view { display: flex; flex-direction: column; gap: 14px; }
+.accounts-view { display: flex; flex-direction: column; gap: 10px; }
 .accounts-total {
   background: linear-gradient(135deg, var(--surface) 50%, color-mix(in oklab, var(--accent) 8%, var(--surface)) 100%);
   border: 1px solid var(--border);
@@ -840,7 +840,7 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .currency-tile-amount { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; white-space: nowrap; }
 .currency-tiles.compact .currency-tile { padding: 8px 10px; }
 .currency-tiles.compact .currency-tile-amount { font-size: 15px; }
-.accounts-list { display: flex; flex-direction: column; gap: 8px; }
+.accounts-list { display: flex; flex-direction: column; gap: 6px; }
 .account-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: background 0.15s; }
 .account-item:hover { background: var(--surface2); }
 .account-icon-wrap { width: 46px; height: 46px; border-radius: 13px; border: 1px solid; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -1555,8 +1555,9 @@ body { overscroll-behavior-y: none; }
 }
 .bible-journey-reset:hover { color: var(--text); }
 .bible-journey-intro { font-size: 13px; color: var(--text-sub); line-height: 1.5; margin-bottom: 12px; }
-.bible-journey-start { display: flex; gap: 8px; }
-.bible-journey-start .form-input { flex: 1; min-width: 0; }
+.bible-journey-start { display: flex; gap: 8px; align-items: stretch; }
+.bible-journey-start .form-input { flex: 1 1 auto; min-width: 0; }
+.bible-journey-start .bible-journey-finish { width: auto; flex: 0 0 auto; margin-top: 0; white-space: nowrap; padding: 11px 22px; }
 .bible-journey-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .bible-journey-bignum { font-size: 24px; font-weight: 700; line-height: 1.05; }
 .bible-journey--done .bible-journey-bignum { color: var(--income); }

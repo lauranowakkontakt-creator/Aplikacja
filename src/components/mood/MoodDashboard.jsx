@@ -162,7 +162,7 @@ function MoodEntryForm({ user, date, onSaved }) {
   const dateLabel = format(new Date(date + 'T12:00:00'), 'd MMM', { locale: pl })
 
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '18px 16px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '14px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
       {/* Nastrój */}
       <div>
@@ -172,8 +172,8 @@ function MoodEntryForm({ user, date, onSaved }) {
             const active = mood === m.id
             return (
               <button key={m.id} onClick={() => setMood(active ? null : m.id)} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                padding: '12px 4px', borderRadius: 14, cursor: 'pointer',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                padding: '9px 4px', borderRadius: 12, cursor: 'pointer',
                 background: active ? m.color + '22' : 'transparent',
                 border: `2px solid ${active ? m.color : 'var(--border)'}`,
                 transform: active ? 'translateY(-2px)' : 'none',
@@ -331,7 +331,9 @@ function MoodPage({ user, logs, onDelete }) {
               <button className="month-btn" style={{ width: 26, height: 26 }} onClick={() => setMonth(m => addMonths(m, 1))}><IconChevronRight size={12} /></button>
             </div>
           </div>
-          {chartData.length > 0 ? (
+          {chartData.length === 1 ? (
+            <SingleMoodPreview point={chartData[0]} />
+          ) : chartData.length > 1 ? (
             <ResponsiveContainer width="100%" height={150}>
               <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -30, bottom: 0 }}>
                 <defs><linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
@@ -475,6 +477,28 @@ function LogEntry({ log, onDelete }) {
   )
 }
 
+
+// Pojedynczy wpis w miesiącu — zamiast samotnej kropki na wykresie pokaż czytelną kartę
+function SingleMoodPreview({ point }) {
+  const mObj = MOODS.reduce((p, c) => Math.abs(c.value - point.value) < Math.abs(p.value - point.value) ? c : p)
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, height: 150, padding: '0 6px' }}>
+      <div style={{
+        width: 64, height: 64, borderRadius: '50%', flexShrink: 0,
+        background: mObj.color + '22', border: `2px solid ${mObj.color}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <MoodFace mood={mObj} size={38} active />
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: mObj.color }}>{mObj.label}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+          Pierwszy wpis w tym miesiącu.<br />Dodaj kolejne dni, a pojawi się wykres trendu.
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function AnimBar({ pct, color }) {
   const [w, setW] = useState(0)

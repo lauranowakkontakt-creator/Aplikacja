@@ -86,7 +86,12 @@ function DreamText({ text, highlightPeople = [], highlightSymbols = [] }) {
       {chunks.map((chunk, ci) => {
         if (chunk && chunk.startsWith('@') && personByName[chunk.slice(1)]) {
           const person = personByName[chunk.slice(1)]
-          return <span key={ci} style={{ color: person.color || 'var(--accent)', fontWeight: 600 }}>{chunk}</span>
+          // Pełna wzmianka (także dwuczłonowe imię) nie łamie się w połowie i czyta się jako całość — bez znaku @.
+          return (
+            <span key={ci} style={{
+              color: person.color || 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap',
+            }}>{person.name}</span>
+          )
         }
         return <span key={ci}>{renderSymbols(chunk || '', `c${ci}`)}</span>
       })}
@@ -276,10 +281,21 @@ function DreamCard({ dream: d, peopleById, symbolsById, onClick }) {
           })}
           {syms.slice(0, 3).map(s => <SymbolChip key={s.id} symbol={s} />)}
           {linked.length > 0 && (
-            <div style={{ display: 'flex', marginLeft: 'auto' }}>
-              {linked.slice(0, 5).map((p, i) => (
-                <div key={p.id} style={{ marginLeft: i ? -8 : 0 }}><Bubble person={p} size={24} /></div>
+            <div style={{ display: 'flex', marginLeft: 'auto', alignItems: 'center', paddingLeft: 4 }}>
+              {linked.slice(0, 4).map((p, i) => (
+                <div key={p.id} style={{
+                  marginLeft: i ? -7 : 0, borderRadius: '50%',
+                  boxShadow: '0 0 0 2px var(--surface)', zIndex: 10 - i, position: 'relative',
+                }}><Bubble person={p} size={24} /></div>
               ))}
+              {linked.length > 4 && (
+                <div style={{
+                  marginLeft: -7, width: 24, height: 24, borderRadius: '50%', flexShrink: 0,
+                  background: 'var(--surface3)', boxShadow: '0 0 0 2px var(--surface)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', position: 'relative', zIndex: 1,
+                }}>+{linked.length - 4}</div>
+              )}
             </div>
           )}
         </div>

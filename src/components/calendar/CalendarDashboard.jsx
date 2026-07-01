@@ -140,6 +140,7 @@ export default function CalendarDashboard({ user }) {
   const [showPeopleMgr, setShowPeopleMgr] = useState(false)
   const [editPerson, setEditPerson]       = useState(null)
   const [filterPersonId, setFilterPersonId] = useState(null)
+  const [peopleExpanded, setPeopleExpanded] = useState(false)
 
   const archivePersonH = async (id) => {
     await setPersonHidden(user.uid, id, 'calendar', true)
@@ -302,7 +303,7 @@ export default function CalendarDashboard({ user }) {
             color: filterPersonId === null ? 'var(--text)' : 'var(--text-muted)',
             fontWeight: filterPersonId === null ? 700 : 400,
           }}>Wszyscy</button>
-          {activePeople.map(p => (
+          {(peopleExpanded ? activePeople : activePeople.slice(0, 5)).map(p => (
             <button key={p.id} onClick={() => setFilterPersonId(filterPersonId === p.id ? null : p.id)} style={{
               display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px 3px 4px',
               borderRadius: 99, fontSize: 12, cursor: 'pointer',
@@ -317,6 +318,14 @@ export default function CalendarDashboard({ user }) {
               {p.name}
             </button>
           ))}
+          {activePeople.length > 5 && (
+            <button onClick={() => setPeopleExpanded(v => !v)} style={{
+              padding: '4px 12px', borderRadius: 99, fontSize: 12, cursor: 'pointer', fontWeight: 600,
+              border: '1.5px dashed var(--border-strong)', background: 'transparent', color: 'var(--text-muted)',
+            }}>
+              {peopleExpanded ? 'Mniej' : `+${activePeople.length - 5} więcej`}
+            </button>
+          )}
         </div>
       )}
 

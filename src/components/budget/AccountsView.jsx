@@ -117,19 +117,19 @@ export default function AccountsView({ user, privateMode }) {
                 border: '1px solid var(--border)',
                 borderLeft: `4px solid ${color}`,
                 borderRadius: 'var(--r)',
-                padding: '14px 16px',
-                display: 'flex', alignItems: 'center', gap: 14,
+                padding: '10px 14px',
+                display: 'flex', alignItems: 'center', gap: 12,
                 cursor: 'pointer', transition: 'background .15s',
               }}
                 onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${color}14 0%, var(--surface2) 60%)`}
                 onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${color}08 0%, var(--surface) 60%)`}
               >
                 <div style={{
-                  width: 46, height: 46, borderRadius: 13, flexShrink: 0,
+                  width: 40, height: 40, borderRadius: 11, flexShrink: 0,
                   background: color + '22', border: `1px solid ${color}40`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', color
                 }}>
-                  <Ic size={22} />
+                  <Ic size={20} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{acc.name}</div>

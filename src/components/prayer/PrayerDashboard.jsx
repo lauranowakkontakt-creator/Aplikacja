@@ -153,18 +153,18 @@ export default function PrayerDashboard({ user }) {
       {/* Stats tiles */}
       {!carMode && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: '#C9A24A' }}><IconPrayer size={22}/></div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px', textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 3, color: '#C9A24A' }}><IconPrayer size={18}/></div>
             <div style={{ fontSize: 22, fontWeight: 700, color: '#C9A24A', lineHeight: 1 }}>{prayedToday}</div>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Dziś</div>
           </div>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
-            <IconFlame size={22} style={{ marginBottom: 4 }} />
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px', textAlign: 'center' }}>
+            <IconFlame size={18} style={{ marginBottom: 3 }} />
             <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{streak}</div>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Seria</div>
           </div>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 14, textAlign: 'center' }}>
-            <IconUsers size={22} style={{ marginBottom: 4 }} />
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px', textAlign: 'center' }}>
+            <IconUsers size={18} style={{ marginBottom: 3 }} />
             <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--violet)', lineHeight: 1 }}>{people.length}</div>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Osób</div>
           </div>
@@ -857,6 +857,7 @@ function TodayView({ user, intentions, people, carMode }) {
 /* ─── StatsView ──────────────────────────────────────────────────────────── */
 function StatsView({ intentions, people, allPrayedDates, streak }) {
   const today    = TODAY()
+  const [showAllPeople, setShowAllPeople] = useState(false)
 
   // „W liczbach" — miesiąc / rok
   const summary = useMemo(() => {
@@ -934,7 +935,7 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
           {kicker('Osoby — jak często się modliłam')}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {personStats.map(p => {
+            {(showAllPeople ? personStats : personStats.slice(0, 6)).map(p => {
               const neglect = getNeglect(p.activeCount > 0 && !p.prayedToday ? p.days : -1)
               const isNeglected     = p.activeCount > 0 && !p.prayedToday && neglect.level >= 4
               const isAtRisk        = p.activeCount > 0 && !p.prayedToday && neglect.level === 3
@@ -969,6 +970,14 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
               )
             })}
           </div>
+          {personStats.length > 6 && (
+            <button onClick={() => setShowAllPeople(v => !v)} style={{
+              marginTop: 10, width: '100%', padding: '8px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+              border: '1px dashed var(--border-strong)', background: 'transparent', color: 'var(--text-muted)',
+            }}>
+              {showAllPeople ? 'Pokaż mniej' : `Pokaż wszystkie (${personStats.length})`}
+            </button>
+          )}
         </div>
       )}
     </div>

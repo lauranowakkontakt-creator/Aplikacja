@@ -16,6 +16,7 @@ import CurrencyTiles from './budget/CurrencyTiles'
 import TitheView from './budget/TitheView'
 import SavingsGoals from './budget/SavingsGoals'
 import Reminders from './budget/Reminders'
+import Debtors from './budget/Debtors'
 import CategoriesView from './budget/CategoriesView'
 import ShoppingList from './budget/ShoppingList'
 import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconClock, IconEye, IconEyeOff, CatIcon } from './Icons'
@@ -119,6 +120,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
     if (id === 'tithe')      return setModal('tithe')
     if (id === 'goals')      return setModal('goals')
     if (id === 'reminders')  return setModal('reminders')
+    if (id === 'debtors')    return setModal('debtors')
     if (id === 'categories') return setModal('categories')
     if (id === 'shopping')   return setActiveTab('shopping')
   }
@@ -514,6 +516,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
       {modal === 'tithe'       && <TitheView      user={user} onClose={() => setModal(null)} />}
       {modal === 'goals'       && <SavingsGoals   user={user} onClose={() => setModal(null)} />}
       {modal === 'reminders'   && <Reminders      user={user} onClose={() => setModal(null)} />}
+      {modal === 'debtors'     && <Debtors        user={user} onClose={() => setModal(null)} />}
       {modal === 'categories'  && <CategoriesView user={user} onClose={() => setModal(null)} />}
       {modal === 'stats'       && <ComingSoon title="Statystyki roczne" onClose={() => setModal(null)} />}
 

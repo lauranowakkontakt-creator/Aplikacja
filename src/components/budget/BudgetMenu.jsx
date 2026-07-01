@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { CURRENCIES, getCurrencyCode, setCurrencyCode } from '../../utils/currency'
-import { IconClose, IconSearch, IconTransfer, IconPrayer, IconStar, IconBell, IconTag, IconEye, IconEyeOff, IconCheck, IconShopping } from '../Icons'
+import { IconClose, IconSearch, IconTransfer, IconPrayer, IconStar, IconBell, IconTag, IconEye, IconEyeOff, IconCheck, IconShopping, IconUsers } from '../Icons'
 
 const IconCurrency = (p) => (
   <svg width={p.size || 18} height={p.size || 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -29,6 +29,7 @@ export default function BudgetMenu({ onAction, privateMode, onCurrencyChange }) 
     { id: 'tithe',      Icon: IconPrayer,   label: 'Dziesięcina' },
     { id: 'goals',      Icon: IconStar,     label: 'Cele oszczędnościowe' },
     { id: 'reminders',  Icon: IconBell,     label: 'Przypomnienia' },
+    { id: 'debtors',    Icon: IconUsers,    label: 'Dłużnicy' },
     { id: 'categories', Icon: IconTag,      label: 'Zarządzaj kategoriami' },
     { id: 'currency',   Icon: IconCurrency, label: `Waluta (${currentCurrency})` },
   ]
