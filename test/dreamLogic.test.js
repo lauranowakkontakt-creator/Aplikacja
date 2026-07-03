@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS,
-  getEmotion, getCategory, parseMentions, parseSymbols, dreamPeopleIds, nameStem,
+  getEmotion, getCategory, parseMentions, parseSymbols, dreamPeopleIds, nameStem, personForms,
 } from '../src/utils/dreamLogic.js'
 
 const people = [
@@ -32,6 +32,19 @@ test('parseMentions — wiele osób', () => {
   const r = parseMentions('@Kasia i @Ola', people)
   assert.equal(r.length, 2)
   assert.ok(r.includes('p1') && r.includes('p3'))
+})
+
+test('personForms — pełne imię, samo imię i ksywki, bez duplikatów', () => {
+  assert.deepEqual(personForms({ name: 'Manuela Filipska', aliases: ['Manka', 'Manuela'] }),
+    ['Manuela Filipska', 'Manuela', 'Manka'])
+  assert.deepEqual(personForms({ name: 'Ola' }), ['Ola'])
+  assert.deepEqual(personForms(null), [])
+})
+
+test('parseMentions — dopasowuje po ksywce (aliasie)', () => {
+  const ppl = [{ id: 'p1', name: 'Manuela Filipska', aliases: ['Manka'] }]
+  assert.deepEqual(parseMentions('była tam @Manka', ppl), ['p1'])
+  assert.deepEqual(parseMentions('oraz @Manuela na końcu', ppl), ['p1'])
 })
 
 test('parseSymbols — znajduje #symbol', () => {

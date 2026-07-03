@@ -42,16 +42,36 @@ export const SYMBOL_COLORS = [
 export const getEmotion  = (id) => DREAM_EMOTIONS.find(e => e.id === id)
 export const getCategory = (id) => DREAM_CATEGORIES.find(c => c.id === id)
 
-// Wyłuskaj z treści snu osoby wspomniane przez @Imię (najdłuższe dopasowanie pierwsze).
+// Formy osoby, którymi można ją oznaczyć w śnie: pełne imię, samo imię (pierwszy człon)
+// oraz dowolne ksywki zapisane w polu `aliases`. Bez pustych i duplikatów.
+export function personForms(person) {
+  if (!person) return []
+  const forms = new Set()
+  const name = (person.name || '').trim()
+  if (name) {
+    forms.add(name)
+    const first = name.split(/\s+/)[0]
+    if (first) forms.add(first)
+  }
+  for (const a of (person.aliases || [])) {
+    const t = (a || '').trim()
+    if (t) forms.add(t)
+  }
+  return [...forms]
+}
+
+// Wyłuskaj z treści snu osoby wspomniane przez @Forma (najdłuższe dopasowanie pierwsze).
+// Formą może być pełne imię, samo imię lub ksywka (patrz personForms).
 export function parseMentions(text, people) {
   if (!text) return []
   const found = new Set()
-  const sorted = [...people].sort((a, b) => (b.name?.length || 0) - (a.name?.length || 0))
-  for (const p of sorted) {
-    if (!p.name) continue
-    const esc = p.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const entries = []
+  for (const p of people) for (const form of personForms(p)) entries.push({ form, id: p.id })
+  entries.sort((a, b) => b.form.length - a.form.length)
+  for (const { form, id } of entries) {
+    const esc = form.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const re = new RegExp('@' + esc + '(?![\\p{L}\\p{N}])', 'u')
-    if (re.test(text)) found.add(p.id)
+    if (re.test(text)) found.add(id)
   }
   return [...found]
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react'
-import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
+import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, arrayUnion } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -11,7 +11,7 @@ import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS, getEmotion, getCategory,
-  parseMentions, dreamPeopleIds, scrubSymbolFromDreams,
+  parseMentions, dreamPeopleIds, scrubSymbolFromDreams, personForms,
 } from '../../utils/dreams'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
@@ -61,8 +61,10 @@ function DreamText({ text, highlightPeople = [], highlightSymbols = [] }) {
   if (!text) return null
   const baseStyle = { margin: 0, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }
 
-  const pNames = highlightPeople.map(p => p.name).filter(Boolean).sort((a, b) => b.length - a.length)
-  const personByName = Object.fromEntries(highlightPeople.filter(p => p.name).map(p => [p.name, p]))
+  // Każda osoba może być oznaczona wieloma formami (imię, ksywka…). Najdłuższa forma wygrywa.
+  const formToPerson = {}
+  for (const p of highlightPeople) for (const f of personForms(p)) if (!(f in formToPerson)) formToPerson[f] = p
+  const pNames = [...new Set(Object.keys(formToPerson))].sort((a, b) => b.length - a.length)
   const syms = highlightSymbols.filter(s => s.name?.trim()).map(s => ({ sym: s, low: s.name.toLowerCase() }))
 
   // Podświetl symbole w zwykłym fragmencie tekstu (dopasowanie po nazwie/prefiksie)
@@ -85,14 +87,13 @@ function DreamText({ text, highlightPeople = [], highlightSymbols = [] }) {
   return (
     <p style={baseStyle}>
       {chunks.map((chunk, ci) => {
-        if (chunk && chunk.startsWith('@') && personByName[chunk.slice(1)]) {
-          const person = personByName[chunk.slice(1)]
-          // Pokaż tylko imię (pierwszy człon) — bez znaku @ i bez nazwiska; wzmianka nie łamie się w połowie.
-          const firstName = (person.name || '').trim().split(/\s+/)[0]
+        if (chunk && chunk.startsWith('@') && formToPerson[chunk.slice(1)]) {
+          const person = formToPerson[chunk.slice(1)]
+          const form = chunk.slice(1) // dokładnie ta forma, którą wybrano przy pisaniu (imię/ksywka/pełne)
           return (
             <span key={ci} title={person.name} style={{
               color: person.color || 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap',
-            }}>{firstName}</span>
+            }}>{form}</span>
           )
         }
         return <span key={ci}>{renderSymbols(chunk || '', `c${ci}`)}</span>
@@ -516,6 +517,8 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
   const textRef = useRef(null)
   const [trigger, setTrigger]   = useState(null) // { type:'person'|'symbol', query, start }
   const [caretPos, setCaretPos] = useState(null)
+  const [formPickerPerson, setFormPickerPerson] = useState(null) // osoba, dla której wybieramy formę
+  const [aliasDraft, setAliasDraft] = useState('')
 
   // Pełny katalog symboli widoczny w formularzu (z bazy + utworzone teraz)
   const allSymbols = useMemo(() => {
@@ -530,6 +533,7 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
   const onTextChange = (e) => {
     const val = e.target.value
     setText(val)
+    setFormPickerPerson(null); setAliasDraft('')
     const caret = e.target.selectionStart
     const before = val.slice(0, caret)
     const m = before.match(/([@#])([\p{L}\p{N}]*)$/u)
@@ -539,7 +543,7 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
   const personMatches = useMemo(() => {
     if (trigger?.type !== 'person') return []
     const q = trigger.query.toLowerCase()
-    return people.filter(p => p.name?.toLowerCase().includes(q)).slice(0, 6)
+    return people.filter(p => personForms(p).some(f => f.toLowerCase().includes(q))).slice(0, 6)
   }, [trigger, people])
 
   const symbolMatches = useMemo(() => {
@@ -561,8 +565,22 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
     setCaretPos(trigger.start + insert.length)
   }
 
-  // @ wstawia @Imię (z @) — pewnie się podświetla; osoba dopięta do snu (peopleIds).
-  const pickPerson = (p) => { if (!peopleIds.includes(p.id)) setPeopleIds([...peopleIds, p.id]); insertToken('@', p.name) }
+  // Krok 1: klik osoby otwiera wybór formy (imię / pełne / ksywki). Krok 2: chooseForm wstawia @Forma.
+  const pickPerson = (p) => { setFormPickerPerson(p); setAliasDraft('') }
+  const chooseForm = (p, form) => {
+    if (!peopleIds.includes(p.id)) setPeopleIds([...peopleIds, p.id])
+    setFormPickerPerson(null); setAliasDraft('')
+    insertToken('@', form)
+  }
+  // Zapisz nową ksywkę do osoby (na stałe) i użyj jej w tym śnie.
+  const addAlias = async (p) => {
+    const a = aliasDraft.trim()
+    if (!a) return
+    if (!personForms(p).some(f => f.toLowerCase() === a.toLowerCase())) {
+      try { await updateDoc(doc(db, 'users', user.uid, 'calendarPeople', p.id), { aliases: arrayUnion(a) }) } catch {}
+    }
+    chooseForm(p, a)
+  }
   // # tylko wybiera symbol — wstawiamy samo słowo (bez #); powiązanie trzyma lista symbolIds.
   const pickSymbol = (s) => { if (!symbolIds.includes(s.id)) setSymbolIds([...symbolIds, s.id]); insertToken('', s.name) }
   const createAndPick = async () => {
@@ -589,7 +607,7 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
   )
 
   const showDrop = trigger && (
-    (trigger.type === 'person' && personMatches.length > 0) ||
+    (trigger.type === 'person' && (personMatches.length > 0 || formPickerPerson)) ||
     (trigger.type === 'symbol' && (symbolMatches.length > 0 || canCreateSymbol))
   )
 
@@ -642,12 +660,46 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
                 background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 10,
                 boxShadow: '0 8px 24px rgba(0,0,0,0.18)', overflow: 'hidden',
               }}>
-                {trigger.type === 'person' && personMatches.map(p => (
+                {trigger.type === 'person' && !formPickerPerson && personMatches.map(p => (
                   <button type="button" key={p.id} onClick={() => pickPerson(p)} style={dropItemStyle}>
                     <Bubble person={p} size={26} />
                     <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{p.name}</span>
+                    <IconChevronRight size={14} style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
                   </button>
                 ))}
+                {trigger.type === 'person' && formPickerPerson && (
+                  <div style={{ padding: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '2px 4px 8px' }}>
+                      <button type="button" onClick={() => { setFormPickerPerson(null); setAliasDraft('') }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'inline-flex', padding: 0 }}>
+                        <IconChevronLeft size={16} />
+                      </button>
+                      <Bubble person={formPickerPerson} size={22} />
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>{formPickerPerson.name}</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 'auto' }}>wybierz formę</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                      {personForms(formPickerPerson).map(f => (
+                        <button type="button" key={f} onClick={() => chooseForm(formPickerPerson, f)} style={{
+                          padding: '5px 12px', borderRadius: 99, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+                          background: (formPickerPerson.color || 'var(--accent)') + '1E',
+                          border: `1px solid ${formPickerPerson.color || 'var(--accent)'}55`,
+                          color: formPickerPerson.color || 'var(--accent)', fontWeight: 600,
+                        }}>{f}</button>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input value={aliasDraft} autoFocus placeholder="własna ksywka / forma…" maxLength={30}
+                        onChange={e => setAliasDraft(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addAlias(formPickerPerson) } }}
+                        className="form-input" style={{ flex: 1, minWidth: 0, margin: 0, padding: '7px 10px', fontSize: 13 }} />
+                      <button type="button" onClick={() => addAlias(formPickerPerson)} disabled={!aliasDraft.trim()}
+                        className="btn-save" style={{ width: 'auto', margin: 0, padding: '0 14px', opacity: aliasDraft.trim() ? 1 : 0.4 }}>
+                        Dodaj
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {trigger.type === 'symbol' && symbolMatches.map(s => (
                   <button type="button" key={s.id} onClick={() => pickSymbol(s)} style={dropItemStyle}>
                     <span style={{ width: 26, height: 26, borderRadius: 7, display: 'grid', placeItems: 'center', background: (s.color || '#5BB6D9') + '22', color: s.color || '#5BB6D9', flexShrink: 0 }}>
