@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  isTransfer, getSubcategoryColor,
+  isTransfer, getSubcategoryColor, CAT_COLORS,
   DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES,
 } from '../src/utils/categories.js'
 
@@ -31,6 +31,18 @@ test('getSubcategoryColor — różne indeksy dają różne odcienie', () => {
 test('getSubcategoryColor — wejście nie-hex zwraca bezpieczny fallback', () => {
   assert.equal(getSubcategoryColor('niebieski', 0), 'niebieski')
   assert.equal(getSubcategoryColor(undefined, 0), '#888')
+})
+
+test('paleta CAT_COLORS — poprawne hexy bez duplikatów', () => {
+  assert.equal(new Set(CAT_COLORS).size, CAT_COLORS.length)
+  for (const c of CAT_COLORS) assert.match(c, /^#[0-9A-Fa-f]{6}$/)
+})
+
+test('getSubcategoryColor — jasność zostaje w bezpiecznym zakresie', () => {
+  for (let i = 0; i < 8; i++) {
+    assert.match(getSubcategoryColor('#000000', i), /^#[0-9a-fA-F]{6}$/)
+    assert.match(getSubcategoryColor('#ffffff', i), /^#[0-9a-fA-F]{6}$/)
+  }
 })
 
 test('domyślne kategorie mają unikalne id i poprawne kolory', () => {

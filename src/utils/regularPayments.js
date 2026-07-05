@@ -4,24 +4,9 @@ import {
   addDoc, Timestamp, increment, doc
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { format, parseISO, isAfter, isBefore, startOfDay } from 'date-fns'
+import { periodKey, isPaymentDue } from './paymentLogic'
 
-export const periodKey = (d = new Date()) => format(d, 'yyyy-MM')
-
-// Czy płatność jest aktywna w danym dniu (mieści się w zakresie dat)
-export function isPaymentActive(p, today = startOfDay(new Date())) {
-  if (p.dateFrom && isBefore(today, startOfDay(parseISO(p.dateFrom)))) return false
-  if (p.dateTo   && isAfter(today,  startOfDay(parseISO(p.dateTo))))   return false
-  return true
-}
-
-// Czy płatność powinna zostać automatycznie/ręcznie zaksięgowana w tym okresie
-export function isPaymentDue(p, period = periodKey()) {
-  if (p.donePeriods?.includes(period)) return false
-  if (!isPaymentActive(p)) return false
-  if (p.frequency === 'monthly' && new Date().getDate() < (p.dayOfMonth || 1)) return false
-  return true
-}
+export { periodKey, isPaymentActive, isPaymentDue } from './paymentLogic'
 
 // Dodaje transakcję dla płatności i oznacza okres jako zrobiony
 export async function addTransactionForPayment(uid, p, period = periodKey()) {
