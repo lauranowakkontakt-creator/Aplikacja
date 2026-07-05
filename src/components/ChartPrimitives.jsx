@@ -118,6 +118,54 @@ export function BarChartSVG({ data, height = 150, accent = 'var(--accent)', fmt 
   )
 }
 
+// Zgrupowane słupki — para przychody (zielony) / wydatki (pomarańczowy) na miesiąc
+// data: [{ label, income, expense }]
+export function GroupedBars({ data, height = 150, incomeColor = 'var(--income)', expenseColor = 'var(--expense)', barMaxWidth = 14, fmt }) {
+  const on = useMounted(120)
+  const [hover, setHover] = useState(null)
+  const max = Math.max(1, ...data.flatMap(d => [d.income, d.expense])) * 1.15
+  // indeks słupka z najwyższą wartością — nad nim pokazujemy etykietę (jak „6865" w referencji)
+  let peak = { i: -1, type: null, val: 0 }
+  data.forEach((d, i) => {
+    if (d.income > peak.val) peak = { i, type: 'income', val: d.income }
+    if (d.expense > peak.val) peak = { i, type: 'expense', val: d.expense }
+  })
+  const labelH = fmt ? 18 : 0
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'min(3%,10px)', height, padding: '0 2px', overflow: 'hidden' }}>
+      {data.map((d, i) => {
+        const active = hover === i
+        return (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end', minWidth: 0 }}
+            onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+            <div style={{ position: 'relative', width: '100%', flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 3, minHeight: labelH }}>
+              {[['income', incomeColor], ['expense', expenseColor]].map(([type, color]) => {
+                const val = d[type]
+                const h = (val / max) * (100 - (labelH / height) * 100)
+                const showLabel = fmt && ((active && val > 0) || (hover === null && peak.i === i && peak.type === type))
+                return (
+                  <div key={type} style={{ flex: 1, maxWidth: barMaxWidth, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
+                    {showLabel && (
+                      <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', marginBottom: 3 }}>{fmt(val)}</span>
+                    )}
+                    <div style={{
+                      width: '100%', borderRadius: '4px 4px 2px 2px', flexShrink: 0,
+                      height: on ? `${h}%` : '0%',
+                      background: hover === null || active ? color : `color-mix(in oklab, ${color} 45%, var(--surface3))`,
+                      transition: `height .8s cubic-bezier(.34,1.4,.64,1) ${i * .03}s, background .2s`,
+                    }}/>
+                  </div>
+                )
+              })}
+            </div>
+            <span style={{ fontSize: 9, color: active ? 'var(--text)' : 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap', textTransform: 'capitalize' }}>{d.label}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // Heatmap (GitHub-style) — do nawyków i modlitwy
 // accentHex: raw hex like '#E0B15A' — used for rgba-based level colors (no color-mix needed)
 function hexToRgb(hex) {

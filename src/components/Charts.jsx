@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { collection, query, where, orderBy, onSnapshot, Timestamp, getDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { CatIcon, IconChevronLeft, IconChevronRight, IconChart } from './Icons'
-import { useMounted, BarChartSVG, FlowBar } from './ChartPrimitives'
+import { useMounted, GroupedBars } from './ChartPrimitives'
 import {
   format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   startOfYear, endOfYear, startOfDay, endOfDay,
@@ -234,10 +234,19 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
 
   // Always show last 12 months (monthly buckets) — more informative than day-by-day
   const monthly12 = build12MonthTimeline(yearTx.length > 0 ? yearTx : allTx)
-  const incomeData  = monthly12.map(d => ({ label: d.label, value: d.income }))
-  const expenseData = monthly12.map(d => ({ label: d.label, value: d.expense }))
-  const balanceData = monthly12.map(d => ({ label: d.label, value: d.income - d.expense }))
   const hasTimeline = monthly12.some(d => d.income > 0 || d.expense > 0)
+
+  // Zmiana przepływów: ostatni miesiąc z aktywnością vs poprzedni miesiąc z aktywnością
+  const flowDelta = (() => {
+    const active = monthly12.filter(d => d.income > 0 || d.expense > 0)
+    if (active.length < 2) return null
+    const cur  = active[active.length - 1]
+    const prev = active[active.length - 2]
+    const curFlow  = cur.income + cur.expense
+    const prevFlow = prev.income + prev.expense
+    if (prevFlow === 0) return null
+    return Math.round(((curFlow - prevFlow) / prevFlow) * 1000) / 10
+  })()
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -291,37 +300,20 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
         )}
       </div>
 
-      {/* Flow bar — przychody vs wydatki */}
-      {(totalInc > 0 || totalExp > 0) && (
-        <div className="card card-pad">
-          <p style={{ margin: '0 0 12px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-            Przepływy
-          </p>
-          <FlowBar segments={[
-            ...(totalInc > 0 ? [{ label: 'Przychody', value: totalInc, color: 'var(--income)' }] : []),
-            ...(totalExp > 0 ? [{ label: 'Wydatki', value: totalExp, color: 'var(--expense)' }] : []),
-          ]} height={12} />
-          <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
-            {[['var(--income)','Przychody', privateMode ? '••' : fmt(totalInc)],['var(--expense)','Wydatki', privateMode ? '••' : fmt(totalExp)]].map(([color, lbl, val]) => (
-              <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
-                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lbl}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{val}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Bilans miesięczny — dodatni niebieski w górę, ujemny czerwony w dół */}
+      {/* Przychody i wydatki — jeden zgrupowany wykres słupkowy (para obok siebie / miesiąc) */}
       {hasTimeline && (
         <div className="card card-pad" style={{ overflow: 'hidden' }}>
-          <p style={{ margin: '0 0 16px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-            Bilans miesięczny · ostatnie 12 miesięcy
+          <p style={{ margin: '0 0 8px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
+            Przychody i wydatki · ostatnie 12 miesięcy
           </p>
-          <BalanceBars data={balanceData} privateMode={privateMode} />
-          <div style={{ display: 'flex', gap: 16, marginTop: 12 }}>
-            {[['var(--info)','Nadwyżka (na plus)'],['var(--expense)','Deficyt (na minus)']].map(([color, lbl]) => (
+          {flowDelta !== null && (
+            <p style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: flowDelta >= 0 ? 'var(--income)' : 'var(--expense)' }}>
+              {flowDelta >= 0 ? '↑' : '↓'} {Math.abs(flowDelta).toFixed(1).replace('.', ',')}% <span style={{ fontWeight: 500, color: 'var(--text-muted)' }}>vs poprzedni miesiąc</span>
+            </p>
+          )}
+          <GroupedBars data={monthly12} height={150} barMaxWidth={10} fmt={privateMode ? () => '••' : (n) => Math.round(n).toLocaleString('pl-PL')} />
+          <div style={{ display: 'flex', gap: 16, marginTop: 14 }}>
+            {[['var(--income)','Przychody'],['var(--expense)','Wydatki']].map(([color, lbl]) => (
               <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 8, height: 8, borderRadius: 2, background: color, flexShrink: 0 }} />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{lbl}</span>
@@ -330,73 +322,6 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
           </div>
         </div>
       )}
-
-      {/* Timeline chart */}
-      {hasTimeline && (
-        <div className="card card-pad" style={{ overflow: 'hidden' }}>
-          <p style={{ margin: '0 0 16px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-            Trendy · ostatnie 12 miesięcy
-          </p>
-          <div className="g2">
-            <div style={{ minWidth: 0 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 9, color: 'var(--income)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Przychody</p>
-              <BarChartSVG data={incomeData} height={110} accent="var(--income)" fmt={privateMode ? () => '••' : fmt} />
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <p style={{ margin: '0 0 8px', fontSize: 9, color: 'var(--expense)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Wydatki</p>
-              <BarChartSVG data={expenseData} height={110} accent="var(--expense)" fmt={privateMode ? () => '••' : fmt} />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ─── Bilans miesięczny (rozbieżne słupki) ─── */
-function BalanceBars({ data, privateMode = false }) {
-  const [hover, setHover] = useState(null)
-  const on = useMounted(80)
-  const maxAbs = Math.max(1, ...data.map(d => Math.abs(d.value)))
-  const H = 64 // wysokość połowy (góra/dół)
-  const shortMoney = (n) => {
-    const a = Math.abs(n)
-    if (a >= 1000) return (n / 1000).toFixed(a >= 10000 ? 0 : 1).replace('.', ',') + 'k'
-    return Math.round(n).toString()
-  }
-  return (
-    <div style={{ display: 'flex', alignItems: 'stretch', gap: 4 }}>
-      {data.map((d, i) => {
-        const pos = d.value >= 0
-        const h = Math.round((Math.abs(d.value) / maxAbs) * H)
-        const color = pos ? 'var(--info)' : 'var(--expense)'
-        const showLabel = hover === i || (hover === null && Math.abs(d.value) === maxAbs)
-        return (
-          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'default' }}
-            onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
-            {/* górna połowa (dodatnie w górę) */}
-            <div style={{ height: H, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center' }}>
-              {showLabel && pos && d.value !== 0 && !privateMode && (
-                <span style={{ fontSize: 8, fontWeight: 700, color, marginBottom: 2, whiteSpace: 'nowrap' }}>{shortMoney(d.value)}</span>
-              )}
-              {pos && (
-                <div style={{ width: '72%', height: on ? h : 0, background: color, borderRadius: '4px 4px 0 0', transition: `height .6s cubic-bezier(.4,0,.2,1) ${i * .03}s`, opacity: hover === null || hover === i ? 1 : 0.5 }} />
-              )}
-            </div>
-            <div style={{ height: 1, background: 'var(--border-strong)', width: '100%' }} />
-            {/* dolna połowa (ujemne w dół) */}
-            <div style={{ height: H, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              {!pos && d.value !== 0 && (
-                <div style={{ width: '72%', height: on ? h : 0, background: color, borderRadius: '0 0 4px 4px', transition: `height .6s cubic-bezier(.4,0,.2,1) ${i * .03}s`, opacity: hover === null || hover === i ? 1 : 0.5 }} />
-              )}
-              {showLabel && !pos && d.value !== 0 && !privateMode && (
-                <span style={{ fontSize: 8, fontWeight: 700, color, marginTop: 2, whiteSpace: 'nowrap' }}>{shortMoney(d.value)}</span>
-              )}
-            </div>
-            <span style={{ fontSize: 8, color: 'var(--text-muted)', marginTop: 4, textTransform: 'capitalize' }}>{d.label}</span>
-          </div>
-        )
-      })}
     </div>
   )
 }
@@ -461,7 +386,7 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
         </button>
 
         {chartType === 'pie' ? (
-          <DonutChart data={subData} colors={subColors} total={subTotal} privateMode={privateMode} />
+          <DonutChart data={subData} colors={subColors} total={subTotal} privateMode={privateMode} label={label} />
         ) : (
           <ProgressList data={subData} total={subTotal} colors={subColors} privateMode={privateMode} />
         )}
@@ -479,7 +404,7 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {chartType === 'pie' ? (
-        <DonutChart data={data} colors={data.map(d => d.chartColor)} total={total} privateMode={privateMode} />
+        <DonutChart data={data} colors={data.map(d => d.chartColor)} total={total} privateMode={privateMode} label={label} />
       ) : (
         <ProgressList
           data={data} total={total}
@@ -581,11 +506,11 @@ function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon,
 }
 
 /* ─── Donut chart z SVG (zastępuje recharts PieChart) ─── */
-function DonutChart({ data, colors, total, privateMode = false }) {
+function DonutChart({ data, colors, total, privateMode = false, label = '' }) {
   const [active, setActive] = useState(null)
   const on = useMounted(120)
 
-  const size = typeof window !== 'undefined' && window.innerWidth < 480 ? 180 : 220
+  const size = typeof window !== 'undefined' && window.innerWidth < 480 ? 160 : 200
   const thickness = 28
   const r = (size - thickness) / 2 - 2
   const C = 2 * Math.PI * r
@@ -601,10 +526,14 @@ function DonutChart({ data, colors, total, privateMode = false }) {
   })
 
   const displayItem = active != null ? data[active] : null
+  const topItem = data[0]
+  const topPct  = topItem && total > 0 ? (topItem.value / total * 100) : 0
+  const topWord = /doch|przych/i.test(label) ? 'Największy przychód' : 'Największy wydatek'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
         <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
           <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface3)" strokeWidth={thickness} opacity={.4}/>
           {segs.map(s => (
@@ -637,6 +566,22 @@ function DonutChart({ data, colors, total, privateMode = false }) {
             </>
           )}
         </div>
+      </div>
+
+        {/* Boczny opis największej pozycji */}
+        {topItem && (
+          <div style={{ minWidth: 130, flex: '1 1 130px', maxWidth: 220 }}>
+            <p style={{ margin: '0 0 4px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{topWord}</p>
+            <p style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 800, color: 'var(--text)', lineHeight: 1.1, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: colors[0], flexShrink: 0 }} />
+              {topItem.name}
+            </p>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
+              <span style={{ color: 'var(--text)', fontWeight: 600 }}>{topPct.toFixed(0)}%</span> całości
+              {!privateMode && <> · {fmt(topItem.value)}</>}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Legend */}

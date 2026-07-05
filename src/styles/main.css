@@ -343,8 +343,8 @@ button { touch-action: manipulation; }
 }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .header-logo-mark {
-  width: 28px; height: 28px; border-radius: 8px; background: var(--accent);
-  color: var(--bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 28px; height: 28px; border-radius: 8px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .header-logo-text { display: flex; flex-direction: column; line-height: 1; }
 .header-logo-name { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }

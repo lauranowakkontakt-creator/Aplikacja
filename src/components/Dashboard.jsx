@@ -25,10 +25,10 @@ import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 import { isTransfer } from '../utils/categories'
 
 const TABS = [
-  { id: 'overview',     label: 'Przegląd',   Icon: IconChart },
+  { id: 'overview',     label: 'Przegląd',   Icon: IconEye },
   { id: 'transactions', label: 'Transakcje',  Icon: IconTransfer },
   { id: 'accounts',     label: 'Konta',       Icon: IconBank },
-  { id: 'regular',      label: 'Regularne',   Icon: IconStar },
+  { id: 'analiza',      label: 'Wykresy',     Icon: IconChart },
 ]
 
 const kicker = (t) => (
@@ -123,6 +123,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
     if (id === 'debtors')    return setModal('debtors')
     if (id === 'categories') return setModal('categories')
     if (id === 'shopping')   return setActiveTab('shopping')
+    if (id === 'regular')    return setActiveTab('regular')
   }
 
   const fmtAcc = (n, currency = 'PLN') =>
@@ -342,42 +343,10 @@ export default function Dashboard({ user, onCurrencyChange }) {
               ))}
           </div>
 
-          {/* Row 3: Accounts + recent transactions */}
-          <div className="g2-13">
+          {/* Row 3: recent transactions (tabela kont jest w osobnej zakładce „Konta") */}
+          <div>
 
-            {/* Left: Accounts */}
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20 }}>
-              {kicker('Konta')}
-              {accounts.length === 0 ? (
-                <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Brak kont</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {accounts.slice(0, 5).map(a => {
-                    const acColors = { bank: '#3b82f6', cash: '#22c55e', card: '#f59e0b', savings: '#8b5cf6', investment: '#14b8a6', revolut: '#6366f1' }
-                    const color = acColors[a.type] || 'var(--accent)'
-                    return (
-                      <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 6px', borderRadius: 10, borderLeft: `3px solid ${color}55`, transition: 'background .15s' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--surface2)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                      >
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color, flexShrink: 0 }}>
-                          {a.type === 'cash' ? <IconCash size={17}/> : a.type === 'savings' ? <IconSavings size={17}/> : a.type === 'card' ? <IconCard size={17}/> : <IconBank size={17}/>}
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</div>
-                          {a.bankName && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{a.bankName}</div>}
-                        </div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: (a.balance || 0) >= 0 ? 'var(--income)' : 'var(--expense)', flexShrink: 0 }}>
-                          {!privateMode ? fmtAcc(a.balance || 0, a.currency || 'PLN') : '••••'}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Right: Recent transactions */}
+            {/* Recent transactions */}
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 20 }}>
               {kicker('Ostatnie transakcje')}
               {transactions.length === 0 ? (
@@ -423,14 +392,10 @@ export default function Dashboard({ user, onCurrencyChange }) {
               )}
             </div>
           </div>
-
-          {/* Analiza — scalone z dawnej zakładki Wykresy */}
-          <div style={{ marginTop: 6, paddingTop: 14, borderTop: '1px solid var(--border)' }}>
-            {kicker('Analiza i wykresy')}
-            <Charts user={user} privateMode={privateMode} />
-          </div>
         </div>
       )}
+
+      {activeTab === 'analiza' && <Charts user={user} privateMode={privateMode} />}
 
       {activeTab === 'transactions' && (
         <>

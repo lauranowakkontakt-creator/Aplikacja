@@ -1,6 +1,6 @@
 import { signOut } from 'firebase/auth'
 import { auth } from '../firebase/config'
-import { IconLogo, IconSettings } from './Icons'
+import { IconAppMark, IconSettings } from './Icons'
 
 export default function Header({ user, modules, activeModule, onModuleChange, onSettingsOpen }) {
   const handleLogout = () => signOut(auth)
@@ -11,7 +11,7 @@ export default function Header({ user, modules, activeModule, onModuleChange, on
       {/* Logo mark */}
       <div className="header-left">
         <div className="header-logo-mark">
-          <IconLogo size={15} stroke={1.8} />
+          <IconAppMark size={28} />
         </div>
         <div className="header-logo-text">
           <span className="header-logo-name">Mój Świat</span>
