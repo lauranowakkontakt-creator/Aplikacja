@@ -8,6 +8,7 @@ import PauseForm from './PauseForm'
 import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronRight } from '../Icons'
 import { Ring, Heatmap, Spark } from '../ChartPrimitives'
 import StatSummary from '../StatSummary'
+import SegTabs from '../SegTabs'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak } from '../../utils/habitLogic'
 
 function getPauseIcon(pauses, dateStr) {
@@ -171,14 +172,15 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             value={todayDue.length > 0 ? Math.round((doneToday / todayDue.length) * 100) : 0}
             size={90} thickness={8} color="var(--warn)" label="dziś"
           />
-          <div>
+          <div style={{ minWidth: 0 }}>
             {kicker('Postęp dnia')}
-            <div style={{ fontSize: 26, fontWeight: 700, lineHeight: 1 }}>
-              {doneToday}<span style={{ fontSize: 16, color: 'var(--text-muted)', fontWeight: 400 }}>/{todayDue.length}</span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '2px 0 8px', whiteSpace: 'nowrap' }}>
+              <span className="serif" style={{ fontSize: 40 }}>{doneToday}</span>
+              <span className="mono" style={{ fontSize: 17, color: 'var(--text-muted)' }}>/ {todayDue.length}</span>
             </div>
             {maxStreak > 0 && (
-              <div style={{ fontSize: 12, color: 'var(--warn)', marginTop: 6, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <IconFlame size={12}/> {maxStreak} dni serii
+              <div style={{ color: 'var(--warn)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                <IconFlame size={14}/> <span className="mono" style={{ fontSize: 12.5 }}>{maxStreak} dni serii</span>
               </div>
             )}
           </div>
@@ -199,20 +201,11 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       </div>
 
       {/* View tabs */}
-      <div className="seg" style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-        {[['today','Dziś'],['week','Tydzień'],['stats','Statystyki']].map(([id, label]) => (
-          <button key={id}
-            onClick={() => setView(id)}
-            style={{
-              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: view === id ? 700 : 400,
-              background: view === id ? 'var(--surface3)' : 'transparent',
-              color: view === id ? 'var(--text)' : 'var(--text-muted)',
-              border: view === id ? '1px solid var(--border-strong)' : '1px solid transparent',
-              cursor: 'pointer', transition: 'all .2s',
-            }}
-          >{label}</button>
-        ))}
-      </div>
+      <SegTabs
+        items={[{ id: 'today', label: 'Dziś' }, { id: 'week', label: 'Tydzień' }, { id: 'stats', label: 'Statystyki' }]}
+        active={view} onChange={setView}
+        style={{ maxWidth: 420, marginBottom: 14 }}
+      />
 
       {/* ===== DZIŚ ===== */}
       {view === 'today' && (() => {
@@ -236,18 +229,17 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           const cat     = allCategories.find(c => c.id === habit.category)
           const color   = habit.color || 'var(--accent)'
           return (
-            <div key={habit.id} style={{
-              background: done ? color + '15' : 'var(--surface)',
+            <div key={habit.id} className="card hover" style={{
+              background: done ? `color-mix(in oklab, ${color} 10%, var(--surface))` : 'var(--surface)',
               border: `1px solid ${done ? color + '50' : 'var(--border)'}`,
-              borderRadius: 'var(--r)', padding: '14px 16px',
-              display: 'flex', alignItems: 'center', gap: 12,
-              opacity: isExtra && !done ? 0.72 : 1,
+              padding: 16, display: 'flex', alignItems: 'center', gap: 14,
+              opacity: isExtra && !done ? 0.66 : 1,
             }}>
-              {/* Icon circle */}
+              {/* Icon tile */}
               <div onClick={() => { setEditHabit(habit); setShowForm(true) }} style={{
-                width: 46, height: 46, borderRadius: '50%', flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                background: color + '1A', border: `1px solid ${color + '40'}`, color,
+                width: 46, height: 46, borderRadius: 13, flexShrink: 0,
+                display: 'grid', placeItems: 'center', cursor: 'pointer',
+                background: color + '1c', border: `1px solid ${color + '40'}`, color,
               }}>
                 <CatIcon categoryId={null} emoji={habit.emoji} size={20} />
               </div>
@@ -255,39 +247,44 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               {/* Body */}
               <div onClick={() => { setEditHabit(habit); setShowForm(true) }} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
                 <div style={{
-                  fontSize: 14, fontWeight: 600,
+                  fontSize: 14.5, fontWeight: 600,
                   textDecoration: done ? 'line-through' : 'none',
+                  textDecorationColor: 'var(--text-muted)',
                   color: done ? 'var(--text-muted)' : 'var(--text)',
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>{habit.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-                  {streak > 0 && <span style={{ color, display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconFlame size={10}/>{streak} dni · </span>}
-                  {isExtra
-                    ? <span style={{ color: done ? color : 'var(--text-muted)' }}>{done ? '+1 do serii' : 'dodatkowy'}</span>
-                    : cat && <span>{cat.label}</span>}
+                <div className="row" style={{ gap: 7, marginTop: 5 }}>
+                  {streak > 0 && <>
+                    <IconFlame size={12} style={{ color: 'var(--warn)' }} />
+                    <span className="mono" style={{ fontSize: 10.5, color: 'var(--warn)' }}>{streak} dni</span>
+                  </>}
+                  <span className="mono" style={{ fontSize: 9.5, color: isExtra && done ? color : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
+                    {streak > 0 && '· '}{isExtra ? (done ? '+1 do serii' : 'dodatkowy') : (cat?.label || '')}
+                  </span>
                 </div>
               </div>
 
-              {/* Checkbox — odhaczysz też dodatkowe (dni poza harmonogramem / w pauzie) */}
+              {/* Check — odhaczysz też dodatkowe (dni poza harmonogramem / w pauzie) */}
               <button
                 onClick={() => !isFut && toggleDay(habit, selectedDay)}
                 disabled={isFut}
                 style={{
-                  width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-                  border: `2px solid ${done ? color : 'var(--border)'}`,
+                  width: 38, height: 38, borderRadius: 99, flexShrink: 0,
+                  border: `2px solid ${done ? color : 'var(--border-strong)'}`,
                   background: done ? color : 'transparent',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', cursor: isFut ? 'default' : 'pointer',
+                  display: 'grid', placeItems: 'center',
+                  color: 'var(--bg)', cursor: isFut ? 'default' : 'pointer',
                   transition: 'all .2s var(--spring)',
                 }}
               >
-                {done ? <IconCheck size={14} /> : status === 'paused' && getPauseIcon(pauses, selectedDay) ? <span style={{ fontSize: 12 }}>{getPauseIcon(pauses, selectedDay)}</span> : ''}
+                {done ? <IconCheck size={17} /> : status === 'paused' && getPauseIcon(pauses, selectedDay) ? <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{getPauseIcon(pauses, selectedDay)}</span> : ''}
               </button>
             </div>
           )
         }
 
         const grid = (rows) => (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 8 }}>
+          <div data-stagger style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 10 }}>
             {rows.map(renderCard)}
           </div>
         )
@@ -435,7 +432,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       {view === 'stats' && (() => { const hs = habitStatsSummary(habits, pauses); return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         <StatSummary title="Nawyki w liczbach" month={hs.month} year={hs.year} />
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
+        <div data-stagger style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
           {filtered.length === 0 ? (
             <div className="list-empty"><p>Brak nawyków</p></div>
           ) : filtered.map(habit => {
@@ -458,33 +455,32 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               return habit.completedDates?.includes(d) ? 1 : 0
             })
             return (
-              <div key={habit.id} style={{
-                background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16, cursor: 'pointer',
-              }} onClick={() => { setEditHabit(habit); setShowForm(true) }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div key={habit.id} className="card hover" style={{ padding: 16, cursor: 'pointer' }}
+                onClick={() => { setEditHabit(habit); setShowForm(true) }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 14 }}>
                   <div style={{
-                    width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: color + '1A', border: `1px solid ${color + '40'}`, color,
+                    width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+                    display: 'grid', placeItems: 'center',
+                    background: color + '1c', border: `1px solid ${color + '40'}`, color,
                   }}>
-                    <CatIcon categoryId={null} emoji={habit.emoji} size={18} />
+                    <CatIcon categoryId={null} emoji={habit.emoji} size={17} />
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{habit.name}</div>
-                    {cat && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{cat.label}</div>}
+                    <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{habit.name}</div>
+                    {cat && <div className="kicker" style={{ marginTop: 2 }}>{cat.label}</div>}
                   </div>
                 </div>
 
                 <Spark data={sparkData} color={color} height={28} w={5} />
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 14 }}>
                   <div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color, lineHeight: 1 }}>{streak}</div>
-                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>seria</div>
+                    <div className="serif" style={{ fontSize: 26, color }}>{streak}</div>
+                    <div className="kicker" style={{ marginTop: 3 }}>seria</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1 }}>{last30}%</div>
-                    <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>30 dni</div>
+                    <div className="serif" style={{ fontSize: 26 }}>{last30}%</div>
+                    <div className="kicker" style={{ marginTop: 3 }}>30 dni</div>
                   </div>
                 </div>
               </div>

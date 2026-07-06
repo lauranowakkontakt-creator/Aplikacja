@@ -11,6 +11,7 @@ import { pl } from 'date-fns/locale'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag, IconChevronDown, IconChevronLeft, IconChevronRight, IconCalendar, IconClock, IconRepeat, IconPlus } from '../Icons'
 import { Ring } from '../ChartPrimitives'
+import SegTabs from '../SegTabs'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -187,35 +188,15 @@ export default function TodoDashboard({ user }) {
       )}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-        <button onClick={() => setTab('tasks')}
-          style={{
-            flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === 'tasks' ? 700 : 400,
-            background: tab === 'tasks' ? 'var(--surface3)' : 'transparent',
-            color: tab === 'tasks' ? 'var(--text)' : 'var(--text-muted)',
-            border: tab === 'tasks' ? '1px solid var(--border-strong)' : '1px solid transparent',
-            cursor: 'pointer',
-          }}
-        >Zadania</button>
-        <button onClick={() => setTab('calendar')}
-          style={{
-            flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === 'calendar' ? 700 : 400,
-            background: tab === 'calendar' ? 'var(--surface3)' : 'transparent',
-            color: tab === 'calendar' ? 'var(--text)' : 'var(--text-muted)',
-            border: tab === 'calendar' ? '1px solid var(--border-strong)' : '1px solid transparent',
-            cursor: 'pointer',
-          }}
-        ><IconCalendar size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />Kalendarz</button>
-        <button onClick={() => setTab('stats')}
-          style={{
-            flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === 'stats' ? 700 : 400,
-            background: tab === 'stats' ? 'var(--surface3)' : 'transparent',
-            color: tab === 'stats' ? 'var(--text)' : 'var(--text-muted)',
-            border: tab === 'stats' ? '1px solid var(--border-strong)' : '1px solid transparent',
-            cursor: 'pointer',
-          }}
-        ><IconChart size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />Statystyki</button>
-      </div>
+      <SegTabs
+        items={[
+          { id: 'tasks', label: 'Zadania' },
+          { id: 'calendar', label: 'Kalendarz', icon: <IconCalendar size={13} /> },
+          { id: 'stats', label: 'Statystyki', icon: <IconChart size={13} /> },
+        ]}
+        active={tab} onChange={setTab}
+        style={{ maxWidth: 460, marginBottom: 14 }}
+      />
 
       {tab === 'stats' ? (
         <TodoStats todos={todos} lists={lists} />
@@ -275,23 +256,27 @@ export default function TodoDashboard({ user }) {
           </div>
 
           {/* Summary card */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '14px 18px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: activeListColor + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <IconFlag size={20} style={{ color: activeListColor }} />
+          <div className="card" style={{ padding: '14px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, display: 'grid', placeItems: 'center', flexShrink: 0,
+              background: `color-mix(in oklab, ${activeListColor} 16%, transparent)`, color: activeListColor }}>
+              <IconFlag size={19} />
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>{active.length} {active.length === 1 ? 'zadanie' : 'zadań'} do zrobienia</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                {highCount > 0 ? `${highCount} z wysokim priorytetem` : 'brak pilnych'}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{active.length} {active.length === 1 ? 'zadanie' : 'zadań'} do zrobienia</div>
+              <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3 }}>
+                {highCount > 0 ? `${highCount} z priorytetem` : 'brak pilnych'} · {headerTitle}
               </div>
             </div>
+            {(active.length + done.length) > 0 && (
+              <Ring value={Math.round(done.length / (active.length + done.length) * 100)} size={52} thickness={6} color={activeListColor} />
+            )}
           </div>
 
           {/* Active tasks */}
           {active.length > 0 && (
-            <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />Aktywne</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ marginBottom: 20 }}>
+              <div className="kicker" style={{ marginBottom: 10 }}>Aktywne · {active.length}</div>
+              <div data-stagger style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {active.map(todo => (
                   <TodoItem key={todo.id} todo={todo} lists={lists}
                     onToggle={toggleDone} onToggleSubtask={toggleSubtask}
@@ -333,24 +318,29 @@ export default function TodoDashboard({ user }) {
           {/* Sticky quick-add */}
           <div className="todo-quickadd">
             <form onSubmit={handleQuickAdd}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px 14px',
+              <div className="card" style={{
+                display: 'flex', alignItems: 'center', gap: 11, padding: '12px 14px',
+                border: '1px solid var(--border-strong)',
+                boxShadow: '0 14px 36px -14px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05)',
               }}>
-                <span style={{ fontSize: 18, color: 'var(--text-muted)' }}>+</span>
+                <span style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', flexShrink: 0,
+                  background: 'color-mix(in oklab, var(--sky) 16%, transparent)', color: 'var(--sky)' }}>
+                  <IconPlus size={15} />
+                </span>
                 <input
                   value={quickInput}
                   onChange={e => setQuickInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleQuickAdd(e) } }}
-                  placeholder="Dodaj zadanie..."
-                  style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: 'var(--text)' }}
+                  placeholder={`Dodaj zadanie${activeListObj ? ` do listy „${activeListObj.name}"` : ''}…`}
+                  style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: 'var(--text)' }}
                 />
-                <button type="submit" disabled={!quickInput.trim()} title="Dodaj" style={{
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                  padding: '6px 12px', borderRadius: 8, border: 'none', cursor: quickInput.trim() ? 'pointer' : 'default',
-                  background: quickInput.trim() ? 'var(--accent)' : 'var(--surface2)',
-                  color: quickInput.trim() ? '#fff' : 'var(--text-muted)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
-                }}>Dodaj</button>
+                {quickInput.trim()
+                  ? <button type="submit" title="Dodaj" style={{
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                      background: 'var(--sky)', color: 'var(--bg)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+                    }}>Dodaj</button>
+                  : <span className="mono" style={{ fontSize: 10, padding: '3px 7px', background: 'var(--surface2)', borderRadius: 5, border: '1px solid var(--border)', color: 'var(--text-muted)' }}>↵</span>}
               </div>
             </form>
           </div>
@@ -379,22 +369,22 @@ function TodoItem({ todo, lists, onToggle, onToggleSubtask, onEdit, onDelete }) 
   const subsDone = subs.filter(s => s.done).length
 
   return (
-    <div style={{
-      background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
-      padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 12,
+    <div className="card hover" style={{
+      padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 13,
     }}>
       {/* Checkbox */}
       <button onClick={() => onToggle(todo)} style={{
-        width: 22, height: 22, borderRadius: 7, flexShrink: 0, marginTop: 1,
-        border: `2px solid ${todo.done ? 'var(--income)' : list ? listColor : priority?.color || 'var(--border)'}`,
+        width: 24, height: 24, borderRadius: 8, flexShrink: 0, marginTop: 1,
+        border: `1.8px solid ${todo.done ? 'var(--income)' : list ? listColor : priority?.color || 'var(--border-strong)'}`,
         background: todo.done ? 'var(--income)' : 'transparent', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 11
-      }}>{todo.done ? <IconCheck size={12} /> : ''}</button>
+        display: 'grid', placeItems: 'center', color: 'var(--bg)',
+        transition: 'all .2s var(--spring)',
+      }}>{todo.done ? <IconCheck size={13} /> : ''}</button>
 
       {/* Body */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{
-          margin: 0, fontSize: 14, fontWeight: 600,
+          margin: 0, fontSize: 14.5, fontWeight: 500,
           textDecoration: todo.done ? 'line-through' : 'none',
           color: todo.done ? 'var(--text-muted)' : 'var(--text)'
         }}>{todo.title}</p>
@@ -536,20 +526,7 @@ function TodoStats({ todos, lists }) {
         <StatCard value={dueToday.length}   label="Na dziś"         color={dueToday.length > 0 ? '#FB8C00' : 'var(--text-muted)'} />
       </div>
 
-      <div style={{ display: 'flex', gap: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-        {PERIODS.map(p => (
-          <button key={p.id}
-            onClick={() => setPeriod(p.id)}
-            style={{
-              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: period === p.id ? 700 : 400,
-              background: period === p.id ? 'var(--surface3)' : 'transparent',
-              color: period === p.id ? 'var(--text)' : 'var(--text-muted)',
-              border: period === p.id ? '1px solid var(--border-strong)' : '1px solid transparent',
-              cursor: 'pointer',
-            }}
-          >{p.label}</button>
-        ))}
-      </div>
+      <SegTabs items={PERIODS} active={period} onChange={setPeriod} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
         <StatCard value={doneInPeriod.length} label="Ukończonych" color="var(--income)" big />
@@ -610,9 +587,9 @@ function TodoStats({ todos, lists }) {
 
 function StatCard({ value, label, color, big }) {
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: big ? '16px 12px' : '12px 10px', textAlign: 'center' }}>
-      <p style={{ margin: 0, fontSize: big ? 28 : 22, fontWeight: 700, color }}>{value}</p>
-      <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{label}</p>
+    <div className="card" style={{ padding: big ? '18px 12px' : '14px 10px', textAlign: 'center' }}>
+      <div className="serif" style={{ fontSize: big ? 34 : 26, color }}>{value}</div>
+      <div className="kicker" style={{ marginTop: 6 }}>{label}</div>
     </div>
   )
 }
