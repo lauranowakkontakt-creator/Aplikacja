@@ -1,4 +1,56 @@
 // Geometric SVG icon system — stroke-based, 24x24 viewBox
+import { useId } from 'react'
+
+// Znak marki „Mój Świat" — pomarańczowa siatka-kula (wariant A z projektu ikony)
+export const IconAppMark = ({ size = 28, rounded = true, style }) => {
+  const uid = useId().replace(/:/g, '')
+  const bg = `bg-${uid}`, glow = `glow-${uid}`, clip = `clip-${uid}`
+  const rx = rounded ? 71.6 : 0
+  return (
+    <svg width={size} height={size} viewBox="0 0 320 320" style={{ display: 'block', ...style }}>
+      <defs>
+        <radialGradient id={bg} cx="32%" cy="26%" r="90%">
+          <stop offset="0%" stopColor="#E8663A" />
+          <stop offset="46%" stopColor="#D9532A" />
+          <stop offset="100%" stopColor="#8F3417" />
+        </radialGradient>
+        <radialGradient id={glow} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#FFE7D8" stopOpacity="0.9" />
+          <stop offset="100%" stopColor="#FFE7D8" stopOpacity="0" />
+        </radialGradient>
+        <clipPath id={clip}><rect width="320" height="320" rx={rx} ry={rx} /></clipPath>
+      </defs>
+      <g clipPath={`url(#${clip})`}>
+        <rect width="320" height="320" fill={`url(#${bg})`} />
+        <g transform="translate(160,160)" stroke="#FBE9DF" fill="none">
+          <ellipse rx="96" ry="96" strokeOpacity="0.55" strokeWidth="2" />
+          <ellipse rx="60" ry="96" strokeOpacity="0.32" strokeWidth="1.6" />
+          <ellipse rx="24" ry="96" strokeOpacity="0.32" strokeWidth="1.6" />
+          <ellipse rx="96" ry="60" strokeOpacity="0.32" strokeWidth="1.6" />
+          <ellipse rx="96" ry="24" strokeOpacity="0.32" strokeWidth="1.6" />
+          <line x1="-96" y1="0" x2="96" y2="0" strokeOpacity="0.32" strokeWidth="1.6" />
+          <line x1="0" y1="-96" x2="0" y2="96" strokeOpacity="0.32" strokeWidth="1.6" />
+          <g stroke="#FFF3EB" strokeOpacity="0.85" strokeWidth="2">
+            <line x1="0" y1="-96" x2="60" y2="46" />
+            <line x1="-83" y1="-48" x2="83" y2="48" />
+            <line x1="60" y1="46" x2="-83" y2="-48" />
+          </g>
+          <g fill="#FFF3EB" stroke="none">
+            <circle cx="0" cy="-96" r="5.5" />
+            <circle cx="60" cy="46" r="5.5" />
+            <circle cx="-83" cy="-48" r="5" />
+            <circle cx="83" cy="48" r="5" />
+            <circle cx="0" cy="0" r="4" fill="#FFE7D8" />
+            <circle cx="-60" cy="46" r="4" />
+            <circle cx="24" cy="-88" r="3.2" fillOpacity="0.8" />
+            <circle cx="-24" cy="88" r="3.2" fillOpacity="0.8" />
+          </g>
+        </g>
+        <rect width="320" height="320" fill={`url(#${glow})`} opacity="0.10" />
+      </g>
+    </svg>
+  )
+}
 
 const Icon = ({ children, size = 20, stroke = 1.5, style, ...rest }) => (
   <svg

@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, orderBy, query, deleteDoc, doc, updateDoc, arrayUnion, Timestamp, increment, writeBatch } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
-import { format, parseISO, isAfter, isBefore, startOfDay } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../../utils/currency'
 import { CatIcon, IconEdit, IconTrash, IconCheck, IconCalendar, IconRepeat } from '../Icons'
 import RegularPaymentForm from './RegularPaymentForm'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { periodKey, isPaymentActive, addTransactionForPayment } from '../../utils/regularPayments'
 
 const FREQ_LABELS = { monthly: 'miesięcznie', weekly: 'tygodniowo', yearly: 'rocznie' }
 
@@ -20,7 +21,7 @@ export default function RegularPayments({ user }) {
   const [showForm, setShowForm] = useState(false)
   const [editPayment, setEditPayment] = useState(null)
 
-  const THIS_PERIOD = format(new Date(), 'yyyy-MM')
+  const THIS_PERIOD = periodKey()
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'regularPayments'), orderBy('createdAt', 'asc'))
@@ -36,46 +37,12 @@ export default function RegularPayments({ user }) {
     return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
 
-  // Auto-add payments only when the due day has arrived
-  useEffect(() => {
-    if (!payments.length) return
-    const today = new Date()
-    const todayDay = today.getDate()
-    payments.forEach(async (p) => {
-      if (!p.autoAdd || p.donePeriods?.includes(THIS_PERIOD)) return
-      if (!isActive(p)) return
-      if (p.frequency === 'monthly' && todayDay < (p.dayOfMonth || 1)) return
-      await addTransactionForPayment(p)
-    })
-  }, [payments.map(p=>p.id).join(',')])
-
-  const addTransactionForPayment = async (p) => {
-    try {
-      // Atomowo: transakcja + saldo + odhaczenie okresu w jednym batchu.
-      // Ważne też dla auto-dodawania: bez batcha przerwanie między zapisami
-      // mogło dodać transakcję bez odhaczenia okresu → duplikat przy odświeżeniu.
-      const batch = writeBatch(db)
-      batch.set(doc(collection(db, 'users', user.uid, 'transactions')), {
-        type: p.type, amount: p.amount,
-        category: p.category, categoryId: p.categoryId, categoryIcon: p.categoryIcon,
-        subcategoryId: p.subcategoryId || null, subcategoryLabel: p.subcategoryLabel || null,
-        description: p.name, accountId: p.accountId || null,
-        date: Timestamp.now(), createdAt: Timestamp.now(), updatedAt: Timestamp.now(),
-        fromRegular: p.id
-      })
-      if (p.accountId) {
-        const delta = p.type === 'expense' ? -p.amount : p.amount
-        batch.update(doc(db, 'users', user.uid, 'accounts', p.accountId), { balance: increment(delta) })
-      }
-      batch.update(doc(db, 'users', user.uid, 'regularPayments', p.id), {
-        donePeriods: arrayUnion(THIS_PERIOD)
-      })
-      await batch.commit()
-    } catch { toast.error('Błąd zapisu płatności') }
-  }
-
+  // Auto-księgowanie działa w tle (useRegularPaymentsProcessor w App.jsx),
+  // tu obsługujemy tylko ręczne oznaczanie „Zrobione".
   const markDone = async (p) => {
-    await addTransactionForPayment(p)
+    try {
+      await addTransactionForPayment(user.uid, p, THIS_PERIOD)
+    } catch { toast.error('Błąd zapisu płatności') }
   }
 
   const markUndone = async (p) => {
@@ -95,12 +62,7 @@ export default function RegularPayments({ user }) {
 
   const getAccount = (id) => accounts.find(a => a.id === id)
 
-  const isActive = (p) => {
-    const today = startOfDay(new Date())
-    if (p.dateFrom && isBefore(today, startOfDay(parseISO(p.dateFrom)))) return false
-    if (p.dateTo   && isAfter(today,  startOfDay(parseISO(p.dateTo))))   return false
-    return true
-  }
+  const isActive = (p) => isPaymentActive(p)
 
   const fmtDate = (d) => format(parseISO(d), 'd MMM yyyy', { locale: pl })
 

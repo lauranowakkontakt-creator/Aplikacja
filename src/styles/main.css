@@ -34,6 +34,8 @@
   /* accent defaults — overridden per-module in App.jsx */
   --accent: var(--primary);
   --accent-soft: var(--primary-soft);
+  /* wysokość górnego paska mobile (bez safe-area) — używana też jako top dla .mod-header */
+  --mobile-header-h: 62px;
 }
 
 html, body, #root { height: 100%; }
@@ -238,7 +240,9 @@ button { touch-action: manipulation; }
     grid-template-columns: 1fr;
     gap: 10px;
   }
-  .content-inner { overflow-x: hidden; }
+  /* `clip`, nie `hidden`: hidden robi z .content-inner scroll-container
+     (overflow-y liczy się jako auto) i zabija position:sticky nagłówków modułów. */
+  .content-inner { overflow-x: clip; }
   .card { min-width: 0; }
 }
 
@@ -265,9 +269,37 @@ button { touch-action: manipulation; }
 .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 12px 28px -12px var(--accent); }
 
 /* ===== SEGMENT TABS ===== */
-.seg { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; gap: 2px; position: relative; }
+.seg { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; gap: 2px; position: relative; box-shadow: inset 0 1px 0 rgba(255,255,255,.04), inset 0 2px 8px rgba(0,0,0,.22); }
 .seg-btn { flex: 1; padding: 8px 10px; border-radius: 9px; font-size: 12.5px; font-weight: 500; color: var(--text-sub); transition: color .2s; cursor: pointer; background: none; border: none; }
 .seg-btn.active { color: var(--text); font-weight: 600; background: var(--surface3); border-radius: 9px; box-shadow: 0 2px 8px -3px rgba(0,0,0,.5); }
+
+/* Sliding-thumb variant (SegTabs component) */
+.seg-thumb {
+  position: absolute; top: 4px; bottom: 4px; border-radius: 9px; z-index: 0;
+  background: linear-gradient(180deg, var(--surface3), var(--surface2));
+  box-shadow: 0 4px 12px -4px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.07);
+  transition: left .34s var(--spring), width .34s var(--spring);
+}
+.seg > button {
+  flex: 1; padding: 8px 10px; border-radius: 9px; font-size: 12.5px; font-weight: 500;
+  color: var(--text-sub); background: none; border: none; cursor: pointer; font-family: inherit;
+  position: relative; z-index: 1; transition: color .2s; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+}
+.seg > button:hover { color: var(--text); }
+.seg > button.active { color: var(--text); font-weight: 600; }
+
+/* ===== NEW LOOK helpers (Nawyki / To-do) ===== */
+.serif { font-family: var(--font-serif); font-weight: 500; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.mono  { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.card.pad { padding: 22px; }
+.card.hover { cursor: default; }
+.card.hover:hover {
+  border-color: var(--border-strong); transform: translateY(-2px);
+  box-shadow: 0 14px 34px -18px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.06);
+}
+[data-stagger] > * { animation: fadeUp .5s var(--ease) both; }
+@media (prefers-reduced-motion: reduce) { [data-stagger] > * { animation: none; } }
 
 /* ===== ANIMATIONS ===== */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
@@ -282,9 +314,12 @@ button { touch-action: manipulation; }
   .topbar { display: none !important; }
   .mobile-header {
     display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-    padding: 14px 18px 12px; border-bottom: 1px solid var(--border);
+    /* Stała wysokość + safe-area: pod notchem/zegarkiem iOS nic nie chowa się w PWA,
+       a .mod-header może się przykleić dokładnie pod spodem (top liczony z tej samej stałej). */
+    height: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 18px 0; border-bottom: 1px solid var(--border);
     background: rgba(11,12,18,.85); backdrop-filter: blur(14px);
-    position: sticky; top: 0; z-index: 10;
+    position: sticky; top: 0; z-index: 11;
   }
   .bottom-nav { display: flex; }
   .content-inner { padding: 16px 16px 110px; }
@@ -322,10 +357,13 @@ button { touch-action: manipulation; }
 @media (max-width: 880px) {
   .mod-header {
     display: flex; align-items: center; justify-content: space-between;
-    padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 16px;
+    padding: 12px 20px 16px;
     border-bottom: 1px solid var(--border);
     background: linear-gradient(180deg, var(--bg) 60%, color-mix(in oklab, var(--accent) 5%, var(--bg)) 100%);
-    position: sticky; top: 0; z-index: 10; margin: 0 0 20px;
+    /* Przykleja się tuż pod .mobile-header (oba liczą top/height z --mobile-header-h),
+       zamiast wjeżdżać pod niego przy scrollu na body. */
+    position: sticky; top: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px));
+    z-index: 10; margin: 0 0 20px;
   }
   .mod-header-kicker {
     font-size: 9px; font-weight: 700; color: var(--accent);
@@ -343,8 +381,8 @@ button { touch-action: manipulation; }
 }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .header-logo-mark {
-  width: 28px; height: 28px; border-radius: 8px; background: var(--accent);
-  color: var(--bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 28px; height: 28px; border-radius: 8px; overflow: hidden;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .header-logo-text { display: flex; flex-direction: column; line-height: 1; }
 .header-logo-name { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
@@ -1343,6 +1381,11 @@ html, body, #root { min-height: 100dvh; }
   -webkit-overflow-scrolling: touch;
 }
 
+/* Ujednolicenie czcionki: bez tego przeglądarka renderuje pola formularzy
+   i przyciski czcionką systemową zamiast Space Grotesk */
+input, select, textarea, button {
+  font-family: inherit;
+}
 /* Fix input zoom on iOS: ensure all inputs stay 16px minimum */
 input, select, textarea {
   font-size: max(16px, 1em);

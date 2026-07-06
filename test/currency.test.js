@@ -1,15 +1,41 @@
-import { test } from 'node:test'
+import { test, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
 
-// utils/currency.js czyta localStorage — w node podstawiamy prostą atrapę
+// currency.js czyta localStorage przy wywołaniu — w Node podstawiamy prostą atrapę.
+const store = new Map()
 globalThis.localStorage = {
-  store: {},
-  getItem(k) { return this.store[k] ?? null },
-  setItem(k, v) { this.store[k] = String(v) },
+  getItem: (k) => (store.has(k) ? store.get(k) : null),
+  setItem: (k, v) => store.set(k, String(v)),
+  removeItem: (k) => store.delete(k),
 }
 
-const { parseAmount, fmt, getCurrencyCode, setCurrencyCode, CURRENCIES } =
-  await import('../src/utils/currency.js')
+const { CURRENCIES, getCurrencyCode, setCurrencyCode, fmt, parseAmount } = await import('../src/utils/currency.js')
+
+beforeEach(() => store.clear())
+
+test('CURRENCIES — unikalne kody, komplet pól, PLN dostępny', () => {
+  const codes = CURRENCIES.map(c => c.code)
+  assert.equal(new Set(codes).size, codes.length)
+  assert.ok(codes.includes('PLN'))
+  for (const c of CURRENCIES) assert.ok(c.code && c.symbol && c.name)
+})
+
+test('getCurrencyCode — domyślnie PLN, po zmianie zapamiętane', () => {
+  assert.equal(getCurrencyCode(), 'PLN')
+  setCurrencyCode('EUR')
+  assert.equal(getCurrencyCode(), 'EUR')
+})
+
+test('fmt — formatuje kwotę w wybranej walucie (pl-PL)', () => {
+  assert.match(fmt(1234.5), /1\s?234,50\s?zł$/u)
+  setCurrencyCode('EUR')
+  assert.match(fmt(10), /10,00\s?€$/u)
+})
+
+test('fmt — null/undefined traktowane jak zero', () => {
+  assert.match(fmt(null), /0,00/)
+  assert.match(fmt(undefined), /0,00/)
+})
 
 test('parseAmount — kropka i przecinek dziesiętny', () => {
   assert.equal(parseAmount('12.50'), 12.5)
@@ -32,21 +58,4 @@ test('parseAmount — puste/nieprawidłowe wejście daje NaN (walidacja je odrzu
   assert.equal(!(parseAmount('abc') > 0), true)
   assert.equal(!(parseAmount('0') > 0), true)
   assert.equal(!(parseAmount('12,50') > 0), false)
-})
-
-test('fmt — formatuje w PLN domyślnie i reaguje na zmianę waluty', () => {
-  assert.equal(getCurrencyCode(), 'PLN')
-  assert.match(fmt(1234.5), /1\s?234,50/)
-  assert.match(fmt(1234.5), /zł/)
-  assert.match(fmt(null), /0,00/) // brak wartości nie wywala formatowania
-  setCurrencyCode('EUR')
-  assert.equal(getCurrencyCode(), 'EUR')
-  assert.match(fmt(5), /€/)
-  setCurrencyCode('PLN')
-})
-
-test('CURRENCIES — unikalne kody i komplet pól', () => {
-  const codes = CURRENCIES.map(c => c.code)
-  assert.equal(new Set(codes).size, codes.length)
-  for (const c of CURRENCIES) assert.ok(c.code && c.symbol && c.name)
 })

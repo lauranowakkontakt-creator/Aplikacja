@@ -1,7 +1,7 @@
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, getRedirectResult } from 'firebase/auth'
 import { useState, useEffect } from 'react'
 import { auth, googleProvider } from '../firebase/config'
-import { IconChevronLeft } from './Icons'
+import { IconChevronLeft, IconAppMark } from './Icons'
 
 export default function Login() {
   const [loading, setLoading] = useState(true)
@@ -63,10 +63,7 @@ export default function Login() {
     <div className="login-screen">
       <div className="login-card">
         <div className="login-logo">
-          <span className="login-logo-dot" />
-          <span className="login-logo-dot" />
-          <span className="login-logo-dot" />
-          <span className="login-logo-dot" />
+          <IconAppMark size={64} />
         </div>
         <h1 className="login-title">Mój Świat</h1>
         <p className="login-subtitle">Budżet · Nawyki · Modlitwa · Zadania</p>

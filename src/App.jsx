@@ -19,6 +19,7 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore, IconUsers, IconMoon, IconNote } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
 import { getCurrencyCode, setCurrencyCode } from './utils/currency'
+import { useRegularPaymentsProcessor } from './utils/regularPayments'
 
 const DEV_USER = { uid: 'dev-user', displayName: 'Laura', photoURL: null, email: 'laura@mojswiat.app' }
 const DEV_MODE = import.meta.env.DEV
@@ -69,6 +70,9 @@ export default function App() {
   const openDream = (dreamId) => { setDreamFocus(dreamId); setActiveModule('dream'); setMoreOpen(false) }
 
   const handleModuleIconChange = () => setModules(buildModules())
+
+  // Auto-księgowanie regularnych płatności w tle — działa zawsze, nie tylko w zakładce „Regularne"
+  useRegularPaymentsProcessor(user?.uid)
 
   const [currencyCode, setCurrencyCodeState] = useState(getCurrencyCode)
   const handleCurrencyChange = useCallback((code) => {

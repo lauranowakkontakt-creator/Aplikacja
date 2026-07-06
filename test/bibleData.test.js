@@ -12,15 +12,21 @@ test('kanon — łącznie 1189 rozdziałów', () => {
   assert.equal(TOTAL_CHAPTERS, 1189)
 })
 
-test('księgi — unikalne id bez kropek, dodatnia liczba rozdziałów', () => {
+test('księgi — unikalne id bez kropek, nazwy i dodatnie liczby rozdziałów', () => {
   const ids = BIBLE_BOOKS.map(b => b.id)
-  assert.equal(new Set(ids).size, ids.length)
+  assert.equal(new Set(ids).size, ids.length, 'id muszą być unikalne')
   for (const b of BIBLE_BOOKS) {
-    assert.ok(b.name)
-    assert.ok(Number.isInteger(b.chapters) && b.chapters > 0)
+    assert.ok(b.name, `brak nazwy: ${b.id}`)
     // Firestore nie pozwala na kropki w kluczach mapy — id trafia do klucza postępu
-    assert.doesNotMatch(b.id, /[.\s]/)
+    assert.ok(!b.id.includes('.'), `kropka w id: ${b.id}`)
+    assert.ok(Number.isInteger(b.chapters) && b.chapters >= 1, `zła liczba rozdziałów: ${b.id}`)
   }
+})
+
+test('kolejność kanonu — Rodzaju pierwsza, Apokalipsa ostatnia, Psalmy 150', () => {
+  assert.equal(BIBLE_BOOKS[0].id, 'rdz')
+  assert.equal(BIBLE_BOOKS.at(-1).id, 'ap')
+  assert.equal(BIBLE_BOOKS.find(b => b.id === 'ps').chapters, 150)
 })
 
 test('wyrywkowa liczba rozdziałów (Psalmy 150, Rodzaju 50, Apokalipsa 22)', () => {
@@ -32,7 +38,8 @@ test('wyrywkowa liczba rozdziałów (Psalmy 150, Rodzaju 50, Apokalipsa 22)', ()
 })
 
 test('chapterKey — format klucza postępu i unikalność w całym kanonie', () => {
-  assert.equal(chapterKey('rdz', 3), 'rdz_3')
+  assert.equal(chapterKey('rdz', 1), 'rdz_1')
+  assert.equal(chapterKey('ap', 22), 'ap_22')
   const all = new Set()
   for (const b of BIBLE_BOOKS)
     for (let c = 1; c <= b.chapters; c++) all.add(chapterKey(b.id, c))
