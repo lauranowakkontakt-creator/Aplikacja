@@ -358,7 +358,7 @@ function MoodPage({ user, logs, onDelete }) {
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
             {kicker(`Średnia · ${monthLbl}`, { marginBottom: 8 })}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <span style={{ fontSize: 40, fontWeight: 400, lineHeight: 1, fontFamily: 'Georgia, serif' }}>{monthAvg > 0 ? fmtAvg(monthAvg) : '—'}</span>
+              <span style={{ fontSize: 40, fontWeight: 500, lineHeight: 1, fontFamily: 'var(--font-serif)', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{monthAvg > 0 ? fmtAvg(monthAvg) : '—'}</span>
               {monthAvg > 0 && <span style={{ fontSize: 16, color: 'var(--text-muted)' }}>/ 5</span>}
             </div>
             {diff !== null && Math.abs(diff) > 0.01 && (

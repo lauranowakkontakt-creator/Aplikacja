@@ -1381,6 +1381,11 @@ html, body, #root { min-height: 100dvh; }
   -webkit-overflow-scrolling: touch;
 }
 
+/* Ujednolicenie czcionki: bez tego przeglądarka renderuje pola formularzy
+   i przyciski czcionką systemową zamiast Space Grotesk */
+input, select, textarea, button {
+  font-family: inherit;
+}
 /* Fix input zoom on iOS: ensure all inputs stay 16px minimum */
 input, select, textarea {
   font-size: max(16px, 1em);
