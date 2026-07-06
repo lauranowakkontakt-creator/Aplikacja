@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import {
-  collection, onSnapshot, orderBy, query, arrayUnion,
-  Timestamp, increment, doc, writeBatch
+  collection, onSnapshot, orderBy, query, where, getDocs,
+  arrayUnion, arrayRemove, Timestamp, increment, doc, writeBatch
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { periodKey, isPaymentDue } from './paymentLogic'
@@ -28,6 +28,36 @@ export async function addTransactionForPayment(uid, p, period = periodKey()) {
   }
   batch.update(doc(db, 'users', uid, 'regularPayments', p.id), {
     donePeriods: arrayUnion(period)
+  })
+  await batch.commit()
+}
+
+// Cofa zaksięgowanie płatności: usuwa transakcje tego okresu utworzone przez
+// „Zrobione"/auto-księgowanie, oddaje saldo kont i zdejmuje odhaczenie okresu.
+// Atomowo (batch) — dzięki temu „Cofnij" + ponowne „Zrobione" nie duplikuje
+// transakcji ani nie odejmuje salda podwójnie.
+export async function removeTransactionForPayment(uid, p, period = periodKey()) {
+  const snap = await getDocs(query(
+    collection(db, 'users', uid, 'transactions'),
+    where('fromRegular', '==', p.id)
+  ))
+  const batch = writeBatch(db)
+  const balanceDeltas = {}
+  snap.docs.forEach(d => {
+    const t = d.data()
+    const date = t.date?.toDate?.() ?? t.createdAt?.toDate?.()
+    if (!date || periodKey(date) !== period) return
+    batch.delete(d.ref)
+    if (t.accountId) {
+      const delta = t.type === 'expense' ? t.amount : -t.amount
+      balanceDeltas[t.accountId] = (balanceDeltas[t.accountId] || 0) + delta
+    }
+  })
+  Object.entries(balanceDeltas).forEach(([accountId, delta]) => {
+    batch.update(doc(db, 'users', uid, 'accounts', accountId), { balance: increment(delta) })
+  })
+  batch.update(doc(db, 'users', uid, 'regularPayments', p.id), {
+    donePeriods: arrayRemove(period)
   })
   await batch.commit()
 }

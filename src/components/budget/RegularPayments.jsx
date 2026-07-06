@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, orderBy, query, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, deleteDoc, doc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, parseISO } from 'date-fns'
@@ -9,7 +9,7 @@ import { CatIcon, IconEdit, IconTrash, IconCheck, IconCalendar, IconRepeat } fro
 import RegularPaymentForm from './RegularPaymentForm'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
-import { periodKey, isPaymentActive, addTransactionForPayment } from '../../utils/regularPayments'
+import { periodKey, isPaymentActive, addTransactionForPayment, removeTransactionForPayment } from '../../utils/regularPayments'
 
 const FREQ_LABELS = { monthly: 'miesięcznie', weekly: 'tygodniowo', yearly: 'rocznie' }
 
@@ -46,8 +46,9 @@ export default function RegularPayments({ user }) {
   }
 
   const markUndone = async (p) => {
-    const next = (p.donePeriods || []).filter(d => d !== THIS_PERIOD)
-    await updateDoc(doc(db, 'users', user.uid, 'regularPayments', p.id), { donePeriods: next })
+    try {
+      await removeTransactionForPayment(user.uid, p, THIS_PERIOD)
+    } catch { toast.error('Błąd cofania płatności') }
   }
 
   const handleDelete = async (id) => {
