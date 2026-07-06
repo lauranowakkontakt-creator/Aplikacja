@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, onSnapshot, orderBy, query, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, startOfWeek, addDays, subDays, subWeeks, addWeeks, startOfMonth, getDaysInMonth, getDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import HabitForm, { HABIT_CATEGORIES, DEFAULT_HABIT_CATEGORIES } from './HabitForm'
@@ -109,6 +110,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
   const [pauses, setPauses]         = useState([])
   const [customCats, setCustomCats] = useState([])
   const [loading, setLoading]       = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [showForm, setShowForm]     = useState(false)
   const [showPause, setShowPause]   = useState(false)
   const [editHabit, setEditHabit]   = useState(null)
@@ -137,7 +139,8 @@ export default function HabitsDashboard({ user, onMoodClick }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habits'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => { setHabits(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) })
+    return onSnapshot(q, snap => { setHabits(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
+      err => { console.error('habits subscription error:', err); setLoading(false) })
   }, [user.uid])
 
   useEffect(() => {

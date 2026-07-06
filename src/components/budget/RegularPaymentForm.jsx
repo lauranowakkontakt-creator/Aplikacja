@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, getSubcategoryColor } from '../../utils/categories'
-import { getCurrencyCode } from '../../utils/currency'
+import { getCurrencyCode, parseAmount } from '../../utils/currency'
 import { CatIcon, IconClose } from '../Icons'
 
 const FREQUENCIES = [
@@ -51,13 +51,13 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) { setError('Wpisz nazwę'); return }
-    if (!amount || parseFloat(amount) <= 0) { setError('Podaj kwotę'); return }
+    if (!(parseAmount(amount) > 0)) { setError('Podaj kwotę'); return }
     if (!category) { setError('Wybierz kategorię'); return }
     setSaving(true)
     const cat = categories.find(c => c.id === category)
     const subcat = cat?.subcategories?.find(s => s.id === subcategoryId)
     const data = {
-      type, name: name.trim(), amount: parseFloat(amount),
+      type, name: name.trim(), amount: parseAmount(amount),
       category: cat?.label || category, categoryId: category,
       categoryIcon: cat?.icon || 'IconRepeat',
       subcategoryId: subcat?.id || null,

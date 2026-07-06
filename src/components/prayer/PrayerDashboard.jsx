@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, arrayUnion, arrayRemove } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOfDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat, IconArchive, IconRestore, IcCar } from '../Icons'
@@ -58,6 +59,7 @@ export default function PrayerDashboard({ user }) {
   const [intentions, setIntentions] = useState([])
   const [people, setPeople]         = useState([])
   const [loading, setLoading]       = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [tab, setTab]               = useState('people')
   const [selectedPerson, setSelectedPerson] = useState(null)
   const [carMode, setCarMode]       = useState(false)

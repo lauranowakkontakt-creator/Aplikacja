@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, query, where, orderBy, onSnapshot, Timestamp, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import useFallbackTimeout from '../utils/useFallbackTimeout'
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import TransactionForm from './TransactionForm'
@@ -20,7 +21,7 @@ import Debtors from './budget/Debtors'
 import CategoriesView from './budget/CategoriesView'
 import ShoppingList from './budget/ShoppingList'
 import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconClock, IconEye, IconEyeOff, CatIcon } from './Icons'
-import { Donut, FlowBar, Spark } from './ChartPrimitives'
+import { Donut, FlowBar, Spark, useNarrow } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 import { isTransfer } from '../utils/categories'
 
@@ -47,11 +48,13 @@ export default function Dashboard({ user, onCurrencyChange }) {
   const [editTransaction, setEditTransaction] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [privateMode, setPrivateMode] = useState(() => {
     try { return localStorage.getItem('mw_privateMode') === 'true' } catch { return false }
   })
   const [modal, setModal] = useState(null)
   const [donutHover, setDonutHover] = useState(null)
+  const narrow = useNarrow(480)
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd   = endOfMonth(currentMonth)
@@ -77,7 +80,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
       })
       setTransactions(txs)
       setLoading(false)
-    })
+    }, err => { console.error('transactions subscription error:', err); setLoading(false) })
   }, [user.uid, currentMonth])
 
   // Load last 6 months for bar chart
@@ -176,8 +179,10 @@ export default function Dashboard({ user, onCurrencyChange }) {
     ? Math.round(((expenses - prevExpenses) / prevExpenses) * 100)
     : null
 
-  // Avg daily spend
-  const daysInMonth = Math.max(1, new Date().getDate())
+  // Avg daily spend — dla bieżącego miesiąca dziel przez dni, które już minęły;
+  // dla innych miesięcy przez pełną liczbę dni tego miesiąca
+  const isCurrentMonth = format(currentMonth, 'yyyy-MM') === format(new Date(), 'yyyy-MM')
+  const daysInMonth = Math.max(1, isCurrentMonth ? new Date().getDate() : monthEnd.getDate())
   const avgDaily = expenses / daysInMonth
 
   return (
@@ -296,7 +301,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
                   <div style={{ display: 'flex', justifyContent: 'center' }}>
                     <Donut
                       data={donutData}
-                      size={typeof window !== 'undefined' && window.innerWidth < 480 ? 120 : 140}
+                      size={narrow ? 120 : 140}
                       thickness={16}
                       centerTop={donutHover ? donutHover.name : 'razem'}
                       centerMain={!privateMode ? (donutHover ? fmtShort(donutHover.value) : fmtShort(expenses)) : '••'}

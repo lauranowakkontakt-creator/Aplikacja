@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, getDaysInMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { CatIcon, IconBell, IconClose } from '../Icons'
@@ -9,6 +10,7 @@ import { fmt } from '../../utils/currency'
 export default function Reminders({ user, onClose }) {
   const [payments, setPayments] = useState([])
   const [loading, setLoading]   = useState(true)
+  useFallbackTimeout(() => setLoading(false))
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'regularPayments'), orderBy('dayOfMonth', 'asc'))

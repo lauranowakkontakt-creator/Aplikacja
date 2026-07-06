@@ -2,14 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { collection, query, where, orderBy, onSnapshot, Timestamp, getDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { CatIcon, IconChevronLeft, IconChevronRight, IconChart } from './Icons'
-import { useMounted, BarChartSVG, FlowBar } from './ChartPrimitives'
-import {
-  format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-  startOfYear, endOfYear, startOfDay, endOfDay,
-  subMonths, addMonths, eachDayOfInterval, eachMonthOfInterval,
-  subWeeks, addWeeks, subYears, addYears, subDays, addDays
-} from 'date-fns'
-import { pl } from 'date-fns/locale'
+import { useMounted, BarChartSVG, FlowBar, DonutStat } from './ChartPrimitives'
+import { startOfMonth, subMonths } from 'date-fns'
+import { getBounds, shiftPivot, build12MonthTimeline } from '../utils/budgetMath'
 import { fmt } from '../utils/currency'
 import { getSubcategoryColor, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, isTransfer } from '../utils/categories'
 
@@ -461,7 +456,7 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
         </button>
 
         {chartType === 'pie' ? (
-          <DonutChart data={subData} colors={subColors} total={subTotal} privateMode={privateMode} />
+          <DonutStat data={subData} colors={subColors} total={subTotal} privateMode={privateMode} />
         ) : (
           <ProgressList data={subData} total={subTotal} colors={subColors} privateMode={privateMode} />
         )}
@@ -479,7 +474,7 @@ function CategoryTab({ transactions, total, chartType, label, catColorMap = {}, 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {chartType === 'pie' ? (
-        <DonutChart data={data} colors={data.map(d => d.chartColor)} total={total} privateMode={privateMode} />
+        <DonutStat data={data} colors={data.map(d => d.chartColor)} total={total} privateMode={privateMode} />
       ) : (
         <ProgressList
           data={data} total={total}
@@ -578,171 +573,4 @@ function ProgressList({ data, total, colors, onItemClick, hasSubcat, renderIcon,
       </div>
     </div>
   )
-}
-
-/* ─── Donut chart z SVG (zastępuje recharts PieChart) ─── */
-function DonutChart({ data, colors, total, privateMode = false }) {
-  const [active, setActive] = useState(null)
-  const on = useMounted(120)
-
-  const size = typeof window !== 'undefined' && window.innerWidth < 480 ? 180 : 220
-  const thickness = 28
-  const r = (size - thickness) / 2 - 2
-  const C = 2 * Math.PI * r
-  const gap = 0.015
-
-  let acc = 0
-  const segs = data.map((d, i) => {
-    const frac = d.value / total
-    const len = Math.max(0, frac * C - gap * C)
-    const seg = { ...d, i, offset: -(acc * C), len, dash: `${len} ${C - len}`, frac }
-    acc += frac
-    return seg
-  })
-
-  const displayItem = active != null ? data[active] : null
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface3)" strokeWidth={thickness} opacity={.4}/>
-          {segs.map(s => (
-            <circle key={s.i} cx={size/2} cy={size/2} r={r} fill="none"
-              stroke={colors[s.i]}
-              strokeWidth={active === s.i ? thickness + 4 : thickness}
-              strokeLinecap="butt"
-              strokeDasharray={on ? s.dash : `0 ${C}`}
-              strokeDashoffset={s.offset}
-              opacity={active == null || active === s.i ? 1 : 0.4}
-              onMouseEnter={() => setActive(s.i)}
-              onMouseLeave={() => setActive(null)}
-              style={{ transition: `stroke-dasharray .9s cubic-bezier(.4,0,.2,1) ${s.i * .07}s, stroke-width .2s, opacity .2s`, cursor: 'pointer' }}
-            />
-          ))}
-        </svg>
-
-        {/* Center label */}
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', pointerEvents: 'none' }}>
-          {displayItem ? (
-            <>
-              <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{displayItem.name}</p>
-              <p style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 800, color: colors[active] }}>{privateMode ? '••' : fmt(displayItem.value)}</p>
-              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>{total > 0 ? (displayItem.value / total * 100).toFixed(1) : 0}%</p>
-            </>
-          ) : (
-            <>
-              <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Łącznie</p>
-              <p style={{ margin: '2px 0 0', fontSize: 20, fontWeight: 800 }}>{privateMode ? '••' : fmt(total)}</p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Legend */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {data.map((item, i) => {
-          const pct = total > 0 ? (item.value / total * 100) : 0
-          return (
-            <div key={item.name}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 8, background: active === i ? 'var(--surface2)' : 'transparent', transition: 'background 0.15s', cursor: 'pointer' }}
-              onMouseEnter={() => setActive(i)}
-              onMouseLeave={() => setActive(null)}
-            >
-              <div style={{ width: 10, height: 10, borderRadius: 3, background: colors[i], flexShrink: 0 }} />
-              <span style={{ flex: 1, fontSize: 13 }}>{item.name}</span>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{privateMode ? '••' : fmt(item.value)}</span>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 40, textAlign: 'right' }}>{pct.toFixed(1)}%</span>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-/* ─── Utils ─── */
-function getBounds(period, pivot) {
-  if (period === 'day') {
-    return { start: startOfDay(pivot), end: endOfDay(pivot), label: format(pivot, 'd MMMM yyyy', { locale: pl }) }
-  }
-  if (period === 'week') {
-    const start = startOfWeek(pivot, { weekStartsOn: 1 })
-    const end   = endOfWeek(pivot,   { weekStartsOn: 1 })
-    return { start, end, label: `${format(start, 'd MMM', { locale: pl })} – ${format(end, 'd MMM yyyy', { locale: pl })}` }
-  }
-  if (period === 'year') {
-    return { start: startOfYear(pivot), end: endOfYear(pivot), label: format(pivot, 'yyyy') }
-  }
-  return { start: startOfMonth(pivot), end: endOfMonth(pivot), label: format(pivot, 'LLLL yyyy', { locale: pl }) }
-}
-
-function shiftPivot(period, pivot, dir) {
-  if (period === 'day')  return dir > 0 ? addDays(pivot, 1)    : subDays(pivot, 1)
-  if (period === 'week') return dir > 0 ? addWeeks(pivot, 1)   : subWeeks(pivot, 1)
-  if (period === 'year') return dir > 0 ? addYears(pivot, 1)   : subYears(pivot, 1)
-  return dir > 0 ? addMonths(pivot, 1) : subMonths(pivot, 1)
-}
-
-function build12MonthTimeline(transactions) {
-  const months = eachMonthOfInterval({
-    start: subMonths(new Date(), 11),
-    end: new Date(),
-  })
-  return months.map(m => {
-    const mStr = format(m, 'yyyy-MM')
-    const txs = transactions.filter(t => format(t.date, 'yyyy-MM') === mStr)
-    return {
-      label: format(m, 'MMM', { locale: pl }),
-      income: txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
-      expense: txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
-    }
-  })
-}
-
-function buildTimeline(period, pivot, transactions) {
-  const bounds = getBounds(period, pivot)
-  const map    = {}
-
-  if (period === 'day') {
-    for (let h = 0; h < 24; h += 2) {
-      const lbl = `${h}`
-      map[lbl] = { label: lbl, income: 0, expense: 0 }
-    }
-    transactions.forEach(t => {
-      const h = t.date.getHours()
-      const key = `${h - (h % 2)}`
-      if (map[key]) map[key][t.type] += t.amount
-    })
-  } else if (period === 'week') {
-    eachDayOfInterval({ start: bounds.start, end: bounds.end }).forEach(d => {
-      const lbl = format(d, 'EEE', { locale: pl })
-      map[lbl] = { label: lbl, income: 0, expense: 0 }
-    })
-    transactions.forEach(t => {
-      const key = format(t.date, 'EEE', { locale: pl })
-      if (map[key]) map[key][t.type] += t.amount
-    })
-  } else if (period === 'year') {
-    eachMonthOfInterval({ start: bounds.start, end: bounds.end }).forEach(d => {
-      const lbl = format(d, 'MMM', { locale: pl })
-      map[lbl] = { label: lbl, income: 0, expense: 0 }
-    })
-    transactions.forEach(t => {
-      const key = format(t.date, 'MMM', { locale: pl })
-      if (map[key]) map[key][t.type] += t.amount
-    })
-  } else {
-    for (let i = 1; i <= 31; i++) {
-      const d = new Date(pivot.getFullYear(), pivot.getMonth(), i)
-      if (d.getMonth() !== pivot.getMonth()) break
-      map[String(i)] = { label: String(i), income: 0, expense: 0 }
-    }
-    transactions.forEach(t => {
-      const key = String(t.date.getDate())
-      if (map[key]) map[key][t.type] += t.amount
-    })
-  }
-
-  return Object.values(map)
 }

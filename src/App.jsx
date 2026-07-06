@@ -12,10 +12,11 @@ import PrayerDashboard from './components/prayer/PrayerDashboard'
 import BibleDashboard from './components/bible/BibleDashboard'
 import PeopleHub from './components/people/PeopleHub'
 import DreamDashboard from './components/dream/DreamDashboard'
+import NotesDashboard from './components/notes/NotesDashboard'
 import SettingsDrawer from './components/SettingsDrawer'
 import MoreSheet from './components/MoreSheet'
 import ErrorBoundary from './components/ErrorBoundary'
-import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore, IconUsers, IconMoon } from './components/Icons'
+import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore, IconUsers, IconMoon, IconNote } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
 import { getCurrencyCode, setCurrencyCode } from './utils/currency'
 
@@ -33,6 +34,7 @@ const MODULE_ACCENTS = {
   bible:    '#4F74D9',
   people:   '#D98B5F',
   dream:    '#6366F1',
+  notes:    '#C97BA8',
 }
 
 // Moduły widoczne na dolnym pasku (mobile). Reszta trafia do „Więcej".
@@ -51,6 +53,7 @@ function buildModules() {
     { id: 'bible',    label: 'Biblia',    Icon: resolveIcon(prefs.bible,    IconBook) },
     { id: 'people',   label: 'Osoby',     Icon: resolveIcon(prefs.people,   IconUsers) },
     { id: 'dream',    label: 'Sen',       Icon: resolveIcon(prefs.dream,    IconMoon) },
+    { id: 'notes',    label: 'Notatnik',  Icon: resolveIcon(prefs.notes,    IconNote) },
   ]
 }
 
@@ -208,6 +211,7 @@ export default function App() {
             {activeModule === 'bible'    && <BibleDashboard user={user} />}
             {activeModule === 'people'   && <PeopleHub user={user} onOpenDream={openDream} />}
             {activeModule === 'dream'    && <DreamDashboard user={user} focusId={dreamFocus} onFocusConsumed={() => setDreamFocus(null)} />}
+            {activeModule === 'notes'    && <NotesDashboard user={user} />}
             </ErrorBoundary>
           </div>
         </div>

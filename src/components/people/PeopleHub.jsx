@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
@@ -39,13 +40,15 @@ export default function PeopleHub({ user, onOpenDream }) {
   const [intentions, setIntentions] = useState([])
   const [dreams, setDreams]         = useState([])
   const [loading, setLoading]       = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [selectedId, setSelectedId] = useState(null)
   const [showForm, setShowForm]     = useState(false)
   const [editPerson, setEditPerson] = useState(null)
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => { setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) })
+    return onSnapshot(q, snap => { setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
+      err => { console.error('people subscription error:', err); setLoading(false) })
   }, [user.uid])
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarEvents'), orderBy('date', 'asc'))

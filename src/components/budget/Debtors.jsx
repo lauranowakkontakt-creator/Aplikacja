@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { fmt } from '../../utils/currency'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
+import { fmt, parseAmount } from '../../utils/currency'
 import { IconEdit, IconTrash, IconClose, IconUsers, IconCheck, IconArrowUp, IconArrowDown } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 
@@ -11,6 +12,7 @@ const EXPENSE_COLOR = '#E0673E' // var(--expense)
 export default function Debtors({ user, onClose }) {
   const [debts, setDebts]       = useState([])
   const [loading, setLoading]   = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [showForm, setShowForm] = useState(false)
   const [editDebt, setEditDebt] = useState(null)
 
@@ -143,12 +145,12 @@ function DebtForm({ user, editData, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) { setError('Wpisz imię / nazwę'); return }
-    if (!amount || parseFloat(amount) <= 0) { setError('Podaj kwotę'); return }
+    if (!(parseAmount(amount) > 0)) { setError('Podaj kwotę'); return }
     setSaving(true)
     const data = {
       name: name.trim(),
       direction,
-      amount: parseFloat(amount),
+      amount: parseAmount(amount),
       notes: notes.trim(),
       settled: editData?.settled ?? false,
       updatedAt: Timestamp.now(),

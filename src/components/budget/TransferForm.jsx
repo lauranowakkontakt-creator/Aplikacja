@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, onSnapshot, orderBy, query, Timestamp, doc, updateDoc, increment } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, Timestamp, doc, increment, writeBatch } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
-import { fmt, getCurrencyCode } from '../../utils/currency'
+import { fmt, getCurrencyCode, parseAmount } from '../../utils/currency'
 import { IconClose, IconTransfer, IconArrowDown } from '../Icons'
 
 export default function TransferForm({ user, onClose }) {
@@ -29,30 +29,33 @@ export default function TransferForm({ user, onClose }) {
     e.preventDefault()
     if (!fromId || !toId) { setError('Wybierz oba konta'); return }
     if (fromId === toId) { setError('Wybierz różne konta'); return }
-    if (!amount || parseFloat(amount) <= 0) { setError('Podaj kwotę'); return }
+    if (!(parseAmount(amount) > 0)) { setError('Podaj kwotę'); return }
     setSaving(true)
-    const amt = parseFloat(amount)
+    const amt = parseAmount(amount)
     const d = Timestamp.fromDate(new Date(date))
     const fromAcc = accounts.find(a => a.id === fromId)
     const toAcc   = accounts.find(a => a.id === toId)
     const desc = comment.trim() || undefined
     try {
-      await addDoc(collection(db, 'users', user.uid, 'transactions'), {
+      // Atomowo: obie transakcje przelewu + oba salda w jednym batchu
+      const batch = writeBatch(db)
+      batch.set(doc(collection(db, 'users', user.uid, 'transactions')), {
         type: 'expense', amount: amt, category: 'Przelew', categoryId: 'transfer',
         categoryIcon: 'IconTransfer',
         description: `→ ${toAcc?.name}${desc ? ` · ${desc}` : ''}`,
         transferTo: toId, transferComment: desc || '',
         date: d, accountId: fromId, createdAt: Timestamp.now(), updatedAt: Timestamp.now()
       })
-      await addDoc(collection(db, 'users', user.uid, 'transactions'), {
+      batch.set(doc(collection(db, 'users', user.uid, 'transactions')), {
         type: 'income', amount: amt, category: 'Przelew', categoryId: 'transfer',
         categoryIcon: 'IconTransfer',
         description: `← ${fromAcc?.name}${desc ? ` · ${desc}` : ''}`,
         transferFrom: fromId, transferComment: desc || '',
         date: d, accountId: toId, createdAt: Timestamp.now(), updatedAt: Timestamp.now()
       })
-      await updateDoc(doc(db, 'users', user.uid, 'accounts', fromId), { balance: increment(-amt) })
-      await updateDoc(doc(db, 'users', user.uid, 'accounts', toId),   { balance: increment(amt) })
+      batch.update(doc(db, 'users', user.uid, 'accounts', fromId), { balance: increment(-amt) })
+      batch.update(doc(db, 'users', user.uid, 'accounts', toId),   { balance: increment(amt) })
+      await batch.commit()
       onClose()
     } catch { setError('Błąd zapisu'); setSaving(false) }
   }

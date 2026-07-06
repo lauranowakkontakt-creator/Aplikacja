@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, arrayUnion } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
@@ -107,6 +108,7 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
   const [people, setPeople]   = useState([])
   const [symbols, setSymbols] = useState([])
   const [loading, setLoading] = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [tab, setTab]         = useState('dreams') // 'dreams' | 'symbols'
   const [selectedId, setSelectedId] = useState(null)
   const [selectedSymbolId, setSelectedSymbolId] = useState(null)
@@ -115,7 +117,8 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'dreams'), orderBy('date', 'desc'))
-    return onSnapshot(q, snap => { setDreams(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) })
+    return onSnapshot(q, snap => { setDreams(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
+      err => { console.error('dreams subscription error:', err); setLoading(false) })
   }, [user.uid])
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))

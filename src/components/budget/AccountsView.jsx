@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, onSnapshot, orderBy, query, deleteDoc, doc, where, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import AccountForm from './AccountForm'
@@ -21,6 +22,7 @@ const ACCOUNT_ICON_COMPS = {
 export default function AccountsView({ user, privateMode }) {
   const [accounts, setAccounts]   = useState([])
   const [loading, setLoading]     = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [showForm, setShowForm]   = useState(false)
   const [editAccount, setEditAccount] = useState(null)
   const [selected, setSelected]   = useState(null)
@@ -169,6 +171,7 @@ export default function AccountsView({ user, privateMode }) {
 function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
   const [transactions, setTx] = useState([])
   const [loading, setLoading] = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [months, setMonths]   = useState(1) // 1 | 3 | 12 | 0 (all)
 
   useEffect(() => {

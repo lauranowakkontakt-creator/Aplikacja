@@ -1,4 +1,4 @@
-import { deleteDoc, doc, updateDoc, increment } from 'firebase/firestore'
+import { doc, increment, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -18,11 +18,14 @@ export default function TransactionList({ transactions, accounts = [], loading, 
   const handleDelete = async (t) => {
     const ok = await confirmDialog({ title: 'Usunąć transakcję?', message: 'Ta operacja jest nieodwracalna.' })
     if (!ok) return
-    await deleteDoc(doc(db, 'users', user.uid, 'transactions', t.id))
+    // Atomowo: usunięcie transakcji + cofnięcie salda w jednym batchu
+    const batch = writeBatch(db)
+    batch.delete(doc(db, 'users', user.uid, 'transactions', t.id))
     if (t.accountId) {
       const reversal = t.type === 'income' ? -t.amount : t.amount
-      await updateDoc(doc(db, 'users', user.uid, 'accounts', t.accountId), { balance: increment(reversal) })
+      batch.update(doc(db, 'users', user.uid, 'accounts', t.accountId), { balance: increment(reversal) })
     }
+    await batch.commit()
   }
 
   if (loading) return <div className="list-loading">Ładowanie...</div>

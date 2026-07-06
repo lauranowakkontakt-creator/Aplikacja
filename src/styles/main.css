@@ -1389,10 +1389,13 @@ input, select, textarea {
   user-select: none; -webkit-user-select: none;
 }
 
-/* Settings drawer overlay: full-screen on mobile */
+/* Settings drawer overlay: full-screen on mobile.
+   Drawer MUST stay above the overlay, else the semi-transparent backdrop sits
+   on top of the panel and swallows every tap (onClick=onClose) → „nie da się nic
+   kliknąć". Overlay 500, drawer 501. */
 @media (max-width: 880px) {
   .drawer-overlay { z-index: 500; }
-  .drawer { max-width: 100% !important; }
+  .drawer { max-width: 100% !important; z-index: 501; }
 }
 
 /* Fix select on iOS: remove inner shadow */
@@ -1662,6 +1665,13 @@ body { overscroll-behavior-y: none; }
 }
 
 /* Wspólny panel „w liczbach" (StatSummary) */
+/* Wspólny rząd kafli statystyk pod nagłówkiem modułu (komponent StatTiles) */
+.stat-tiles { display: grid; gap: 8px; margin-bottom: 14px; }
+.stat-tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 10px; text-align: center; }
+.stat-tile-icon { display: flex; justify-content: center; margin-bottom: 3px; }
+.stat-tile-value { font-size: 22px; font-weight: 700; line-height: 1; }
+.stat-tile-label { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .1em; margin-top: 4px; }
+
 .stat-summary { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 16px; }
 .stat-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .stat-summary-title { font-size: 10px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--text-muted); }
@@ -1814,4 +1824,45 @@ body { overscroll-behavior-y: none; }
 /* Pulpit + Więcej dostępne tylko na mobile (desktop ma sidebar) */
 @media (min-width: 881px) {
   .more-sheet, .more-overlay { display: none; }
+}
+
+/* ===== NOTATNIK ===== */
+.notes-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  align-items: stretch;
+}
+@media (max-width: 1080px) { .notes-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px)  { .notes-grid { grid-template-columns: 1fr; } }
+
+.note-card {
+  display: flex; flex-direction: column; min-width: 0; min-height: 96px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px; cursor: pointer;
+  transition: border-color .18s, transform .16s, box-shadow .2s;
+}
+.note-card:hover {
+  border-color: var(--border-strong); transform: translateY(-1px);
+  box-shadow: 0 10px 28px -18px rgba(0,0,0,.8);
+}
+.note-card:active { transform: scale(.985); }
+
+.note-pin {
+  width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+  display: grid; place-items: center; cursor: pointer;
+  background: transparent; border: 1px solid transparent;
+  color: var(--text-muted); opacity: .55;
+  transition: all .16s;
+}
+.note-card:hover .note-pin, .note-pin.pinned { opacity: 1; }
+.note-pin:hover { background: var(--surface2); border-color: var(--border); color: var(--text); }
+.note-pin.pinned {
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+}
+
+.note-tag {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 90px; flex-shrink: 0;
 }

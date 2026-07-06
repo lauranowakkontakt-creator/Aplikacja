@@ -109,8 +109,11 @@ function DataBackup({ uid }) {
   const [busy, setBusy] = useState(null)
   const run = async (kind, fn) => {
     setBusy(kind)
-    try { await fn(uid); toast.success('Plik pobrany') }
-    catch { toast.error('Nie udało się pobrać') }
+    try {
+      const ok = await fn(uid)
+      if (ok !== false) toast.success('Gotowe')
+    }
+    catch (e) { console.error('Eksport danych nie powiódł się:', e); toast.error('Nie udało się pobrać') }
     setBusy(null)
   }
   const btn = {

@@ -1,4 +1,20 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useId } from 'react'
+import { fmt as fmtMoney } from '../utils/currency'
+
+// useNarrow — czy okno jest węższe niż `maxWidth`; nasłuchuje zmian rozmiaru
+// (obrót telefonu, zmiana szerokości okna), nie tylko przy pierwszym renderze
+export function useNarrow(maxWidth = 480) {
+  const [narrow, setNarrow] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia(`(max-width: ${maxWidth}px)`).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${maxWidth}px)`)
+    const onChange = (e) => setNarrow(e.matches)
+    mq.addEventListener('change', onChange)
+    setNarrow(mq.matches)
+    return () => mq.removeEventListener('change', onChange)
+  }, [maxWidth])
+  return narrow
+}
 
 // useMounted — trigger CSS transition after mount
 export function useMounted(delay = 60) {
@@ -34,7 +50,8 @@ export function useCountUp(target, { dur = 900, decimals = 0 } = {}) {
 export function Donut({ data, size = 200, thickness = 22, gap = 0.018, centerTop, centerMain, centerSub, onHover }) {
   const on = useMounted(120)
   const [hover, setHover] = useState(null)
-  const total = data.reduce((s, d) => s + d.value, 0)
+  // || 1 — gdy wszystkie wartości są 0, unika dzielenia przez zero (NaN w SVG)
+  const total = data.reduce((s, d) => s + d.value, 0) || 1
   const r = (size - thickness) / 2 - 2
   const C = 2 * Math.PI * r
   let acc = 0
@@ -67,10 +84,194 @@ export function Donut({ data, size = 200, thickness = 22, gap = 0.018, centerTop
   )
 }
 
+// DonutStat — pełny donut ze statystykami: środek pokazuje sumę albo najechany
+// segment (nazwa + kwota + %), opcjonalna legenda, tryb prywatny.
+// data: [{ name, value }], colors: tablica kolorów per segment.
+export function DonutStat({ data, colors, total: totalProp, size: sizeProp, thickness = 28, privateMode = false, legend = true, fmtValue = fmtMoney }) {
+  const [active, setActive] = useState(null)
+  const on = useMounted(120)
+  const narrow = useNarrow(480)
+
+  const size = sizeProp ?? (narrow ? 180 : 220)
+  const total = totalProp ?? data.reduce((s, d) => s + d.value, 0)
+  const r = (size - thickness) / 2 - 2
+  const C = 2 * Math.PI * r
+  const gap = 0.015
+
+  let acc = 0
+  const segs = data.map((d, i) => {
+    const frac = total > 0 ? d.value / total : 0
+    const len = Math.max(0, frac * C - gap * C)
+    const seg = { ...d, i, offset: -(acc * C), len, dash: `${len} ${C - len}`, frac }
+    acc += frac
+    return seg
+  })
+
+  const displayItem = active != null ? data[active] : null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}>
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface3)" strokeWidth={thickness} opacity={.4}/>
+          {segs.map(s => (
+            <circle key={s.i} cx={size/2} cy={size/2} r={r} fill="none"
+              stroke={colors[s.i]}
+              strokeWidth={active === s.i ? thickness + 4 : thickness}
+              strokeLinecap="butt"
+              strokeDasharray={on ? s.dash : `0 ${C}`}
+              strokeDashoffset={s.offset}
+              opacity={active == null || active === s.i ? 1 : 0.4}
+              onMouseEnter={() => setActive(s.i)}
+              onMouseLeave={() => setActive(null)}
+              style={{ transition: `stroke-dasharray .9s cubic-bezier(.4,0,.2,1) ${s.i * .07}s, stroke-width .2s, opacity .2s`, cursor: 'pointer' }}
+            />
+          ))}
+        </svg>
+
+        {/* Center label */}
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', pointerEvents: 'none' }}>
+          {displayItem ? (
+            <>
+              <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{displayItem.name}</p>
+              <p style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 800, color: colors[active] }}>{privateMode ? '••' : fmtValue(displayItem.value)}</p>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>{total > 0 ? (displayItem.value / total * 100).toFixed(1) : 0}%</p>
+            </>
+          ) : (
+            <>
+              <p style={{ margin: 0, fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Łącznie</p>
+              <p style={{ margin: '2px 0 0', fontSize: 20, fontWeight: 800 }}>{privateMode ? '••' : fmtValue(total)}</p>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Legend */}
+      {legend && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {data.map((item, i) => {
+            const pct = total > 0 ? (item.value / total * 100) : 0
+            return (
+              <div key={item.name}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', borderRadius: 8, background: active === i ? 'var(--surface2)' : 'transparent', transition: 'background 0.15s', cursor: 'pointer' }}
+                onMouseEnter={() => setActive(i)}
+                onMouseLeave={() => setActive(null)}
+              >
+                <div style={{ width: 10, height: 10, borderRadius: 3, background: colors[i], flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 13 }}>{item.name}</span>
+                <span style={{ fontSize: 13, fontWeight: 600 }}>{privateMode ? '••' : fmtValue(item.value)}</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 40, textAlign: 'right' }}>{pct.toFixed(1)}%</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// LineAreaSVG — wykres liniowy z wypełnieniem (zastępuje recharts AreaChart).
+// data: [{ label, value }], stała skala Y [min, max], opcjonalne linie siatki
+// na yTicks, tooltip na hover. Szerokość mierzy z kontenera (ResizeObserver).
+export function LineAreaSVG({ data, height = 150, min = 0, max = 5, yTicks = [], accent = 'var(--accent)', fmtValue, fmtLabel }) {
+  const ref = useRef(null)
+  const gradId = useId()
+  const [w, setW] = useState(0)
+  const [hover, setHover] = useState(null)
+  const on = useMounted(100)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setW(el.clientWidth))
+    ro.observe(el)
+    setW(el.clientWidth)
+    return () => ro.disconnect()
+  }, [])
+
+  const padL = 24, padR = 8, padT = 8, padB = 18
+  const iw = Math.max(0, w - padL - padR)
+  const ih = height - padT - padB
+  const n = data.length
+  const x = (i) => padL + (n > 1 ? (i / (n - 1)) * iw : iw / 2)
+  const y = (v) => padT + (1 - (v - min) / (max - min || 1)) * ih
+
+  const pts = data.map((d, i) => [x(i), y(d.value)])
+  const line = pts.map(([px, py], i) => `${i === 0 ? 'M' : 'L'}${px.toFixed(1)},${py.toFixed(1)}`).join(' ')
+  const area = pts.length ? `${line} L${pts[pts.length - 1][0].toFixed(1)},${padT + ih} L${pts[0][0].toFixed(1)},${padT + ih} Z` : ''
+
+  // Etykiety osi X — maksymalnie ~8, żeby nie nachodziły na siebie
+  const labelStep = Math.max(1, Math.ceil(n / 8))
+
+  return (
+    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
+      {w > 0 && (
+        <svg width={w} height={height} style={{ display: 'block', opacity: on ? 1 : 0, transition: 'opacity .5s' }}
+          onMouseLeave={() => setHover(null)}
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect()
+            const mx = e.clientX - rect.left
+            let best = 0, bestD = Infinity
+            pts.forEach(([px], i) => { const dd = Math.abs(px - mx); if (dd < bestD) { bestD = dd; best = i } })
+            setHover(bestD < 40 ? best : null)
+          }}
+        >
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" style={{ stopColor: accent, stopOpacity: 0.3 }} />
+              <stop offset="95%" style={{ stopColor: accent, stopOpacity: 0 }} />
+            </linearGradient>
+          </defs>
+          {/* siatka + etykiety Y */}
+          {yTicks.map(t => (
+            <g key={t}>
+              <line x1={padL} x2={w - padR} y1={y(t)} y2={y(t)} stroke="rgba(255,255,255,.055)" />
+              <text x={padL - 6} y={y(t) + 3} textAnchor="end" fontSize="9" fill="var(--text-muted)">{t}</text>
+            </g>
+          ))}
+          {/* obszar + linia */}
+          <path d={area} fill={`url(#${gradId})`} />
+          <path d={line} fill="none" stroke={accent} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+          {/* punkty */}
+          {pts.map(([px, py], i) => (
+            <circle key={i} cx={px} cy={py}
+              r={hover === i ? 5 : 3}
+              fill={hover === i ? accent : 'var(--bg)'}
+              stroke={accent} strokeWidth="2"
+              style={{ transition: 'r .15s' }}
+            />
+          ))}
+          {/* etykiety X */}
+          {data.map((d, i) => (
+            (i % labelStep === 0 || hover === i) && (
+              <text key={i} x={x(i)} y={height - 4} textAnchor="middle" fontSize="9"
+                fill={hover === i ? 'var(--text)' : 'var(--text-muted)'}>{d.label}</text>
+            )
+          ))}
+        </svg>
+      )}
+      {/* tooltip */}
+      {hover != null && data[hover] && (
+        <div style={{
+          position: 'absolute',
+          left: Math.min(Math.max(pts[hover][0], 44), w - 44),
+          top: pts[hover][1] - 34,
+          transform: 'translateX(-50%)',
+          background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 7,
+          padding: '3px 8px', fontSize: 11, whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 2,
+          color: 'var(--text)',
+        }}>
+          {fmtLabel ? fmtLabel(data[hover].label) + ' · ' : ''}{fmtValue ? fmtValue(data[hover].value) : data[hover].value}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // FlowBar — poziomy pasek przepływu
 export function FlowBar({ segments, height = 14 }) {
   const on = useMounted(200)
-  const total = segments.reduce((s, d) => s + d.value, 0)
+  const total = segments.reduce((s, d) => s + d.value, 0) || 1
   return (
     <div style={{ display: 'flex', width: '100%', height, borderRadius: 99, overflow: 'hidden', background: 'var(--surface3)' }}>
       {segments.map((s, i) => (

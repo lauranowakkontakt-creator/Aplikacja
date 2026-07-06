@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { collection, query, onSnapshot, addDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
+import StatTiles from '../StatTiles'
 import { format, startOfMonth, getDaysInMonth, addDays, subMonths, addMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import {
-  XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart, CartesianGrid,
-} from 'recharts'
+import { LineAreaSVG } from '../ChartPrimitives'
 import { IconTrash, IconChevronLeft, IconChevronRight } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { ALL_EMOTIONS } from './EmotionWheel'
@@ -89,6 +89,7 @@ const kicker = (t, extra) => (
 export default function MoodDashboard({ user }) {
   const [logs, setLogs]       = useState([])
   const [loading, setLoading] = useState(true)
+  useFallbackTimeout(() => setLoading(false))
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'moodLogs'), orderBy('createdAt', 'desc'))
@@ -106,6 +107,10 @@ export default function MoodDashboard({ user }) {
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
+  const moodCount = logs.length
+  const moodAvg = moodCount ? (logs.reduce((s, l) => s + (l.moodValue || 0), 0) / moodCount).toFixed(1) : '—'
+  const moodMonth = logs.filter(l => (l.date || '').startsWith(format(new Date(), 'yyyy-MM'))).length
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div className="mod-header">
@@ -114,6 +119,11 @@ export default function MoodDashboard({ user }) {
           <div className="mod-header-title">{format(new Date(), 'EEEE, d MMMM', { locale: pl })}</div>
         </div>
       </div>
+      <StatTiles tiles={[
+        { label: 'Wpisy', value: moodCount },
+        { label: 'Średni nastrój', value: moodAvg },
+        { label: 'W tym miesiącu', value: moodMonth },
+      ]} />
       <MoodPage user={user} logs={logs} onDelete={handleDelete} />
     </div>
   )
@@ -334,21 +344,13 @@ function MoodPage({ user, logs, onDelete }) {
           {chartData.length === 1 ? (
             <SingleMoodPreview point={chartData[0]} />
           ) : chartData.length > 1 ? (
-            <ResponsiveContainer width="100%" height={150}>
-              <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -30, bottom: 0 }}>
-                <defs><linearGradient id="moodGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-                </linearGradient></defs>
-                <CartesianGrid stroke="rgba(255,255,255,.055)" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                <YAxis domain={[0.5, 5.5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 9, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--text)' }}
-                  formatter={v => [MOODS.find(m => Math.abs(m.value - v) < 0.5)?.label || v.toFixed(1), 'nastrój']} labelFormatter={d => `${d} ${monthLbl.toLowerCase()}`} />
-                <Area type="monotone" dataKey="value" stroke="var(--accent)" strokeWidth={2.5} fill="url(#moodGrad)"
-                  dot={{ r: 3, fill: 'var(--bg)', stroke: 'var(--accent)', strokeWidth: 2 }} activeDot={{ r: 5, fill: 'var(--accent)' }} />
-              </AreaChart>
-            </ResponsiveContainer>
+            <LineAreaSVG
+              data={chartData.map(d => ({ label: d.day, value: d.value }))}
+              height={150} min={0.5} max={5.5} yTicks={[1, 2, 3, 4, 5]}
+              accent="var(--accent)"
+              fmtValue={v => MOODS.find(m => Math.abs(m.value - v) < 0.5)?.label || v.toFixed(1)}
+              fmtLabel={d => `${d} ${monthLbl.toLowerCase()}`}
+            />
           ) : (
             <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '30px 0' }}>Brak wpisów w tym miesiącu</div>
           )}

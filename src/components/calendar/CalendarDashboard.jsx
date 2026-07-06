@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, getDoc, getDocs, setDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import {
   format, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, isSameMonth, isToday, isSameDay, parseISO,
@@ -131,6 +132,7 @@ export default function CalendarDashboard({ user }) {
   const [categories, setCategories] = useState([])
   const [calPeople, setCalPeople]   = useState([])
   const [loading, setLoading]       = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDay, setSelectedDay]   = useState(new Date())
   const [tab, setTab]               = useState('month')
@@ -198,7 +200,8 @@ export default function CalendarDashboard({ user }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarEvents'), orderBy('date', 'asc'))
-    return onSnapshot(q, snap => { setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) })
+    return onSnapshot(q, snap => { setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
+      err => { console.error('calendar subscription error:', err); setLoading(false) })
   }, [user.uid])
 
   useEffect(() => {

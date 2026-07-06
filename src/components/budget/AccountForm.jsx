@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { CURRENCIES as CURRENCY_LIST } from '../../utils/currency'
+import { CURRENCIES as CURRENCY_LIST, parseAmount } from '../../utils/currency'
 import { IconClose, IconBank, IconCash, IconCard, IconRepeat, IconSavings, IconTrendUp, IconPlus } from '../Icons'
 
 const ACCOUNT_TYPES = [
@@ -39,7 +39,7 @@ export default function AccountForm({ user, onClose, editData }) {
       : (ACCOUNT_TYPES.find(t => t.id === type)?.label || type)
     // Dla własnego typu zapisujemy slug jako type, żeby filtry/ikony działały
     const storedType = type === 'custom' ? `custom:${customType.trim().toLowerCase()}` : type
-    const data = { name: name.trim(), type: storedType, typeName, balance: parseFloat(balance) || 0, currency, color }
+    const data = { name: name.trim(), type: storedType, typeName, balance: parseAmount(balance) || 0, currency, color }
     try {
       if (editData) {
         await updateDoc(doc(db, 'users', user.uid, 'accounts', editData.id), data)

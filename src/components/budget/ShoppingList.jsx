@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, setDoc, increment } from 'firebase/firestore'
+import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, setDoc, increment, writeBatch } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
-import { fmt, getCurrencyCode } from '../../utils/currency'
+import { DonutStat } from '../ChartPrimitives'
+import { fmt, getCurrencyCode, parseAmount } from '../../utils/currency'
 import { EXPENSE_CATEGORIES } from '../TransactionForm'
 import { ICON_CATALOG, CatIcon, IconTrash, IconClose, IconTag, IconShopping, IconCheck } from '../Icons'
 import { CAT_COLORS } from '../../utils/categories'
@@ -17,6 +18,7 @@ export default function ShoppingList({ user }) {
   const [items, setItems]       = useState([])
   const [shopCats, setShopCats] = useState(null)
   const [loading, setLoading]   = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [showAdd, setShowAdd]   = useState(false)
   const [showTx, setShowTx]     = useState(null)
   const [showCatMgr, setShowCatMgr] = useState(false)
@@ -52,7 +54,7 @@ export default function ShoppingList({ user }) {
   const handleBuy = async (item, actualPrice) => {
     await updateDoc(doc(db, 'users', user.uid, 'shoppingItems', item.id), {
       status: 'bought',
-      boughtPrice: parseFloat(actualPrice) || item.estimatedPrice || 0,
+      boughtPrice: parseAmount(actualPrice) || item.estimatedPrice || 0,
       boughtDate: format(new Date(), 'yyyy-MM-dd')
     })
   }
@@ -123,23 +125,11 @@ export default function ShoppingList({ user }) {
           {pieData.length > 0 && (
             <div className="chart-section" style={{ marginTop: 8 }}>
               <h3 className="chart-title">Kategorie zakupów (szacunkowo)</h3>
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={44} outerRadius={74} paddingAngle={3} dataKey="value">
-                    {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip formatter={v => fmt(v)} contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {pieData.map((d, i) => (
-                  <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 2, background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 13 }}>{d.name}</span>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{fmt(d.value)}</span>
-                  </div>
-                ))}
-              </div>
+              <DonutStat
+                data={pieData}
+                colors={pieData.map((_, i) => COLORS[i % COLORS.length])}
+                size={170} thickness={24}
+              />
             </div>
           )}
         </>
@@ -338,7 +328,7 @@ function AddItemModal({ user, categories, onClose }) {
     setSaving(true)
     await addDoc(collection(db, 'users', user.uid, 'shoppingItems'), {
       name: name.trim(), category, note: note.trim(),
-      estimatedPrice: parseFloat(estimatedPrice) || 0,
+      estimatedPrice: parseAmount(estimatedPrice) || 0,
       status: 'planned',
       createdAt: Timestamp.now()
     })
@@ -417,10 +407,12 @@ function BuyModal({ item, user, categories, onBuy, onClose }) {
 
   const handleConfirm = async () => {
     setSaving(true)
-    const actualPrice = parseFloat(price) || 0
+    const actualPrice = parseAmount(price) || 0
     if (actualPrice > 0) {
       const cat = categories.find(c => c.id === item.category) || { label: 'Zakupy', id: 'zakupy', icon: 'IconShopping' }
-      await addDoc(collection(db, 'users', user.uid, 'transactions'), {
+      // Atomowo: transakcja zakupu + saldo konta w jednym batchu
+      const batch = writeBatch(db)
+      batch.set(doc(collection(db, 'users', user.uid, 'transactions')), {
         type: 'expense', amount: actualPrice,
         category: cat.label, categoryId: cat.id, categoryIcon: cat.icon,
         description: item.name,
@@ -428,8 +420,9 @@ function BuyModal({ item, user, categories, onBuy, onClose }) {
         createdAt: Timestamp.now(), updatedAt: Timestamp.now()
       })
       if (accountId) {
-        await updateDoc(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(-actualPrice) })
+        batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(-actualPrice) })
       }
+      await batch.commit()
     }
     await onBuy(item, price)
     onClose()

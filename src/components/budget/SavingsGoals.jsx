@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { fmt } from '../../utils/currency'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
+import { fmt, parseAmount } from '../../utils/currency'
 import { IconEdit, IconTrash, IconClose, IconSavings } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -15,6 +16,7 @@ const GOAL_COLORS = [
 export default function SavingsGoals({ user, onClose }) {
   const [goals, setGoals]       = useState([])
   const [loading, setLoading]   = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [showForm, setShowForm] = useState(false)
   const [editGoal, setEditGoal] = useState(null)
 
@@ -151,14 +153,14 @@ function GoalForm({ user, editData, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) { setError('Wpisz nazwę celu'); return }
-    if (!noTarget && (!target || parseFloat(target) <= 0)) { setError('Podaj kwotę docelową'); return }
+    if (!noTarget && (!(parseAmount(target) > 0))) { setError('Podaj kwotę docelową'); return }
     setSaving(true)
     const data = {
       name: name.trim(),
       color,
       noTarget,
-      targetAmount: noTarget ? 0 : parseFloat(target),
-      currentAmount: parseFloat(current) || 0,
+      targetAmount: noTarget ? 0 : parseAmount(target),
+      currentAmount: parseAmount(current) || 0,
       notes: notes.trim(),
       updatedAt: Timestamp.now()
     }

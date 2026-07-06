@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { doc, onSnapshot, setDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, CAT_COLORS, getSubcategoryColor } from '../../utils/categories'
 import { CatIcon, IconClose, IconTrash, IconTag, IconEdit, IconSearch, IconChevronDown, IconArrowUp, IconArrowDown, ICON_CATALOG } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
@@ -13,6 +14,7 @@ export default function CategoriesView({ user, onClose }) {
   const [showAdd, setShowAdd]       = useState(false)
   const [editCat, setEditCat]       = useState(null)
   const [loading, setLoading]       = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [expanded, setExpanded]     = useState(new Set())
   const [editSubcat, setEditSubcat] = useState(null) // { catId, subcat }
   const [addingSubcat, setAddingSubcat] = useState(null) // catId

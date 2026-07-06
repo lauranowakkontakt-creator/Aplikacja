@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
-import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query, getDoc, getDocs, limit, increment } from 'firebase/firestore'
+import { useState, useEffect, useRef } from 'react'
+import { collection, doc, Timestamp, onSnapshot, orderBy, query, getDocs, limit, increment, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
-import { getCurrencyCode } from '../utils/currency'
+import { getCurrencyCode, parseAmount } from '../utils/currency'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, getSubcategoryColor } from '../utils/categories'
 import { CatIcon, IconClose } from './Icons'
 
@@ -63,21 +63,30 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
     })
   }, [user.uid])
 
+  // Reset kategorii/podkategorii TYLKO przy realnej zmianie przez użytkownika.
+  // Przy pierwszym renderze (edycja) kategorie własne mogą jeszcze nie być
+  // wczytane — reset na starcie kasowałby zapisany wybór z edytowanej transakcji.
+  const firstType = useRef(true)
   useEffect(() => {
+    if (firstType.current) { firstType.current = false; return }
     if (!categories.find(c => c.id === category)) setCategory('')
   }, [type])
 
-  useEffect(() => { setSubcategoryId('') }, [category])
+  const firstCat = useRef(true)
+  useEffect(() => {
+    if (firstCat.current) { firstCat.current = false; return }
+    setSubcategoryId('')
+  }, [category])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!amount || parseFloat(amount) <= 0) { setError('Podaj prawidłową kwotę'); return }
+    if (!(parseAmount(amount) > 0)) { setError('Podaj prawidłową kwotę'); return }
     if (!category) { setError('Wybierz kategorię'); return }
     setSaving(true); setError('')
     const cat = categories.find(c => c.id === category)
     const subcat = cat?.subcategories?.find(s => s.id === subcategoryId)
     const data = {
-      type, amount: parseFloat(amount),
+      type, amount: parseAmount(amount),
       category: cat?.label || category,
       categoryId: category,
       categoryIcon: cat?.icon || 'IconMore',
@@ -89,23 +98,32 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
       updatedAt: Timestamp.now()
     }
     try {
+      // Jeden atomowy zapis (writeBatch): transakcja + korekty sald razem.
+      // Przerwanie w połowie nie zostawi konta z rozjechanym saldem.
+      const batch = writeBatch(db)
+      const delta = type === 'income' ? parseAmount(amount) : -parseAmount(amount)
       if (editData) {
-        await updateDoc(doc(db, 'users', user.uid, 'transactions', editData.id), data)
-        if (editData.accountId) {
-          const reversal = editData.type === 'income' ? -editData.amount : editData.amount
-          await updateDoc(doc(db, 'users', user.uid, 'accounts', editData.accountId), { balance: increment(reversal) })
-        }
-        if (accountId) {
-          const delta = type === 'income' ? parseFloat(amount) : -parseFloat(amount)
-          await updateDoc(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(delta) })
+        batch.update(doc(db, 'users', user.uid, 'transactions', editData.id), data)
+        const reversal = editData.type === 'income' ? -editData.amount : editData.amount
+        if (editData.accountId && editData.accountId === accountId) {
+          // To samo konto: jedna korekta — dwa update'y na tym samym dokumencie
+          // w batchu nadpisałyby się nawzajem zamiast zsumować
+          batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(reversal + delta) })
+        } else {
+          if (editData.accountId) {
+            batch.update(doc(db, 'users', user.uid, 'accounts', editData.accountId), { balance: increment(reversal) })
+          }
+          if (accountId) {
+            batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(delta) })
+          }
         }
       } else {
-        await addDoc(collection(db, 'users', user.uid, 'transactions'), { ...data, createdAt: Timestamp.now() })
+        batch.set(doc(collection(db, 'users', user.uid, 'transactions')), { ...data, createdAt: Timestamp.now() })
         if (accountId) {
-          const delta = type === 'income' ? parseFloat(amount) : -parseFloat(amount)
-          await updateDoc(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(delta) })
+          batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(delta) })
         }
       }
+      await batch.commit()
       onClose()
     } catch { setError('Błąd zapisu. Spróbuj ponownie.'); setSaving(false) }
   }

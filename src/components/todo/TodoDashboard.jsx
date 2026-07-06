@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import {
   format, isPast, isToday, parseISO,
   startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear,
@@ -8,9 +9,10 @@ import {
   isSameMonth, isSameDay, getDate, addMonths, subMonths, addDays, addWeeks
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { BarChartSVG } from '../ChartPrimitives'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag, IconChevronDown, IconChevronLeft, IconChevronRight, IconCalendar, IconClock, IconRepeat, IconPlus } from '../Icons'
 import { Ring } from '../ChartPrimitives'
+import StatTiles from '../StatTiles'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -48,6 +50,7 @@ export default function TodoDashboard({ user }) {
   const [todos, setTodos]           = useState([])
   const [lists, setLists]           = useState([])
   const [loading, setLoading]       = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [tab, setTab]               = useState('tasks')
   const [activeList, setActiveList] = useState(null)
   const [showForm, setShowForm]     = useState(false)
@@ -63,7 +66,8 @@ export default function TodoDashboard({ user }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc'))
-    return onSnapshot(q, snap => { setTodos(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) })
+    return onSnapshot(q, snap => { setTodos(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
+      err => { console.error('todos subscription error:', err); setLoading(false) })
   }, [user.uid])
 
   useEffect(() => {
@@ -178,6 +182,12 @@ export default function TodoDashboard({ user }) {
           )}
         </div>
       </div>
+
+      <StatTiles tiles={[
+        { label: 'Aktywne', value: active.length },
+        { label: 'Na dziś', value: dueToday.length, color: dueToday.length ? 'var(--accent)' : undefined },
+        { label: 'Ukończone', value: done.length },
+      ]} />
 
       {showSearch && (
         <div style={{ padding: '0 0 12px' }}>
@@ -559,19 +569,16 @@ function TodoStats({ todos, lists }) {
       {chartData.length > 0 && chartData.some(d => d.count > 0) && (
         <div className="chart-section">
           <h3 className="chart-title">Ukończone zadania</h3>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={chartData} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} />
-              <Tooltip
-                contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12 }}
-                formatter={v => [v, 'Ukończone']}
-              />
-              <Bar dataKey="count" radius={[4,4,0,0]}>
-                {chartData.map((_, i) => <Cell key={i} fill="var(--income)" fillOpacity={0.8} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <BarChartSVG
+            height={160}
+            accent="var(--income)"
+            fmt={(v) => `${v} ukończ.`}
+            data={chartData.map((d, i) => ({
+              // przy 31 dniach miesiąca pokazuj co drugą etykietę, żeby się nie zlewały
+              label: chartData.length > 14 && i % 2 === 1 ? '' : d.label,
+              value: d.count,
+            }))}
+          />
         </div>
       )}
 

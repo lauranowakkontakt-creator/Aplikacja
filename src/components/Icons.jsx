@@ -447,6 +447,21 @@ export const IconTag = (p) => (
   </Icon>
 )
 
+export const IconNote = (p) => (
+  <Icon {...p}>
+    <path d="M5 3h14a1 1 0 0 1 1 1v11l-5 5H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+    <path d="M15 20v-5h5" />
+    <path d="M8 8h8M8 12h5" />
+  </Icon>
+)
+
+export const IcPin = (p) => (
+  <Icon {...p}>
+    <path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z" />
+    <path d="M12 15v6" />
+  </Icon>
+)
+
 // ── Extended icon set (110 icons) ──────────────────────────────────────────
 export const IcWallet      = (p) => (<Icon {...p}><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 11h5v4h-5a2 2 0 0 1 0-4z"/><circle cx="16.5" cy="13" r="0.8" fill="currentColor" stroke="none"/></Icon>)
 export const IcCoins       = (p) => (<Icon {...p}><ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v5c0 1.7 2.7 3 6 3"/><ellipse cx="15" cy="14" rx="6" ry="3"/><path d="M9 14v3c0 1.7 2.7 3 6 3s6-1.3 6-3v-3"/></Icon>)
@@ -657,6 +672,8 @@ export const ICON_CATALOG = [
   { key: 'IcShield',      label: 'tarcza',       group: 'Interfejs i różne',    Component: IcShield },
   { key: 'IcGlobe',       label: 'globus',       group: 'Interfejs i różne',    Component: IcGlobe },
   { key: 'IcMapPin',      label: 'pinezka',      group: 'Interfejs i różne',    Component: IcMapPin },
+  { key: 'IconNote',      label: 'notatka',      group: 'Interfejs i różne',    Component: IconNote },
+  { key: 'IcPin',         label: 'przypięcie',   group: 'Interfejs i różne',    Component: IcPin },
   { key: 'IconFlag',      label: 'flaga',        group: 'Interfejs i różne',    Component: IconFlag },
   { key: 'IconRepeat',    label: 'cyklicznie',   group: 'Interfejs i różne',    Component: IconRepeat },
   { key: 'IcCross',       label: 'krzyż',        group: 'Interfejs i różne',    Component: IcCross },

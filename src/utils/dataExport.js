@@ -8,6 +8,7 @@ const COLLECTIONS = [
   'moodLogs', 'todos', 'todoLists',
   'calendarEvents', 'calendarPeople', 'calendarCategories',
   'prayerIntentions', 'prayerPeople', 'bibleNotes',
+  'notes',
 ]
 // Pojedyncze dokumenty
 const SINGLE_DOCS = [
@@ -30,16 +31,37 @@ function serialize(value) {
   return value
 }
 
-function download(filename, content, type) {
+// Zapis pliku działający też na telefonie. Na urządzeniach dotykowych klasyczne
+// pobranie przez <a download> jest ignorowane przez iOS Safari / PWA (klik w blob
+// nic nie robi lub otwiera podgląd), więc używamy Web Share API — arkusz
+// „Udostępnij" z opcją „Zapisz w Plikach". Na desktopie zostaje zwykłe pobranie.
+// Zwraca false, gdy użytkownik anuluje udostępnianie (żeby nie pokazywać „Gotowe").
+async function download(filename, content, type) {
   const blob = new Blob([content], { type })
+  const coarse = typeof window !== 'undefined'
+    && window.matchMedia?.('(pointer: coarse)').matches
+  if (coarse && typeof File !== 'undefined' && navigator.canShare) {
+    const file = new File([blob], filename, { type })
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: filename })
+        return true
+      } catch (e) {
+        if (e?.name === 'AbortError') return false // anulowano — nie błąd
+        // inny błąd → spróbuj klasycznego pobrania poniżej
+      }
+    }
+  }
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = filename
+  a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()
   a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  setTimeout(() => URL.revokeObjectURL(url), 4000)
+  return true
 }
 
 const stamp = () => new Date().toISOString().slice(0, 10)
@@ -56,7 +78,7 @@ export async function exportAllJSON(uid) {
     const d = await getDoc(doc(db, 'users', uid, col, id))
     if (d.exists()) data.singles[`${col}/${id}`] = serialize(d.data())
   }
-  download(`moj-swiat-kopia-${stamp()}.json`, JSON.stringify(data, null, 2), 'application/json')
+  return download(`moj-swiat-kopia-${stamp()}.json`, JSON.stringify(data, null, 2), 'application/json')
 }
 
 const csvCell = (v) => {
@@ -74,5 +96,5 @@ export async function exportTransactionsCSV(uid) {
   }).sort((a, b) => b[0].localeCompare(a[0]))
   const header = ['Data', 'Typ', 'Kwota', 'Kategoria', 'Podkategoria', 'Opis', 'Konto']
   const csv = '﻿' + [header, ...rows].map(r => r.map(csvCell).join(',')).join('\n')
-  download(`moj-swiat-transakcje-${stamp()}.csv`, csv, 'text/csv;charset=utf-8')
+  return download(`moj-swiat-transakcje-${stamp()}.csv`, csv, 'text/csv;charset=utf-8')
 }

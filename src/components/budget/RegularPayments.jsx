@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, orderBy, query, deleteDoc, doc, updateDoc, arrayUnion, addDoc, Timestamp, increment } from 'firebase/firestore'
+import { collection, onSnapshot, orderBy, query, deleteDoc, doc, updateDoc, arrayUnion, Timestamp, increment, writeBatch } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, parseISO, isAfter, isBefore, startOfDay } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { fmt } from '../../utils/currency'
@@ -15,6 +16,7 @@ export default function RegularPayments({ user }) {
   const [payments, setPayments] = useState([])
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading]   = useState(true)
+  useFallbackTimeout(() => setLoading(false))
   const [showForm, setShowForm] = useState(false)
   const [editPayment, setEditPayment] = useState(null)
 
@@ -49,7 +51,11 @@ export default function RegularPayments({ user }) {
 
   const addTransactionForPayment = async (p) => {
     try {
-      await addDoc(collection(db, 'users', user.uid, 'transactions'), {
+      // Atomowo: transakcja + saldo + odhaczenie okresu w jednym batchu.
+      // Ważne też dla auto-dodawania: bez batcha przerwanie między zapisami
+      // mogło dodać transakcję bez odhaczenia okresu → duplikat przy odświeżeniu.
+      const batch = writeBatch(db)
+      batch.set(doc(collection(db, 'users', user.uid, 'transactions')), {
         type: p.type, amount: p.amount,
         category: p.category, categoryId: p.categoryId, categoryIcon: p.categoryIcon,
         subcategoryId: p.subcategoryId || null, subcategoryLabel: p.subcategoryLabel || null,
@@ -59,11 +65,12 @@ export default function RegularPayments({ user }) {
       })
       if (p.accountId) {
         const delta = p.type === 'expense' ? -p.amount : p.amount
-        await updateDoc(doc(db, 'users', user.uid, 'accounts', p.accountId), { balance: increment(delta) })
+        batch.update(doc(db, 'users', user.uid, 'accounts', p.accountId), { balance: increment(delta) })
       }
-      await updateDoc(doc(db, 'users', user.uid, 'regularPayments', p.id), {
+      batch.update(doc(db, 'users', user.uid, 'regularPayments', p.id), {
         donePeriods: arrayUnion(THIS_PERIOD)
       })
+      await batch.commit()
     } catch { toast.error('Błąd zapisu płatności') }
   }
 
