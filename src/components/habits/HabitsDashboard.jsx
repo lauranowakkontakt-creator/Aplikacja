@@ -11,7 +11,7 @@ import { Ring, Heatmap } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import StatSummary from '../StatSummary'
 import SegTabs from '../SegTabs'
-import { isPausedDay, isHabitDue, getStreak, getBestStreak } from '../../utils/habitLogic'
+import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete } from '../../utils/habitLogic'
 
 function getPauseIcon(pauses, dateStr) {
   const p = pauses.find(p => dateStr >= p.from && dateStr <= p.to)
@@ -112,7 +112,20 @@ export default function HabitsDashboard({ user, onMoodClick }) {
   const toggleDay = async (habit, date) => {
     const ref = doc(db, 'users', user.uid, 'habits', habit.id)
     const done = habit.completedDates?.includes(date)
-    await updateDoc(ref, { completedDates: done ? arrayRemove(date) : arrayUnion(date) })
+    const update = { completedDates: done ? arrayRemove(date) : arrayUnion(date) }
+    // Główny check ustawia też wszystkie kroki (odznaczenie — czyści je)
+    if (habit.checklist?.length) update[`checklistDone.${date}`] = done ? [] : habit.checklist.map(s => s.id)
+    await updateDoc(ref, update)
+  }
+
+  // Odhaczenie pojedynczego kroku; komplet kroków zalicza nawyk, brak — cofa zaliczenie
+  const toggleStep = async (habit, date, stepId) => {
+    const ref = doc(db, 'users', user.uid, 'habits', habit.id)
+    const next = toggleStepDone(habit.checklistDone?.[date], stepId)
+    await updateDoc(ref, {
+      [`checklistDone.${date}`]: next,
+      completedDates: isChecklistComplete(habit.checklist, next) ? arrayUnion(date) : arrayRemove(date),
+    })
   }
 
   const allCategories  = [...DEFAULT_HABIT_CATEGORIES, ...customCats]
@@ -237,13 +250,16 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           const isExtra = status !== 'due'
           const cat     = allCategories.find(c => c.id === habit.category)
           const color   = habit.color || 'var(--accent)'
+          const steps    = habit.checklist || []
+          const stepDone = habit.checklistDone?.[selectedDay] || []
           return (
             <div key={habit.id} className="card hover" style={{
               background: done ? `color-mix(in oklab, ${color} 10%, var(--surface))` : 'var(--surface)',
               border: `1px solid ${done ? color + '50' : 'var(--border)'}`,
-              padding: 16, display: 'flex', alignItems: 'center', gap: 14,
+              padding: 16,
               opacity: isExtra && !done ? 0.66 : 1,
             }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               {/* Icon tile */}
               <div onClick={() => { setEditHabit(habit); setShowForm(true) }} style={{
                 width: 46, height: 46, borderRadius: 13, flexShrink: 0,
@@ -270,6 +286,11 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                   <span className="mono" style={{ fontSize: 9.5, color: isExtra && done ? color : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.04em' }}>
                     {streak > 0 && '· '}{isExtra ? (done ? '+1 do serii' : 'dodatkowy') : (cat?.label || '')}
                   </span>
+                  {steps.length > 0 && (
+                    <span className="mono" style={{ fontSize: 10, padding: '1px 7px', borderRadius: 4, background: color + '1c', color, fontWeight: 600 }}>
+                      {stepDone.length}/{steps.length}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -288,6 +309,29 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               >
                 {done ? <IconCheck size={17} /> : status === 'paused' && getPauseIcon(pauses, selectedDay) ? <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{getPauseIcon(pauses, selectedDay)}</span> : ''}
               </button>
+            </div>
+
+            {/* Kroki nawyku — odhaczane per dzień */}
+            {steps.length > 0 && (
+              <div style={{ marginTop: 10, paddingLeft: 60, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                {steps.map(s => {
+                  const sDone = stepDone.includes(s.id)
+                  return (
+                    <button key={s.id} type="button" disabled={isFut}
+                      onClick={() => toggleStep(habit, selectedDay, s.id)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', padding: 0, cursor: isFut ? 'default' : 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                      <span style={{
+                        width: 16, height: 16, borderRadius: 5, flexShrink: 0, display: 'grid', placeItems: 'center',
+                        border: `1.5px solid ${sDone ? color : 'var(--border-strong)'}`,
+                        background: sDone ? color : 'transparent', color: 'var(--bg)',
+                        transition: 'all .15s var(--spring)',
+                      }}>{sDone && <IconCheck size={10} />}</span>
+                      <span style={{ fontSize: 12, textDecoration: sDone ? 'line-through' : 'none', color: sDone ? 'var(--text-muted)' : 'var(--text-sub)' }}>{s.title}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             </div>
           )
         }

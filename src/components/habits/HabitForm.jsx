@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderBy, onSnapshot } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
-import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconArchive, IconRestore, IconEdit } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconArchive, IconRestore, IconEdit, IconPlus } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import HabitCategoryManager from './HabitCategoryManager'
@@ -41,6 +41,8 @@ export default function HabitForm({ user, onClose, editData }) {
   const [startDate, setStartDate] = useState(editData?.startDate || format(new Date(), 'yyyy-MM-dd'))
   const [hasEnd, setHasEnd]       = useState(!!editData?.endDate)
   const [endDate, setEndDate]     = useState(editData?.endDate || '')
+  const [checklist, setChecklist] = useState(editData?.checklist || [])
+  const [stepInput, setStepInput] = useState('')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
   const [customCats, setCustomCats] = useState([])
@@ -60,6 +62,14 @@ export default function HabitForm({ user, onClose, editData }) {
   const toggleDay = (id) =>
     setFreqDays(prev => prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id])
 
+  const addStep = () => {
+    const t = stepInput.trim()
+    if (!t) return
+    setChecklist(prev => [...prev, { id: Date.now().toString(36), title: t }])
+    setStepInput('')
+  }
+  const removeStep = (id) => setChecklist(prev => prev.filter(s => s.id !== id))
+
   const getFreqDays = () => {
     if (frequency === 'daily')    return [0,1,2,3,4,5,6]
     if (frequency === 'weekdays') return [1,2,3,4,5]
@@ -75,6 +85,7 @@ export default function HabitForm({ user, onClose, editData }) {
     const data = {
       name: name.trim(), emoji: iconKey, color, category, frequency, frequencyDays: getFreqDays(),
       startDate, endDate: hasEnd && endDate ? endDate : null,
+      checklist,
       updatedAt: Timestamp.now()
     }
     try {
@@ -206,6 +217,32 @@ export default function HabitForm({ user, onClose, editData }) {
                   >{d.label}</button>
                 ))}
               </div>
+            )}
+          </div>
+
+          {/* Kroki (checklist) */}
+          <div className="form-group">
+            <label>Kroki nawyku (opcjonalnie)</label>
+            {checklist.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                {checklist.map(s => (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface2)', borderRadius: 8, padding: '7px 10px' }}>
+                    <span style={{ flex: 1, fontSize: 13 }}>{s.title}</span>
+                    <button type="button" className="t-btn delete" onClick={() => removeStep(s.id)}><IconTrash size={12} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <input type="text" className="form-input" value={stepInput} onChange={e => setStepInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addStep() } }}
+                placeholder="Dodaj krok, np. 10 pompek..." maxLength={100} style={{ flex: 1, margin: 0 }} />
+              <button type="button" className="btn-save" style={{ width: 'auto', margin: 0, padding: '0 14px' }} onClick={addStep}><IconPlus size={16} /></button>
+            </div>
+            {checklist.length > 0 && (
+              <p style={{ margin: '6px 2px 0', fontSize: 11, color: 'var(--text-muted)' }}>
+                Odhaczenie wszystkich kroków oznaczy nawyk jako zrobiony danego dnia.
+              </p>
             )}
           </div>
 

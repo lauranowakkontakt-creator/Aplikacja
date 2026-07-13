@@ -46,6 +46,20 @@ export function getStreak(
   return streak
 }
 
+// ── Checklist (kroki) nawyku ──
+// Nawyk może mieć kroki: checklist = [{ id, title }], a stan odhaczenia
+// per dzień trzymamy w checklistDone = { 'yyyy-MM-dd': [stepId, ...] }.
+
+// Przełącza jeden krok — zwraca nową listę odhaczonych id (bez mutacji)
+export function toggleStepDone(doneIds = [], stepId) {
+  return doneIds.includes(stepId) ? doneIds.filter(id => id !== stepId) : [...doneIds, stepId]
+}
+
+// Czy wszystkie kroki nawyku są odhaczone (pusta checklista → false)
+export function isChecklistComplete(checklist = [], doneIds = []) {
+  return checklist.length > 0 && checklist.every(s => doneIds.includes(s.id))
+}
+
 // Najdłuższa seria w historii — ta sama reguła co getStreak, ale skanujemy
 // od pierwszego wykonania do dziś i szukamy najdłuższego nieprzerwanego ciągu.
 export function getBestStreak(

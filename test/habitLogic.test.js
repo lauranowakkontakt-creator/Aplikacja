@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isPausedDay, isHabitDue, getStreak, getBestStreak } from '../src/utils/habitLogic.js'
+import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete } from '../src/utils/habitLogic.js'
 
 // Punkt odniesienia: 2026-07-06 to poniedziałek (getDay() === 1)
 const TODAY = '2026-07-06'
@@ -93,4 +93,23 @@ test('getBestStreak — weekend (off) łączy ciąg tygodni roboczych', () => {
   // pełny tydzień roboczy 29.06–03.07, weekend pominięty nie zeruje
   const done = ['2026-06-29', '2026-06-30', '2026-07-01', '2026-07-02', '2026-07-03']
   assert.equal(getBestStreak(done, WEEKDAYS, [], null, TODAY), 5)
+})
+
+// ---------- checklist (kroki nawyku) ----------
+test('toggleStepDone — dodaje i zdejmuje krok bez mutacji wejścia', () => {
+  const before = ['a']
+  const plus = toggleStepDone(before, 'b')
+  assert.deepEqual(plus, ['a', 'b'])
+  assert.deepEqual(before, ['a'])
+  assert.deepEqual(toggleStepDone(plus, 'a'), ['b'])
+  assert.deepEqual(toggleStepDone(undefined, 'x'), ['x'])
+})
+
+test('isChecklistComplete — komplet kroków zalicza, pusta checklista nie', () => {
+  const checklist = [{ id: 'a', title: 'Krok A' }, { id: 'b', title: 'Krok B' }]
+  assert.equal(isChecklistComplete(checklist, ['a']), false)
+  assert.equal(isChecklistComplete(checklist, ['a', 'b']), true)
+  assert.equal(isChecklistComplete(checklist, ['b', 'a', 'c']), true)
+  assert.equal(isChecklistComplete([], []), false)
+  assert.equal(isChecklistComplete(undefined, undefined), false)
 })
