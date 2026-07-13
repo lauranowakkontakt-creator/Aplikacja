@@ -6,6 +6,7 @@ import { pl } from 'date-fns/locale'
 
 import { fmt } from '../../utils/currency'
 import { CatIcon, IconClose, IconSearch } from '../Icons'
+import { sortTransactionsByDate } from '../../utils/txSort'
 
 export default function SearchPanel({ user, onClose }) {
   const [all, setAll]           = useState([])
@@ -16,7 +17,7 @@ export default function SearchPanel({ user, onClose }) {
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'transactions'), orderBy('date', 'desc'))
     return onSnapshot(q, snap => {
-      setAll(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date?.toDate() })))
+      setAll(sortTransactionsByDate(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date?.toDate() }))))
     })
   }, [user.uid])
 

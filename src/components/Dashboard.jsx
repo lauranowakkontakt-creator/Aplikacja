@@ -14,6 +14,7 @@ import BudgetMenu from './budget/BudgetMenu'
 import TransferForm from './budget/TransferForm'
 import SearchPanel from './budget/SearchPanel'
 import CurrencyTiles from './budget/CurrencyTiles'
+import { sortTransactionsByDate } from '../utils/txSort'
 import TitheView from './budget/TitheView'
 import SavingsGoals from './budget/SavingsGoals'
 import Reminders from './budget/Reminders'
@@ -73,12 +74,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
     )
     return onSnapshot(q, snap => {
       const txs = snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) }))
-      txs.sort((a, b) => {
-        const at = a.createdAt?.toMillis() ?? a.date?.getTime() ?? 0
-        const bt = b.createdAt?.toMillis() ?? b.date?.getTime() ?? 0
-        return bt - at
-      })
-      setTransactions(txs)
+      setTransactions(sortTransactionsByDate(txs))
       setLoading(false)
     }, err => { console.error('transactions subscription error:', err); setLoading(false) })
   }, [user.uid, currentMonth])

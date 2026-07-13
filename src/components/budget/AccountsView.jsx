@@ -10,6 +10,7 @@ import { fmt } from '../../utils/currency'
 import { CatIcon, IconBank, IconCash, IconCard, IconSavings, IconEdit, IconTrash, IconEye, IconEyeOff, IconChevronLeft } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { sortTransactionsByDate } from '../../utils/txSort'
 
 const fmtAcc = (n, currency = 'PLN') =>
   new Intl.NumberFormat('pl-PL', { style: 'currency', currency }).format(n)
@@ -192,7 +193,7 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
       )
     }
     return onSnapshot(q, snap => {
-      setTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) })))
+      setTx(sortTransactionsByDate(snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) }))))
       setLoading(false)
     })
   }, [user.uid, account.id, months])
