@@ -354,6 +354,15 @@ function MoodPage({ user, logs, onDelete }) {
           ) : (
             <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '30px 0' }}>Brak wpisów w tym miesiącu</div>
           )}
+          {chartData.length >= 1 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ height: 6, borderRadius: 99, background: 'linear-gradient(90deg, #E05A2B, #F59E0B, #94A3B8, #5FBF98, #3B82F6)' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>okropny</span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>świetnie</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

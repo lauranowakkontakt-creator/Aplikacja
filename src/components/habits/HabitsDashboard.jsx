@@ -7,7 +7,8 @@ import { pl } from 'date-fns/locale'
 import HabitForm, { HABIT_CATEGORIES, DEFAULT_HABIT_CATEGORIES } from './HabitForm'
 import PauseForm from './PauseForm'
 import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronRight } from '../Icons'
-import { Ring, Heatmap, Spark } from '../ChartPrimitives'
+import { Ring, Heatmap } from '../ChartPrimitives'
+import DayPath from '../DayPath'
 import StatSummary from '../StatSummary'
 import SegTabs from '../SegTabs'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak } from '../../utils/habitLogic'
@@ -135,6 +136,11 @@ export default function HabitsDashboard({ user, onMoodClick }) {
   // Overall streak — max streak across all habits
   const maxStreak = filtered.length > 0
     ? Math.max(...filtered.map(h => getStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)))
+    : 0
+
+  // Rekord — najlepsza seria historycznie (do „Dzisiejszego rytmu")
+  const recordStreak = filtered.length > 0
+    ? Math.max(...filtered.map(h => getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)))
     : 0
 
   const heatmapData = buildHeatmapData(filtered, 18, pauses)
@@ -292,8 +298,39 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           </div>
         )
 
+        const rytmSteps = mandatory.map(({ h }) => ({
+          key: h.id, emoji: h.emoji, color: h.color || 'var(--accent)',
+          done: h.completedDates?.includes(selectedDay), title: h.name,
+        }))
+        const rytmDone = rytmSteps.filter(s => s.done).length
+
         return (
           <>
+            {/* Dzisiejszy rytm — ścieżka dnia (wspólny język z To-do) */}
+            {rytmSteps.length > 0 && (
+              <div className="card" style={{ padding: 18, marginBottom: 14 }}>
+                {kicker(isToday ? 'Dzisiejszy rytm' : 'Rytm dnia')}
+                <DayPath steps={rytmSteps} startLabel="Rano" endLabel="Wieczór" accent="var(--warn)" />
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <span className="serif" style={{ fontSize: 34 }}>{rytmDone}</span>
+                    <span className="mono" style={{ fontSize: 15, color: 'var(--text-muted)' }}>/ {rytmSteps.length}</span>
+                  </div>
+                  {maxStreak > 0 && (
+                    <div style={{ color: 'var(--warn)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <IconFlame size={14} /> <span className="mono" style={{ fontSize: 12.5 }}>{maxStreak} dni serii</span>
+                    </div>
+                  )}
+                </div>
+                <div style={{ height: 6, background: 'var(--surface2)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
+                  <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg, var(--warn), var(--primary))', width: `${Math.round((rytmDone / rytmSteps.length) * 100)}%`, transition: 'width .8s var(--ease)' }} />
+                </div>
+                {recordStreak > 0 && (
+                  <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', textAlign: 'right', marginTop: 6 }}>rekord: {recordStreak} dni</div>
+                )}
+              </div>
+            )}
+
             {/* Single day navigator */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px 14px', marginBottom: 14 }}>
               <button className="month-btn" onClick={goBack} style={{ width: 32, height: 32 }}>‹</button>
@@ -474,17 +511,25 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                   </div>
                 </div>
 
-                <Spark data={sparkData} color={color} height={28} w={5} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                  <Ring value={last30} size={78} thickness={8} color={color} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: 'var(--warn)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <IconFlame size={14} /> <span className="mono" style={{ fontSize: 13 }}>{streak} dni serii</span>
+                    </div>
+                    <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 6 }}>rekord: {best} dni</div>
+                  </div>
+                </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 14 }}>
-                  <div>
-                    <div className="serif" style={{ fontSize: 26, color }}>{streak}</div>
-                    <div className="kicker" style={{ marginTop: 3 }}>seria</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div className="serif" style={{ fontSize: 26 }}>{last30}%</div>
-                    <div className="kicker" style={{ marginTop: 3 }}>30 dni</div>
-                  </div>
+                {/* Ostatnie 14 dni */}
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {sparkData.map((v, i) => (
+                    <div key={i} style={{ flex: 1, height: 22, borderRadius: 5, background: v ? color : 'var(--surface2)', border: `1px solid ${v ? color : 'var(--border)'}` }} />
+                  ))}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+                  <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>14 dni temu</span>
+                  <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>dziś</span>
                 </div>
               </div>
             )

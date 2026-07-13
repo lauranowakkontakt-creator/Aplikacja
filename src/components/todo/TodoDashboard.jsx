@@ -13,6 +13,8 @@ import { BarChartSVG } from '../ChartPrimitives'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag, IconChevronDown, IconChevronLeft, IconChevronRight, IconCalendar, IconClock, IconRepeat, IconPlus } from '../Icons'
 import { Ring } from '../ChartPrimitives'
 import StatTiles from '../StatTiles'
+import DayPath from '../DayPath'
+import { todoDayPath, remainingText } from '../../utils/dayPath'
 import SegTabs from '../SegTabs'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -146,6 +148,15 @@ export default function TodoDashboard({ user }) {
   const dueToday = active.filter(t => t.dueDate && isToday(parseISO(t.dueDate)))
   const highCount = active.filter(t => t.priority === 'high').length
 
+  // Dzisiejsza ścieżka — wspólny język z Nawykami. Stacje = zadania na dziś (kolor/ikona listy).
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const listColorOf = (id) => lists.find(l => l.id === id)?.color || 'var(--sky)'
+  const listIconOf = (id) => lists.find(l => l.id === id)?.icon
+  const dayPath = todoDayPath(filtered, todayStr)
+  const pathSteps = dayPath.steps.map(t => ({
+    key: t.id, emoji: listIconOf(t.listId), color: listColorOf(t.listId), done: t.done, title: t.title,
+  }))
+
   return (
     <div className="todo-dashboard">
       {/* Mobile module header */}
@@ -265,20 +276,35 @@ export default function TodoDashboard({ user }) {
             >+ Lista</button>
           </div>
 
-          {/* Summary card */}
-          <div className="card" style={{ padding: '14px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, display: 'grid', placeItems: 'center', flexShrink: 0,
-              background: `color-mix(in oklab, ${activeListColor} 16%, transparent)`, color: activeListColor }}>
-              <IconFlag size={19} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{active.length} {active.length === 1 ? 'zadanie' : 'zadań'} do zrobienia</div>
-              <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3 }}>
-                {highCount > 0 ? `${highCount} z priorytetem` : 'brak pilnych'} · {headerTitle}
+          {/* Podsumowanie + dzisiejsza ścieżka (wspólny język z Nawykami) */}
+          <div className={pathSteps.length > 0 ? 'g2-br' : ''} style={{ gap: 10, marginBottom: 18 }}>
+            <div className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, display: 'grid', placeItems: 'center', flexShrink: 0,
+                background: `color-mix(in oklab, ${activeListColor} 16%, transparent)`, color: activeListColor }}>
+                <IconFlag size={19} />
               </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>{active.length} {active.length === 1 ? 'zadanie' : 'zadań'} do zrobienia</div>
+                <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3 }}>
+                  {highCount > 0 ? `${highCount} z priorytetem` : 'brak pilnych'} · {headerTitle}
+                </div>
+              </div>
+              {(active.length + done.length) > 0 && (
+                <Ring value={Math.round(done.length / (active.length + done.length) * 100)} size={52} thickness={6} color={activeListColor} />
+              )}
             </div>
-            {(active.length + done.length) > 0 && (
-              <Ring value={Math.round(done.length / (active.length + done.length) * 100)} size={52} thickness={6} color={activeListColor} />
+
+            {pathSteps.length > 0 && (
+              <div className="card" style={{ padding: 16 }}>
+                {kicker('Dzisiejsza ścieżka')}
+                <DayPath steps={pathSteps} accent="var(--sky)" />
+                <div style={{ marginTop: 14, fontSize: 13, lineHeight: 1.5 }}>
+                  <span style={{ fontWeight: 600 }}>{dayPath.doneCount} z {dayPath.total} zrobione</span>
+                  {dayPath.remaining.length > 0 && (
+                    <span style={{ color: 'var(--text-muted)' }}> — zostały: {remainingText(dayPath.remaining)}</span>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
