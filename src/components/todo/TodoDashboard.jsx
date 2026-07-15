@@ -11,10 +11,7 @@ import {
 import { pl } from 'date-fns/locale'
 import { BarChartSVG } from '../ChartPrimitives'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag, IconChevronDown, IconChevronLeft, IconChevronRight, IconCalendar, IconClock, IconRepeat, IconPlus } from '../Icons'
-import { Ring } from '../ChartPrimitives'
 import StatTiles from '../StatTiles'
-import DayPath from '../DayPath'
-import { todoDayPath, remainingText } from '../../utils/dayPath'
 import SegTabs from '../SegTabs'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -54,7 +51,7 @@ export default function TodoDashboard({ user }) {
   const [lists, setLists]           = useState([])
   const [loading, setLoading]       = useState(true)
   useFallbackTimeout(() => setLoading(false))
-  const [tab, setTab]               = useState('tasks')
+  const [tab, setTab]               = useState('calendar')
   const [activeList, setActiveList] = useState(null)
   const [showForm, setShowForm]     = useState(false)
   const [editTodo, setEditTodo]     = useState(null)
@@ -65,7 +62,7 @@ export default function TodoDashboard({ user }) {
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [showMenu, setShowMenu]     = useState(false)
-  const [quickInput, setQuickInput] = useState('')
+  const [showLists, setShowLists]   = useState(false)
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc'))
@@ -107,23 +104,6 @@ export default function TodoDashboard({ user }) {
     await deleteDoc(doc(db, 'users', user.uid, 'todos', id))
   }
 
-  const handleQuickAdd = async (e) => {
-    e?.preventDefault?.()
-    const title = quickInput.trim()
-    if (!title) return
-    try {
-      await addDoc(collection(db, 'users', user.uid, 'todos'), {
-        title, note: '', listId: activeList || null,
-        priority: 'medium', dueDate: null, done: false,
-        createdAt: Timestamp.now(), updatedAt: Timestamp.now(), doneAt: null
-      })
-      setQuickInput('')
-      toast.success('Dodano zadanie')
-    } catch (err) {
-      toast.error('Nie udało się dodać zadania: ' + (err?.message || 'błąd'))
-    }
-  }
-
   const sortActive = (arr) => [...arr].sort((a, b) => {
     const aDate = a.dueDate ? parseISO(a.dueDate) : null
     const bDate = b.dueDate ? parseISO(b.dueDate) : null
@@ -148,14 +128,12 @@ export default function TodoDashboard({ user }) {
   const dueToday = active.filter(t => t.dueDate && isToday(parseISO(t.dueDate)))
   const highCount = active.filter(t => t.priority === 'high').length
 
-  // Dzisiejsza ścieżka — wspólny język z Nawykami. Stacje = zadania na dziś (kolor/ikona listy).
-  const todayStr = format(new Date(), 'yyyy-MM-dd')
-  const listColorOf = (id) => lists.find(l => l.id === id)?.color || 'var(--sky)'
-  const listIconOf = (id) => lists.find(l => l.id === id)?.icon
-  const dayPath = todoDayPath(filtered, todayStr)
-  const pathSteps = dayPath.steps.map(t => ({
-    key: t.id, emoji: listIconOf(t.listId), color: listColorOf(t.listId), done: t.done, title: t.title,
-  }))
+  const listRow = (isActive, color) => ({
+    display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '8px 10px', borderRadius: 8,
+    cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: isActive ? 700 : 500, textAlign: 'left',
+    background: isActive ? (color || 'var(--sky)') + '1c' : 'transparent', border: 'none',
+    color: isActive ? (color || 'var(--sky)') : 'var(--text-sub)',
+  })
 
   return (
     <div className="todo-dashboard">
@@ -171,24 +149,24 @@ export default function TodoDashboard({ user }) {
             style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: 'none' }}>
             <IconPlus size={16} />
           </button>
-          <button className="icon-btn" onClick={() => { setShowSearch(s => !s); setSearchQuery('') }}
-            style={showSearch ? { color: 'var(--accent)' } : {}}>
-            <IconSearch size={16} />
-          </button>
           <button className="icon-btn" onClick={() => setShowMenu(m => !m)}><IconMore size={16} /></button>
           {showMenu && (
             <div style={{
               position: 'absolute', top: '110%', right: 0, background: 'var(--surface)',
               border: '1px solid var(--border)', borderRadius: 10, padding: '6px 0',
-              minWidth: 180, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
+              minWidth: 190, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
             }} onClick={() => setShowMenu(false)}>
-              <button style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
-                onClick={() => { setShowDone(v => !v) }}>
-                Ukończone zadania
+              <button style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
+                onClick={() => { setShowSearch(s => !s); setSearchQuery('') }}>
+                <IconSearch size={15} /> Szukaj zadań
               </button>
-              <button style={{ display: 'block', width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
+              <button style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
+                onClick={() => { setShowDone(v => !v) }}>
+                <IconCheck size={15} /> Ukończone zadania
+              </button>
+              <button style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
                 onClick={() => { setShowListForm(true) }}>
-                + Nowa lista
+                <IconPlus size={15} /> Nowa lista
               </button>
             </div>
           )}
@@ -211,8 +189,8 @@ export default function TodoDashboard({ user }) {
       {/* Tabs */}
       <SegTabs
         items={[
-          { id: 'tasks', label: 'Zadania' },
           { id: 'calendar', label: 'Kalendarz', icon: <IconCalendar size={13} /> },
+          { id: 'tasks', label: 'Zadania' },
           { id: 'stats', label: 'Statystyki', icon: <IconChart size={13} /> },
         ]}
         active={tab} onChange={setTab}
@@ -230,80 +208,40 @@ export default function TodoDashboard({ user }) {
         />
       ) : (
         <>
-          {/* List chips */}
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-            <button
-              onClick={() => setActiveList(null)}
-              style={{
-                padding: '6px 14px', borderRadius: 99, fontSize: 12, cursor: 'pointer', fontWeight: !activeList ? 700 : 400,
-                border: `1px solid ${!activeList ? 'var(--sky)' : 'var(--border)'}`,
-                background: !activeList ? 'var(--sky)22' : 'transparent',
-                color: !activeList ? 'var(--sky)' : 'var(--text-muted)',
-              }}
-            >
-              Wszystkie
-              {todos.filter(t => !t.done).length > 0 && (
-                <span style={{ marginLeft: 5, fontSize: 10, background: 'var(--surface3)', borderRadius: 99, padding: '1px 6px' }}>
-                  {todos.filter(t => !t.done).length}
-                </span>
-              )}
+          {/* Wybór listy (kategorie) — zwinięte, rozwijasz „Listy" */}
+          <div style={{ position: 'relative', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button onClick={() => setShowLists(s => !s)} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 99, cursor: 'pointer',
+              fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
+              border: `1px solid ${activeListObj ? activeListColor : 'var(--border-strong)'}`,
+              background: activeListObj ? activeListColor + '1c' : 'var(--surface2)',
+              color: activeListObj ? activeListColor : 'var(--text-sub)',
+            }}>
+              {activeListObj ? <><CatIcon categoryId={null} emoji={activeListObj.icon} size={13} /> {activeListObj.name}</> : 'Wszystkie zadania'}
+              <IconChevronDown size={13} style={{ opacity: 0.7 }} />
             </button>
-            {lists.map(l => {
-              const cnt = todos.filter(t => !t.done && t.listId === l.id).length
-              const isActive = activeList === l.id
-              return (
-                <button key={l.id}
-                  onClick={() => setActiveList(l.id)}
-                  style={{
-                    padding: '6px 14px', borderRadius: 99, fontSize: 12, cursor: 'pointer', fontWeight: isActive ? 700 : 400,
-                    border: `1px solid ${isActive ? l.color : 'var(--border)'}`,
-                    background: isActive ? l.color + '22' : 'transparent',
-                    color: isActive ? l.color : 'var(--text-muted)',
-                  }}
-                >
-                  <CatIcon categoryId={null} emoji={l.icon} size={12} /> {l.name}
-                  {cnt > 0 && <span style={{ marginLeft: 5, fontSize: 10, background: 'var(--surface3)', borderRadius: 99, padding: '1px 6px' }}>{cnt}</span>}
-                  {isActive && <span onClick={e => { e.stopPropagation(); setEditList(l) }} style={{ marginLeft: 4, opacity: 0.6, display: 'inline-flex' }}><IconEdit size={11} /></span>}
+            {activeListObj && (
+              <button className="icon-btn" style={{ width: 32, height: 32 }} title="Edytuj listę" onClick={() => setEditList(activeListObj)}><IconEdit size={13} /></button>
+            )}
+            {showLists && (
+              <div style={{ position: 'absolute', top: '110%', left: 0, zIndex: 200, minWidth: 230, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 6, boxShadow: '0 10px 30px rgba(0,0,0,.4)', display: 'flex', flexDirection: 'column', gap: 2 }}
+                onClick={() => setShowLists(false)}>
+                <button onClick={() => setActiveList(null)} style={listRow(!activeList, 'var(--sky)')}>
+                  <span style={{ width: 8, height: 8, borderRadius: 99, background: 'var(--sky)', flexShrink: 0 }} /> Wszystkie
+                  <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{todos.filter(t => !t.done).length || ''}</span>
                 </button>
-              )
-            })}
-            <button
-              onClick={() => setShowListForm(true)}
-              style={{
-                padding: '6px 14px', borderRadius: 99, fontSize: 12, cursor: 'pointer',
-                border: '1px dashed var(--border)', background: 'transparent', color: 'var(--text-muted)',
-              }}
-            >+ Lista</button>
-          </div>
-
-          {/* Podsumowanie + dzisiejsza ścieżka (wspólny język z Nawykami) */}
-          <div className={pathSteps.length > 0 ? 'g2-br' : ''} style={{ gap: 10, marginBottom: 18 }}>
-            <div className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, display: 'grid', placeItems: 'center', flexShrink: 0,
-                background: `color-mix(in oklab, ${activeListColor} 16%, transparent)`, color: activeListColor }}>
-                <IconFlag size={19} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{active.length} {active.length === 1 ? 'zadanie' : 'zadań'} do zrobienia</div>
-                <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3 }}>
-                  {highCount > 0 ? `${highCount} z priorytetem` : 'brak pilnych'} · {headerTitle}
-                </div>
-              </div>
-              {(active.length + done.length) > 0 && (
-                <Ring value={Math.round(done.length / (active.length + done.length) * 100)} size={52} thickness={6} color={activeListColor} />
-              )}
-            </div>
-
-            {pathSteps.length > 0 && (
-              <div className="card" style={{ padding: 16 }}>
-                {kicker('Dzisiejsza ścieżka')}
-                <DayPath steps={pathSteps} accent="var(--sky)" />
-                <div style={{ marginTop: 14, fontSize: 13, lineHeight: 1.5 }}>
-                  <span style={{ fontWeight: 600 }}>{dayPath.doneCount} z {dayPath.total} zrobione</span>
-                  {dayPath.remaining.length > 0 && (
-                    <span style={{ color: 'var(--text-muted)' }}> — zostały: {remainingText(dayPath.remaining)}</span>
-                  )}
-                </div>
+                {lists.map(l => {
+                  const cnt = todos.filter(t => !t.done && t.listId === l.id).length
+                  return (
+                    <button key={l.id} onClick={() => setActiveList(l.id)} style={listRow(activeList === l.id, l.color)}>
+                      <CatIcon categoryId={null} emoji={l.icon} size={13} /> {l.name}
+                      <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{cnt || ''}</span>
+                    </button>
+                  )
+                })}
+                <button onClick={() => setShowListForm(true)} style={{ ...listRow(false), color: 'var(--text-muted)', borderTop: '1px solid var(--border)', borderRadius: 0, marginTop: 2, paddingTop: 8 }}>
+                  <IconPlus size={13} /> Nowa lista
+                </button>
               </div>
             )}
           </div>
@@ -326,7 +264,7 @@ export default function TodoDashboard({ user }) {
           {active.length === 0 && done.length === 0 && (
             <div className="list-empty">
               <p>Brak zadań</p>
-              <p className="list-empty-hint">Wpisz poniżej aby dodać pierwsze zadanie</p>
+              <p className="list-empty-hint">Kliknij „+" u góry, aby dodać zadanie</p>
             </div>
           )}
 
@@ -351,35 +289,6 @@ export default function TodoDashboard({ user }) {
             </div>
           )}
 
-          {/* Sticky quick-add */}
-          <div className="todo-quickadd">
-            <form onSubmit={handleQuickAdd}>
-              <div className="card" style={{
-                display: 'flex', alignItems: 'center', gap: 11, padding: '12px 14px',
-                border: '1px solid var(--border-strong)',
-                boxShadow: '0 14px 36px -14px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.05)',
-              }}>
-                <span style={{ width: 28, height: 28, borderRadius: 9, display: 'grid', placeItems: 'center', flexShrink: 0,
-                  background: 'color-mix(in oklab, var(--sky) 16%, transparent)', color: 'var(--sky)' }}>
-                  <IconPlus size={15} />
-                </span>
-                <input
-                  value={quickInput}
-                  onChange={e => setQuickInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleQuickAdd(e) } }}
-                  placeholder={`Dodaj zadanie${activeListObj ? ` do listy „${activeListObj.name}"` : ''}…`}
-                  style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: 'var(--text)' }}
-                />
-                {quickInput.trim()
-                  ? <button type="submit" title="Dodaj" style={{
-                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                      padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                      background: 'var(--sky)', color: 'var(--bg)', fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
-                    }}>Dodaj</button>
-                  : <span className="mono" style={{ fontSize: 10, padding: '3px 7px', background: 'var(--surface2)', borderRadius: 5, border: '1px solid var(--border)', color: 'var(--text-muted)' }}>↵</span>}
-              </div>
-            </form>
-          </div>
         </>
       )}
 
@@ -723,6 +632,15 @@ function TodoCalendar({ todos, lists, onToggle, onEdit, onAddOnDay }) {
                     })}
                     {ts.length > 3 && <div className="cal-chip-more">+{ts.length - 3}</div>}
                   </div>
+                  {/* Kropki na mobile (chipy tekstowe są ukryte) — zadania widoczne bez klikania */}
+                  {ts.length > 0 && (
+                    <div className="cal-dots">
+                      {ts.slice(0, 5).map(t => (
+                        <span key={t.id} className="cal-dot" style={{ background: listColor(t.listId), opacity: t.done ? 0.4 : 1 }} />
+                      ))}
+                      {ts.length > 5 && <span className="cal-dots-more">+{ts.length - 5}</span>}
+                    </div>
+                  )}
                 </button>
               )
             })}
