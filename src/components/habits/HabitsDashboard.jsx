@@ -8,7 +8,7 @@ import HabitForm, { HABIT_CATEGORIES, DEFAULT_HABIT_CATEGORIES } from './HabitFo
 import PauseForm from './PauseForm'
 import HabitReorderModal from './HabitReorderModal'
 import HabitDayGrid from './HabitDayGrid'
-import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronRight, IconReorder } from '../Icons'
+import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronRight, IconReorder, IconPlus } from '../Icons'
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
@@ -28,21 +28,24 @@ function getPauseColor(pauses, dateStr) {
 const ymd = (d) => format(d, 'yyyy-MM-dd')
 
 // Zakres dat dla wybranego okresu statystyk.
-//  ctx = { weekAnchor: Date (tydzień), year: number (miesiąc/rok) }
+//  ctx = { weekAnchor, monthAnchor: Date, year: number }
 //  - week  → wybrany tydzień (pon–nd)
-//  - month → cały wybrany rok (rozbity potem na 12 miesięcy)
-//  - year  → cały wybrany rok (porównanie rok-do-roku)
+//  - month → wybrany miesiąc
+//  - year  → cały wybrany rok
 function statRange(period, ctx) {
   if (period === 'week') {
     const s = startOfWeek(ctx.weekAnchor, { weekStartsOn: 1 })
     return { start: ymd(s), end: ymd(addDays(s, 6)) }
+  }
+  if (period === 'month') {
+    return { start: ymd(startOfMonth(ctx.monthAnchor)), end: ymd(endOfMonth(ctx.monthAnchor)) }
   }
   return { start: `${ctx.year}-01-01`, end: `${ctx.year}-12-31` }
 }
 
 // Kubełki trendu realizacji (%) do wykresu słupkowego:
 //  - week  → 7 dni tygodnia
-//  - month → 12 miesięcy wybranego roku
+//  - month → tygodnie wybranego miesiąca (T1..T5)
 //  - year  → po jednym słupku na każdy rok z danymi (dataYears)
 function statBuckets(habits, pauses, period, ctx, dataYears, now = new Date()) {
   const todayStr = ymd(now)
@@ -56,14 +59,15 @@ function statBuckets(habits, pauses, period, ctx, dataYears, now = new Date()) {
     })
   }
   if (period === 'month') {
-    return Array.from({ length: 12 }, (_, m) => {
-      const ms = new Date(ctx.year, m, 1)
-      return {
-        label: format(ms, 'LLL', { locale: pl }),
-        value: pct(ymd(startOfMonth(ms)), ymd(endOfMonth(ms))),
-        active: ctx.year === now.getFullYear() && m === now.getMonth(),
-      }
-    })
+    const ms = startOfMonth(ctx.monthAnchor)
+    const total = getDaysInMonth(ctx.monthAnchor)
+    const buckets = []
+    for (let i = 0, wk = 1; i < total; i += 7, wk++) {
+      const start = ymd(addDays(ms, i))
+      const end = ymd(addDays(ms, Math.min(i + 6, total - 1)))
+      buckets.push({ label: `T${wk}`, value: pct(start, end), active: todayStr >= start && todayStr <= end })
+    }
+    return buckets
   }
   // year — po słupku na rok
   return dataYears.map(y => ({ label: String(y), value: pct(`${y}-01-01`, `${y}-12-31`), active: y === ctx.year }))
@@ -102,6 +106,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
   const [showReorder, setShowReorder] = useState(false)
   const [statPeriod, setStatPeriod]   = useState('month')
   const [weekAnchor, setWeekAnchor]   = useState(new Date())     // nawigacja tygodnia w statystykach
+  const [monthAnchor, setMonthAnchor] = useState(new Date())     // nawigacja miesiąca w statystykach
   const [statYear, setStatYear]       = useState(new Date().getFullYear()) // nawigacja roku w statystykach
 
   const TODAY = format(new Date(), 'yyyy-MM-dd')
@@ -202,6 +207,9 @@ export default function HabitsDashboard({ user, onMoodClick }) {
     </div>
   )
 
+  const actBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 10, padding: '9px 14px', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }
+  const secBtn = { ...actBtn, background: 'var(--surface2)', color: 'var(--text-sub)', border: '1px solid var(--border)' }
+
   return (
     <div className="habits-dashboard">
       {/* Mobile module header */}
@@ -211,8 +219,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           <div className="mod-header-title" style={{ textTransform: 'capitalize' }}>{todayLabel}</div>
         </div>
         <div className="mod-header-right">
-          {activeHabits.length > 1 && <button className="icon-btn" title="Kolejność nawyków" onClick={() => setShowReorder(true)}><IconReorder size={16}/></button>}
-          <button className="icon-btn" title="Pauza (wyjazd / choroba)" onClick={() => setShowPause(true)}><IconPause size={16}/></button>
           <button className="icon-btn" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk"
             style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
             +
@@ -249,12 +255,12 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-sub)', textTransform: 'capitalize' }}>{format(new Date(), 'LLLL', { locale: pl })}</span>
           </div>
           {/* Nagłówek dni tygodnia */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
+          <div style={{ maxWidth: 224, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 3 }}>
             {['P','W','Ś','C','P','S','N'].map((l, i) => (
-              <div key={i} style={{ textAlign: 'center', fontSize: 8.5, color: 'var(--text-muted)', fontWeight: 700 }}>{l}</div>
+              <div key={i} style={{ textAlign: 'center', fontSize: 8, color: 'var(--text-muted)', fontWeight: 700 }}>{l}</div>
             ))}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+          <div style={{ maxWidth: 224, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
             {calCells.map((d, idx) => {
               if (!d) return <div key={`b${idx}`} />
               const { done, due, pct, paused } = dayAggregate(filtered, pauses, d)
@@ -268,16 +274,16 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               else { bg = 'var(--surface2)' } // dzień bez zaplanowanych nawyków
               return (
                 <div key={d} title={`${d}${due ? ` • ${done}/${due}` : paused ? ` • ${pauseReasonMeta(pauseForDay(d, pauses)?.reason).label.toLowerCase()}` : ' • wolne'}`} style={{
-                  aspectRatio: '1', borderRadius: 5, background: bg, border,
-                  boxShadow: isToday ? '0 0 0 2px var(--warn)' : 'none',
+                  height: 20, borderRadius: 4, background: bg, border,
+                  boxShadow: isToday ? '0 0 0 1.5px var(--warn)' : 'none',
                   display: 'grid', placeItems: 'center',
-                  fontSize: 9, color: (due > 0 && pct >= 0.5) ? 'var(--bg)' : 'var(--text-muted)', fontWeight: 600,
+                  fontSize: 8.5, color: (due > 0 && pct >= 0.5) ? 'var(--bg)' : 'var(--text-muted)', fontWeight: 600,
                 }}>{format(new Date(d + 'T12:00:00'), 'd')}</div>
               )
             })}
           </div>
           {/* Legenda intensywności */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
+          <div style={{ maxWidth: 224, display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
             <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>mniej</span>
             {[0,0.35,0.6,0.85,1].map((v, i) => (
               <div key={i} style={{ width: 9, height: 9, borderRadius: 2, background: v === 0 ? 'var(--surface2)' : `color-mix(in oklab, var(--warn) ${Math.round(22 + v * 78)}%, var(--surface2))` }} />
@@ -291,8 +297,24 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       <SegTabs
         items={[{ id: 'today', label: 'Dziś' }, { id: 'week', label: 'Tydzień' }, { id: 'stats', label: 'Statystyki' }]}
         active={view} onChange={setView}
-        style={{ maxWidth: 420, marginBottom: 14 }}
+        style={{ maxWidth: 420, marginBottom: 12 }}
       />
+
+      {/* Pasek akcji — Nowy / Pauza / Kolejność */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+        <button onClick={() => { setEditHabit(null); setShowForm(true) }}
+          style={{ ...actBtn, background: 'var(--accent)', color: 'var(--bg)', border: 'none' }}>
+          <IconPlus size={15} /> Nowy nawyk
+        </button>
+        <button onClick={() => setShowPause(true)} style={secBtn}>
+          <IconPause size={15} /> Pauza
+        </button>
+        {activeHabits.length > 1 && (
+          <button onClick={() => setShowReorder(true)} style={secBtn}>
+            <IconReorder size={15} /> Kolejność
+          </button>
+        )}
+      </div>
 
       {/* ===== DZIŚ ===== */}
       {view === 'today' && (() => {
@@ -419,7 +441,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             {rytmSteps.length > 0 && (
               <div className="card" style={{ padding: 18, marginBottom: 14 }}>
                 {kicker(isToday ? 'Dzisiejszy rytm' : 'Rytm dnia')}
-                <DayPath steps={rytmSteps} startLabel="Rano" endLabel="Wieczór" accent="var(--warn)" />
+                <DayPath steps={rytmSteps} accent="var(--warn)" />
                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: 16 }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                     <span className="serif" style={{ fontSize: 34 }}>{rytmDone}</span>
@@ -514,7 +536,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             <>
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
               {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(58px,1.2fr) repeat(7,minmax(0,1fr))', gap: 4, padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) repeat(7,34px)', gap: 4, padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em' }}>NAWYK</div>
                 {weekDays.map(d => (
                   <div key={d.date} style={{ textAlign: 'center' }}>
@@ -529,7 +551,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                 const color  = habit.color || 'var(--accent)'
                 return (
                   <div key={habit.id} style={{
-                    display: 'grid', gridTemplateColumns: 'minmax(58px,1.2fr) repeat(7,minmax(0,1fr))', gap: 4,
+                    display: 'grid', gridTemplateColumns: 'minmax(0,1fr) repeat(7,34px)', gap: 4,
                     padding: '10px 14px', alignItems: 'center',
                     borderBottom: idx < filtered.length - 1 ? '1px solid var(--border)' : 'none',
                   }}>
@@ -623,27 +645,40 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       {/* ===== STATYSTYKI ===== */}
       {view === 'stats' && (() => {
         const today = TODAY
-        const ctx = { weekAnchor, year: statYear }
+        const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1)
+        const ctx = { weekAnchor, monthAnchor, year: statYear }
         const { start, end } = statRange(statPeriod, ctx)
         const endClamped = today < end ? today : end
         const agg = rangeStats(activeHabits, pauses, start, endClamped)
         const bestStreakAll = activeHabits.reduce((m, h) => Math.max(m, getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)), 0)
         const buckets = statBuckets(activeHabits, pauses, statPeriod, ctx, dataYears)
-        const trendTitle  = statPeriod === 'week' ? 'Realizacja dzień po dniu (%)' : statPeriod === 'month' ? `Realizacja ${statYear} — miesiąc po miesiącu (%)` : 'Realizacja rok po roku (%)'
+        const trendTitle  = statPeriod === 'week' ? 'Realizacja dzień po dniu (%)' : statPeriod === 'month' ? 'Realizacja tydzień po tygodniu (%)' : 'Realizacja rok po roku (%)'
 
         // Nawigator okresu (‹ etykieta ›)
-        const wkStart  = startOfWeek(weekAnchor, { weekStartsOn: 1 })
-        const yearIdx  = Math.max(0, dataYears.indexOf(statYear))
-        const navLabel = statPeriod === 'week'
+        const wkStart   = startOfWeek(weekAnchor, { weekStartsOn: 1 })
+        const yearIdx   = Math.max(0, dataYears.indexOf(statYear))
+        const nowMonth  = ymd(startOfMonth(new Date()))
+        const navLabel  = statPeriod === 'week'
           ? `${format(wkStart, 'd MMM', { locale: pl })} – ${format(addDays(wkStart, 6), 'd MMM yyyy', { locale: pl })}`
+          : statPeriod === 'month' ? cap(format(monthAnchor, 'LLLL yyyy', { locale: pl }))
           : String(statYear)
-        const ringSub  = statPeriod === 'week' ? 'tydzień' : String(statYear)
-        const prevDisabled = statPeriod === 'week' ? false : yearIdx <= 0
+        const ringSub   = statPeriod === 'week' ? 'tydzień' : statPeriod === 'month' ? cap(format(monthAnchor, 'LLLL', { locale: pl })) : String(statYear)
+        const prevDisabled = statPeriod === 'year' ? yearIdx <= 0 : false
         const nextDisabled = statPeriod === 'week'
           ? ymd(wkStart) >= ymd(startOfWeek(new Date(), { weekStartsOn: 1 }))
-          : yearIdx >= dataYears.length - 1
-        const goPrev = () => statPeriod === 'week' ? setWeekAnchor(subDays(weekAnchor, 7)) : setStatYear(dataYears[Math.max(0, yearIdx - 1)])
-        const goNext = () => statPeriod === 'week' ? setWeekAnchor(addDays(weekAnchor, 7)) : setStatYear(dataYears[Math.min(dataYears.length - 1, yearIdx + 1)])
+          : statPeriod === 'month'
+            ? ymd(startOfMonth(monthAnchor)) >= nowMonth
+            : yearIdx >= dataYears.length - 1
+        const goPrev = () => {
+          if (statPeriod === 'week') setWeekAnchor(subDays(weekAnchor, 7))
+          else if (statPeriod === 'month') setMonthAnchor(new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() - 1, 1))
+          else setStatYear(dataYears[Math.max(0, yearIdx - 1)])
+        }
+        const goNext = () => {
+          if (statPeriod === 'week') setWeekAnchor(addDays(weekAnchor, 7))
+          else if (statPeriod === 'month') setMonthAnchor(new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + 1, 1))
+          else setStatYear(dataYears[Math.min(dataYears.length - 1, yearIdx + 1)])
+        }
 
         const tile = (value, label, color, sub) => (
           <div style={{ background: 'var(--surface2)', borderRadius: 12, padding: '12px 14px' }}>
@@ -789,13 +824,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           ))}
         </div>
       )}
-
-      {/* Desktop add button */}
-      <div className="desktop-only" style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <button className="habit-compact-btn" onClick={() => setShowPause(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 10, paddingRight: 10, width: 'auto' }}><IconPause size={13}/>Pauza</button>
-        {activeHabits.length > 1 && <button className="habit-compact-btn" onClick={() => setShowReorder(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 10, paddingRight: 10, width: 'auto' }}><IconReorder size={13}/>Kolejność</button>}
-        <button className="btn-add-habit" onClick={() => { setEditHabit(null); setShowForm(true) }}>+ Nowy nawyk</button>
-      </div>
 
       {showPause && <PauseForm user={user} onClose={() => setShowPause(false)} />}
       {showReorder && <HabitReorderModal user={user} habits={activeHabits} onClose={() => setShowReorder(false)} />}
