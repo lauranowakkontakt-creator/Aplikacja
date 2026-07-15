@@ -297,9 +297,13 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       </div>
 
       {/* Hero — Postęp dnia i Kalendarz jako osobne karty */}
-      <div className="g2-br" style={{ gap: 12, marginBottom: 14, alignItems: 'start' }}>
+      <div className="g2-br" data-stagger style={{ gap: 12, marginBottom: 14, alignItems: 'start' }}>
         {/* Postęp dnia */}
-        <div className="card" style={{ padding: 18, display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div className="card card-hover-glow" style={{
+          padding: 18, display: 'flex', alignItems: 'center', gap: 16,
+          borderTop: '2px solid color-mix(in oklab, var(--accent) 80%, transparent)',
+          background: 'linear-gradient(140deg, var(--surface) 45%, color-mix(in oklab, var(--accent) 7%, var(--surface)) 100%)',
+        }}>
           <Ring
             value={todayDue.length > 0 ? Math.round((doneToday / todayDue.length) * 100) : 0}
             size={88} thickness={8} color="var(--warn)" label="dziś"
@@ -319,7 +323,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
         </div>
 
         {/* Kalendarz miesiąca — z przewijaniem (jak w budżecie) */}
-        <div className="card" style={{ padding: 18 }}>
+        <div className="card card-hover-glow" style={{ padding: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             {kicker('Kalendarz')}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -471,7 +475,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           <>
             {/* Dzisiejszy rytm — ścieżka dnia (wspólny język z To-do) */}
             {rytmSteps.length > 0 && (
-              <div className="card" style={{ padding: 18, marginBottom: 14 }}>
+              <div className="card card-hover-glow" style={{ padding: 18, marginBottom: 14 }}>
                 {kicker(isToday ? 'Dzisiejszy rytm' : 'Rytm dnia')}
                 <DayPath steps={rytmSteps} accent="var(--warn)" />
                 {/* Sam pasek postępu — licznik i seria są już w „Postęp dnia", więc tu ich nie powielamy */}
@@ -705,14 +709,14 @@ export default function HabitsDashboard({ user, onMoodClick }) {
         }
 
         const tile = (value, label, color, sub) => (
-          <div style={{ background: 'var(--surface2)', borderRadius: 12, padding: '12px 14px' }}>
+          <div className="tile-accent" style={{ '--tile-color': color || 'var(--warn)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 14px' }}>
             <div className="serif" style={{ fontSize: 24, lineHeight: 1, color: color || 'var(--text)' }}>{value}</div>
             <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 5, textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</div>
             {sub && <div className="mono" style={{ fontSize: 9.5, color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>}
           </div>
         )
         return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div data-stagger style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Wybór okresu */}
           <SegTabs
             items={[{ id: 'week', label: 'Tydzień' }, { id: 'month', label: 'Miesiąc' }, { id: 'year', label: 'Rok' }]}
@@ -727,7 +731,11 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           </div>
 
           {/* Podsumowanie okresu — duży pierścień % + kafelki */}
-          <div className="card" style={{ padding: 18 }}>
+          <div className="card card-hover-glow" style={{
+            padding: 18,
+            borderTop: '2px solid color-mix(in oklab, var(--accent) 80%, transparent)',
+            background: 'linear-gradient(140deg, var(--surface) 45%, color-mix(in oklab, var(--accent) 7%, var(--surface)) 100%)',
+          }}>
             {kicker('Realizacja — ' + navLabel)}
             <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap' }}>
               <Ring value={agg.pct} size={104} thickness={9} color="var(--warn)" />
@@ -742,7 +750,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
 
           {/* Trend realizacji w czasie — tydzień: słupki, miesiąc: kalendarz, rok: bez wykresu */}
           {activeHabits.length > 0 && statPeriod !== 'year' && (
-            <div className="card" style={{ padding: 18 }}>
+            <div className="card card-hover-glow" style={{ padding: 18 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 {kicker(trendTitle)}
                 {statPeriod === 'month' && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-sub)', textTransform: 'capitalize', marginBottom: 10 }}>{navLabel}</span>}

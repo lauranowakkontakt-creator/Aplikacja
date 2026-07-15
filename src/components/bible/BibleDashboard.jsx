@@ -208,10 +208,10 @@ export default function BibleDashboard({ user }) {
           let bookRead = 0
           for (let c = 1; c <= book.chapters; c++) if (counts[chapterKey(book.id, c)] > 0) bookRead++
           const done = bookRead === book.chapters
-          const isCollapsed = collapsed[book.id]
+          const isCollapsed = collapsed[book.id] ?? true // domyślnie zwinięte
           return (
             <div key={book.id} className={`bible-book ${done ? 'done' : ''}`}>
-              <button className="bible-book-head" onClick={() => setCollapsed(p => ({ ...p, [book.id]: !p[book.id] }))}>
+              <button className="bible-book-head" onClick={() => setCollapsed(p => ({ ...p, [book.id]: !(p[book.id] ?? true) }))}>
                 <span className="bible-book-name">{book.name}</span>
                 <span className="bible-book-count">{bookRead}/{book.chapters}</span>
                 {done && <IconCheck size={13} style={{ color: 'var(--income)' }} />}
