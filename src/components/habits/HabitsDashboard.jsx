@@ -296,19 +296,19 @@ export default function HabitsDashboard({ user, onMoodClick }) {
         </div>
       </div>
 
-      {/* Hero — postęp dnia + kalendarz miesiąca obok siebie */}
-      <div className="card" style={{ padding: 16, marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center' }}>
+      {/* Hero — Postęp dnia i Kalendarz jako osobne karty */}
+      <div className="g2-br" style={{ gap: 12, marginBottom: 14, alignItems: 'start' }}>
         {/* Postęp dnia */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: '1 1 180px', minWidth: 168 }}>
+        <div className="card" style={{ padding: 18, display: 'flex', alignItems: 'center', gap: 16 }}>
           <Ring
             value={todayDue.length > 0 ? Math.round((doneToday / todayDue.length) * 100) : 0}
-            size={84} thickness={8} color="var(--warn)" label="dziś"
+            size={88} thickness={8} color="var(--warn)" label="dziś"
           />
           <div style={{ minWidth: 0 }}>
             {kicker('Postęp dnia')}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '2px 0 8px', whiteSpace: 'nowrap' }}>
-              <span className="serif" style={{ fontSize: 38 }}>{doneToday}</span>
-              <span className="mono" style={{ fontSize: 16, color: 'var(--text-muted)' }}>/ {todayDue.length}</span>
+              <span className="serif" style={{ fontSize: 40 }}>{doneToday}</span>
+              <span className="mono" style={{ fontSize: 17, color: 'var(--text-muted)' }}>/ {todayDue.length}</span>
             </div>
             {maxStreak > 0 && (
               <div style={{ color: 'var(--warn)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
@@ -319,7 +319,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
         </div>
 
         {/* Kalendarz miesiąca — z przewijaniem (jak w budżecie) */}
-        <div style={{ flex: '1 1 250px', minWidth: 230 }}>
+        <div className="card" style={{ padding: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             {kicker('Kalendarz')}
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -474,23 +474,15 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               <div className="card" style={{ padding: 18, marginBottom: 14 }}>
                 {kicker(isToday ? 'Dzisiejszy rytm' : 'Rytm dnia')}
                 <DayPath steps={rytmSteps} accent="var(--warn)" />
-                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12, marginTop: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                    <span className="serif" style={{ fontSize: 34 }}>{rytmDone}</span>
-                    <span className="mono" style={{ fontSize: 15, color: 'var(--text-muted)' }}>/ {rytmSteps.length}</span>
+                {/* Sam pasek postępu — licznik i seria są już w „Postęp dnia", więc tu ich nie powielamy */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
+                  <div style={{ flex: 1, height: 6, background: 'var(--surface2)', borderRadius: 99, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg, var(--warn), var(--primary))', width: `${Math.round((rytmDone / rytmSteps.length) * 100)}%`, transition: 'width .8s var(--ease)' }} />
                   </div>
-                  {maxStreak > 0 && (
-                    <div style={{ color: 'var(--warn)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <IconFlame size={14} /> <span className="mono" style={{ fontSize: 12.5 }}>{maxStreak} dni serii</span>
-                    </div>
+                  {recordStreak > 0 && (
+                    <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>rekord: {recordStreak} dni</span>
                   )}
                 </div>
-                <div style={{ height: 6, background: 'var(--surface2)', borderRadius: 99, overflow: 'hidden', marginTop: 10 }}>
-                  <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg, var(--warn), var(--primary))', width: `${Math.round((rytmDone / rytmSteps.length) * 100)}%`, transition: 'width .8s var(--ease)' }} />
-                </div>
-                {recordStreak > 0 && (
-                  <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', textAlign: 'right', marginTop: 6 }}>rekord: {recordStreak} dni</div>
-                )}
               </div>
             )}
 
