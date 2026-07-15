@@ -237,7 +237,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
   const handleMenu = (id) => {
     if (id === 'pause') setShowPause(true)
     else if (id === 'reorder') setShowReorder(true)
-    else if (id === 'stats') setView('stats')
   }
   const addBtn = (
     <button className="icon-btn" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk"
@@ -341,9 +340,9 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       {/* View tabs + akcje (desktop: + i ⋮ obok zakładek) */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
         <SegTabs
-          items={[{ id: 'today', label: 'Dziś' }, { id: 'week', label: 'Tydzień' }]}
+          items={[{ id: 'today', label: 'Dziś' }, { id: 'week', label: 'Tydzień' }, { id: 'stats', label: 'Statystyki' }]}
           active={view} onChange={setView}
-          style={{ maxWidth: 300, flex: 1, minWidth: 0 }}
+          style={{ maxWidth: 420, flex: 1, minWidth: 0 }}
         />
         <div className="desktop-only" style={{ flexShrink: 0, marginLeft: 'auto' }}>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -718,11 +717,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
         )
         return (
         <div data-stagger style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* Nagłówek — Statystyki otwiera się z menu ⋮ */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {kicker('Statystyki')}
-            <button className="icon-btn" style={{ width: 30, height: 30 }} title="Wróć" onClick={() => setView('today')}><IconChevronLeft size={16} /></button>
-          </div>
           {/* Wybór okresu */}
           <SegTabs
             items={[{ id: 'week', label: 'Tydzień' }, { id: 'month', label: 'Miesiąc' }, { id: 'year', label: 'Rok' }]}
