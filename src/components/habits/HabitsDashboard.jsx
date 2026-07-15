@@ -88,6 +88,39 @@ function dayAggregate(habits, pauses, dateStr) {
   return { due, done, pct: due ? done / due : 0, paused: isPausedDay(dateStr, pauses) }
 }
 
+const WD = ['P', 'W', 'Ś', 'C', 'P', 'S', 'N']
+
+// Kalendarz miesiąca wyrównany do poniedziałku (puste pola przed 1. dniem).
+// renderCell(dateStr) → { bg, border, color, ring, title }. Rozmiar sterowany
+// przez cellH/font/gap; maxWidth ogranicza szerokość (np. na dashboardzie).
+function MonthCalendar({ month, renderCell, cellH = 20, gap = 3, font = 8.5, maxWidth, showNums = true }) {
+  const mStart = startOfMonth(month)
+  const lead = (mStart.getDay() + 6) % 7
+  const count = getDaysInMonth(month)
+  const cells = [...Array.from({ length: lead }, () => null), ...Array.from({ length: count }, (_, i) => ymd(addDays(mStart, i)))]
+  const wrap = maxWidth ? { maxWidth } : {}
+  return (
+    <div>
+      <div style={{ ...wrap, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap, marginBottom: gap }}>
+        {WD.map((l, i) => <div key={i} style={{ textAlign: 'center', fontSize: Math.max(7, font - 0.5), color: 'var(--text-muted)', fontWeight: 700 }}>{l}</div>)}
+      </div>
+      <div style={{ ...wrap, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap }}>
+        {cells.map((d, idx) => {
+          if (!d) return <div key={`b${idx}`} />
+          const c = renderCell(d)
+          return (
+            <div key={d} title={c.title} style={{
+              height: cellH, borderRadius: cellH >= 26 ? 6 : 4, background: c.bg, border: c.border,
+              boxShadow: c.ring ? '0 0 0 1.5px var(--warn)' : 'none',
+              display: 'grid', placeItems: 'center', fontSize: font, color: c.color || 'var(--text-muted)', fontWeight: 600,
+            }}>{showNums ? format(new Date(d + 'T12:00:00'), 'd') : ''}</div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function HabitsDashboard({ user, onMoodClick }) {
   const [habits, setHabits]         = useState([])
   const [pauses, setPauses]         = useState([])
@@ -187,15 +220,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
     ? Math.max(...filtered.map(h => getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)))
     : 0
 
-  // Mini-kalendarz na dashboardzie: cały bieżący miesiąc, wyrównany do
-  // poniedziałku (puste pola na początku) — czytelny jak zwykły kalendarz.
-  const calMonthStart = startOfMonth(new Date())
-  const calLead = (calMonthStart.getDay() + 6) % 7 // ile pustych pól przed 1. dniem (pon = 0)
-  const calCells = [
-    ...Array.from({ length: calLead }, () => null),
-    ...Array.from({ length: getDaysInMonth(new Date()) }, (_, i) => format(addDays(calMonthStart, i), 'yyyy-MM-dd')),
-  ]
-
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   const todayLabel = format(new Date(), 'EEEE, d LLL', { locale: pl })
@@ -209,6 +233,43 @@ export default function HabitsDashboard({ user, onMoodClick }) {
 
   const actBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 10, padding: '9px 14px', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }
   const secBtn = { ...actBtn, background: 'var(--surface2)', color: 'var(--text-sub)', border: '1px solid var(--border)' }
+
+  // Komórka kalendarza — zbiorczo (intensywność realizacji dnia dla listy nawyków)
+  const aggCellFor = (list) => (d) => {
+    const { done, due, pct, paused } = dayAggregate(list, pauses, d)
+    const future = d > TODAY, isToday = d === TODAY
+    let bg = 'var(--surface2)', border = '1px solid transparent', color = 'var(--text-muted)'
+    if (future) { bg = 'transparent'; border = '1px dashed var(--border)' }
+    else if (due > 0) { bg = `color-mix(in oklab, var(--warn) ${Math.round(22 + pct * 78)}%, var(--surface2))`; if (pct >= 1) border = '1px solid var(--warn)'; if (pct >= 0.5) color = 'var(--bg)' }
+    else if (paused) { const p = getPauseColor(pauses, d) || 'var(--text-muted)'; bg = p + '33'; border = `1px solid ${p}66` }
+    const title = `${format(new Date(d + 'T12:00:00'), 'd MMM', { locale: pl })}${due ? ` • ${done}/${due}` : paused ? ` • ${pauseReasonMeta(pauseForDay(d, pauses)?.reason).label.toLowerCase()}` : ' • wolne'}`
+    return { bg, border, color, ring: isToday, title }
+  }
+
+  // Komórka kalendarza — pojedynczy nawyk (zrobione / dodatkowo / pauza / pominięte)
+  const habitCellFor = (habit, color) => (d) => {
+    const isDone = habit.completedDates?.includes(d)
+    const status = isHabitDue(habit, d, pauses)
+    const future = d > TODAY, isToday = d === TODAY
+    const deep = `color-mix(in oklab, ${color} 58%, #000)`
+    let bg = 'transparent', border = '1px solid transparent', textColor = 'var(--text-muted)'
+    if (future) { border = '1px dashed var(--border)' }
+    else if (isDone) { const bonus = status !== 'due'; bg = bonus ? deep : color; border = `1px solid ${bonus ? deep : color}`; textColor = '#fff' }
+    else if (status === 'paused') { const m = pauseReasonMeta(pauseForDay(d, pauses)?.reason); bg = m.color + '33'; border = `1px solid ${m.color}66` }
+    else if (status === 'due') { border = '1px solid var(--border-strong)' }
+    else { border = '1px solid var(--border)' }
+    return { bg, border, color: textColor, ring: isToday, title: d }
+  }
+
+  const intensityLegend = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
+      <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>mniej</span>
+      {[0, 0.35, 0.6, 0.85, 1].map((v, i) => (
+        <div key={i} style={{ width: 9, height: 9, borderRadius: 2, background: v === 0 ? 'var(--surface2)' : `color-mix(in oklab, var(--warn) ${Math.round(22 + v * 78)}%, var(--surface2))` }} />
+      ))}
+      <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>więcej</span>
+    </div>
+  )
 
   return (
     <div className="habits-dashboard">
@@ -226,19 +287,19 @@ export default function HabitsDashboard({ user, onMoodClick }) {
         </div>
       </div>
 
-      {/* Hero row */}
-      <div className="g2-br" style={{ gap: 10, marginBottom: 14 }}>
-        {/* Left: Ring progress */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18, display: 'flex', alignItems: 'center', gap: 16 }}>
+      {/* Hero — postęp dnia + kalendarz miesiąca obok siebie */}
+      <div className="card" style={{ padding: 16, marginBottom: 14, display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'center' }}>
+        {/* Postęp dnia */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: '1 1 180px', minWidth: 168 }}>
           <Ring
             value={todayDue.length > 0 ? Math.round((doneToday / todayDue.length) * 100) : 0}
-            size={90} thickness={8} color="var(--warn)" label="dziś"
+            size={84} thickness={8} color="var(--warn)" label="dziś"
           />
           <div style={{ minWidth: 0 }}>
             {kicker('Postęp dnia')}
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '2px 0 8px', whiteSpace: 'nowrap' }}>
-              <span className="serif" style={{ fontSize: 40 }}>{doneToday}</span>
-              <span className="mono" style={{ fontSize: 17, color: 'var(--text-muted)' }}>/ {todayDue.length}</span>
+              <span className="serif" style={{ fontSize: 38 }}>{doneToday}</span>
+              <span className="mono" style={{ fontSize: 16, color: 'var(--text-muted)' }}>/ {todayDue.length}</span>
             </div>
             {maxStreak > 0 && (
               <div style={{ color: 'var(--warn)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
@@ -248,48 +309,14 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           </div>
         </div>
 
-        {/* Right: mini-kalendarz bieżącego miesiąca */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
+        {/* Kalendarz bieżącego miesiąca */}
+        <div style={{ flex: '1 1 250px', minWidth: 230 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
             {kicker('Ten miesiąc')}
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-sub)', textTransform: 'capitalize' }}>{format(new Date(), 'LLLL', { locale: pl })}</span>
           </div>
-          {/* Nagłówek dni tygodnia */}
-          <div style={{ maxWidth: 224, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 3 }}>
-            {['P','W','Ś','C','P','S','N'].map((l, i) => (
-              <div key={i} style={{ textAlign: 'center', fontSize: 8, color: 'var(--text-muted)', fontWeight: 700 }}>{l}</div>
-            ))}
-          </div>
-          <div style={{ maxWidth: 224, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
-            {calCells.map((d, idx) => {
-              if (!d) return <div key={`b${idx}`} />
-              const { done, due, pct, paused } = dayAggregate(filtered, pauses, d)
-              const future = d > TODAY
-              const isToday = d === TODAY
-              const pCol = paused ? getPauseColor(pauses, d) : null
-              let bg = 'var(--surface2)', border = '1px solid transparent'
-              if (future) { bg = 'transparent'; border = '1px dashed var(--border)' }
-              else if (due > 0) { bg = `color-mix(in oklab, var(--warn) ${Math.round(22 + pct * 78)}%, var(--surface2))`; if (pct >= 1) border = '1px solid var(--warn)' }
-              else if (paused) { bg = (pCol || 'var(--text-muted)') + '33'; border = `1px solid ${(pCol || 'var(--text-muted)')}66` }
-              else { bg = 'var(--surface2)' } // dzień bez zaplanowanych nawyków
-              return (
-                <div key={d} title={`${d}${due ? ` • ${done}/${due}` : paused ? ` • ${pauseReasonMeta(pauseForDay(d, pauses)?.reason).label.toLowerCase()}` : ' • wolne'}`} style={{
-                  height: 20, borderRadius: 4, background: bg, border,
-                  boxShadow: isToday ? '0 0 0 1.5px var(--warn)' : 'none',
-                  display: 'grid', placeItems: 'center',
-                  fontSize: 8.5, color: (due > 0 && pct >= 0.5) ? 'var(--bg)' : 'var(--text-muted)', fontWeight: 600,
-                }}>{format(new Date(d + 'T12:00:00'), 'd')}</div>
-              )
-            })}
-          </div>
-          {/* Legenda intensywności */}
-          <div style={{ maxWidth: 224, display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
-            <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>mniej</span>
-            {[0,0.35,0.6,0.85,1].map((v, i) => (
-              <div key={i} style={{ width: 9, height: 9, borderRadius: 2, background: v === 0 ? 'var(--surface2)' : `color-mix(in oklab, var(--warn) ${Math.round(22 + v * 78)}%, var(--surface2))` }} />
-            ))}
-            <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>więcej</span>
-          </div>
+          <MonthCalendar month={new Date()} renderCell={aggCellFor(filtered)} cellH={20} font={8.5} maxWidth={266} />
+          {intensityLegend}
         </div>
       </div>
 
@@ -652,7 +679,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
         const agg = rangeStats(activeHabits, pauses, start, endClamped)
         const bestStreakAll = activeHabits.reduce((m, h) => Math.max(m, getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)), 0)
         const buckets = statBuckets(activeHabits, pauses, statPeriod, ctx, dataYears)
-        const trendTitle  = statPeriod === 'week' ? 'Realizacja dzień po dniu (%)' : statPeriod === 'month' ? 'Realizacja tydzień po tygodniu (%)' : 'Realizacja rok po roku (%)'
+        const trendTitle  = statPeriod === 'week' ? 'Realizacja dzień po dniu (%)' : statPeriod === 'month' ? 'Kalendarz miesiąca' : 'Realizacja rok po roku (%)'
 
         // Nawigator okresu (‹ etykieta ›)
         const wkStart   = startOfWeek(weekAnchor, { weekStartsOn: 1 })
@@ -716,14 +743,24 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             </div>
           </div>
 
-          {/* Trend realizacji w czasie */}
+          {/* Trend realizacji w czasie — miesiąc jako kalendarz, reszta jako słupki */}
           {activeHabits.length > 0 && (
             <div className="card" style={{ padding: 18 }}>
-              {kicker(trendTitle)}
-              <BarChartSVG
-                data={buckets.map(b => ({ label: b.label, value: b.value, active: b.active }))}
-                height={150} accent="var(--warn)" fmt={v => `${v}%`}
-              />
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                {kicker(trendTitle)}
+                {statPeriod === 'month' && <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-sub)', textTransform: 'capitalize', marginBottom: 10 }}>{navLabel}</span>}
+              </div>
+              {statPeriod === 'month' ? (
+                <>
+                  <MonthCalendar month={monthAnchor} renderCell={aggCellFor(activeHabits)} cellH={30} gap={4} font={11} />
+                  {intensityLegend}
+                </>
+              ) : (
+                <BarChartSVG
+                  data={buckets.map(b => ({ label: b.label, value: b.value, active: b.active }))}
+                  height={150} accent="var(--warn)" fmt={v => `${v}%`}
+                />
+              )}
             </div>
           )}
 
@@ -785,12 +822,18 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                     </div>
                   </div>
 
-                  {/* Kalendarz wykonania — cały wybrany okres */}
-                  <HabitDayGrid habit={habit} pauses={pauses} start={start} end={end} today={today} color={color} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{fmtShort(start)}</span>
-                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{fmtShort(end)}</span>
-                  </div>
+                  {/* Wykonanie — miesiąc jako kalendarz, tydzień/rok jako siatka */}
+                  {statPeriod === 'month' ? (
+                    <MonthCalendar month={monthAnchor} renderCell={habitCellFor(habit, color)} cellH={18} gap={3} font={8} />
+                  ) : (
+                    <>
+                      <HabitDayGrid habit={habit} pauses={pauses} start={start} end={end} today={today} color={color} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+                        <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{fmtShort(start)}</span>
+                        <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{fmtShort(end)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               )
             })}
