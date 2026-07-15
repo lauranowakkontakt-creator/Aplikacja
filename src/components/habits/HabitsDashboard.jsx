@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { collection, onSnapshot, orderBy, query, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
-import { format, startOfWeek, addDays, subDays, subWeeks, addWeeks, startOfMonth, endOfMonth, getDaysInMonth } from 'date-fns'
+import { format, startOfWeek, addDays, subDays, subWeeks, addWeeks, startOfMonth, endOfMonth, getDaysInMonth, addMonths, subMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import HabitForm, { HABIT_CATEGORIES, DEFAULT_HABIT_CATEGORIES } from './HabitForm'
 import PauseForm from './PauseForm'
 import HabitReorderModal from './HabitReorderModal'
 import HabitDayGrid from './HabitDayGrid'
-import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronRight, IconReorder, IconPlus } from '../Icons'
+import HabitMenu from './HabitMenu'
+import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronLeft, IconChevronRight, IconPlus } from '../Icons'
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
@@ -138,6 +139,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
   const [showArchived, setShowArchived] = useState(false)
   const [showReorder, setShowReorder] = useState(false)
   const [statPeriod, setStatPeriod]   = useState('month')
+  const [dashMonth, setDashMonth]     = useState(new Date())     // nawigacja miesiąca na dashboardzie
   const [weekAnchor, setWeekAnchor]   = useState(new Date())     // nawigacja tygodnia w statystykach
   const [monthAnchor, setMonthAnchor] = useState(new Date())     // nawigacja miesiąca w statystykach
   const [statYear, setStatYear]       = useState(new Date().getFullYear()) // nawigacja roku w statystykach
@@ -231,8 +233,17 @@ export default function HabitsDashboard({ user, onMoodClick }) {
     </div>
   )
 
-  const actBtn = { display: 'inline-flex', alignItems: 'center', gap: 6, borderRadius: 10, padding: '9px 14px', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', cursor: 'pointer' }
-  const secBtn = { ...actBtn, background: 'var(--surface2)', color: 'var(--text-sub)', border: '1px solid var(--border)' }
+  // Akcje z menu „⋮" (pauza / kolejność) i szybki dodaj
+  const handleMenu = (id) => {
+    if (id === 'pause') setShowPause(true)
+    else if (id === 'reorder') setShowReorder(true)
+  }
+  const addBtn = (
+    <button className="icon-btn" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk"
+      style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none' }}>
+      <IconPlus size={16} />
+    </button>
+  )
 
   // Komórka kalendarza — zbiorczo (intensywność realizacji dnia dla listy nawyków)
   const aggCellFor = (list) => (d) => {
@@ -280,10 +291,8 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           <div className="mod-header-title" style={{ textTransform: 'capitalize' }}>{todayLabel}</div>
         </div>
         <div className="mod-header-right">
-          <button className="icon-btn" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk"
-            style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
-            +
-          </button>
+          {addBtn}
+          <HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} />
         </div>
       </div>
 
@@ -309,38 +318,34 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           </div>
         </div>
 
-        {/* Kalendarz bieżącego miesiąca */}
+        {/* Kalendarz miesiąca — z przewijaniem (jak w budżecie) */}
         <div style={{ flex: '1 1 250px', minWidth: 230 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
-            {kicker('Ten miesiąc')}
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-sub)', textTransform: 'capitalize' }}>{format(new Date(), 'LLLL', { locale: pl })}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            {kicker('Kalendarz')}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => setDashMonth(subMonths(dashMonth, 1))} title="Poprzedni miesiąc"><IconChevronLeft size={14} /></button>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-sub)', textTransform: 'capitalize', minWidth: 78, textAlign: 'center' }}>{format(dashMonth, 'LLLL yyyy', { locale: pl })}</span>
+              <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => setDashMonth(addMonths(dashMonth, 1))} title="Następny miesiąc"><IconChevronRight size={14} /></button>
+            </div>
           </div>
-          <MonthCalendar month={new Date()} renderCell={aggCellFor(filtered)} cellH={20} font={8.5} maxWidth={266} />
+          <MonthCalendar month={dashMonth} renderCell={aggCellFor(filtered)} cellH={20} font={8.5} maxWidth={266} />
           {intensityLegend}
         </div>
       </div>
 
-      {/* View tabs */}
-      <SegTabs
-        items={[{ id: 'today', label: 'Dziś' }, { id: 'week', label: 'Tydzień' }, { id: 'stats', label: 'Statystyki' }]}
-        active={view} onChange={setView}
-        style={{ maxWidth: 420, marginBottom: 12 }}
-      />
-
-      {/* Pasek akcji — Nowy / Pauza / Kolejność */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-        <button onClick={() => { setEditHabit(null); setShowForm(true) }}
-          style={{ ...actBtn, background: 'var(--accent)', color: 'var(--bg)', border: 'none' }}>
-          <IconPlus size={15} /> Nowy nawyk
-        </button>
-        <button onClick={() => setShowPause(true)} style={secBtn}>
-          <IconPause size={15} /> Pauza
-        </button>
-        {activeHabits.length > 1 && (
-          <button onClick={() => setShowReorder(true)} style={secBtn}>
-            <IconReorder size={15} /> Kolejność
-          </button>
-        )}
+      {/* View tabs + akcje (desktop: + i ⋮ obok zakładek) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <SegTabs
+          items={[{ id: 'today', label: 'Dziś' }, { id: 'week', label: 'Tydzień' }, { id: 'stats', label: 'Statystyki' }]}
+          active={view} onChange={setView}
+          style={{ maxWidth: 420, flex: 1, minWidth: 0 }}
+        />
+        <div className="desktop-only" style={{ flexShrink: 0, marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {addBtn}
+            <HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} />
+          </div>
+        </div>
       </div>
 
       {/* ===== DZIŚ ===== */}

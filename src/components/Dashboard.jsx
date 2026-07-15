@@ -21,7 +21,7 @@ import Reminders from './budget/Reminders'
 import Debtors from './budget/Debtors'
 import CategoriesView from './budget/CategoriesView'
 import ShoppingList from './budget/ShoppingList'
-import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconSearch, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconClock, IconEye, IconEyeOff, CatIcon } from './Icons'
+import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconClock, IconEye, IconEyeOff, CatIcon } from './Icons'
 import { Donut, FlowBar, Spark, useNarrow } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 import { isTransfer } from '../utils/categories'
@@ -191,7 +191,6 @@ export default function Dashboard({ user, onCurrencyChange }) {
           <div className="mod-header-title" style={{ textTransform: 'capitalize' }}>{monthLabel}</div>
         </div>
         <div className="mod-header-right">
-          <button className="icon-btn" onClick={() => handleMenuAction('search')}><IconSearch size={16} /></button>
           <BudgetMenu onAction={handleMenuAction} privateMode={privateMode} onCurrencyChange={onCurrencyChange} mobile />
         </div>
       </div>
