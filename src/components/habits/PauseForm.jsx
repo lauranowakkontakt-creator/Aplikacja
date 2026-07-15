@@ -48,16 +48,24 @@ export default function PauseForm({ user, onClose }) {
 
           <div className="form-group">
             <label>Powód</label>
-            <div className="type-toggle">
-              {REASONS.map(r => (
-                <button key={r.id} type="button"
-                  className={`type-btn ${reason === r.id ? 'active' : ''}`}
-                  onClick={() => setReason(r.id)}
-                  style={reason === r.id
-                    ? { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, borderColor: r.color, color: r.color, background: r.color + '22' }
-                    : { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-                ><span style={{ width: 9, height: 9, borderRadius: 3, background: r.color, flexShrink: 0 }} /><CatIcon categoryId={null} emoji={r.icon} size={14} /> {r.label}</button>
-              ))}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
+              {REASONS.map(r => {
+                const active = reason === r.id
+                return (
+                  <button key={r.id} type="button" onClick={() => setReason(r.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', minWidth: 0,
+                      borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, textAlign: 'left', lineHeight: 1.2,
+                      background: active ? r.color + '22' : 'var(--surface2)',
+                      border: `1.5px solid ${active ? r.color : 'var(--border)'}`,
+                      color: active ? r.color : 'var(--text-sub)',
+                    }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: r.color, flexShrink: 0 }} />
+                    <CatIcon categoryId={null} emoji={r.icon} size={15} />
+                    <span style={{ minWidth: 0, wordBreak: 'break-word' }}>{r.label}</span>
+                  </button>
+                )
+              })}
             </div>
           </div>
 

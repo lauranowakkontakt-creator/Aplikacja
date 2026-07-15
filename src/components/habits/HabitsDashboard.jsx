@@ -563,7 +563,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             <>
             <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
               {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) repeat(7,34px)', gap: 4, padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) repeat(7,30px)', gap: 4, padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em' }}>NAWYK</div>
                 {weekDays.map(d => (
                   <div key={d.date} style={{ textAlign: 'center' }}>
@@ -578,7 +578,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                 const color  = habit.color || 'var(--accent)'
                 return (
                   <div key={habit.id} style={{
-                    display: 'grid', gridTemplateColumns: 'minmax(0,1fr) repeat(7,34px)', gap: 4,
+                    display: 'grid', gridTemplateColumns: 'minmax(0,1fr) repeat(7,30px)', gap: 4,
                     padding: '10px 14px', alignItems: 'center',
                     borderBottom: idx < filtered.length - 1 ? '1px solid var(--border)' : 'none',
                   }}>
@@ -592,7 +592,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                         <CatIcon categoryId={null} emoji={habit.emoji} size={14} />
                       </div>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.15, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{habit.name}</div>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, wordBreak: 'break-word' }}>{habit.name}</div>
                         {streak > 0 && <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 2, marginTop: 2 }}><IconFlame size={10} style={{color:'var(--warn)'}}/>{streak}</div>}
                       </div>
                     </div>
@@ -743,8 +743,8 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             </div>
           </div>
 
-          {/* Trend realizacji w czasie — miesiąc jako kalendarz, reszta jako słupki */}
-          {activeHabits.length > 0 && (
+          {/* Trend realizacji w czasie — tydzień: słupki, miesiąc: kalendarz, rok: bez wykresu */}
+          {activeHabits.length > 0 && statPeriod !== 'year' && (
             <div className="card" style={{ padding: 18 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 {kicker(trendTitle)}
