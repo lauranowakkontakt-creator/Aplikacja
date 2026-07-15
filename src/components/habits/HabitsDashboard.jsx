@@ -379,29 +379,29 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             <div key={habit.id} className="card hover" style={{
               background: done ? `color-mix(in oklab, ${color} 10%, var(--surface))` : 'var(--surface)',
               border: `1px solid ${done ? color + '50' : 'var(--border)'}`,
-              padding: 16,
+              padding: 11,
               opacity: isExtra && !done ? 0.66 : 1,
             }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
               {/* Icon tile */}
               <div onClick={() => { setEditHabit(habit); setShowForm(true) }} style={{
-                width: 46, height: 46, borderRadius: 13, flexShrink: 0,
+                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
                 display: 'grid', placeItems: 'center', cursor: 'pointer',
                 background: color + '1c', border: `1px solid ${color + '40'}`, color,
               }}>
-                <CatIcon categoryId={null} emoji={habit.emoji} size={20} />
+                <CatIcon categoryId={null} emoji={habit.emoji} size={17} />
               </div>
 
               {/* Body */}
               <div onClick={() => { setEditHabit(habit); setShowForm(true) }} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
                 <div style={{
-                  fontSize: 14.5, fontWeight: 600,
+                  fontSize: 13.5, fontWeight: 600,
                   textDecoration: done ? 'line-through' : 'none',
                   textDecorationColor: 'var(--text-muted)',
                   color: done ? 'var(--text-muted)' : 'var(--text)',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>{habit.name}</div>
-                <div className="row" style={{ gap: 7, marginTop: 5 }}>
+                <div className="row" style={{ gap: 7, marginTop: 3 }}>
                   {streak > 0 && <>
                     <IconFlame size={12} style={{ color: 'var(--warn)' }} />
                     <span className="mono" style={{ fontSize: 10.5, color: 'var(--warn)' }}>{streak} dni</span>
@@ -422,7 +422,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                 onClick={() => !isFut && toggleDay(habit, selectedDay)}
                 disabled={isFut}
                 style={{
-                  width: 38, height: 38, borderRadius: 99, flexShrink: 0,
+                  width: 32, height: 32, borderRadius: 99, flexShrink: 0,
                   border: `2px solid ${done ? color : 'var(--border-strong)'}`,
                   background: done ? color : 'transparent',
                   display: 'grid', placeItems: 'center',
@@ -430,13 +430,13 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                   transition: 'all .2s var(--spring)',
                 }}
               >
-                {done ? <IconCheck size={17} /> : status === 'paused' && getPauseIcon(pauses, selectedDay) ? <span style={{ color: getPauseColor(pauses, selectedDay) || 'var(--text-muted)', display: 'grid', placeItems: 'center' }}><CatIcon categoryId={null} emoji={getPauseIcon(pauses, selectedDay)} size={15} /></span> : ''}
+                {done ? <IconCheck size={15} /> : status === 'paused' && getPauseIcon(pauses, selectedDay) ? <span style={{ color: getPauseColor(pauses, selectedDay) || 'var(--text-muted)', display: 'grid', placeItems: 'center' }}><CatIcon categoryId={null} emoji={getPauseIcon(pauses, selectedDay)} size={14} /></span> : ''}
               </button>
             </div>
 
             {/* Kroki nawyku — odhaczane per dzień */}
             {steps.length > 0 && (
-              <div style={{ marginTop: 10, paddingLeft: 60, display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <div style={{ marginTop: 8, paddingLeft: 47, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {steps.map(s => {
                   const sDone = stepDone.includes(s.id)
                   return (
@@ -460,7 +460,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
         }
 
         const grid = (rows) => (
-          <div data-stagger style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 10 }}>
+          <div data-stagger style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 8 }}>
             {rows.map(renderCard)}
           </div>
         )
