@@ -173,7 +173,7 @@ export function DonutStat({ data, colors, total: totalProp, size: sizeProp, thic
 // LineAreaSVG — wykres liniowy z wypełnieniem (zastępuje recharts AreaChart).
 // data: [{ label, value }], stała skala Y [min, max], opcjonalne linie siatki
 // na yTicks, tooltip na hover. Szerokość mierzy z kontenera (ResizeObserver).
-export function LineAreaSVG({ data, height = 150, min = 0, max = 5, yTicks = [], accent = 'var(--accent)', fmtValue, fmtLabel }) {
+export function LineAreaSVG({ data, height = 150, min = 0, max = 5, yTicks = [], accent = 'var(--accent)', fmtValue, fmtLabel, allLabels = false }) {
   const ref = useRef(null)
   const gradId = useId()
   const [w, setW] = useState(0)
@@ -201,7 +201,8 @@ export function LineAreaSVG({ data, height = 150, min = 0, max = 5, yTicks = [],
   const area = pts.length ? `${line} L${pts[pts.length - 1][0].toFixed(1)},${padT + ih} L${pts[0][0].toFixed(1)},${padT + ih} Z` : ''
 
   // Etykiety osi X — maksymalnie ~8, żeby nie nachodziły na siebie
-  const labelStep = Math.max(1, Math.ceil(n / 8))
+  // (allLabels = podpisz każdy punkt)
+  const labelStep = allLabels ? 1 : Math.max(1, Math.ceil(n / 8))
 
   return (
     <div ref={ref} style={{ position: 'relative', width: '100%' }}>
