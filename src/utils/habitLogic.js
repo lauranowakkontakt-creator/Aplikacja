@@ -129,12 +129,14 @@ export function eachDayStr(start, end) {
 }
 
 // Podsumowanie realizacji nawyków w zakresie dni [start..end]:
-//  - expected  — ile razy nawyk był obowiązkowy (suma po dniach)
+//  - expected  — ile razy nawyk był obowiązkowy (suma po dniach) + wykonania w pauzie
 //  - done       — ile z tego wykonano
 //  - pct        — procent realizacji (done/expected)
-//  - completions — wszystkie odhaczenia (także dodatkowe/w pauzie)
-//  - perfectDays — dni ze 100% wykonaniem obowiązkowych
+//  - completions — wszystkie odhaczenia (także dodatkowe poza planem / w pauzie)
+//  - perfectDays — dni ze 100% wykonaniem dni obowiązkowych
 //  - dueDays     — dni, w których cokolwiek było obowiązkowe
+// Wykonanie nawyku w trakcie pauzy (wyjazd/choroba) liczy się jako „zrobione"
+// i podbija procent — dzień przerwy bez wykonania nie jest karą (pomijany).
 export function rangeStats(habits = [], pauses = [], start, end) {
   let expected = 0, done = 0, completions = 0, perfectDays = 0, dueDays = 0
   for (const d of eachDayStr(start, end)) {
@@ -142,9 +144,13 @@ export function rangeStats(habits = [], pauses = [], start, end) {
     for (const h of habits) {
       const isDone = h.completedDates?.includes(d)
       if (isDone) completions++
-      if (isHabitDue(h, d, pauses) === 'due') {
+      const status = isHabitDue(h, d, pauses)
+      if (status === 'due') {
         dueCount++; expected++
         if (isDone) { done++; dueDone++ }
+      } else if (status === 'paused' && isDone) {
+        // wykonane w trakcie wyjazdu/choroby — liczy się jako zrobione
+        expected++; done++
       }
     }
     if (dueCount > 0) { dueDays++; if (dueDone === dueCount) perfectDays++ }

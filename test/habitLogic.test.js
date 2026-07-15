@@ -168,12 +168,22 @@ test('rangeStats — dni 100% tylko gdy wszystkie obowiązkowe zrobione', () => 
   assert.equal(s.dueDays, 2)
 })
 
-test('rangeStats — dodatkowe wykonanie w pauzie liczy się do completions, nie do expected', () => {
+test('rangeStats — wykonanie w pauzie (wyjazd) liczy się jako zrobione i podbija procent', () => {
   const pauses = [{ from: '2026-07-05', to: '2026-07-05', reason: 'vacation' }]
   const h = { frequencyDays: DAILY, completedDates: ['2026-07-05'] }
   const s = rangeStats([h], pauses, '2026-07-05', '2026-07-05')
-  assert.equal(s.expected, 0)   // w pauzie nic nie jest obowiązkowe
-  assert.equal(s.completions, 1) // ale odhaczenie się liczy
+  assert.equal(s.expected, 1)    // wykonane w wyjeździe wchodzi do bilansu
+  assert.equal(s.done, 1)
+  assert.equal(s.completions, 1)
+  assert.equal(s.pct, 100)
+})
+
+test('rangeStats — pauza bez wykonania nie jest karą (pomijana)', () => {
+  const pauses = [{ from: '2026-07-05', to: '2026-07-05', reason: 'illness' }]
+  const h = { frequencyDays: DAILY, completedDates: [] }
+  const s = rangeStats([h], pauses, '2026-07-05', '2026-07-05')
+  assert.equal(s.expected, 0)
+  assert.equal(s.done, 0)
   assert.equal(s.pct, 0)
 })
 

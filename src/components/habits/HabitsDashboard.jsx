@@ -7,8 +7,9 @@ import { pl } from 'date-fns/locale'
 import HabitForm, { HABIT_CATEGORIES, DEFAULT_HABIT_CATEGORIES } from './HabitForm'
 import PauseForm from './PauseForm'
 import HabitReorderModal from './HabitReorderModal'
+import HabitDayGrid from './HabitDayGrid'
 import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronRight, IconReorder } from '../Icons'
-import { Ring, Heatmap, BarChartSVG } from '../ChartPrimitives'
+import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
@@ -69,22 +70,19 @@ function periodBuckets(habits, pauses, period, now = new Date()) {
   return buckets
 }
 
-function buildHeatmapData(habits, weeks, pauses = []) {
-  const total = weeks * 7
-  const data = []
-  for (let i = total - 1; i >= 0; i--) {
-    const d = format(subDays(new Date(), i), 'yyyy-MM-dd')
-    let count = 0, dueCount = 0
-    habits.forEach(h => {
-      if (isHabitDue(h, d, pauses) === 'due') {
-        dueCount++
-        if (h.completedDates?.includes(d)) count++
-      }
-    })
-    const intensity = dueCount === 0 ? 0 : Math.min(4, Math.round((count / dueCount) * 4))
-    data.push(intensity)
-  }
-  return data
+// Zbiorczy stan dnia dla wszystkich nawyków (do mini-kalendarza na dashboardzie):
+//  due  — ile było obowiązkowych (+ wykonane w pauzie)
+//  done — ile z nich zrobione
+//  paused — czy to dzień wyjazdu/choroby
+function dayAggregate(habits, pauses, dateStr) {
+  let due = 0, done = 0
+  habits.forEach(h => {
+    const st = isHabitDue(h, dateStr, pauses)
+    const isDone = h.completedDates?.includes(dateStr)
+    if (st === 'due') { due++; if (isDone) done++ }
+    else if (st === 'paused' && isDone) { due++; done++ }
+  })
+  return { due, done, pct: due ? done / due : 0, paused: isPausedDay(dateStr, pauses) }
 }
 
 export default function HabitsDashboard({ user, onMoodClick }) {
@@ -176,7 +174,10 @@ export default function HabitsDashboard({ user, onMoodClick }) {
     ? Math.max(...filtered.map(h => getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)))
     : 0
 
-  const heatmapData = buildHeatmapData(filtered, 18, pauses)
+  // Mini-kalendarz na dashboardzie: 2 pełne tygodnie (poprzedni + bieżący),
+  // wyrównane do poniedziałku — czytelniejsze niż gęsta „mapa konsekwencji".
+  const calStart = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1)
+  const calDays = Array.from({ length: 14 }, (_, i) => format(addDays(calStart, i), 'yyyy-MM-dd'))
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -229,16 +230,43 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           </div>
         </div>
 
-        {/* Right: Heatmap */}
+        {/* Right: 2-tygodniowy mini-kalendarz */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
-          {kicker('Mapa konsekwencji')}
-          <Heatmap weeks={18} accentHex="#E0B15A" data={heatmapData} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
-            <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>mniej</span>
-            {[0,1,2,3,4].map(v => (
-              <div key={v} style={{ width: 9, height: 9, borderRadius: 2, background: v === 0 ? 'var(--surface2)' : v >= 4 ? 'var(--warn)' : `color-mix(in oklab, var(--warn) ${v * 25}%, var(--surface2))` }} />
+          {kicker('Ostatnie 2 tygodnie')}
+          {/* Nagłówek dni tygodnia */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5, marginBottom: 5 }}>
+            {['P','W','Ś','C','P','S','N'].map((l, i) => (
+              <div key={i} style={{ textAlign: 'center', fontSize: 8.5, color: 'var(--text-muted)', fontWeight: 700 }}>{l}</div>
             ))}
-            <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>więcej</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5 }}>
+            {calDays.map(d => {
+              const { done, due, pct, paused } = dayAggregate(filtered, pauses, d)
+              const future = d > TODAY
+              const isToday = d === TODAY
+              const pCol = paused ? getPauseColor(pauses, d) : null
+              let bg = 'var(--surface2)', border = '1px solid transparent'
+              if (future) { bg = 'transparent'; border = '1px dashed var(--border)' }
+              else if (due > 0) { bg = `color-mix(in oklab, var(--warn) ${Math.round(22 + pct * 78)}%, var(--surface2))`; if (pct >= 1) border = '1px solid var(--warn)' }
+              else if (paused) { bg = (pCol || 'var(--text-muted)') + '30'; border = `1px solid ${(pCol || 'var(--text-muted)')}55` }
+              else { bg = 'var(--surface2)' } // dzień odpoczynku (nic zaplanowane)
+              return (
+                <div key={d} title={`${d}${due ? ` • ${done}/${due}` : paused ? ' • przerwa' : ' • wolne'}`} style={{
+                  aspectRatio: '1', borderRadius: 5, background: bg, border,
+                  boxShadow: isToday ? '0 0 0 2px var(--warn)' : 'none',
+                  display: 'grid', placeItems: 'center',
+                  fontSize: 9, color: pct >= 0.5 ? 'var(--bg)' : 'var(--text-muted)', fontWeight: 600,
+                }}>{format(new Date(d + 'T12:00:00'), 'd')}</div>
+              )
+            })}
+          </div>
+          {/* Legenda intensywności */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, justifyContent: 'flex-end' }}>
+            <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>mniej</span>
+            {[0,0.35,0.6,0.85,1].map((v, i) => (
+              <div key={i} style={{ width: 9, height: 9, borderRadius: 2, background: v === 0 ? 'var(--surface2)' : `color-mix(in oklab, var(--warn) ${Math.round(22 + v * 78)}%, var(--surface2))` }} />
+            ))}
+            <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>więcej</span>
           </div>
         </div>
       </div>
@@ -625,6 +653,26 @@ export default function HabitsDashboard({ user, onMoodClick }) {
             </div>
           )}
 
+          {/* Legenda kwadracików */}
+          {filtered.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', padding: '0 4px' }}>
+              {(() => {
+                const chip = (bg, border, label) => (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, color: 'var(--text-muted)' }}>
+                    <span style={{ width: 13, height: 13, borderRadius: 4, background: bg, border: border || '1px solid transparent', flexShrink: 0 }} />{label}
+                  </span>
+                )
+                const usedPauses = [...new Set(pauses.map(p => p.reason))]
+                return <>
+                  {chip('var(--accent)', null, 'zrobione')}
+                  {chip('color-mix(in oklab, var(--accent) 58%, #000)', null, 'dodatkowo / w przerwie')}
+                  {chip('transparent', '1px solid var(--border-strong)', 'pominięte')}
+                  {usedPauses.map(rid => { const m = pauseReasonMeta(rid); return <span key={rid}>{chip(m.color + '33', `1px solid ${m.color}66`, m.label.toLowerCase())}</span> })}
+                </>
+              })()}
+            </div>
+          )}
+
           {/* Karty nawyków — z procentem z wybranego okresu */}
           <div data-stagger style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
             {filtered.length === 0 ? (
@@ -635,11 +683,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               const cat    = allCategories.find(c => c.id === habit.category)
               const color  = habit.color || 'var(--accent)'
               const pct    = rangeStats([habit], pauses, start, endClamped).pct
-              // Spark data — last 14 days done/not (1 or 0)
-              const sparkData = Array.from({ length: 14 }, (_, i) => {
-                const d = format(subDays(new Date(), 13 - i), 'yyyy-MM-dd')
-                return habit.completedDates?.includes(d) ? 1 : 0
-              })
+              const fmtShort = (d) => format(new Date(d + 'T12:00:00'), 'd MMM', { locale: pl })
               return (
                 <div key={habit.id} className="card hover" style={{ padding: 16, cursor: 'pointer' }}
                   onClick={() => { setEditHabit(habit); setShowForm(true) }}>
@@ -667,15 +711,11 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                     </div>
                   </div>
 
-                  {/* Ostatnie 14 dni */}
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {sparkData.map((v, i) => (
-                      <div key={i} style={{ flex: 1, height: 22, borderRadius: 5, background: v ? color : 'var(--surface2)', border: `1px solid ${v ? color : 'var(--border)'}` }} />
-                    ))}
-                  </div>
+                  {/* Kalendarz wykonania — cały wybrany okres */}
+                  <HabitDayGrid habit={habit} pauses={pauses} start={start} end={end} today={today} color={color} />
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>14 dni temu</span>
-                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>dziś</span>
+                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{fmtShort(start)}</span>
+                    <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>{fmtShort(end)}</span>
                   </div>
                 </div>
               )
