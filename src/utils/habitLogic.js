@@ -3,13 +3,14 @@ import { format, subDays, addDays } from 'date-fns'
 // Powody pauz (wyjazd / choroba / inne) — każdy ma swój kolor,
 // używany w siatce tygodnia i legendzie, żeby dni przerwy były czytelne.
 export const PAUSE_REASONS = [
-  { id: 'vacation', label: 'Wyjazd',  icon: 'IcPlane',  color: '#4A90D9' },
-  { id: 'illness',  label: 'Choroba', icon: 'IcThermo', color: '#EC4899' },
-  { id: 'other',    label: 'Inne',    icon: 'IconMore', color: '#64748B' },
+  { id: 'vacation', label: 'Wyjazd',           icon: 'IcPlane',  color: '#1E3A8A' }, // ciemny niebieski
+  { id: 'illness',  label: 'Choroba',          icon: 'IcThermo', color: '#DC2626' }, // czerwony
+  { id: 'malaise',  label: 'Złe samopoczucie', icon: 'IcCloud',  color: '#7C3AED' }, // fioletowy
+  { id: 'other',    label: 'Inne',             icon: 'IconMore', color: '#64748B' }, // szary
 ]
 
 export function pauseReasonMeta(reasonId) {
-  return PAUSE_REASONS.find(r => r.id === reasonId) || PAUSE_REASONS[2]
+  return PAUSE_REASONS.find(r => r.id === reasonId) || PAUSE_REASONS.find(r => r.id === 'other')
 }
 
 // Zwraca pauzę obejmującą dany dzień (albo null)

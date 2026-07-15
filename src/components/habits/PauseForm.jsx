@@ -81,7 +81,7 @@ export default function PauseForm({ user, onClose }) {
               <p className="pause-list-title">Zapisane pauzy</p>
               {pauses.map(p => (
                 <div key={p.id} className="pause-item">
-                  <span className="pause-reason" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: p.reasonColor || pauseReasonMeta(p.reason).color, flexShrink: 0 }} /><CatIcon categoryId={null} emoji={p.reasonIcon} size={14} /> {p.reasonLabel}</span>
+                  <span className="pause-reason" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: pauseReasonMeta(p.reason).color, flexShrink: 0 }} /><CatIcon categoryId={null} emoji={p.reasonIcon} size={14} /> {p.reasonLabel}</span>
                   <span className="pause-dates">{fmtDate(p.from)} – {fmtDate(p.to)}</span>
                   <button className="t-btn delete" onClick={() => handleDelete(p.id)}><IconTrash size={13} /></button>
                 </div>
