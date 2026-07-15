@@ -1,8 +1,34 @@
 import { format, subDays, addDays } from 'date-fns'
 
-// Czy dany dzień mieści się w którejś z pauz (wakacje/choroba)
+// Powody pauz (wyjazd / choroba / inne) — każdy ma swój kolor,
+// używany w siatce tygodnia i legendzie, żeby dni przerwy były czytelne.
+export const PAUSE_REASONS = [
+  { id: 'vacation', label: 'Wyjazd',  icon: 'IcPlane',  color: '#4A90D9' },
+  { id: 'illness',  label: 'Choroba', icon: 'IcThermo', color: '#EC4899' },
+  { id: 'other',    label: 'Inne',    icon: 'IconMore', color: '#64748B' },
+]
+
+export function pauseReasonMeta(reasonId) {
+  return PAUSE_REASONS.find(r => r.id === reasonId) || PAUSE_REASONS[2]
+}
+
+// Zwraca pauzę obejmującą dany dzień (albo null)
+export function pauseForDay(dateStr, pauses = []) {
+  return pauses.find(p => dateStr >= p.from && dateStr <= p.to) || null
+}
+
+// Czy dany dzień mieści się w którejś z pauz (wyjazd/choroba)
 export function isPausedDay(dateStr, pauses = []) {
   return pauses.some(p => dateStr >= p.from && dateStr <= p.to)
+}
+
+// Ustala kolejność sortowania nawyków — najpierw wg pola `order` (ustawianego
+// ręcznie w „Kolejności"), potem wg czasu utworzenia jako stabilna rezerwa.
+export function byHabitOrder(a, b) {
+  const oa = a.order ?? Number.MAX_SAFE_INTEGER
+  const ob = b.order ?? Number.MAX_SAFE_INTEGER
+  if (oa !== ob) return oa - ob
+  return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)
 }
 
 // Status nawyku danego dnia:
@@ -86,4 +112,42 @@ export function getBestStreak(
     check = addDays(check, 1)
   }
   return best
+}
+
+// ── Statystyki okresowe (tydzień / miesiąc / rok) ──
+
+// Lista dni 'yyyy-MM-dd' od start do end włącznie (bezpiecznik: max 400 dni)
+export function eachDayStr(start, end) {
+  const out = []
+  let d = new Date(start + 'T12:00:00')
+  const last = new Date(end + 'T12:00:00')
+  for (let i = 0; i < 400 && d <= last; i++) {
+    out.push(format(d, 'yyyy-MM-dd'))
+    d = addDays(d, 1)
+  }
+  return out
+}
+
+// Podsumowanie realizacji nawyków w zakresie dni [start..end]:
+//  - expected  — ile razy nawyk był obowiązkowy (suma po dniach)
+//  - done       — ile z tego wykonano
+//  - pct        — procent realizacji (done/expected)
+//  - completions — wszystkie odhaczenia (także dodatkowe/w pauzie)
+//  - perfectDays — dni ze 100% wykonaniem obowiązkowych
+//  - dueDays     — dni, w których cokolwiek było obowiązkowe
+export function rangeStats(habits = [], pauses = [], start, end) {
+  let expected = 0, done = 0, completions = 0, perfectDays = 0, dueDays = 0
+  for (const d of eachDayStr(start, end)) {
+    let dueCount = 0, dueDone = 0
+    for (const h of habits) {
+      const isDone = h.completedDates?.includes(d)
+      if (isDone) completions++
+      if (isHabitDue(h, d, pauses) === 'due') {
+        dueCount++; expected++
+        if (isDone) { done++; dueDone++ }
+      }
+    }
+    if (dueCount > 0) { dueDays++; if (dueDone === dueCount) perfectDays++ }
+  }
+  return { expected, done, completions, perfectDays, dueDays, pct: expected ? Math.round((done / expected) * 100) : 0 }
 }

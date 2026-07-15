@@ -4,12 +4,7 @@ import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { CatIcon, IconClose, IconTrash, IconPause } from '../Icons'
-
-const REASONS = [
-  { id: 'vacation', label: 'Wakacje', icon: 'IcPlane' },
-  { id: 'illness',  label: 'Choroba', icon: 'IcThermo' },
-  { id: 'other',    label: 'Inne',    icon: 'IconMore' },
-]
+import { PAUSE_REASONS as REASONS, pauseReasonMeta } from '../../utils/habitLogic'
 
 export default function PauseForm({ user, onClose }) {
   const [pauses, setPauses] = useState([])
@@ -26,9 +21,9 @@ export default function PauseForm({ user, onClose }) {
   const handleAdd = async () => {
     if (from > to) return
     setSaving(true)
-    const r = REASONS.find(r => r.id === reason)
+    const r = pauseReasonMeta(reason)
     await addDoc(collection(db, 'users', user.uid, 'habitPauses'), {
-      from, to, reason, reasonLabel: r.label, reasonIcon: r.icon, createdAt: Timestamp.now()
+      from, to, reason, reasonLabel: r.label, reasonIcon: r.icon, reasonColor: r.color, createdAt: Timestamp.now()
     })
     setSaving(false)
   }
@@ -49,17 +44,19 @@ export default function PauseForm({ user, onClose }) {
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div className="form">
-          <p className="pause-info">W podanym czasie żaden nawyk nie jest wymagany — seria nie jest przerywana, ale dni przerwy nie liczą się do streaka.</p>
+          <p className="pause-info">W podanym czasie żaden nawyk nie jest wymagany — seria nie jest przerywana, ale dni przerwy nie liczą się do streaka. W siatce tygodnia dni przerwy dostają swój kolor.</p>
 
           <div className="form-group">
             <label>Powód</label>
             <div className="type-toggle">
               {REASONS.map(r => (
                 <button key={r.id} type="button"
-                  className={`type-btn ${reason === r.id ? 'active expense' : ''}`}
+                  className={`type-btn ${reason === r.id ? 'active' : ''}`}
                   onClick={() => setReason(r.id)}
-                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}
-                ><CatIcon categoryId={null} emoji={r.icon} size={14} /> {r.label}</button>
+                  style={reason === r.id
+                    ? { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, borderColor: r.color, color: r.color, background: r.color + '22' }
+                    : { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                ><span style={{ width: 9, height: 9, borderRadius: 3, background: r.color, flexShrink: 0 }} /><CatIcon categoryId={null} emoji={r.icon} size={14} /> {r.label}</button>
               ))}
             </div>
           </div>
@@ -84,7 +81,7 @@ export default function PauseForm({ user, onClose }) {
               <p className="pause-list-title">Zapisane pauzy</p>
               {pauses.map(p => (
                 <div key={p.id} className="pause-item">
-                  <span className="pause-reason" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><CatIcon categoryId={null} emoji={p.reasonIcon} size={14} /> {p.reasonLabel}</span>
+                  <span className="pause-reason" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><span style={{ width: 9, height: 9, borderRadius: 3, background: p.reasonColor || pauseReasonMeta(p.reason).color, flexShrink: 0 }} /><CatIcon categoryId={null} emoji={p.reasonIcon} size={14} /> {p.reasonLabel}</span>
                   <span className="pause-dates">{fmtDate(p.from)} – {fmtDate(p.to)}</span>
                   <button className="t-btn delete" onClick={() => handleDelete(p.id)}><IconTrash size={13} /></button>
                 </div>

@@ -203,6 +203,14 @@ export const IconArrowDown = (p) => (
   </Icon>
 )
 
+export const IconReorder = (p) => (
+  <Icon {...p}>
+    <path d="M8 6h13M8 12h13M8 18h13" />
+    <path d="M4 5l-1.5 1.5M4 5l1.5 1.5M4 5v4" />
+    <path d="M4 19l-1.5-1.5M4 19l1.5-1.5M4 19v-4" />
+  </Icon>
+)
+
 export const IconTransfer = (p) => (
   <Icon {...p}>
     <path d="M4 8h13M14 5l3 3-3 3" />

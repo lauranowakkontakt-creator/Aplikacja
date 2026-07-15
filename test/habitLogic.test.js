@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete } from '../src/utils/habitLogic.js'
+import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
+  PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats } from '../src/utils/habitLogic.js'
 
 // Punkt odniesienia: 2026-07-06 to poniedziałek (getDay() === 1)
 const TODAY = '2026-07-06'
@@ -112,4 +113,71 @@ test('isChecklistComplete — komplet kroków zalicza, pusta checklista nie', ()
   assert.equal(isChecklistComplete(checklist, ['b', 'a', 'c']), true)
   assert.equal(isChecklistComplete([], []), false)
   assert.equal(isChecklistComplete(undefined, undefined), false)
+})
+
+// ---------- pauzy (kolory / powody) ----------
+test('pauseReasonMeta — zwraca powód po id, „inne" jako fallback', () => {
+  assert.equal(pauseReasonMeta('vacation').label, 'Wyjazd')
+  assert.equal(pauseReasonMeta('illness').label, 'Choroba')
+  assert.equal(pauseReasonMeta('nieznane').id, 'other')
+  PAUSE_REASONS.forEach(r => assert.match(r.color, /^#[0-9A-Fa-f]{6}$/))
+})
+
+test('pauseForDay — zwraca pauzę obejmującą dzień albo null', () => {
+  const pauses = [{ from: '2026-07-04', to: '2026-07-06', reason: 'illness' }]
+  assert.equal(pauseForDay('2026-07-05', pauses)?.reason, 'illness')
+  assert.equal(pauseForDay('2026-07-03', pauses), null)
+  assert.equal(pauseForDay('2026-07-05', []), null)
+})
+
+// ---------- byHabitOrder ----------
+test('byHabitOrder — sortuje wg order, brak order na koniec, remis wg createdAt', () => {
+  const a = { id: 'a', order: 2 }
+  const b = { id: 'b', order: 0 }
+  const c = { id: 'c' } // brak order
+  const d = { id: 'd', order: 0, createdAt: { seconds: 50 } }
+  const e = { id: 'e', order: 0, createdAt: { seconds: 10 } }
+  assert.deepEqual([a, b, c].sort(byHabitOrder).map(x => x.id), ['b', 'a', 'c'])
+  assert.deepEqual([d, e].sort(byHabitOrder).map(x => x.id), ['e', 'd'])
+})
+
+// ---------- eachDayStr ----------
+test('eachDayStr — lista dni włącznie z krańcami', () => {
+  assert.deepEqual(eachDayStr('2026-07-04', '2026-07-06'), ['2026-07-04', '2026-07-05', '2026-07-06'])
+  assert.deepEqual(eachDayStr('2026-07-06', '2026-07-06'), ['2026-07-06'])
+  assert.deepEqual(eachDayStr('2026-07-07', '2026-07-06'), [])
+})
+
+// ---------- rangeStats ----------
+test('rangeStats — liczy expected/done/pct dla nawyku codziennego', () => {
+  // codzienny, zrobiony 2 z 3 dni
+  const h = { frequencyDays: DAILY, completedDates: ['2026-07-04', '2026-07-06'] }
+  const s = rangeStats([h], [], '2026-07-04', '2026-07-06')
+  assert.equal(s.expected, 3)
+  assert.equal(s.done, 2)
+  assert.equal(s.pct, 67)
+  assert.equal(s.completions, 2)
+})
+
+test('rangeStats — dni 100% tylko gdy wszystkie obowiązkowe zrobione', () => {
+  const h1 = { frequencyDays: DAILY, completedDates: ['2026-07-04', '2026-07-05'] }
+  const h2 = { frequencyDays: DAILY, completedDates: ['2026-07-04'] }
+  const s = rangeStats([h1, h2], [], '2026-07-04', '2026-07-05')
+  // 04: oba zrobione → 100%; 05: tylko h1 → nie
+  assert.equal(s.perfectDays, 1)
+  assert.equal(s.dueDays, 2)
+})
+
+test('rangeStats — dodatkowe wykonanie w pauzie liczy się do completions, nie do expected', () => {
+  const pauses = [{ from: '2026-07-05', to: '2026-07-05', reason: 'vacation' }]
+  const h = { frequencyDays: DAILY, completedDates: ['2026-07-05'] }
+  const s = rangeStats([h], pauses, '2026-07-05', '2026-07-05')
+  assert.equal(s.expected, 0)   // w pauzie nic nie jest obowiązkowe
+  assert.equal(s.completions, 1) // ale odhaczenie się liczy
+  assert.equal(s.pct, 0)
+})
+
+test('rangeStats — pusty zakres nawyków to zera', () => {
+  const s = rangeStats([], [], '2026-07-04', '2026-07-06')
+  assert.deepEqual(s, { expected: 0, done: 0, completions: 0, perfectDays: 0, dueDays: 0, pct: 0 })
 })
