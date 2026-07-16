@@ -83,6 +83,14 @@ export default function BibleDashboard({ user }) {
   const pct = Math.round((stats.read / TOTAL_CHAPTERS) * 100)
   const stPct = stats.stTotal ? Math.round((stats.stRead / stats.stTotal) * 100) : 0
   const ntPct = stats.ntTotal ? Math.round((stats.ntRead / stats.ntTotal) * 100) : 0
+
+  // Automatyczna „podróż": pierwszy przeczytany rozdział = początek, cała Biblia = ukończona.
+  // Bez wielkiego przycisku/napisu — dzieje się samo, a data jest tylko dyskretną informacją.
+  useEffect(() => {
+    if (progress === null) return
+    if (stats.read > 0 && !progress.startDate) saveJourney({ startDate: todayISO() })
+    else if (stats.read >= TOTAL_CHAPTERS && progress.startDate && !progress.finishedAt) saveJourney({ finishedAt: todayISO() })
+  }, [stats.read, progress?.startDate, progress?.finishedAt])
   const q = search.trim().toLowerCase()
   const books = BIBLE_BOOKS.filter(b =>
     (filter === 'ALL' || b.testament === filter) &&
@@ -147,12 +155,11 @@ export default function BibleDashboard({ user }) {
         </div>
       </div>
 
-      {/* Podróż przez Biblię — start → ukończenie */}
+      {/* Podróż przez Biblię — dyskretny pasek (start i ukończenie dzieją się automatycznie) */}
       <BibleJourney
         startDate={progress.startDate}
         finishedAt={progress.finishedAt}
         pct={pct}
-        onSetStart={(d) => saveJourney({ startDate: d })}
         onFinish={() => saveJourney({ finishedAt: todayISO() })}
         onReset={() => saveJourney({ startDate: null, finishedAt: null })}
       />
@@ -266,69 +273,34 @@ function Stat({ label, value }) {
   )
 }
 
-// Podróż przez Biblię: data rozpoczęcia → ukończenie → ile dni zajęło.
-function BibleJourney({ startDate, finishedAt, pct, onSetStart, onFinish, onReset }) {
-  const [draft, setDraft] = useState(todayISO())
+// Podróż przez Biblię — dyskretny pasek. Start ustawia się automatycznie przy
+// pierwszym rozdziale, ukończenie — po przeczytaniu całości (lub ręcznie „Ukończona").
+function BibleJourney({ startDate, finishedAt, pct, onFinish, onReset }) {
+  if (!startDate) return null // przed pierwszym rozdziałem nic nie pokazujemy
 
-  // Faza 3 — ukończona
-  if (startDate && finishedAt) {
-    const days = differenceInDays(parseISO(finishedAt), parseISO(startDate))
-    return (
-      <div className="bible-journey bible-journey--done">
-        <div className="bible-journey-head">
-          <span className="bible-journey-kicker"><IconFlag size={11} /> Cała Biblia przeczytana</span>
-          <button className="bible-journey-reset" onClick={onReset} title="Zacznij od nowa">Od nowa</button>
-        </div>
-        <div className="bible-journey-bignum">{durationText(days)}</div>
-        <div className="bible-journey-range">
-          <span><IconCalendar size={12} /> {fmtDate(startDate)}</span>
-          <span className="bible-journey-arrow">→</span>
-          <span><IconFlag size={12} /> {fmtDate(finishedAt)}</span>
-        </div>
-      </div>
-    )
+  const done = !!finishedAt
+  const days = differenceInDays(done ? parseISO(finishedAt) : new Date(), parseISO(startDate))
+  const miniBtn = {
+    background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)',
+    fontSize: 11, fontWeight: 600, fontFamily: 'inherit', padding: '3px 9px', borderRadius: 8, cursor: 'pointer', flexShrink: 0,
   }
 
-  // Faza 2 — w trakcie
-  if (startDate) {
-    const days = differenceInDays(new Date(), parseISO(startDate))
-    return (
-      <div className="bible-journey">
-        <div className="bible-journey-head">
-          <span className="bible-journey-kicker"><IconCalendar size={11} /> Twoja podróż przez Biblię</span>
-          <button className="bible-journey-reset" onClick={onReset} title="Resetuj">Reset</button>
-        </div>
-        <div className="bible-journey-row">
-          <div>
-            <div className="bible-journey-bignum">{durationText(days)}</div>
-            <div className="bible-journey-sub">w drodze · od {fmtDate(startDate)}</div>
-          </div>
-          <div className="bible-journey-pct">{pct}%</div>
-        </div>
-        <div className="bible-progress-track" style={{ marginTop: 4 }}>
-          <div className="bible-progress-fill" style={{ width: `${pct}%` }} />
-        </div>
-        <button className="bible-journey-finish" onClick={onFinish}>
-          <IconCheck size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} />
-          Oznacz całą Biblię jako przeczytaną
-        </button>
-      </div>
-    )
-  }
-
-  // Faza 1 — start
   return (
-    <div className="bible-journey">
-      <div className="bible-journey-head">
-        <span className="bible-journey-kicker"><IconCalendar size={11} /> Twoja podróż przez Biblię</span>
-      </div>
-      <p className="bible-journey-intro">Zaznacz datę rozpoczęcia, a po przeczytaniu całości sprawdzisz, ile Ci to zajęło.</p>
-      <div className="bible-journey-start">
-        <input type="date" className="form-input" value={draft} max={todayISO()} onChange={e => setDraft(e.target.value)} />
-        <button className="bible-journey-finish" style={{ marginTop: 0 }} onClick={() => onSetStart(draft || todayISO())}>
-          Rozpocznij
-        </button>
-      </div>
+    <div style={{
+      background: done ? 'color-mix(in oklab, var(--income) 12%, var(--surface))' : 'var(--surface)',
+      border: `1px solid ${done ? 'color-mix(in oklab, var(--income) 40%, var(--border))' : 'var(--border)'}`,
+      borderRadius: 'var(--r)', padding: '9px 12px', marginBottom: 14,
+      display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+    }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: done ? 'var(--income)' : 'var(--text-sub)', flexShrink: 0 }}>
+        {done ? <IconFlag size={13} /> : <IconCalendar size={13} />}
+        {done ? 'Ukończona' : 'W drodze'}
+      </span>
+      <span style={{ fontSize: 12, color: 'var(--text-muted)', flex: 1, minWidth: 120 }}>
+        {fmtDate(startDate)}{done ? ` → ${fmtDate(finishedAt)}` : ''} · {durationText(days)}{!done ? ` · ${pct}%` : ''}
+      </span>
+      {!done && pct < 100 && <button style={miniBtn} onClick={onFinish} title="Oznacz jako ukończoną">Ukończona</button>}
+      <button style={miniBtn} onClick={onReset} title={done ? 'Zacznij od nowa' : 'Resetuj'}>{done ? 'Od nowa' : 'Reset'}</button>
     </div>
   )
 }

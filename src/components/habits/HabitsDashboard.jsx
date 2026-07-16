@@ -319,6 +319,11 @@ export default function HabitsDashboard({ user, onMoodClick }) {
                 <IconFlame size={14}/> <span className="mono" style={{ fontSize: 12.5 }}>{maxStreak} dni serii</span>
               </div>
             )}
+            {recordStreak > 0 && (
+              <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 5, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IconStar size={12} style={{ color: 'var(--text-muted)' }} /> rekord: {recordStreak} dni
+              </div>
+            )}
           </div>
         </div>
 
@@ -478,14 +483,11 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               <div className="card card-hover-glow" style={{ padding: 18, marginBottom: 14 }}>
                 {kicker(isToday ? 'Dzisiejszy rytm' : 'Rytm dnia')}
                 <DayPath steps={rytmSteps} accent="var(--warn)" />
-                {/* Sam pasek postępu — licznik i seria są już w „Postęp dnia", więc tu ich nie powielamy */}
+                {/* Sam pasek postępu — licznik, seria i rekord są już w „Postęp dnia", więc tu ich nie powielamy */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
                   <div style={{ flex: 1, height: 6, background: 'var(--surface2)', borderRadius: 99, overflow: 'hidden' }}>
                     <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg, var(--warn), var(--primary))', width: `${Math.round((rytmDone / rytmSteps.length) * 100)}%`, transition: 'width .8s var(--ease)' }} />
                   </div>
-                  {recordStreak > 0 && (
-                    <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>rekord: {recordStreak} dni</span>
-                  )}
                 </div>
               </div>
             )}
