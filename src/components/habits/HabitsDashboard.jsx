@@ -474,7 +474,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           key: h.id, emoji: h.emoji, color: h.color || 'var(--accent)',
           done: h.completedDates?.includes(selectedDay), title: h.name,
         }))
-        const rytmDone = rytmSteps.filter(s => s.done).length
 
         return (
           <>
@@ -483,12 +482,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
               <div className="card card-hover-glow" style={{ padding: 18, marginBottom: 14 }}>
                 {kicker(isToday ? 'Dzisiejszy rytm' : 'Rytm dnia')}
                 <DayPath steps={rytmSteps} accent="var(--warn)" />
-                {/* Sam pasek postępu — licznik, seria i rekord są już w „Postęp dnia", więc tu ich nie powielamy */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
-                  <div style={{ flex: 1, height: 6, background: 'var(--surface2)', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', borderRadius: 99, background: 'linear-gradient(90deg, var(--warn), var(--primary))', width: `${Math.round((rytmDone / rytmSteps.length) * 100)}%`, transition: 'width .8s var(--ease)' }} />
-                  </div>
-                </div>
               </div>
             )}
 

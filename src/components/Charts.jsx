@@ -3,8 +3,8 @@ import { collection, query, where, orderBy, onSnapshot, Timestamp, getDoc, doc }
 import { db } from '../firebase/config'
 import { CatIcon, IconChevronLeft, IconChevronRight, IconChart } from './Icons'
 import { useMounted, GroupedBars } from './ChartPrimitives'
-import { startOfMonth, subMonths } from 'date-fns'
 import { getBounds, shiftPivot, buildPeriodTimeline } from '../utils/budgetMath'
+import { byAccountOrder } from '../utils/accountOrder'
 import { fmt } from '../utils/currency'
 import { getSubcategoryColor, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, isTransfer } from '../utils/categories'
 
@@ -26,7 +26,6 @@ export default function Charts({ user, privateMode = false }) {
   const [period, setPeriod]       = useState('month')
   const [pivot, setPivot]         = useState(new Date())
   const [transactions, setTx]     = useState([])
-  const [allYearTx, setAllYearTx] = useState([])
   const [accounts, setAccounts]   = useState([])
   const [accountFilter, setAccountFilter] = useState('all')
   const [showAllAcc, setShowAllAcc] = useState(false)
@@ -66,29 +65,8 @@ export default function Charts({ user, privateMode = false }) {
     )
   }, [user.uid, period, pivot])
 
-  // 12-month data for timeline (always, regardless of selected period)
-  useEffect(() => {
-    const twelveAgo = startOfMonth(subMonths(new Date(), 11))
-    const q = query(
-      collection(db, 'users', user.uid, 'transactions'),
-      where('date', '>=', Timestamp.fromDate(twelveAgo)),
-      orderBy('date', 'asc')
-    )
-    return onSnapshot(q, snap =>
-      setAllYearTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) })))
-    )
-  }, [user.uid])
-
-  // Najczęściej używane konta (z ostatnich 12 miesięcy) na początku
-  const accountUsage = useMemo(() => {
-    const u = {}
-    allYearTx.forEach(t => { if (t.accountId) u[t.accountId] = (u[t.accountId] || 0) + 1 })
-    return u
-  }, [allYearTx])
-  const sortedAccounts = useMemo(
-    () => [...accounts].sort((a, b) => (accountUsage[b.id] || 0) - (accountUsage[a.id] || 0)),
-    [accounts, accountUsage]
-  )
+  // Filtr kont w ustawionej ręcznie kolejności (spójnie z zakładką Konta)
+  const sortedAccounts = useMemo(() => [...accounts].sort(byAccountOrder), [accounts])
 
   const goBack = () => setPivot(p => shiftPivot(period, p, -1))
   const goFwd  = () => setPivot(p => shiftPivot(period, p, +1))

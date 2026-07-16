@@ -3,6 +3,7 @@ import { collection, onSnapshot, orderBy, query, Timestamp, doc, increment, writ
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { fmt, getCurrencyCode, parseAmount } from '../../utils/currency'
+import { byAccountOrder } from '../../utils/accountOrder'
 import { IconClose, IconTransfer, IconArrowDown } from '../Icons'
 
 export default function TransferForm({ user, onClose }) {
@@ -18,7 +19,7 @@ export default function TransferForm({ user, onClose }) {
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => {
-      const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      const list = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byAccountOrder)
       setAccounts(list)
       if (list.length >= 1) setFromId(list[0].id)
       if (list.length >= 2) setToId(list[1].id)

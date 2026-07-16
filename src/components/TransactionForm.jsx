@@ -4,6 +4,7 @@ import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { getCurrencyCode, parseAmount } from '../utils/currency'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, getSubcategoryColor } from '../utils/categories'
+import { byAccountOrder } from '../utils/accountOrder'
 import { CatIcon, IconClose } from './Icons'
 
 export const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_CATEGORIES
@@ -42,7 +43,8 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
       }).catch(() => {})
   }, [user.uid])
 
-  const sortedAccounts = [...accounts].sort((a, b) => (accountUsage[b.id] || 0) - (accountUsage[a.id] || 0))
+  // Widoczna kolejność kont = kolejność ustawiona ręcznie (ta sama co w zakładce Konta)
+  const sortedAccounts = [...accounts].sort(byAccountOrder)
 
   // Domyślnie wybierz najczęściej używane konto (brak opcji „bez konta")
   useEffect(() => {
