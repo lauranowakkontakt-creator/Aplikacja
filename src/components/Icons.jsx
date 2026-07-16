@@ -62,7 +62,7 @@ const Icon = ({ children, size = 20, stroke = 1.5, style, ...rest }) => (
     strokeWidth={stroke}
     strokeLinecap="round"
     strokeLinejoin="round"
-    style={style}
+    style={{ verticalAlign: 'middle', ...style }}
     {...rest}
   >
     {children}
