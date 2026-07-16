@@ -2,7 +2,7 @@
 // dzięki czemu da się ją testować w node (patrz test/budgetMath.test.js).
 import {
   format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
-  startOfYear, endOfYear, startOfDay, endOfDay,
+  startOfYear, endOfYear, startOfDay, endOfDay, getDaysInMonth,
   subMonths, addMonths, eachMonthOfInterval, eachDayOfInterval,
   subWeeks, addWeeks, subYears, addYears, subDays, addDays,
 } from 'date-fns'
@@ -75,36 +75,44 @@ export function prevMonthCompareBounds(currentMonth, now = new Date()) {
   return { start, end: endOfDay(new Date(prev.getFullYear(), prev.getMonth(), day)) }
 }
 
-// Oś czasu dopasowana do wybranego okresu:
+// Oś czasu dopasowana do wybranego okresu — grube, czytelne kubełki:
 //  - 'year'  → 12 kubełków miesięcznych danego roku,
-//  - 'month' → kubełki dzienne danego miesiąca,
-//  - 'week'  → 7 kubełków dziennych,
+//  - 'month' → tygodnie danego miesiąca (T1..T5),
+//  - 'week'  → 7 kubełków dziennych (pon–nd),
 //  - 'day'   → pusta (pojedynczy dzień nie ma sensownej osi).
 // Transakcje muszą mieć `date` (Date), `type` ('income'|'expense') i `amount`.
 export function buildPeriodTimeline(transactions, period, pivot) {
   if (period === 'day') return []
-  const gran = period === 'year' ? 'month' : 'day'
-  const range =
-    period === 'year'  ? { start: startOfYear(pivot),  end: endOfYear(pivot) } :
-    period === 'week'  ? { start: startOfWeek(pivot, { weekStartsOn: 1 }), end: endOfWeek(pivot, { weekStartsOn: 1 }) } :
-                         { start: startOfMonth(pivot), end: endOfMonth(pivot) }
-  const keyFmt = gran === 'month' ? 'yyyy-MM' : 'yyyy-MM-dd'
-  const lblFmt = gran === 'month' ? 'LLL' : 'd'
-  const units  = gran === 'month' ? eachMonthOfInterval(range) : eachDayOfInterval(range)
 
-  const map = {}
-  transactions.forEach(t => {
-    const k = format(t.date, keyFmt)
-    if (!map[k]) map[k] = { income: 0, expense: 0 }
-    if (t.type === 'income')  map[k].income  += t.amount
-    else if (t.type === 'expense') map[k].expense += t.amount
-  })
-  return units.map(u => {
-    const k = format(u, keyFmt)
+  // Lista kubełków jako zakresy dat [start, end] + etykieta.
+  let buckets = []
+  if (period === 'year') {
+    buckets = eachMonthOfInterval({ start: startOfYear(pivot), end: endOfYear(pivot) })
+      .map(m => ({ label: format(m, 'LLL', { locale: pl }), start: startOfMonth(m), end: endOfMonth(m) }))
+  } else if (period === 'week') {
+    buckets = eachDayOfInterval({ start: startOfWeek(pivot, { weekStartsOn: 1 }), end: endOfWeek(pivot, { weekStartsOn: 1 }) })
+      .map(d => ({ label: format(d, 'EEEEEE', { locale: pl }), start: startOfDay(d), end: endOfDay(d) }))
+  } else { // month → tygodnie
+    const ms = startOfMonth(pivot)
+    const total = getDaysInMonth(pivot)
+    for (let i = 0, wk = 1; i < total; i += 7, wk++) {
+      const s = addDays(ms, i)
+      const e = addDays(ms, Math.min(i + 6, total - 1))
+      buckets.push({ label: `T${wk}`, start: startOfDay(s), end: endOfDay(e) })
+    }
+  }
+
+  return buckets.map(b => {
+    let income = 0, expense = 0
+    transactions.forEach(t => {
+      if (t.date < b.start || t.date > b.end) return
+      if (t.type === 'income')  income  += t.amount
+      else if (t.type === 'expense') expense += t.amount
+    })
     return {
-      label: format(u, lblFmt, { locale: pl }),
-      income:  map[k]?.income  || 0,
-      expense: map[k]?.expense || 0,
+      label: b.label,
+      income,
+      expense,
     }
   })
 }

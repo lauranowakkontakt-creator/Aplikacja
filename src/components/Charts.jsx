@@ -210,8 +210,8 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
   const timelineTitle =
     period === 'year'  ? 'Przychody i wydatki · wg miesięcy' :
     period === 'week'  ? 'Przychody i wydatki · wg dni' :
-                         'Przychody i wydatki · wg dni'
-  const unitWord = period === 'year' ? 'miesiąc' : 'dzień'
+                         'Przychody i wydatki · wg tygodni'
+  const unitWord = period === 'year' ? 'miesiąc' : period === 'week' ? 'dzień' : 'tydzień'
 
   // Zmiana przepływów: ostatni kubełek z aktywnością vs poprzedni z aktywnością
   const flowDelta = (() => {

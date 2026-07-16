@@ -87,15 +87,22 @@ test('buildPeriodTimeline — rok: 12 kubełków miesięcznych, przypisanych do 
   assert.equal(out[5].income, 0)
 })
 
-test('buildPeriodTimeline — miesiąc: kubełki dzienne wg liczby dni w miesiącu', () => {
+test('buildPeriodTimeline — miesiąc: kubełki tygodniowe (T1..T5)', () => {
   const txs = [
-    { date: d('2026-02-01'), type: 'income',  amount: 10 },
-    { date: d('2026-02-28'), type: 'expense', amount: 5 },
+    { date: d('2026-02-01'), type: 'income',  amount: 10 }, // T1
+    { date: d('2026-02-28'), type: 'expense', amount: 5 },  // ostatni tydzień
   ]
   const out = buildPeriodTimeline(txs, 'month', d('2026-02-15'))
-  assert.equal(out.length, 28) // luty 2026
+  assert.equal(out.length, 4) // luty 2026 (28 dni) → 4 tygodnie
+  assert.equal(out[0].label, 'T1')
   assert.equal(out[0].income, 10)
-  assert.equal(out[27].expense, 5)
+  assert.equal(out[out.length - 1].expense, 5)
+})
+
+test('buildPeriodTimeline — tydzień: 7 kubełków dziennych', () => {
+  const out = buildPeriodTimeline([{ date: d('2026-02-16'), type: 'expense', amount: 3 }], 'week', d('2026-02-16'))
+  assert.equal(out.length, 7)
+  assert.equal(out.reduce((s, b) => s + b.expense, 0), 3)
 })
 
 test('buildPeriodTimeline — dzień: brak osi', () => {
