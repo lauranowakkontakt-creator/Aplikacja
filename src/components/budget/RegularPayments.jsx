@@ -21,8 +21,6 @@ export default function RegularPayments({ user }) {
   const [showForm, setShowForm] = useState(false)
   const [editPayment, setEditPayment] = useState(null)
 
-  const THIS_PERIOD = periodKey()
-
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'regularPayments'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => {
@@ -39,15 +37,16 @@ export default function RegularPayments({ user }) {
 
   // Auto-księgowanie działa w tle (useRegularPaymentsProcessor w App.jsx),
   // tu obsługujemy tylko ręczne oznaczanie „Zrobione".
+  // Bieżący okres zależy od częstotliwości płatności (miesiąc / tydzień ISO / rok).
   const markDone = async (p) => {
     try {
-      await addTransactionForPayment(user.uid, p, THIS_PERIOD)
+      await addTransactionForPayment(user.uid, p, periodKey(new Date(), p.frequency))
     } catch { toast.error('Błąd zapisu płatności') }
   }
 
   const markUndone = async (p) => {
     try {
-      await removeTransactionForPayment(user.uid, p, THIS_PERIOD)
+      await removeTransactionForPayment(user.uid, p, periodKey(new Date(), p.frequency))
     } catch { toast.error('Błąd cofania płatności') }
   }
 
@@ -90,7 +89,7 @@ export default function RegularPayments({ user }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {payments.map(p => {
-            const done    = p.donePeriods?.includes(THIS_PERIOD)
+            const done    = p.donePeriods?.includes(periodKey(new Date(), p.frequency))
             const active  = isActive(p)
             const acc     = getAccount(p.accountId)
             const hasRange = p.dateFrom || p.dateTo

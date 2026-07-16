@@ -6,6 +6,18 @@ const isDev = process.env.NODE_ENV !== 'production'
 
 export default defineConfig({
   base: '/Aplikacja/',
+  build: {
+    rollupOptions: {
+      output: {
+        // Duże, rzadko zmieniane biblioteki w osobnych chunkach — po aktualizacji
+        // aplikacji przeglądarka pobiera tylko mały chunk z naszym kodem.
+        manualChunks: {
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          react: ['react', 'react-dom'],
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({

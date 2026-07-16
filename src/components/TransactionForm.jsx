@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { collection, doc, Timestamp, onSnapshot, orderBy, query, getDocs, limit, increment, writeBatch } from 'firebase/firestore'
+import { collection, doc, Timestamp, onSnapshot, orderBy, query, getDoc, getDocs, limit, increment, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { getCurrencyCode, parseAmount } from '../utils/currency'
@@ -105,15 +105,20 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
       if (editData) {
         batch.update(doc(db, 'users', user.uid, 'transactions', editData.id), data)
         const reversal = editData.type === 'income' ? -editData.amount : editData.amount
+        // Konto transakcji mogło zostać usunięte — update na nieistniejącym
+        // dokumencie wywala cały batch i edycji nie dałoby się nigdy zapisać
+        const accExists = async (id) => !!id && (await getDoc(doc(db, 'users', user.uid, 'accounts', id))).exists()
         if (editData.accountId && editData.accountId === accountId) {
           // To samo konto: jedna korekta — dwa update'y na tym samym dokumencie
           // w batchu nadpisałyby się nawzajem zamiast zsumować
-          batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(reversal + delta) })
+          if (await accExists(accountId)) {
+            batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(reversal + delta) })
+          }
         } else {
-          if (editData.accountId) {
+          if (await accExists(editData.accountId)) {
             batch.update(doc(db, 'users', user.uid, 'accounts', editData.accountId), { balance: increment(reversal) })
           }
-          if (accountId) {
+          if (await accExists(accountId)) {
             batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(delta) })
           }
         }

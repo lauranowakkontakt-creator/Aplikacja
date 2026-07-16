@@ -1,4 +1,4 @@
-import { doc, increment, writeBatch } from 'firebase/firestore'
+import { doc, getDoc, increment, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -18,14 +18,23 @@ export default function TransactionList({ transactions, accounts = [], loading, 
   const handleDelete = async (t) => {
     const ok = await confirmDialog({ title: 'Usunąć transakcję?', message: 'Ta operacja jest nieodwracalna.' })
     if (!ok) return
-    // Atomowo: usunięcie transakcji + cofnięcie salda w jednym batchu
-    const batch = writeBatch(db)
-    batch.delete(doc(db, 'users', user.uid, 'transactions', t.id))
-    if (t.accountId) {
-      const reversal = t.type === 'income' ? -t.amount : t.amount
-      batch.update(doc(db, 'users', user.uid, 'accounts', t.accountId), { balance: increment(reversal) })
+    try {
+      // Atomowo: usunięcie transakcji + cofnięcie salda w jednym batchu
+      const batch = writeBatch(db)
+      batch.delete(doc(db, 'users', user.uid, 'transactions', t.id))
+      if (t.accountId) {
+        // Konto transakcji mogło zostać usunięte — update na nieistniejącym
+        // dokumencie wywala cały batch i transakcji nie dałoby się usunąć
+        const accRef = doc(db, 'users', user.uid, 'accounts', t.accountId)
+        if ((await getDoc(accRef)).exists()) {
+          const reversal = t.type === 'income' ? -t.amount : t.amount
+          batch.update(accRef, { balance: increment(reversal) })
+        }
+      }
+      await batch.commit()
+    } catch {
+      toast.error('Błąd usuwania transakcji')
     }
-    await batch.commit()
   }
 
   if (loading) return <div className="list-loading">Ładowanie...</div>

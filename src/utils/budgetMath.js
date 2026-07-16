@@ -48,6 +48,33 @@ export function build12MonthTimeline(transactions, now = new Date()) {
   })
 }
 
+// Dzienne sumy transakcji danego typu z ostatnich `days` dni, od najstarszego
+// dnia do dziś — dane do mini-wykresów (sparkline) na kafelkach budżetu.
+// Transakcje muszą mieć `date` (Date), `type` i `amount`.
+export function buildDailySpark(transactions, { days = 7, type = 'expense', now = new Date() } = {}) {
+  return Array.from({ length: days }, (_, i) => {
+    const key = format(subDays(now, days - 1 - i), 'yyyy-MM-dd')
+    return transactions
+      .filter(t => t.type === type && format(t.date, 'yyyy-MM-dd') === key)
+      .reduce((s, t) => s + t.amount, 0)
+  })
+}
+
+// Zakres poprzedniego miesiąca do uczciwego porównania „miesiąc do miesiąca".
+// Dla bieżącego (niepełnego) miesiąca porównujemy tylko do tego samego dnia
+// poprzedniego miesiąca — porównanie z pełnym miesiącem na jego początku
+// zawsze pokazywałoby duży „spadek". Dla miesięcy zamkniętych: pełny zakres.
+export function prevMonthCompareBounds(currentMonth, now = new Date()) {
+  const prev = subMonths(currentMonth, 1)
+  const start = startOfMonth(prev)
+  if (format(currentMonth, 'yyyy-MM') !== format(now, 'yyyy-MM')) {
+    return { start, end: endOfMonth(prev) }
+  }
+  // krótszy poprzedni miesiąc (np. 31 marca vs luty) — dosuwamy do jego końca
+  const day = Math.min(now.getDate(), endOfMonth(prev).getDate())
+  return { start, end: endOfDay(new Date(prev.getFullYear(), prev.getMonth(), day)) }
+}
+
 // Oś czasu dopasowana do wybranego okresu:
 //  - 'year'  → 12 kubełków miesięcznych danego roku,
 //  - 'month' → kubełki dzienne danego miesiąca,

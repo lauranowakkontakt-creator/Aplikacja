@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { getBounds, shiftPivot, build12MonthTimeline, buildPeriodTimeline } from '../src/utils/budgetMath.js'
+import { getBounds, shiftPivot, build12MonthTimeline, buildPeriodTimeline, buildDailySpark, prevMonthCompareBounds } from '../src/utils/budgetMath.js'
 
 const d = (s) => new Date(s + 'T12:00:00')
 
@@ -100,4 +100,54 @@ test('buildPeriodTimeline — miesiąc: kubełki dzienne wg liczby dni w miesią
 
 test('buildPeriodTimeline — dzień: brak osi', () => {
   assert.deepEqual(buildPeriodTimeline([], 'day', d('2026-02-15')), [])
+})
+
+test('buildDailySpark — ostatnie 7 dni od najstarszego do dziś, tylko wybrany typ', () => {
+  const now = d('2026-07-16')
+  const txs = [
+    { date: d('2026-07-16'), type: 'expense', amount: 30 },  // dziś → ostatni kubełek
+    { date: d('2026-07-10'), type: 'expense', amount: 12 },  // 6 dni temu → pierwszy kubełek
+    { date: d('2026-07-09'), type: 'expense', amount: 999 }, // 7 dni temu → poza zakresem
+    { date: d('2026-07-16'), type: 'income',  amount: 500 }, // inny typ → pominięty
+  ]
+  const out = buildDailySpark(txs, { days: 7, type: 'expense', now })
+  assert.equal(out.length, 7)
+  assert.equal(out[0], 12)
+  assert.equal(out[6], 30)
+  assert.equal(out.reduce((s, v) => s + v, 0), 42) // 999 i 500 pominięte
+})
+
+test('buildDailySpark — typ income liczy tylko przychody', () => {
+  const now = d('2026-07-16')
+  const txs = [
+    { date: d('2026-07-15'), type: 'income',  amount: 200 },
+    { date: d('2026-07-15'), type: 'expense', amount: 50 },
+  ]
+  const out = buildDailySpark(txs, { days: 7, type: 'income', now })
+  assert.equal(out[5], 200)
+  assert.equal(out.reduce((s, v) => s + v, 0), 200)
+})
+
+test('prevMonthCompareBounds — bieżący miesiąc: do tego samego dnia poprzedniego', () => {
+  const { start, end } = prevMonthCompareBounds(d('2026-07-16'), d('2026-07-16'))
+  assert.equal(start.getMonth(), 5)  // czerwiec
+  assert.equal(start.getDate(), 1)
+  assert.equal(end.getMonth(), 5)
+  assert.equal(end.getDate(), 16)    // ten sam dzień
+  assert.equal(end.getHours(), 23)   // koniec doby
+})
+
+test('prevMonthCompareBounds — miesiąc zamknięty: pełny poprzedni miesiąc', () => {
+  // oglądamy maj, a jest lipiec → porównanie do pełnego kwietnia
+  const { start, end } = prevMonthCompareBounds(d('2026-05-10'), d('2026-07-16'))
+  assert.equal(start.getMonth(), 3)  // kwiecień
+  assert.equal(end.getMonth(), 3)
+  assert.equal(end.getDate(), 30)
+})
+
+test('prevMonthCompareBounds — 31. dnia nie wypada poza krótszy poprzedni miesiąc', () => {
+  // 31 marca vs luty (28 dni w 2026)
+  const { end } = prevMonthCompareBounds(d('2026-03-31'), d('2026-03-31'))
+  assert.equal(end.getMonth(), 1)    // luty
+  assert.equal(end.getDate(), 28)
 })

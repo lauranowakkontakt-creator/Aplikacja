@@ -1,17 +1,19 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './firebase/config'
 import Login from './components/Login'
 import Pulpit from './components/Pulpit'
-import Dashboard from './components/Dashboard'
-import HabitsDashboard from './components/habits/HabitsDashboard'
-import MoodDashboard from './components/mood/MoodDashboard'
-import TodoDashboard from './components/todo/TodoDashboard'
-import CalendarDashboard from './components/calendar/CalendarDashboard'
-import PrayerDashboard from './components/prayer/PrayerDashboard'
-import BibleDashboard from './components/bible/BibleDashboard'
-import PeopleHub from './components/people/PeopleHub'
-import DreamDashboard from './components/dream/DreamDashboard'
+// Moduły ładowane leniwie — każdy trafia do osobnego chunka, więc start
+// aplikacji (zwłaszcza na telefonie) nie ciągnie kodu wszystkich modułów naraz.
+const Dashboard         = lazy(() => import('./components/Dashboard'))
+const HabitsDashboard   = lazy(() => import('./components/habits/HabitsDashboard'))
+const MoodDashboard     = lazy(() => import('./components/mood/MoodDashboard'))
+const TodoDashboard     = lazy(() => import('./components/todo/TodoDashboard'))
+const CalendarDashboard = lazy(() => import('./components/calendar/CalendarDashboard'))
+const PrayerDashboard   = lazy(() => import('./components/prayer/PrayerDashboard'))
+const BibleDashboard    = lazy(() => import('./components/bible/BibleDashboard'))
+const PeopleHub         = lazy(() => import('./components/people/PeopleHub'))
+const DreamDashboard    = lazy(() => import('./components/dream/DreamDashboard'))
 import SettingsDrawer from './components/SettingsDrawer'
 import MoreSheet from './components/MoreSheet'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -58,7 +60,16 @@ function buildModules() {
 export default function App() {
   const [user, setUser] = useState(DEV_MODE ? DEV_USER : null)
   const [loading, setLoading] = useState(!DEV_MODE)
-  const [activeModule, setActiveModule] = useState('home')
+  // Po odświeżeniu wracamy do ostatnio otwartego modułu (walidacja po znanych id)
+  const [activeModule, setActiveModule] = useState(() => {
+    try {
+      const saved = localStorage.getItem('mw_activeModule')
+      return MODULE_ACCENTS[saved] ? saved : 'home'
+    } catch { return 'home' }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('mw_activeModule', activeModule) } catch {}
+  }, [activeModule])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const [modules, setModules] = useState(() => buildModules())
@@ -202,6 +213,7 @@ export default function App() {
         <div className="content" key={activeModule}>
           <div className="content-inner">
             <ErrorBoundary moduleId={activeModule}>
+            <Suspense fallback={<div className="loading-screen" style={{ minHeight: '40vh' }}><div className="spinner" /></div>}>
             {activeModule === 'home'     && <Pulpit user={user} onNavigate={goTo} />}
             {activeModule === 'budget'   && <Dashboard user={user} onCurrencyChange={handleCurrencyChange} />}
             {activeModule === 'habits'   && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} />}
@@ -212,6 +224,7 @@ export default function App() {
             {activeModule === 'bible'    && <BibleDashboard user={user} />}
             {activeModule === 'people'   && <PeopleHub user={user} onOpenDream={openDream} />}
             {activeModule === 'dream'    && <DreamDashboard user={user} focusId={dreamFocus} onFocusConsumed={() => setDreamFocus(null)} />}
+            </Suspense>
             </ErrorBoundary>
           </div>
         </div>

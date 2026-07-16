@@ -47,3 +47,40 @@ test('isPaymentDue — nieaktywna (poza zakresem dat) nie jest należna', () => 
   const p = { dateTo: '2026-06-30' }
   assert.equal(isPaymentDue(p, '2026-07', new Date(2026, 6, 5)), false)
 })
+
+test('periodKey — tygodniowy klucz ISO zmienia się co tydzień, nie co miesiąc', () => {
+  // 2026-07-13 (pon) i 2026-07-19 (nd) to ten sam tydzień ISO; 2026-07-20 to następny
+  assert.equal(periodKey(new Date(2026, 6, 13), 'weekly'), periodKey(new Date(2026, 6, 19), 'weekly'))
+  assert.notEqual(periodKey(new Date(2026, 6, 19), 'weekly'), periodKey(new Date(2026, 6, 20), 'weekly'))
+  assert.match(periodKey(new Date(2026, 6, 13), 'weekly'), /^\d{4}-W\d{2}$/)
+  // przełom roku: 2026-01-01 należy do tygodnia ISO roku 2026 (czwartek)
+  assert.equal(periodKey(new Date(2026, 0, 1), 'weekly'), '2026-W01')
+})
+
+test('periodKey — roczny klucz to sam rok', () => {
+  assert.equal(periodKey(new Date(2026, 6, 5), 'yearly'), '2026')
+  assert.equal(periodKey(new Date(2026, 0, 1), 'yearly'), '2026')
+})
+
+test('isPaymentDue — roczna zaksięgowana w tym roku nie jest należna do końca roku', () => {
+  const p = { frequency: 'yearly', donePeriods: ['2026'] }
+  assert.equal(isPaymentDue(p, periodKey(new Date(2026, 7, 1), 'yearly'), new Date(2026, 7, 1)), false)
+  assert.equal(isPaymentDue(p, periodKey(new Date(2026, 11, 31), 'yearly'), new Date(2026, 11, 31)), false)
+  // nowy rok → znowu należna
+  assert.equal(isPaymentDue(p, periodKey(new Date(2027, 0, 2), 'yearly'), new Date(2027, 0, 2)), true)
+})
+
+test('isPaymentDue — roczna z dateFrom czeka na rocznicę', () => {
+  const p = { frequency: 'yearly', dateFrom: '2025-09-15' }
+  assert.equal(isPaymentDue(p, '2026', new Date(2026, 8, 14)), false) // 14 września — przed rocznicą
+  assert.equal(isPaymentDue(p, '2026', new Date(2026, 8, 15)), true)  // rocznica
+  assert.equal(isPaymentDue(p, '2026', new Date(2026, 10, 1)), true)  // po rocznicy
+})
+
+test('isPaymentDue — tygodniowa: nowy tydzień ISO znów należna', () => {
+  const doneWeek = periodKey(new Date(2026, 6, 13), 'weekly')
+  const p = { frequency: 'weekly', donePeriods: [doneWeek] }
+  assert.equal(isPaymentDue(p, doneWeek, new Date(2026, 6, 15)), false)
+  const nextWeek = periodKey(new Date(2026, 6, 20), 'weekly')
+  assert.equal(isPaymentDue(p, nextWeek, new Date(2026, 6, 20)), true)
+})

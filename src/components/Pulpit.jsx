@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { collection, query, onSnapshot, orderBy, doc } from 'firebase/firestore'
+import { collection, query, onSnapshot, orderBy, doc, limit } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format, subDays, addDays, parseISO, differenceInDays, isPast, isToday } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -54,13 +54,16 @@ export default function Pulpit({ user, onNavigate }) {
         s => setHabits(s.docs.map(d => ({ id: d.id, ...d.data() })))),
       onSnapshot(query(collection(db, 'users', user.uid, 'habitPauses'), orderBy('from', 'desc')),
         s => setPauses(s.docs.map(d => ({ id: d.id, ...d.data() })))),
-      onSnapshot(query(collection(db, 'users', user.uid, 'moodLogs'), orderBy('createdAt', 'desc')),
+      // Rosnące kolekcje z limitem — Pulpit potrzebuje tylko świeżych wpisów
+      // (nastrój: 30 dni, zadania/prośby: aktywne), a bez limitu każda wizyta
+      // ściągałaby całą wieloletnią historię.
+      onSnapshot(query(collection(db, 'users', user.uid, 'moodLogs'), orderBy('createdAt', 'desc'), limit(400)),
         s => setMoodLogs(s.docs.map(d => ({ id: d.id, ...d.data() })))),
-      onSnapshot(query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc')),
+      onSnapshot(query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc'), limit(400)),
         s => setTodos(s.docs.map(d => ({ id: d.id, ...d.data() })))),
       onSnapshot(query(collection(db, 'users', user.uid, 'calendarEvents'), orderBy('date', 'asc')),
         s => setEvents(s.docs.map(d => ({ id: d.id, ...d.data() })))),
-      onSnapshot(query(collection(db, 'users', user.uid, 'prayerIntentions'), orderBy('createdAt', 'desc')),
+      onSnapshot(query(collection(db, 'users', user.uid, 'prayerIntentions'), orderBy('createdAt', 'desc'), limit(300)),
         s => setIntentions(s.docs.map(d => ({ id: d.id, ...d.data() })))),
       onSnapshot(query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc')),
         s => setPeople(s.docs.map(d => ({ id: d.id, ...d.data() })))),

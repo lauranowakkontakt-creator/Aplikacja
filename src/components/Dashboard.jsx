@@ -3,6 +3,7 @@ import { collection, query, where, orderBy, onSnapshot, Timestamp, getDocs } fro
 import { db } from '../firebase/config'
 import useFallbackTimeout from '../utils/useFallbackTimeout'
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns'
+import { buildDailySpark, prevMonthCompareBounds } from '../utils/budgetMath'
 import { pl } from 'date-fns/locale'
 import TransactionForm from './TransactionForm'
 import TransactionList from './TransactionList'
@@ -155,24 +156,16 @@ export default function Dashboard({ user, onCurrencyChange }) {
     .slice(0, 6)
     .map(([name, value], i) => ({ name, value, color: donutColors[i % donutColors.length] }))
 
-  // Real daily expense spark — last 14 days
-  const sparkData = Array.from({ length: 14 }, (_, i) => {
-    const target = new Date()
-    target.setDate(target.getDate() - (13 - i))
-    const dayStr = format(target, 'yyyy-MM-dd')
-    return allTransactions
-      .filter(t => t.type === 'expense' && !isTransfer(t) && format(t.date instanceof Date ? t.date : new Date(t.date), 'yyyy-MM-dd') === dayStr)
-      .reduce((s, t) => s + t.amount, 0)
-  })
+  // Mini-wykresy: dzienne sumy z ostatnich 7 dni, osobno wydatki i przychody
+  const nonTransfer  = allTransactions.filter(t => !isTransfer(t))
+  const sparkExpense = buildDailySpark(nonTransfer, { days: 7, type: 'expense' })
+  const sparkIncome  = buildDailySpark(nonTransfer, { days: 7, type: 'income' })
 
-  // Prev month comparison
-  const prevMonthStart = startOfMonth(subMonths(currentMonth, 1))
-  const prevMonthEnd   = endOfMonth(subMonths(currentMonth, 1))
-  const prevExpenses = allTransactions
-    .filter(t => {
-      const tDate = t.date instanceof Date ? t.date : t.date?.toDate?.() || new Date(t.date)
-      return t.type === 'expense' && !isTransfer(t) && tDate >= prevMonthStart && tDate <= prevMonthEnd
-    })
+  // Porównanie z poprzednim miesiącem — dla bieżącego miesiąca tylko do tego
+  // samego dnia (pełny poprzedni miesiąc zawsze wyglądałby jak spadek)
+  const { start: prevMonthStart, end: prevMonthEnd } = prevMonthCompareBounds(currentMonth)
+  const prevExpenses = nonTransfer
+    .filter(t => t.type === 'expense' && t.date >= prevMonthStart && t.date <= prevMonthEnd)
     .reduce((s, t) => s + t.amount, 0)
   const expenseTrend = prevExpenses > 0
     ? Math.round(((expenses - prevExpenses) / prevExpenses) * 100)
@@ -270,7 +263,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
                   ))}
                   {expenseTrend !== null && (
                     <div style={{ fontSize: 11, color: expenseTrend > 0 ? 'var(--expense)' : 'var(--income)', marginTop: 6, fontWeight: 600 }}>
-                      {expenseTrend > 0 ? '↑' : '↓'} {Math.abs(expenseTrend)}% vs poprzedni miesiąc
+                      {expenseTrend > 0 ? '↑' : '↓'} {Math.abs(expenseTrend)}% vs poprzedni miesiąc{isCurrentMonth ? ' (do dziś)' : ''}
                     </div>
                   )}
                 </>
@@ -328,8 +321,8 @@ export default function Dashboard({ user, onCurrencyChange }) {
               {[
                 { color: 'var(--warn)',    Icon: IconChart,    label: 'Śr. dzienne', val: !privateMode ? fmt(avgDaily) : '••', spark: null },
                 { color: balance>=0?'var(--income)':'var(--expense)', Icon: IconSavings, label: 'Saldo m-ca', val: !privateMode ? fmt(balance) : '••', spark: null },
-                { color: 'var(--income)', Icon: IconArrowUp,   label: 'Przychody',   val: !privateMode ? fmt(income) : '••', spark: sparkData.slice(0, 7), sparkColor: 'var(--income)' },
-                { color: 'var(--expense)',Icon: IconArrowDown,  label: 'Wydatki',     val: !privateMode ? fmt(expenses) : '••', spark: sparkData.slice(0, 7), sparkColor: 'var(--expense)' },
+                { color: 'var(--income)', Icon: IconArrowUp,   label: 'Przychody',   val: !privateMode ? fmt(income) : '••', spark: sparkIncome, sparkColor: 'var(--income)' },
+                { color: 'var(--expense)',Icon: IconArrowDown,  label: 'Wydatki',     val: !privateMode ? fmt(expenses) : '••', spark: sparkExpense, sparkColor: 'var(--expense)' },
               ].map((m, i) => (
                 <div key={i} className="card-hover-glow" style={{
                   background: `linear-gradient(145deg, var(--surface) 50%, color-mix(in oklab, ${m.color} 6%, var(--surface)) 100%)`,
