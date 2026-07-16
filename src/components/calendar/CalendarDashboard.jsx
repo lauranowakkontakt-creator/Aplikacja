@@ -1387,7 +1387,7 @@ function CategoryManager({ user, categories, onClose }) {
           <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
         </div>
         <div className="form">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 240, overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 'min(56vh, 460px)', overflowY: 'auto' }}>
             {categories.map(cat => (
               <div key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: editId === cat.id ? cat.color + '18' : 'var(--surface2)', borderRadius: 10, border: `1px solid ${editId === cat.id ? cat.color : 'transparent'}` }}>
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: cat.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', color: cat.color }}>
