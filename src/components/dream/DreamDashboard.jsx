@@ -9,6 +9,7 @@ import {
   IconUsers, IconCheck, IconCalendar, IconTag, IconPlus,
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
+import SegTabs from '../SegTabs'
 import { toast } from '../Toast'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS, getEmotion, getCategory,
@@ -174,9 +175,9 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
           <div className="mod-header-title">{selected ? (selected.title || 'Sen') : tab === 'symbols' ? 'Symbole' : 'Dziennik snów'}</div>
         </div>
         <div className="mod-header-right">
-          <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
+          <div className="mod-header-stat">
             <IconMoon size={14} style={{ color: 'var(--accent)' }} />
-            <span style={{ fontSize: 13, fontWeight: 700 }}>{dreams.length}</span>
+            <span>{dreams.length}</span>
           </div>
         </div>
       </div>
@@ -194,21 +195,14 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
       ) : (
         <>
           {/* Zakładki */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-            {[['dreams', 'Sny'], ['symbols', 'Symbole']].map(([id, label]) => (
-              <button key={id} onClick={() => { setTab(id); setSelectedSymbolId(null) }} style={{
-                flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 12, fontWeight: tab === id ? 700 : 400,
-                background: tab === id ? 'var(--surface3)' : 'transparent',
-                color: tab === id ? 'var(--text)' : 'var(--text-muted)',
-                border: tab === id ? '1px solid var(--border-strong)' : '1px solid transparent',
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}>{label}</button>
-            ))}
-          </div>
+          <SegTabs
+            items={[{ id: 'dreams', label: 'Sny' }, { id: 'symbols', label: 'Symbole' }]}
+            active={tab} onChange={(id) => { setTab(id); setSelectedSymbolId(null) }}
+          />
 
           {tab === 'dreams' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button className="btn-add-habit" onClick={() => { setEditDream(null); setShowForm(true) }}>
+              <button className="btn-add-account" onClick={() => { setEditDream(null); setShowForm(true) }}>
                 + Zapisz sen
               </button>
 
@@ -376,7 +370,7 @@ function SymbolsView({ user, symbols, dreams, counts, peopleById, symbolsById, s
           <button className="btn-save" style={{ width: 'auto', margin: 0, padding: '0 16px' }} onClick={add}>Dodaj</button>
         </div>
       ) : (
-        <button className="btn-add-habit" onClick={() => setAdding(true)}>+ Dodaj symbol</button>
+        <button className="btn-add-account" onClick={() => setAdding(true)}>+ Dodaj symbol</button>
       )}
 
       {symbols.length === 0 ? (

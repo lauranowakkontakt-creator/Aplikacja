@@ -6,6 +6,7 @@ import { pl } from 'date-fns/locale'
 import { BIBLE_BOOKS, TOTAL_CHAPTERS, chapterKey } from '../../utils/bibleData'
 import { IconBook, IconClose, IconCheck, IconChevronDown, IconSearch, IconCalendar, IconFlag } from '../Icons'
 import { Ring } from '../ChartPrimitives'
+import SegTabs from '../SegTabs'
 import { toast } from '../Toast'
 import BibleNotes from './BibleNotes'
 
@@ -109,22 +110,18 @@ export default function BibleDashboard({ user }) {
           <div className="mod-header-title">Plan czytania</div>
         </div>
         <div className="mod-header-right">
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>{stats.read}/{TOTAL_CHAPTERS}</div>
+          <div className="mod-header-stat">
+            <IconBook size={14} style={{ color: 'var(--accent)' }} />
+            <span>{stats.read}/{TOTAL_CHAPTERS}</span>
+          </div>
         </div>
       </div>
 
       {/* Zakładki */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-        {[['plan', 'Plan czytania'], ['notes', 'Notatki']].map(([id, label]) => (
-          <button key={id} onClick={() => setView(id)} style={{
-            flex: 1, padding: '8px 0', borderRadius: 10, fontSize: 13, fontWeight: view === id ? 700 : 400,
-            background: view === id ? 'var(--surface3)' : 'transparent',
-            color: view === id ? 'var(--text)' : 'var(--text-muted)',
-            border: view === id ? '1px solid var(--border-strong)' : '1px solid transparent',
-            cursor: 'pointer', transition: 'all .18s',
-          }}>{label}</button>
-        ))}
-      </div>
+      <SegTabs
+        items={[{ id: 'plan', label: 'Plan czytania' }, { id: 'notes', label: 'Notatki' }]}
+        active={view} onChange={setView}
+      />
 
       {view === 'notes' && <BibleNotes user={user} />}
 
@@ -173,12 +170,10 @@ export default function BibleDashboard({ user }) {
       </div>
 
       {/* Filtr testamentów */}
-      <div className="type-toggle" style={{ marginBottom: 14 }}>
-        {[{ id: 'ALL', label: 'Wszystko' }, { id: 'ST', label: 'Stary Test.' }, { id: 'NT', label: 'Nowy Test.' }].map(t => (
-          <button key={t.id} type="button" className={`type-btn ${filter === t.id ? 'active accent' : ''}`}
-            onClick={() => setFilter(t.id)}>{t.label}</button>
-        ))}
-      </div>
+      <SegTabs
+        items={[{ id: 'ALL', label: 'Wszystko' }, { id: 'ST', label: 'Stary Test.' }, { id: 'NT', label: 'Nowy Test.' }]}
+        active={filter} onChange={setFilter}
+      />
 
       {/* Legenda heatmapy */}
       <div className="bible-legend">

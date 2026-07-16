@@ -6,6 +6,7 @@ import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOf
 import { pl } from 'date-fns/locale'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat, IconArchive, IconRestore, IcCar } from '../Icons'
 import StatSummary from '../StatSummary'
+import SegTabs from '../SegTabs'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import { setPersonHidden, purgePerson } from '../../utils/people'
@@ -148,32 +149,23 @@ export default function PrayerDashboard({ user }) {
             }}
             title="Tryb auto (większe przyciski do prowadzenia)"
           ><IcCar size={carMode ? 18 : 16} /></button>
-          <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
+          <div className="mod-header-stat">
             <IconFlame size={14} style={{ color: 'var(--accent)' }} />
-            <span style={{ fontSize: 13, fontWeight: 700 }}>{streak}</span>
+            <span>{streak}</span>
           </div>
-          <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
+          <div className="mod-header-stat">
             <IconPrayer size={14} style={{ color: 'var(--warn)' }} />
-            <span style={{ fontSize: 13, fontWeight: 700 }}>{prayedToday}/{dueToday.length}</span>
+            <span>{prayedToday}/{dueToday.length}</span>
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-        {TABS.map(([id, label]) => (
-          <button key={id}
-            onClick={() => switchTab(id)}
-            style={{
-              flex: 1, padding: carMode ? '12px 0' : '7px 0', borderRadius: 10, fontSize: carMode ? 16 : 12, fontWeight: tab === id ? 700 : 400,
-              background: tab === id ? 'var(--surface3)' : 'transparent',
-              color: tab === id ? 'var(--text)' : 'var(--text-muted)',
-              border: tab === id ? '1px solid var(--border-strong)' : '1px solid transparent',
-              cursor: 'pointer', transition: 'all .2s',
-            }}
-          >{label}</button>
-        ))}
-      </div>
+      <SegTabs
+        items={TABS.map(([id, label]) => ({ id, label }))}
+        active={tab} onChange={switchTab}
+        size={carMode ? 'lg' : undefined}
+      />
 
       {tab === 'people' && (
         selectedPerson
@@ -252,7 +244,7 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <button className="btn-add-habit" onClick={() => { setEditPerson(null); setShowForm(true) }}>
+      <button className="btn-add-account" onClick={() => { setEditPerson(null); setShowForm(true) }}>
         + Dodaj osobę
       </button>
 
@@ -487,7 +479,7 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
           onClose={() => { setShowAddForm(false); setEditItem(null) }}
         />
       ) : (
-        <button className="btn-add-habit" onClick={() => { setEditItem(null); setShowAddForm(true) }}>
+        <button className="btn-add-account" onClick={() => { setEditItem(null); setShowAddForm(true) }}>
           + Dodaj prośbę modlitewną
         </button>
       )}

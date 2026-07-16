@@ -239,8 +239,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
     else if (id === 'reorder') setShowReorder(true)
   }
   const addBtn = (
-    <button className="icon-btn" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk"
-      style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none' }}>
+    <button className="mod-header-add" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk">
       <IconPlus size={16} />
     </button>
   )

@@ -46,7 +46,7 @@ export default function NotesDashboard({ user }) {
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="notes-dashboard">
 
       {/* Mobile module header */}
       <div className="mod-header">

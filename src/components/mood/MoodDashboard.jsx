@@ -162,15 +162,14 @@ export default function MoodDashboard({ user }) {
   const entryLabel = entryDate ? format(new Date(entryDate + 'T12:00:00'), 'd MMMM', { locale: pl }) : ''
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="mood-dashboard">
       <div className="mod-header">
         <div>
           <div className="mod-header-kicker">Nastrój</div>
           <div className="mod-header-title">{format(new Date(), 'EEEE, d MMMM', { locale: pl })}</div>
         </div>
         <div className="mod-header-right">
-          <button className="icon-btn" title="Dodaj wpis nastroju" onClick={() => setEntryDate(selDate <= TODAY() ? selDate : TODAY())}
-            style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none' }}>
+          <button className="mod-header-add" title="Dodaj wpis nastroju" onClick={() => setEntryDate(selDate <= TODAY() ? selDate : TODAY())}>
             <IconPlus size={16} />
           </button>
         </div>

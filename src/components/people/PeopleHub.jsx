@@ -98,9 +98,9 @@ export default function PeopleHub({ user, onOpenDream }) {
           <div className="mod-header-title">{selected ? selected.name : 'Baza osób'}</div>
         </div>
         <div className="mod-header-right">
-          <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
+          <div className="mod-header-stat">
             <IconUsers size={14} style={{ color: 'var(--accent)' }} />
-            <span style={{ fontSize: 13, fontWeight: 700 }}>{people.length}</span>
+            <span>{people.length}</span>
           </div>
         </div>
       </div>
@@ -120,7 +120,7 @@ export default function PeopleHub({ user, onOpenDream }) {
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button className="btn-add-habit" onClick={() => { setEditPerson(null); setShowForm(true) }}>
+          <button className="btn-add-account" onClick={() => { setEditPerson(null); setShowForm(true) }}>
             + Dodaj osobę
           </button>
 

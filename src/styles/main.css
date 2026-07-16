@@ -271,13 +271,14 @@ button { touch-action: manipulation; }
 /* ===== SEGMENT TABS ===== */
 .seg { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; gap: 2px; position: relative; box-shadow: inset 0 1px 0 rgba(255,255,255,.04), inset 0 2px 8px rgba(0,0,0,.22); }
 .seg-btn { flex: 1; padding: 8px 10px; border-radius: 9px; font-size: 12.5px; font-weight: 500; color: var(--text-sub); transition: color .2s; cursor: pointer; background: none; border: none; }
-.seg-btn.active { color: var(--text); font-weight: 600; background: var(--surface3); border-radius: 9px; box-shadow: 0 2px 8px -3px rgba(0,0,0,.5); }
+.seg-btn.active { color: var(--accent); font-weight: 600; background: color-mix(in oklab, var(--accent) 14%, var(--surface)); border-radius: 9px; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent); }
 
-/* Sliding-thumb variant (SegTabs component) */
+/* Sliding-thumb variant (SegTabs component) — aktywna zakładka w kolorze
+   akcentu modułu (ten sam język co budget-tabs i chipy: „aktywne = akcent") */
 .seg-thumb {
   position: absolute; top: 4px; bottom: 4px; border-radius: 9px; z-index: 0;
-  background: linear-gradient(180deg, var(--surface3), var(--surface2));
-  box-shadow: 0 4px 12px -4px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.07);
+  background: color-mix(in oklab, var(--accent) 14%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent), 0 4px 12px -4px rgba(0,0,0,.5);
   transition: left .34s var(--spring), width .34s var(--spring);
 }
 .seg > button {
@@ -287,7 +288,10 @@ button { touch-action: manipulation; }
   display: inline-flex; align-items: center; justify-content: center; gap: 5px;
 }
 .seg > button:hover { color: var(--text); }
-.seg > button.active { color: var(--text); font-weight: 600; }
+.seg > button.active { color: var(--accent); font-weight: 600; }
+
+/* Wariant powiększony — tryb auto (Modlitwa) */
+.seg.seg-lg > button { padding: 12px 10px; font-size: 16px; }
 
 /* ===== NEW LOOK helpers (Nawyki / To-do) ===== */
 .serif { font-family: var(--font-serif); font-weight: 500; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -371,6 +375,30 @@ button { touch-action: manipulation; }
   }
   .mod-header-title { font-size: 24px; font-weight: 700; letter-spacing: -0.03em; margin-top: 2px; }
   .mod-header-right { display: flex; gap: 8px; }
+}
+/* Pigułka statystyki w nagłówku modułu (seria, licznik itp.) — wspólny wygląd
+   zamiast dotychczasowych inline'owych wariacji na prayer-stat-tile */
+.mod-header-stat {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 99px;
+  font-size: 13px; font-weight: 700; color: var(--text);
+}
+.mod-header-stat svg { flex-shrink: 0; }
+/* Przycisk „+" w nagłówku modułu — wszędzie ten sam (pełny akcent) */
+.mod-header-add {
+  width: 36px; height: 36px; border-radius: 10px; border: none; cursor: pointer;
+  background: var(--accent); color: var(--bg); display: grid; place-items: center;
+  transition: transform .12s, opacity .15s; font-size: 18px; line-height: 1;
+}
+.mod-header-add:hover { opacity: .9; }
+.mod-header-add:active { transform: scale(.93); }
+
+/* ===== WSPÓLNY RYTM MODUŁÓW =====
+   Każdy dashboard = kolumna z tym samym odstępem sekcji. */
+.habits-dashboard, .mood-dashboard, .todo-dashboard, .calendar-dashboard,
+.prayer-dashboard, .dream-dashboard, .bible-dashboard, .people-hub,
+.notes-dashboard, .accounts-view, .regular-payments {
+  display: flex; flex-direction: column; gap: 14px;
 }
 
 /* ===== HEADER (legacy — hidden on mobile, sidebar replaces on desktop) ===== */
@@ -470,7 +498,7 @@ button { touch-action: manipulation; }
 /* ===== TABS ===== */
 .view-tabs { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 4px; gap: 4px; margin-bottom: 16px; }
 .tab-btn { flex: 1; padding: 8px; background: transparent; border: 1px solid transparent; color: var(--text-muted); font-size: 13px; font-weight: 500; letter-spacing: 0.03em; border-radius: var(--r-sm); cursor: pointer; transition: all 0.15s; }
-.tab-btn.active { background: var(--bg); border-color: var(--border); color: var(--text); }
+.tab-btn.active { background: color-mix(in oklab, var(--accent) 14%, var(--surface)); border-color: color-mix(in oklab, var(--accent) 35%, transparent); color: var(--accent); font-weight: 600; }
 
 /* ===== TRANSACTION LIST ===== */
 .list-loading, .list-empty, .charts-empty { text-align: center; color: var(--text-muted); padding: 48px 20px; }
@@ -686,7 +714,6 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 }
 
 /* ===== NAWYKI ===== */
-.habits-dashboard { display: flex; flex-direction: column; gap: 20px; }
 .habits-header { display: flex; align-items: center; justify-content: space-between; }
 .habits-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
 .habits-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
@@ -720,7 +747,7 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .btn-delete-habit:hover { border-color: var(--expense); color: var(--expense); }
 .habit-view-tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 4px; }
 .habit-view-tab { flex: 1; padding: 7px; font-size: 13px; font-weight: 500; border: 1px solid transparent; background: transparent; color: var(--text-muted); border-radius: var(--r-sm); cursor: pointer; transition: all 0.15s; }
-.habit-view-tab.active { background: var(--bg); border-color: var(--border); color: var(--text); }
+.habit-view-tab.active { background: color-mix(in oklab, var(--accent) 14%, var(--surface)); border-color: color-mix(in oklab, var(--accent) 35%, transparent); color: var(--accent); font-weight: 600; }
 .habit-compact-btn { width: 32px; height: 32px; border: 1px solid var(--border); border-radius: var(--r-sm); background: transparent; color: var(--text-muted); font-size: 16px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
 .habit-compact-btn.active { border-color: var(--accent); color: var(--accent); }
 .habit-week-nav { display: flex; align-items: center; justify-content: space-between; }
@@ -854,14 +881,13 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .budget-tab { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 9px 4px; background: transparent; border: 1px solid transparent; color: var(--text-muted); font-size: 12px; font-weight: 600; border-radius: var(--r-sm); cursor: pointer; transition: all 0.15s; letter-spacing: 0.02em; }
 .budget-tab-icon { font-size: 14px; }
 .budget-tab.active {
-  background: color-mix(in oklab, var(--accent) 12%, var(--bg));
+  background: color-mix(in oklab, var(--accent) 14%, var(--surface));
   border-color: color-mix(in oklab, var(--accent) 35%, transparent);
   color: var(--accent);
 }
 .budget-tab:hover:not(.active) { background: var(--surface2); color: var(--text); }
 
 /* ===== ACCOUNTS ===== */
-.accounts-view { display: flex; flex-direction: column; gap: 10px; }
 .accounts-total {
   background: linear-gradient(135deg, var(--surface) 50%, color-mix(in oklab, var(--accent) 8%, var(--surface)) 100%);
   border: 1px solid var(--border);
@@ -925,12 +951,11 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .cat-icon-btn.active .cat-label { color: var(--text); }
 .account-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .account-chip { padding: 5px 12px; background: var(--bg); border: 1px solid var(--border); color: var(--text-muted); border-radius: 20px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
-.account-chip.active { color: var(--text); }
+.account-chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .account-chip:hover:not(.active) { border-color: var(--text-muted); }
 .amount-input { font-size: 28px !important; font-weight: 700; text-align: center; letter-spacing: -0.02em; }
 
 /* ===== REGULAR PAYMENTS ===== */
-.regular-payments { display: flex; flex-direction: column; gap: 14px; }
 .regular-summary {
   background: linear-gradient(135deg, var(--surface) 50%, color-mix(in oklab, var(--expense) 8%, var(--surface)) 100%);
   border: 1px solid var(--border); border-left: 3px solid var(--expense);
@@ -1000,7 +1025,6 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .postep-rest { font-size: 12px; color: var(--text-sub); margin-left: 8px; align-self: center; }
 
 /* ===== MOOD MODULE ===== */
-.mood-dashboard { display: flex; flex-direction: column; gap: 20px; }
 .mood-today { display: flex; flex-direction: column; gap: 20px; }
 .mood-week-strip { display: flex; justify-content: space-between; }
 .mood-week-day { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
@@ -1020,7 +1044,7 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .mood-emotions { display: flex; flex-wrap: wrap; gap: 8px; }
 .mood-emotion-btn { padding: 6px 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; transition: all 0.15s; }
 .mood-emotion-btn:hover { border-color: var(--text-muted); color: var(--text); }
-.mood-emotion-btn.active { color: var(--text); }
+.mood-emotion-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .mood-note-input { resize: none; font-family: inherit; }
 .mood-calendar { display: flex; flex-direction: column; gap: 16px; }
 .mood-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 12px; }
@@ -1085,10 +1109,9 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 }
 
 /* ===== TO-DO ===== */
-.todo-dashboard { display: flex; flex-direction: column; gap: 12px; }
 .todo-lists { display: flex; flex-wrap: wrap; gap: 6px; }
 .todo-list-chip { display: flex; align-items: center; gap: 5px; padding: 5px 11px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all .15s; }
-.todo-list-chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.todo-list-chip.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .todo-list-chip:hover:not(.active) { border-color: var(--text-muted); color: var(--text); }
 .todo-list-chip.todo-list-add { border-style: dashed; font-size: 12px; }
 .todo-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; }
@@ -1098,7 +1121,6 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .todo-today-icon { width: 40px; height: 40px; border-radius: 11px; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 
 /* ===== KALENDARZ ===== */
-.calendar-dashboard { display: flex; flex-direction: column; gap: 12px; }
 .cal-nav-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 17px; line-height: 1; transition: border-color .15s; }
 .cal-nav-btn:hover { border-color: var(--text-muted); }
 .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
@@ -1161,7 +1183,6 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 }
 
 /* ===== MODLITWA ===== */
-.prayer-dashboard { display: flex; flex-direction: column; gap: 12px; }
 .prayer-verse-card { background: linear-gradient(135deg, var(--surface) 0%, var(--bg2) 100%); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 22px 20px; position: relative; overflow: hidden; }
 .prayer-verse-kicker { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 12px; }
 .prayer-verse-text { font-size: 20px; line-height: 1.4; font-style: italic; color: var(--text); margin: 0 0 10px; letter-spacing: -0.005em; }
@@ -1322,8 +1343,7 @@ input[type="date"]::-webkit-datetime-edit { color: var(--text); }
 }
 .modal-close:hover { background: var(--surface2); color: var(--text); }
 
-/* ===== ACCOUNT CHIP ACTIVE GLOW ===== */
-.account-chip.active { box-shadow: 0 0 0 1px var(--border-strong) inset; }
+/* (usunięte: stary neutralny glow account-chip — aktywne chipy mają teraz wspólny styl akcentowy) */
 
 /* ===== HABITS MOBILE WEEK GRID ===== */
 @media (max-width: 400px) {
@@ -1550,7 +1570,8 @@ body { overscroll-behavior-y: none; }
 .content-inner { position: relative; z-index: 1; }
 
 /* Stat tiles (prayer/mood/todo): accent number color for emphasis */
-.prayer-stat-tile, .mood-stat-card { border-top: 2px solid color-mix(in oklab, var(--accent) 35%, transparent); }
+/* Kafle statystyk — wspólny akcentowy pasek u góry we wszystkich modułach */
+.prayer-stat-tile, .mood-stat-card, .stat-tile, .habit-stat-pill { border-top: 2px solid color-mix(in oklab, var(--accent) 35%, transparent); }
 
 /* Verse card: accent left edge like mood-entry-card */
 .prayer-verse-card { border-left: 3px solid color-mix(in oklab, var(--accent) 60%, transparent); }
@@ -1559,7 +1580,6 @@ body { overscroll-behavior-y: none; }
 .mood-cal-day.today, .cal-day-num.today { box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 30%, transparent); }
 
 /* ===== BIBLE MODULE ===== */
-.bible-dashboard { display: flex; flex-direction: column; }
 .bible-hero {
   position: relative; overflow: hidden;
   display: flex; align-items: center; gap: 18px;

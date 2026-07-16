@@ -144,9 +144,8 @@ export default function TodoDashboard({ user }) {
           <div className="mod-header-title">{headerTitle}</div>
         </div>
         <div className="mod-header-right" style={{ position: 'relative' }}>
-          <button className="icon-btn" title="Nowe zadanie"
-            onClick={() => { setEditTodo(null); setFormDefaultDue(''); setShowForm(true) }}
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent)', border: 'none' }}>
+          <button className="mod-header-add" title="Nowe zadanie"
+            onClick={() => { setEditTodo(null); setFormDefaultDue(''); setShowForm(true) }}>
             <IconPlus size={16} />
           </button>
           <button className="icon-btn" onClick={() => setShowMenu(m => !m)}><IconMore size={16} /></button>

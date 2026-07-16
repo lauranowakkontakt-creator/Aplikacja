@@ -39,7 +39,7 @@ export default function BibleNotes({ user }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <button className="btn-add-habit" onClick={() => { setEditNote(null); setShowForm(true) }}>
+      <button className="btn-add-account" onClick={() => { setEditNote(null); setShowForm(true) }}>
         <IconPlus size={15} style={{ verticalAlign: '-3px', marginRight: 4 }} /> Nowa notatka
       </button>
 

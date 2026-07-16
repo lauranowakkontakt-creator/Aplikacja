@@ -10,6 +10,7 @@ import {
 import { pl } from 'date-fns/locale'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight, IconChevronDown, IconCheck, IconCalendar, IconRepeat, IconPrayer, IconArchive, IconRestore } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
+import SegTabs from '../SegTabs'
 import { toast } from '../Toast'
 import { setPersonHidden, purgePerson } from '../../utils/people'
 
@@ -271,28 +272,21 @@ export default function CalendarDashboard({ user }) {
         <div className="mod-header-right">
           <button className="icon-btn" onClick={() => setCurrentMonth(m => subMonths(m, 1))}><IconChevronLeft size={16} /></button>
           <button className="icon-btn" onClick={() => setCurrentMonth(m => addMonths(m, 1))}><IconChevronRight size={16} /></button>
-          <button className="icon-btn" onClick={() => { setEditEvent(null); setShowForm(true) }}
-            style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none' }}>
+          <button className="mod-header-add" title="Nowe wydarzenie" onClick={() => { setEditEvent(null); setShowForm(true) }}>
             <span style={{ fontSize: 18 }}>+</span>
           </button>
         </div>
       </div>
 
       {/* Tabs + category btn */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        <div style={{ display: 'flex', flex: 1, gap: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-          {[['month','Miesiąc'],['agenda','Agenda'],['people','Osoby']].map(([key, label]) => (
-            <button key={key} onClick={() => setTab(key)} style={{
-              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === key ? 700 : 400,
-              background: tab === key ? 'var(--surface3)' : 'transparent',
-              color: tab === key ? 'var(--text)' : 'var(--text-muted)',
-              border: tab === key ? '1px solid var(--border-strong)' : '1px solid transparent',
-              cursor: 'pointer',
-            }}>{label}</button>
-          ))}
-        </div>
-        <button className="cal-nav-btn" title="Kategorie" style={{ fontSize: 12, padding: '7px 10px', whiteSpace: 'nowrap', flexShrink: 0 }}
-          onClick={() => setShowCatMgr(true)}><IconTag size={13} /></button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <SegTabs
+          items={[{ id: 'month', label: 'Miesiąc' }, { id: 'agenda', label: 'Agenda' }, { id: 'people', label: 'Osoby' }]}
+          active={tab} onChange={setTab}
+          style={{ flex: 1, minWidth: 0 }}
+        />
+        <button className="icon-btn" title="Kategorie" style={{ flexShrink: 0 }}
+          onClick={() => setShowCatMgr(true)}><IconTag size={14} /></button>
       </div>
 
       {/* Filtr osób — jedna przewijana linia (wybierz osobę albo „Wszyscy") */}
@@ -706,7 +700,7 @@ function AgendaView({ events, categories, calPeople, filterPersonId, onAdd, onEd
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <button className="btn-add-habit" onClick={onAdd}>+ Dodaj wydarzenie</button>
+      <button className="btn-add-account" onClick={onAdd}>+ Dodaj wydarzenie</button>
       {dates.length === 0 ? (
         <div className="list-empty">
           <p>Brak nadchodzących wydarzeń</p>
@@ -849,7 +843,7 @@ function PeopleView({ calPeople, events, categories, onManage, onEditPerson, onA
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <button className="btn-add-habit" onClick={onManage}>+ Zarządzaj osobami</button>
+      <button className="btn-add-account" onClick={onManage}>+ Zarządzaj osobami</button>
 
       {activePeople.length === 0 && archivedPeople.length === 0 && (
         <div className="list-empty">

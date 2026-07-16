@@ -361,7 +361,7 @@ function AddItemModal({ user, categories, onClose }) {
               {categories.map(c => (
                 <button key={c.id} type="button"
                   className={`mood-emotion-btn ${category === c.id ? 'active' : ''}`}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...(category === c.id ? { borderColor: 'var(--accent)', background: 'rgba(201,75,40,0.1)', color: 'var(--text)' } : {}) }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, ...(category === c.id ? { borderColor: 'var(--accent)', background: 'var(--accent-soft)', color: 'var(--text)' } : {}) }}
                   onClick={() => setCategory(c.id)}
                 ><CatIcon categoryId={null} emoji={c.icon} size={15} /> {c.label}</button>
               ))}
