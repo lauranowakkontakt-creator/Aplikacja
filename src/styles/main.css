@@ -725,9 +725,14 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 .habit-compact-btn.active { border-color: var(--accent); color: var(--accent); }
 .habit-week-nav { display: flex; align-items: center; justify-content: space-between; }
 .habit-period-label { font-size: 14px; font-weight: 600; }
-.habit-cat-filter { display: flex; gap: 6px; flex-wrap: wrap; }
-.habit-cat-chip { padding: 5px 12px; font-size: 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+/* Jedna linia — kategorie przewija się w poziomie (bez zawijania na kilka rzędów) */
+.habit-cat-filter { display: flex; gap: 6px; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; scroll-snap-type: x proximity; }
+.habit-cat-filter::-webkit-scrollbar { display: none; }
+.habit-cat-chip { flex-shrink: 0; white-space: nowrap; scroll-snap-align: start; padding: 5px 12px; font-size: 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
 .habit-cat-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+/* Poziomy, przewijany rząd filtrów (np. osoby w kalendarzu) — zawsze jedna linia */
+.cal-filter-row { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+.cal-filter-row::-webkit-scrollbar { display: none; }
 .habits-list.compact .habit-row { padding: 5px 16px; }
 .habits-list.compact .habit-emoji { font-size: 16px; }
 .habits-list.compact .habit-check { width: 26px; height: 26px; font-size: 12px; }

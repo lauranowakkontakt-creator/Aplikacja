@@ -2,10 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, arrayUnion, arrayRemove } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
-import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOfDay } from 'date-fns'
+import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOfDay, startOfMonth, getDaysInMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat, IconArchive, IconRestore, IcCar } from '../Icons'
-import { Heatmap } from '../ChartPrimitives'
 import StatSummary from '../StatSummary'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -910,11 +909,14 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
     return { month: build(ym), year: build(yy) }
   }, [intentions])
 
-  // Build heatmap data for 9 weeks
-  const WEEKS = 9
-  const heatData = Array.from({ length: WEEKS * 7 }, (_, i) => {
-    const d = format(subDays(new Date(), WEEKS * 7 - 1 - i), 'yyyy-MM-dd')
-    return allPrayedDates.has(d) ? 4 : 0
+  // Kalendarz bieżącego miesiąca — dni z modlitwą podświetlone (czytelniejsze niż heatmapa)
+  const calMonth   = new Date()
+  const calMLabel  = (() => { const l = format(calMonth, 'LLLL', { locale: pl }); return l.charAt(0).toUpperCase() + l.slice(1) })()
+  const mStart     = startOfMonth(calMonth)
+  const firstDow   = (mStart.getDay() + 6) % 7
+  const calCells   = Array.from({ length: getDaysInMonth(calMonth) }, (_, i) => {
+    const d = format(addDays(mStart, i), 'yyyy-MM-dd')
+    return { date: d, dayNum: i + 1, prayed: allPrayedDates.has(d), isToday: d === today, future: d > today }
   })
 
   const personStats = useMemo(() => people.map(p => {
@@ -947,11 +949,27 @@ function StatsView({ intentions, people, allPrayedDates, streak }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <StatSummary title="Modlitwa w liczbach" month={summary.month} year={summary.year} />
 
-      {/* Aktywność modlitwy */}
+      {/* Aktywność modlitwy — kalendarz miesiąca */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-        {kicker('Aktywność modlitwy')}
-        <Heatmap weeks={WEEKS} accentHex="#C9A24A" data={heatData} />
-        <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 12 }}>
+        {kicker(`Aktywność modlitwy · ${calMLabel}`)}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
+          {['P', 'W', 'Ś', 'C', 'P', 'S', 'N'].map((l, i) => (
+            <div key={i} style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: 'var(--text-muted)' }}>{l}</div>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+          {Array.from({ length: firstDow }, (_, i) => <div key={'e' + i} />)}
+          {calCells.map(c => (
+            <div key={c.date} title={`${c.dayNum} ${calMLabel}${c.prayed ? ' · modlono' : ''}`} style={{
+              height: 30, borderRadius: 7, display: 'grid', placeItems: 'center',
+              fontSize: 11, fontWeight: c.isToday ? 700 : 500,
+              background: c.prayed ? '#C9A24A' : c.future ? 'transparent' : 'var(--surface2)',
+              border: c.isToday ? '1.5px solid #C9A24A' : c.future ? '1px dashed var(--border)' : '1px solid transparent',
+              color: c.prayed ? '#fff' : 'var(--text-muted)',
+            }}>{c.dayNum}</div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-around', marginTop: 14 }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: '#C9A24A' }}>{regularPct}%</div>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em' }}>regularność</div>
@@ -1111,63 +1129,62 @@ function ArchiveView({ user, intentions, people }) {
                     <div key={item.id} style={{
                       background: 'var(--surface)', border: '1px solid var(--border)',
                       borderRadius: 12, padding: '10px 14px', opacity: 0.75,
-                      display: 'flex', alignItems: 'flex-start', gap: 10
+                      display: 'flex', flexDirection: 'column', gap: 4
                     }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>{item.title}</p>
-                          {item.autoArchived && (
-                            <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'var(--surface3)', color: 'var(--text-muted)' }}>auto</span>
-                          )}
-                          {findPrio(item.priority || 3) && (
-                            <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: findPrio(item.priority || 3).color + '22', color: findPrio(item.priority || 3).color }}>
-                              P{item.priority || 3}
-                            </span>
-                          )}
-                        </div>
-                        {item.note && (
-                          <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{item.note}</p>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>{item.title}</p>
+                        {item.autoArchived && (
+                          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'var(--surface3)', color: 'var(--text-muted)' }}>auto</span>
                         )}
-                        {item.endedNote && (
-                          <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>„{item.endedNote}"</p>
-                        )}
-                        <div style={{ display: 'flex', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}><IconPrayer size={10} /> ×{item.prayedDates?.length || 0}</span>
-                          {item.endedAt && (
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                              Zarchiwizowano: {format(item.endedAt.toDate?.() || new Date(item.endedAt), 'd.MM.yyyy', { locale: pl })}
-                            </span>
-                          )}
-                        </div>
-                        {expandedId === item.id && item.prayedDates?.length > 0 && (
-                          <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-                            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 6 }}>Historia modlitw</div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                              {[...item.prayedDates].sort().reverse().slice(0, 20).map(d => (
-                                <span key={d} style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--surface3)', color: 'var(--text-muted)' }}>
-                                  {format(parseISO(d), 'd.MM.yy')}
-                                </span>
-                              ))}
-                              {item.prayedDates.length > 20 && (
-                                <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>+{item.prayedDates.length - 20} więcej</span>
-                              )}
-                            </div>
-                          </div>
+                        {findPrio(item.priority || 3) && (
+                          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: findPrio(item.priority || 3).color + '22', color: findPrio(item.priority || 3).color }}>
+                            P{item.priority || 3}
+                          </span>
                         )}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-                        {item.prayedDates?.length > 0 && (
-                          <button className="t-btn" title="Historia" onClick={() => setExpandedId(v => v === item.id ? null : item.id)}>
-                            <IconCalendar size={11} />
+                      {item.note && (
+                        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)' }}>{item.note}</p>
+                      )}
+                      {item.endedNote && (
+                        <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>„{item.endedNote}"</p>
+                      )}
+                      {/* Meta + akcje w jednym wierszu (ikony przy treści, nie wypchnięte na bok) */}
+                      <div style={{ display: 'flex', gap: 10, marginTop: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 3 }}><IconPrayer size={10} /> ×{item.prayedDates?.length || 0}</span>
+                        {item.endedAt && (
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                            {format(item.endedAt.toDate?.() || new Date(item.endedAt), 'd.MM.yyyy', { locale: pl })}
+                          </span>
+                        )}
+                        <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', flexShrink: 0 }}>
+                          {item.prayedDates?.length > 0 && (
+                            <button className="t-btn" title="Historia" onClick={() => setExpandedId(v => v === item.id ? null : item.id)}>
+                              <IconCalendar size={11} />
+                            </button>
+                          )}
+                          <button className="t-btn" title="Przywróć" onClick={() => restoreItem(item)}>
+                            <IconRepeat size={11} />
                           </button>
-                        )}
-                        <button className="t-btn" title="Przywróć" onClick={() => restoreItem(item)}>
-                          <IconRepeat size={11} />
-                        </button>
-                        <button className="t-btn delete" title="Usuń" onClick={() => deleteItem(item.id)}>
-                          <IconTrash size={12} />
-                        </button>
+                          <button className="t-btn delete" title="Usuń" onClick={() => deleteItem(item.id)}>
+                            <IconTrash size={12} />
+                          </button>
+                        </div>
                       </div>
+                      {expandedId === item.id && item.prayedDates?.length > 0 && (
+                        <div style={{ marginTop: 4, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginBottom: 6 }}>Historia modlitw</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {[...item.prayedDates].sort().reverse().slice(0, 20).map(d => (
+                              <span key={d} style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: 'var(--surface3)', color: 'var(--text-muted)' }}>
+                                {format(parseISO(d), 'd.MM.yy')}
+                              </span>
+                            ))}
+                            {item.prayedDates.length > 20 && (
+                              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>+{item.prayedDates.length - 20} więcej</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

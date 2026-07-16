@@ -142,7 +142,6 @@ export default function CalendarDashboard({ user }) {
   const [showPeopleMgr, setShowPeopleMgr] = useState(false)
   const [editPerson, setEditPerson]       = useState(null)
   const [filterPersonId, setFilterPersonId] = useState(null)
-  const [peopleExpanded, setPeopleExpanded] = useState(false)
 
   const archivePersonH = async (id) => {
     await setPersonHidden(user.uid, id, 'calendar', true)
@@ -271,6 +270,8 @@ export default function CalendarDashboard({ user }) {
         </div>
         <div className="mod-header-right">
           <button className="icon-btn" onClick={() => setCurrentMonth(m => subMonths(m, 1))}><IconChevronLeft size={16} /></button>
+          <button className="icon-btn" style={{ width: 'auto', padding: '0 10px', fontSize: 11 }}
+            onClick={() => { setCurrentMonth(new Date()); setSelectedDay(new Date()) }}>Dziś</button>
           <button className="icon-btn" onClick={() => setCurrentMonth(m => addMonths(m, 1))}><IconChevronRight size={16} /></button>
           <button className="icon-btn" onClick={() => { setEditEvent(null); setShowForm(true) }}
             style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none' }}>
@@ -296,18 +297,20 @@ export default function CalendarDashboard({ user }) {
           onClick={() => setShowCatMgr(true)}><IconTag size={13} /></button>
       </div>
 
-      {/* Person filter pills */}
+      {/* Filtr osób — jedna przewijana linia (wybierz osobę albo „Wszyscy") */}
       {activePeople.length > 0 && tab !== 'people' && (
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
+        <div className="cal-filter-row" style={{ marginBottom: 12 }}>
           <button onClick={() => setFilterPersonId(null)} style={{
-            padding: '4px 10px', borderRadius: 99, fontSize: 12, cursor: 'pointer',
+            flexShrink: 0, whiteSpace: 'nowrap',
+            padding: '4px 12px', borderRadius: 99, fontSize: 12, cursor: 'pointer',
             border: `1.5px solid ${filterPersonId === null ? 'var(--text)' : 'var(--border)'}`,
             background: filterPersonId === null ? 'var(--surface3)' : 'transparent',
             color: filterPersonId === null ? 'var(--text)' : 'var(--text-muted)',
             fontWeight: filterPersonId === null ? 700 : 400,
           }}>Wszyscy</button>
-          {(peopleExpanded ? activePeople : activePeople.slice(0, 5)).map(p => (
+          {activePeople.map(p => (
             <button key={p.id} onClick={() => setFilterPersonId(filterPersonId === p.id ? null : p.id)} style={{
+              flexShrink: 0, whiteSpace: 'nowrap',
               display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px 3px 4px',
               borderRadius: 99, fontSize: 12, cursor: 'pointer',
               border: `1.5px solid ${p.color}`,
@@ -315,24 +318,17 @@ export default function CalendarDashboard({ user }) {
               color: filterPersonId === p.id ? p.color : 'var(--text-muted)',
               fontWeight: filterPersonId === p.id ? 700 : 400,
             }}>
-              <div style={{ width: 18, height: 18, borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 8, fontWeight: 700 }}>
+              <div style={{ width: 18, height: 18, borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 8, fontWeight: 700, flexShrink: 0 }}>
                 {initials(p.name)}
               </div>
               {p.name}
             </button>
           ))}
-          {activePeople.length > 5 && (
-            <button onClick={() => setPeopleExpanded(v => !v)} style={{
-              padding: '4px 12px', borderRadius: 99, fontSize: 12, cursor: 'pointer', fontWeight: 600,
-              border: '1.5px dashed var(--border-strong)', background: 'transparent', color: 'var(--text-muted)',
-            }}>
-              {peopleExpanded ? 'Mniej' : `+${activePeople.length - 5} więcej`}
-            </button>
-          )}
         </div>
       )}
 
-      {/* Dziś / Jutro — szybki podgląd (zawsze widoczny) */}
+      {/* Dziś / Jutro — szybki podgląd (tylko na widoku Miesiąc; w Tygodniu/Agendzie i tak jest to widoczne) */}
+      {tab === 'month' && (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
         {[['Dziś', peekToday], ['Jutro', peekTomorrow]].map(([lbl, list]) => (
           <div key={lbl} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 12 }}>
@@ -359,25 +355,13 @@ export default function CalendarDashboard({ user }) {
           </div>
         ))}
       </div>
+      )}
 
       {/* MONTH TAB */}
       {tab === 'month' && (
         <div className="g2-14">
           {/* Left: calendar */}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
-            <div className="cal-inner-nav">
-              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
-                {format(currentMonth, 'LLLL yyyy', { locale: pl })}
-              </span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button className="icon-btn" style={{ width: 30, height: 30 }} onClick={() => setCurrentMonth(m => subMonths(m, 1))}>‹</button>
-                <button className="icon-btn" style={{ width: 30, height: 30, fontSize: 11, padding: '2px 6px' }}
-                  onClick={() => { setCurrentMonth(new Date()); setSelectedDay(new Date()) }}>Dziś</button>
-                <button className="icon-btn" style={{ width: 30, height: 30 }} onClick={() => setCurrentMonth(m => addMonths(m, 1))}>›</button>
-              </div>
-            </div>
-
             <CalendarGrid
               currentMonth={currentMonth}
               selectedDay={selectedDay}
