@@ -574,12 +574,12 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
 
         <div style={{ flex: 1, minWidth: 0 }}>
           {showPerson && person && (
-            <div style={{ fontSize: 21, fontWeight: 800, color: '#8b5cf6', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={24} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{person.name}</span>
+            <div style={{ fontSize: 21, fontWeight: 800, color: '#8b5cf6', marginBottom: 3, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={24} style={{ flexShrink: 0, marginTop: 2 }} />
+              <span style={{ minWidth: 0, wordBreak: 'break-word', lineHeight: 1.15 }}>{person.name}</span>
             </div>
           )}
-          <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}>{item.title}</div>
+          <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.2, wordBreak: 'break-word' }}>{item.title}</div>
           {item.prayedDates?.length > 0 && (
             <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
               <IconPrayer size={13} /> ×{item.prayedDates.length}
