@@ -616,7 +616,82 @@ export const IcGlasses     = (p) => (<Icon {...p}><circle cx="7" cy="14" r="3.5"
 export const IcCross       = (p) => (<Icon {...p}><path d="M12 2v20"/><path d="M4 8h16"/></Icon>)
 export const IcPray        = (p) => (<Icon {...p}><path d="M12 3l1.5 4.5h-3z"/><path d="M12 7.5V21"/><path d="M6 12.5l6-5 6 5"/></Icon>)
 
-// ── Icon catalog — 110 icons with Polish labels & groups ──────────────────────
+// ── Dodatkowe ikony (rozszerzona baza do wyboru) ──────────────────────────────
+// Finanse
+export const IcBanknote    = (p) => (<Icon {...p}><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></Icon>)
+export const IcTrendUp     = (p) => (<Icon {...p}><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></Icon>)
+export const IcTrendDown   = (p) => (<Icon {...p}><path d="M3 7l6 6 4-4 8 8"/><path d="M15 17h6v-6"/></Icon>)
+export const IcCalculator  = (p) => (<Icon {...p}><rect x="5" y="2" width="14" height="20" rx="2"/><rect x="8" y="5" width="8" height="3" rx="1"/><path d="M9 12h.01M12 12h.01M15 12h.01M9 15h.01M12 15h.01M15 15h.01M9 18h.01M12 18h.01M15 18h.01"/></Icon>)
+export const IcPiggy       = (p) => (<Icon {...p}><path d="M4 12c0-3.3 3.1-6 7-6 1.4 0 2.7.3 3.8.9L18 6l-.4 3c1 .9 1.4 2 1.4 3 0 3-3.1 5.5-7 5.5-1 0-1.9-.2-2.8-.5L6 19v-2.3C4.8 15.6 4 13.9 4 12z"/><circle cx="9" cy="11.5" r=".8" fill="currentColor" stroke="none"/><path d="M2 12h2"/></Icon>)
+export const IcHandCoin    = (p) => (<Icon {...p}><circle cx="16" cy="7" r="3"/><path d="M3 15l4-1 4 1h3a1.5 1.5 0 0 1 0 3h-4"/><path d="M3 14v6"/></Icon>)
+// Dom i przedmioty
+export const IcTv          = (p) => (<Icon {...p}><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M12 18v3"/></Icon>)
+export const IcFridge      = (p) => (<Icon {...p}><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M6 10h12M9 6v2M9 13v3"/></Icon>)
+export const IcBath        = (p) => (<Icon {...p}><path d="M4 12h16v3a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M6 12V6a2 2 0 0 1 4 0"/><path d="M7 19l-1 2M18 19l1 2"/></Icon>)
+export const IcTrash       = (p) => (<Icon {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></Icon>)
+export const IcCandle      = (p) => (<Icon {...p}><rect x="8" y="9" width="8" height="12" rx="1"/><path d="M12 9V6"/><path d="M12 2c1.4 1.4 1.4 2.8 0 4-1.4-1.2-1.4-2.6 0-4z"/></Icon>)
+export const IcClockWall   = (p) => (<Icon {...p}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></Icon>)
+export const IcChair       = (p) => (<Icon {...p}><path d="M6 11V5a2 2 0 0 1 2-2M18 11V5a2 2 0 0 0-2-2"/><path d="M5 11h14l-1.5 5h-11z"/><path d="M7 16v5M17 16v5"/></Icon>)
+// Jedzenie
+export const IcMilk        = (p) => (<Icon {...p}><path d="M8 8h8v12a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1z"/><path d="M9.5 4h5L16 8H8z"/><path d="M10 13h4"/></Icon>)
+export const IcBottle      = (p) => (<Icon {...p}><path d="M10 2h4v3l1 2v13a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2V7l1-2z"/><path d="M9 12h6"/></Icon>)
+export const IcCookie      = (p) => (<Icon {...p}><path d="M12 3a9 9 0 1 0 9 9 4 4 0 0 1-4-4 4 4 0 0 1-4-4 1 1 0 0 0-1-1z"/><circle cx="9" cy="12" r=".8" fill="currentColor" stroke="none"/><circle cx="13.5" cy="15" r=".8" fill="currentColor" stroke="none"/><circle cx="15" cy="10.5" r=".8" fill="currentColor" stroke="none"/></Icon>)
+export const IcMeat        = (p) => (<Icon {...p}><path d="M13 11l6-6a3 3 0 0 0-4-4l-5 5"/><circle cx="8.5" cy="15.5" r="5"/><path d="M4.5 19l-2 2M7 21l-1.5 1.5"/></Icon>)
+export const IcTea         = (p) => (<Icon {...p}><path d="M4 8h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 9h2a2 2 0 0 1 0 4h-2"/><path d="M8 3v2M11 3v2"/></Icon>)
+export const IcCheese      = (p) => (<Icon {...p}><path d="M3 12l15-6 3 4v6H3z"/><circle cx="8" cy="15" r=".9" fill="currentColor" stroke="none"/><circle cx="13" cy="14" r=".9" fill="currentColor" stroke="none"/></Icon>)
+export const IcSalad       = (p) => (<Icon {...p}><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M6 15l1 5h10l1-5"/><path d="M9 11c-1-2 0-4 2-5M13 11c1-2 3-3 5-2"/></Icon>)
+// Transport
+export const IcTruck       = (p) => (<Icon {...p}><path d="M2 6h11v10H2z"/><path d="M13 9h4l4 3v4h-8z"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></Icon>)
+export const IcMotorbike   = (p) => (<Icon {...p}><circle cx="5" cy="17" r="3"/><circle cx="19" cy="17" r="3"/><path d="M5 17l4-5h6M8 12l-2-3H4M15 12l2-3h2"/></Icon>)
+export const IcTraffic     = (p) => (<Icon {...p}><rect x="8" y="2" width="8" height="16" rx="3"/><circle cx="12" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.2" fill="currentColor" stroke="none"/><path d="M12 18v4"/></Icon>)
+export const IcAnchor      = (p) => (<Icon {...p}><circle cx="12" cy="5" r="2"/><path d="M12 7v13M5 13a7 7 0 0 0 14 0M4 13h3M17 13h3"/></Icon>)
+export const IcWalk        = (p) => (<Icon {...p}><circle cx="13" cy="4" r="2"/><path d="M13 6l-2 5 3 3 1 6M11 11l-4 2M14 14l4 1"/></Icon>)
+// Zdrowie i ciało
+export const IcRun         = (p) => (<Icon {...p}><circle cx="14" cy="4" r="2"/><path d="M14 6l-3 3 1 4 2 5M12 9l-4 1-2 4M15 13l4 1"/></Icon>)
+export const IcSwim        = (p) => (<Icon {...p}><circle cx="8" cy="7" r="2"/><path d="M10 8l3 2 3-2M3 17c1.5 1.4 3 1.4 4.5 0S10.5 15.6 12 17s3 1.4 4.5 0 3-1.4 4.5 0"/></Icon>)
+export const IcSyringe     = (p) => (<Icon {...p}><path d="M17 2l5 5M20 5l-9 9-4 1-1 4M9 8l4 4M2 22l3-3"/></Icon>)
+export const IcVirus       = (p) => (<Icon {...p}><circle cx="12" cy="12" r="4.5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/></Icon>)
+export const IcSoap        = (p) => (<Icon {...p}><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a3 3 0 0 1 6 0M16 4a1 1 0 0 0 0-2M19 7a1 1 0 0 0 0-2"/></Icon>)
+export const IcBandage     = (p) => (<Icon {...p}><rect x="2" y="8" width="20" height="8" rx="4" transform="rotate(45 12 12)"/><path d="M10 10h.01M14 14h.01M14 10h.01M10 14h.01"/></Icon>)
+// Praca i technologia
+export const IcPrinter     = (p) => (<Icon {...p}><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><rect x="7" y="15" width="10" height="6"/><path d="M17 12h.01"/></Icon>)
+export const IcMouse       = (p) => (<Icon {...p}><rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 7v3"/></Icon>)
+export const IcRobot       = (p) => (<Icon {...p}><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 4v4M10 4h4"/><circle cx="9.5" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="13" r="1" fill="currentColor" stroke="none"/><path d="M10 16h4M3 12v3M21 12v3"/></Icon>)
+export const IcBug         = (p) => (<Icon {...p}><path d="M8 8a4 4 0 0 1 8 0v4a4 4 0 0 1-8 0z"/><path d="M12 4V2M9 5L8 4M15 5l1-1M8 10H4M8 14H4M16 10h4M16 14h4M9 18l-2 2M15 18l2 2"/></Icon>)
+export const IcFolder      = (p) => (<Icon {...p}><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></Icon>)
+export const IcClipboard   = (p) => (<Icon {...p}><rect x="5" y="4" width="14" height="18" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 11h6M9 15h4"/></Icon>)
+export const IcPen         = (p) => (<Icon {...p}><path d="M4 20l1.5-4L16 5.5 18.5 8 8 18.5z"/><path d="M14 7.5l2.5 2.5"/></Icon>)
+export const IcIdea        = (p) => (<Icon {...p}><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-4 10.5c.6.5 1 1.3 1 2.5h6c0-1.2.4-2 1-2.5A6 6 0 0 0 12 3z"/></Icon>)
+// Ludzie i społeczność
+export const IcPhoneCall   = (p) => (<Icon {...p}><path d="M6 3h3l2 5-2 1.5a11 11 0 0 0 5.5 5.5L18 13l3 2v3a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/></Icon>)
+export const IcThumbsUp    = (p) => (<Icon {...p}><path d="M7 10v10H4V10z"/><path d="M7 10l4-7c1.3 0 2 .8 2 2v3h5a2 2 0 0 1 2 2.3l-1 6a2 2 0 0 1-2 1.7H7"/></Icon>)
+export const IcGradCap     = (p) => (<Icon {...p}><path d="M2 9l10-4 10 4-10 4z"/><path d="M6 11v5c0 1.4 3 2.5 6 2.5s6-1.1 6-2.5v-5"/><path d="M22 9v5"/></Icon>)
+export const IcPaw         = (p) => (<Icon {...p}><circle cx="6" cy="12" r="1.6"/><circle cx="10" cy="8.5" r="1.6"/><circle cx="14" cy="8.5" r="1.6"/><circle cx="18" cy="12" r="1.6"/><path d="M8.5 16.5c0-2 1.6-3.5 3.5-3.5s3.5 1.5 3.5 3.5a2.8 2.8 0 0 1-2.8 2.8h-1.4a2.8 2.8 0 0 1-2.8-2.8z"/></Icon>)
+// Natura i pogoda
+export const IcRainbow     = (p) => (<Icon {...p}><path d="M3 17a9 9 0 0 1 18 0"/><path d="M6 17a6 6 0 0 1 12 0"/><path d="M9 17a3 3 0 0 1 6 0"/></Icon>)
+export const IcUmbrella    = (p) => (<Icon {...p}><path d="M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9z"/><path d="M12 12v6a2 2 0 0 0 4 0"/><path d="M12 3V2"/></Icon>)
+export const IcSprout      = (p) => (<Icon {...p}><path d="M12 21v-7"/><path d="M12 14c-3 0-5-2-5-5 2 0 5 1 5 5z"/><path d="M12 12c0-3 2-5 5-5 0 3-2 5-5 5z"/></Icon>)
+export const IcMushroom    = (p) => (<Icon {...p}><path d="M4 11a8 8 0 0 1 16 0z"/><path d="M9 11v6a3 3 0 0 0 6 0v-6"/><circle cx="9" cy="8" r=".8" fill="currentColor" stroke="none"/><circle cx="14" cy="7.5" r=".8" fill="currentColor" stroke="none"/></Icon>)
+export const IcWind        = (p) => (<Icon {...p}><path d="M3 8h10a2.5 2.5 0 1 0-2.5-2.5"/><path d="M3 12h15a2.5 2.5 0 1 1-2.5 2.5"/><path d="M3 16h8a2.5 2.5 0 1 1-2.5 2.5"/></Icon>)
+// Aktywności i hobby
+export const IcGuitar      = (p) => (<Icon {...p}><path d="M15 3l6 6-2 2-1.5-1.5-4 4a4 4 0 1 1-4-4l4-4L12 4z"/><circle cx="9" cy="15" r="1.8"/></Icon>)
+export const IcBasketball  = (p) => (<Icon {...p}><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M5.5 5.5c3 2.5 3 10.5 0 13M18.5 5.5c-3 2.5-3 10.5 0 13"/></Icon>)
+export const IcSoccer      = (p) => (<Icon {...p}><circle cx="12" cy="12" r="9"/><path d="M12 8.5l3.2 2.3-1.2 3.7h-4L8.8 10.8z"/><path d="M12 3v3M4.5 9l2.5 2M19.5 9l-2.5 2M7 20l1.5-3M17 20l-1.5-3"/></Icon>)
+export const IcDice        = (p) => (<Icon {...p}><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/></Icon>)
+export const IcTent        = (p) => (<Icon {...p}><path d="M12 4L3 20h18z"/><path d="M12 4v16M12 20l-4-6M12 20l4-6"/></Icon>)
+export const IcTicket      = (p) => (<Icon {...p}><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H5a2 2 0 0 1-2-2 2 2 0 0 0 0-4z"/><path d="M14 6v2M14 11v2M14 16v0"/></Icon>)
+export const IcTrophy      = (p) => (<Icon {...p}><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 5H5v2a3 3 0 0 0 3 3M16 5h3v2a3 3 0 0 1-3 3"/><path d="M12 13v4M9 21h6l-1-4h-4z"/></Icon>)
+export const IcPuzzle      = (p) => (<Icon {...p}><path d="M10 4a2 2 0 0 1 4 0v1h3a1 1 0 0 1 1 1v3h1a2 2 0 0 1 0 4h-1v3a1 1 0 0 1-1 1h-3v1a2 2 0 0 1-4 0v-1H7a1 1 0 0 1-1-1v-3H5a2 2 0 0 1 0-4h1V6a1 1 0 0 1 1-1h3z"/></Icon>)
+export const IcBooks       = (p) => (<Icon {...p}><path d="M5 5h4v15H5zM9 5h4v15H9z"/><path d="M13 6l4-1 3 14-4 1z"/></Icon>)
+// Interfejs i różne
+export const IcLock        = (p) => (<Icon {...p}><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></Icon>)
+export const IcCheckCircle = (p) => (<Icon {...p}><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-5"/></Icon>)
+export const IcInfo        = (p) => (<Icon {...p}><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></Icon>)
+export const IcQuestion    = (p) => (<Icon {...p}><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3 2.4c-.8.3-1 .9-1 1.6M12 16h.01"/></Icon>)
+export const IcHourglass   = (p) => (<Icon {...p}><path d="M6 3h12M6 21h12M7 3v3l5 6-5 6v3M17 3v3l-5 6 5 6v3"/></Icon>)
+export const IcCompass     = (p) => (<Icon {...p}><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></Icon>)
+
+// ── Icon catalog — ~175 icons with Polish labels & groups ─────────────────────
 export const ICON_CATALOG = [
   { key: 'IcWallet',      label: 'portfel',      group: 'Finanse',              Component: IcWallet },
   { key: 'IcCoins',       label: 'monety',       group: 'Finanse',              Component: IcCoins },
@@ -740,6 +815,80 @@ export const ICON_CATALOG = [
   { key: 'IcPray',        label: 'modlitwa',     group: 'Interfejs i różne',    Component: IcPray },
   { key: 'IconSettings',  label: 'ustawienia',   group: 'Interfejs i różne',    Component: IconSettings },
   { key: 'IcGift2',       label: 'prezent',      group: 'Interfejs i różne',    Component: IcGift2 },
+
+  // ── Rozszerzona baza ──
+  { key: 'IcBanknote',    label: 'banknot',      group: 'Finanse',              Component: IcBanknote },
+  { key: 'IcTrendUp',     label: 'wzrost',       group: 'Finanse',              Component: IcTrendUp },
+  { key: 'IcTrendDown',   label: 'spadek',       group: 'Finanse',              Component: IcTrendDown },
+  { key: 'IcCalculator',  label: 'kalkulator',   group: 'Finanse',              Component: IcCalculator },
+  { key: 'IcPiggy',       label: 'skarbonka',    group: 'Finanse',              Component: IcPiggy },
+  { key: 'IcHandCoin',    label: 'datek',        group: 'Finanse',              Component: IcHandCoin },
+
+  { key: 'IcTv',          label: 'telewizor',    group: 'Dom i przedmioty',     Component: IcTv },
+  { key: 'IcFridge',      label: 'lodówka',      group: 'Dom i przedmioty',     Component: IcFridge },
+  { key: 'IcBath',        label: 'wanna',        group: 'Dom i przedmioty',     Component: IcBath },
+  { key: 'IcTrash',       label: 'kosz',         group: 'Dom i przedmioty',     Component: IcTrash },
+  { key: 'IcCandle',      label: 'świeca',       group: 'Dom i przedmioty',     Component: IcCandle },
+  { key: 'IcClockWall',   label: 'zegar',        group: 'Dom i przedmioty',     Component: IcClockWall },
+  { key: 'IcChair',       label: 'krzesło',      group: 'Dom i przedmioty',     Component: IcChair },
+
+  { key: 'IcMilk',        label: 'mleko',        group: 'Jedzenie',             Component: IcMilk },
+  { key: 'IcBottle',      label: 'butelka',      group: 'Jedzenie',             Component: IcBottle },
+  { key: 'IcCookie',      label: 'ciastko',      group: 'Jedzenie',             Component: IcCookie },
+  { key: 'IcMeat',        label: 'mięso',        group: 'Jedzenie',             Component: IcMeat },
+  { key: 'IcTea',         label: 'herbata',      group: 'Jedzenie',             Component: IcTea },
+  { key: 'IcCheese',      label: 'ser',          group: 'Jedzenie',             Component: IcCheese },
+  { key: 'IcSalad',       label: 'sałatka',      group: 'Jedzenie',             Component: IcSalad },
+
+  { key: 'IcTruck',       label: 'ciężarówka',   group: 'Transport',            Component: IcTruck },
+  { key: 'IcMotorbike',   label: 'motor',        group: 'Transport',            Component: IcMotorbike },
+  { key: 'IcTraffic',     label: 'sygnalizacja', group: 'Transport',            Component: IcTraffic },
+  { key: 'IcAnchor',      label: 'kotwica',      group: 'Transport',            Component: IcAnchor },
+  { key: 'IcWalk',        label: 'spacer',       group: 'Transport',            Component: IcWalk },
+
+  { key: 'IcRun',         label: 'bieganie',     group: 'Zdrowie i ciało',      Component: IcRun },
+  { key: 'IcSwim',        label: 'pływanie',     group: 'Zdrowie i ciało',      Component: IcSwim },
+  { key: 'IcSyringe',     label: 'zastrzyk',     group: 'Zdrowie i ciało',      Component: IcSyringe },
+  { key: 'IcVirus',       label: 'wirus',        group: 'Zdrowie i ciało',      Component: IcVirus },
+  { key: 'IcSoap',        label: 'mydło',        group: 'Zdrowie i ciało',      Component: IcSoap },
+  { key: 'IcBandage',     label: 'plaster',      group: 'Zdrowie i ciało',      Component: IcBandage },
+
+  { key: 'IcPrinter',     label: 'drukarka',     group: 'Praca i technologia',  Component: IcPrinter },
+  { key: 'IcMouse',       label: 'myszka',       group: 'Praca i technologia',  Component: IcMouse },
+  { key: 'IcRobot',       label: 'robot',        group: 'Praca i technologia',  Component: IcRobot },
+  { key: 'IcBug',         label: 'błąd',         group: 'Praca i technologia',  Component: IcBug },
+  { key: 'IcFolder',      label: 'folder',       group: 'Praca i technologia',  Component: IcFolder },
+  { key: 'IcClipboard',   label: 'schowek',      group: 'Praca i technologia',  Component: IcClipboard },
+  { key: 'IcPen',         label: 'długopis',     group: 'Praca i technologia',  Component: IcPen },
+  { key: 'IcIdea',        label: 'pomysł',       group: 'Praca i technologia',  Component: IcIdea },
+
+  { key: 'IcPhoneCall',   label: 'rozmowa',      group: 'Ludzie i społeczność', Component: IcPhoneCall },
+  { key: 'IcThumbsUp',    label: 'kciuk',        group: 'Ludzie i społeczność', Component: IcThumbsUp },
+  { key: 'IcGradCap',     label: 'absolwent',    group: 'Ludzie i społeczność', Component: IcGradCap },
+  { key: 'IcPaw',         label: 'łapka',        group: 'Ludzie i społeczność', Component: IcPaw },
+
+  { key: 'IcRainbow',     label: 'tęcza',        group: 'Natura i pogoda',      Component: IcRainbow },
+  { key: 'IcUmbrella',    label: 'parasol',      group: 'Natura i pogoda',      Component: IcUmbrella },
+  { key: 'IcSprout',      label: 'kiełek',       group: 'Natura i pogoda',      Component: IcSprout },
+  { key: 'IcMushroom',    label: 'grzyb',        group: 'Natura i pogoda',      Component: IcMushroom },
+  { key: 'IcWind',        label: 'wiatr',        group: 'Natura i pogoda',      Component: IcWind },
+
+  { key: 'IcGuitar',      label: 'gitara',       group: 'Aktywności i hobby',   Component: IcGuitar },
+  { key: 'IcBasketball',  label: 'koszykówka',   group: 'Aktywności i hobby',   Component: IcBasketball },
+  { key: 'IcSoccer',      label: 'piłka',        group: 'Aktywności i hobby',   Component: IcSoccer },
+  { key: 'IcDice',        label: 'kość',         group: 'Aktywności i hobby',   Component: IcDice },
+  { key: 'IcTent',        label: 'namiot',       group: 'Aktywności i hobby',   Component: IcTent },
+  { key: 'IcTicket',      label: 'bilet',        group: 'Aktywności i hobby',   Component: IcTicket },
+  { key: 'IcTrophy',      label: 'puchar',       group: 'Aktywności i hobby',   Component: IcTrophy },
+  { key: 'IcPuzzle',      label: 'puzzle',       group: 'Aktywności i hobby',   Component: IcPuzzle },
+  { key: 'IcBooks',       label: 'książki',      group: 'Aktywności i hobby',   Component: IcBooks },
+
+  { key: 'IcLock',        label: 'kłódka',       group: 'Interfejs i różne',    Component: IcLock },
+  { key: 'IcCheckCircle', label: 'ptaszek',      group: 'Interfejs i różne',    Component: IcCheckCircle },
+  { key: 'IcInfo',        label: 'info',         group: 'Interfejs i różne',    Component: IcInfo },
+  { key: 'IcQuestion',    label: 'pytanie',      group: 'Interfejs i różne',    Component: IcQuestion },
+  { key: 'IcHourglass',   label: 'klepsydra',    group: 'Interfejs i różne',    Component: IcHourglass },
+  { key: 'IcCompass',     label: 'kompas',       group: 'Interfejs i różne',    Component: IcCompass },
 ]
 
 // Key → Component lookup (for CatIcon)
