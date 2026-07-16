@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { getBounds, shiftPivot, build12MonthTimeline } from '../src/utils/budgetMath.js'
+import { getBounds, shiftPivot, build12MonthTimeline, buildPeriodTimeline } from '../src/utils/budgetMath.js'
 
 const d = (s) => new Date(s + 'T12:00:00')
 
@@ -71,4 +71,33 @@ test('build12MonthTimeline — puste dane dają 12 zerowych kubełków', () => {
   const out = build12MonthTimeline([], d('2026-07-04'))
   assert.equal(out.length, 12)
   assert.ok(out.every(m => m.income === 0 && m.expense === 0))
+})
+
+test('buildPeriodTimeline — rok: 12 kubełków miesięcznych, przypisanych do właściwego miesiąca', () => {
+  const txs = [
+    { date: d('2026-01-10'), type: 'income',  amount: 100 },
+    { date: d('2026-01-20'), type: 'expense', amount: 40 },
+    { date: d('2026-03-05'), type: 'expense', amount: 60 },
+  ]
+  const out = buildPeriodTimeline(txs, 'year', d('2026-06-15'))
+  assert.equal(out.length, 12)
+  assert.equal(out[0].income, 100)
+  assert.equal(out[0].expense, 40)
+  assert.equal(out[2].expense, 60)
+  assert.equal(out[5].income, 0)
+})
+
+test('buildPeriodTimeline — miesiąc: kubełki dzienne wg liczby dni w miesiącu', () => {
+  const txs = [
+    { date: d('2026-02-01'), type: 'income',  amount: 10 },
+    { date: d('2026-02-28'), type: 'expense', amount: 5 },
+  ]
+  const out = buildPeriodTimeline(txs, 'month', d('2026-02-15'))
+  assert.equal(out.length, 28) // luty 2026
+  assert.equal(out[0].income, 10)
+  assert.equal(out[27].expense, 5)
+})
+
+test('buildPeriodTimeline — dzień: brak osi', () => {
+  assert.deepEqual(buildPeriodTimeline([], 'day', d('2026-02-15')), [])
 })

@@ -13,6 +13,7 @@ import RegularPayments from './budget/RegularPayments'
 import BudgetMenu from './budget/BudgetMenu'
 import TransferForm from './budget/TransferForm'
 import SearchPanel from './budget/SearchPanel'
+import StatsPanel from './budget/StatsPanel'
 import CurrencyTiles from './budget/CurrencyTiles'
 import { sortTransactionsByDate } from '../utils/txSort'
 import TitheView from './budget/TitheView'
@@ -21,7 +22,7 @@ import Reminders from './budget/Reminders'
 import Debtors from './budget/Debtors'
 import CategoriesView from './budget/CategoriesView'
 import ShoppingList from './budget/ShoppingList'
-import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconClock, IconEye, IconEyeOff, CatIcon } from './Icons'
+import { IconClose, IconTransfer, IconBank, IconChart, IconStar, IconShopping, IconPlus, IconChevronLeft, IconChevronRight, IconMore, IconSavings, IconArrowUp, IconArrowDown, IconCash, IconCard, IconFlame, IconEye, IconEyeOff, CatIcon } from './Icons'
 import { Donut, FlowBar, Spark, useNarrow } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 import { isTransfer } from '../utils/categories'
@@ -116,6 +117,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
     }
     if (id === 'transfer')   return setModal('transfer')
     if (id === 'search')     return setModal('search')
+    if (id === 'stats')      return setModal('stats')
     if (id === 'tithe')      return setModal('tithe')
     if (id === 'goals')      return setModal('goals')
     if (id === 'reminders')  return setModal('reminders')
@@ -483,7 +485,7 @@ export default function Dashboard({ user, onCurrencyChange }) {
       {modal === 'reminders'   && <Reminders      user={user} onClose={() => setModal(null)} />}
       {modal === 'debtors'     && <Debtors        user={user} onClose={() => setModal(null)} />}
       {modal === 'categories'  && <CategoriesView user={user} onClose={() => setModal(null)} />}
-      {modal === 'stats'       && <ComingSoon title="Statystyki roczne" onClose={() => setModal(null)} />}
+      {modal === 'stats'       && <StatsPanel     user={user} privateMode={privateMode} onClose={() => setModal(null)} />}
 
       {showForm && (
         <TransactionForm
@@ -492,23 +494,6 @@ export default function Dashboard({ user, onCurrencyChange }) {
           editData={editTransaction}
         />
       )}
-    </div>
-  )
-}
-
-function ComingSoon({ title, onClose }) {
-  return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" style={{ textAlign: 'center' }}>
-        <div className="modal-header">
-          <h3>{title}</h3>
-          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
-        </div>
-        <div style={{ padding: '32px 20px', color: 'var(--text-muted)' }}>
-          <p style={{ marginBottom: 16, opacity: 0.5, display: 'flex', justifyContent: 'center' }}><IconClock size={40} /></p>
-          <p>Ta funkcja jest w przygotowaniu.</p>
-        </div>
-      </div>
     </div>
   )
 }

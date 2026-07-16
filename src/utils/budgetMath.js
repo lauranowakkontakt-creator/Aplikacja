@@ -3,7 +3,7 @@
 import {
   format, startOfWeek, endOfWeek, startOfMonth, endOfMonth,
   startOfYear, endOfYear, startOfDay, endOfDay,
-  subMonths, addMonths, eachMonthOfInterval,
+  subMonths, addMonths, eachMonthOfInterval, eachDayOfInterval,
   subWeeks, addWeeks, subYears, addYears, subDays, addDays,
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -44,6 +44,40 @@ export function build12MonthTimeline(transactions, now = new Date()) {
       label: format(m, 'MMM', { locale: pl }),
       income: txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
       expense: txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+    }
+  })
+}
+
+// Oś czasu dopasowana do wybranego okresu:
+//  - 'year'  → 12 kubełków miesięcznych danego roku,
+//  - 'month' → kubełki dzienne danego miesiąca,
+//  - 'week'  → 7 kubełków dziennych,
+//  - 'day'   → pusta (pojedynczy dzień nie ma sensownej osi).
+// Transakcje muszą mieć `date` (Date), `type` ('income'|'expense') i `amount`.
+export function buildPeriodTimeline(transactions, period, pivot) {
+  if (period === 'day') return []
+  const gran = period === 'year' ? 'month' : 'day'
+  const range =
+    period === 'year'  ? { start: startOfYear(pivot),  end: endOfYear(pivot) } :
+    period === 'week'  ? { start: startOfWeek(pivot, { weekStartsOn: 1 }), end: endOfWeek(pivot, { weekStartsOn: 1 }) } :
+                         { start: startOfMonth(pivot), end: endOfMonth(pivot) }
+  const keyFmt = gran === 'month' ? 'yyyy-MM' : 'yyyy-MM-dd'
+  const lblFmt = gran === 'month' ? 'LLL' : 'd'
+  const units  = gran === 'month' ? eachMonthOfInterval(range) : eachDayOfInterval(range)
+
+  const map = {}
+  transactions.forEach(t => {
+    const k = format(t.date, keyFmt)
+    if (!map[k]) map[k] = { income: 0, expense: 0 }
+    if (t.type === 'income')  map[k].income  += t.amount
+    else if (t.type === 'expense') map[k].expense += t.amount
+  })
+  return units.map(u => {
+    const k = format(u, keyFmt)
+    return {
+      label: format(u, lblFmt, { locale: pl }),
+      income:  map[k]?.income  || 0,
+      expense: map[k]?.expense || 0,
     }
   })
 }

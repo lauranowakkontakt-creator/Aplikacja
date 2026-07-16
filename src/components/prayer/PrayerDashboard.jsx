@@ -117,6 +117,15 @@ export default function PrayerDashboard({ user }) {
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   const switchTab = (t) => { setTab(t); setSelectedPerson(null) }
+  // W trybie auto zostają tylko „Osoby" i „Dziś" — statystyki i archiwum są ukryte.
+  const toggleCarMode = () => setCarMode(m => {
+    const next = !m
+    if (next && tab !== 'people' && tab !== 'today') { setTab('today'); setSelectedPerson(null) }
+    return next
+  })
+  const TABS = carMode
+    ? [['people', 'Osoby'], ['today', 'Dziś']]
+    : [['people', 'Osoby'], ['today', 'Dziś'], ['stats', 'Statystyki'], ['archive', 'Archiwum']]
 
   return (
     <div className={`prayer-dashboard${carMode ? ' car-mode' : ''}`}>
@@ -130,17 +139,16 @@ export default function PrayerDashboard({ user }) {
         </div>
         <div className="mod-header-right">
           <button
-            onClick={() => setCarMode(m => !m)}
+            onClick={toggleCarMode}
             style={{
-              width: 'auto', height: 32, padding: '0 12px', borderRadius: 8, cursor: 'pointer',
-              fontSize: 13, fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap',
-              display: 'inline-flex', alignItems: 'center', gap: 5,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              padding: '4px 10px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
               border: `1px solid ${carMode ? 'var(--accent)' : 'var(--border)'}`,
               background: carMode ? 'var(--accent)' : 'var(--surface)',
               color: carMode ? '#fff' : 'var(--text-sub)',
             }}
             title="Tryb auto (większe przyciski do prowadzenia)"
-          ><IcCar size={15} /> Auto</button>
+          ><IcCar size={carMode ? 18 : 16} /></button>
           <div className="prayer-stat-tile" style={{ padding: '4px 10px', gap: 6 }}>
             <IconFlame size={14} style={{ color: 'var(--accent)' }} />
             <span style={{ fontSize: 13, fontWeight: 700 }}>{streak}</span>
@@ -152,34 +160,13 @@ export default function PrayerDashboard({ user }) {
         </div>
       </div>
 
-      {/* Stats tiles */}
-      {!carMode && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginBottom: 14 }}>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px', textAlign: 'center' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 3, color: '#C9A24A' }}><IconPrayer size={18}/></div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: '#C9A24A', lineHeight: 1 }}>{prayedToday}</div>
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Dziś</div>
-          </div>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px', textAlign: 'center' }}>
-            <IconFlame size={18} style={{ marginBottom: 3 }} />
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>{streak}</div>
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Seria</div>
-          </div>
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px', textAlign: 'center' }}>
-            <IconUsers size={18} style={{ marginBottom: 3 }} />
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--violet)', lineHeight: 1 }}>{people.length}</div>
-            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 4 }}>Osób</div>
-          </div>
-        </div>
-      )}
-
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-        {[['people','Osoby'],['today','Dziś'],['stats','Statystyki'],['archive','Archiwum']].map(([id, label]) => (
+        {TABS.map(([id, label]) => (
           <button key={id}
             onClick={() => switchTab(id)}
             style={{
-              flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 12, fontWeight: tab === id ? 700 : 400,
+              flex: 1, padding: carMode ? '12px 0' : '7px 0', borderRadius: 10, fontSize: carMode ? 16 : 12, fontWeight: tab === id ? 700 : 400,
               background: tab === id ? 'var(--surface3)' : 'transparent',
               color: tab === id ? 'var(--text)' : 'var(--text-muted)',
               border: tab === id ? '1px solid var(--border-strong)' : '1px solid transparent',
@@ -459,15 +446,15 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button className="t-btn" onClick={onBack} style={{ padding: '4px 8px' }}><IconChevronLeft size={18} /></button>
-        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6' }}>
-          <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={20} />
+        <button className="t-btn" onClick={onBack} style={{ padding: carMode ? '8px 10px' : '4px 8px' }}><IconChevronLeft size={carMode ? 24 : 18} /></button>
+        <div style={{ width: carMode ? 52 : 36, height: carMode ? 52 : 36, borderRadius: carMode ? 14 : 10, background: 'rgba(139,92,246,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8b5cf6', flexShrink: 0 }}>
+          <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={carMode ? 28 : 20} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>{person.name}</p>
-          {person.note && <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>{person.note}</p>}
+          <p style={{ margin: 0, fontSize: carMode ? 26 : 17, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{person.name}</p>
+          {person.note && <p style={{ margin: 0, fontSize: carMode ? 14 : 12, color: 'var(--text-muted)' }}>{person.note}</p>}
         </div>
-        <span style={{ fontSize: 12, color: '#8b5cf6', flexShrink: 0 }}>{active.length} aktywnych</span>
+        <span style={{ fontSize: carMode ? 14 : 12, color: '#8b5cf6', flexShrink: 0 }}>{active.length} aktywnych</span>
       </div>
 
       {active.length === 0 && !showAddForm && (
@@ -564,8 +551,55 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
     setEditingNoteId(null)
   }
 
-  const fs = carMode ? { title: 18, sub: 14, badge: 12, action: 15, note: 14 } : { title: 14, sub: 12, badge: 10, action: 12, note: 12 }
-  const pad = carMode ? '16px 18px' : '12px 14px'
+  // Tryb auto — duży, czytelny wiersz „jak w nawykach": odhaczanie jedną ikoną z boku,
+  // duża osoba i treść prośby, a edycja tylko małym przyciskiem w rogu.
+  if (carMode) {
+    return (
+      <div style={{
+        background: prayedToday ? 'rgba(39,174,96,0.12)' : 'var(--surface)',
+        border: `1px solid ${prayedToday ? '#27AE60' : 'var(--border)'}`,
+        borderLeft: `5px solid ${prio.color}`,
+        borderRadius: 16, padding: '16px 14px',
+        display: 'flex', alignItems: 'center', gap: 14,
+      }}>
+        <button type="button" onClick={() => onTogglePrayed(item, viewDate)} style={{
+          width: 62, height: 62, borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
+          display: 'grid', placeItems: 'center',
+          border: `2px solid ${prayedToday ? '#27AE60' : 'var(--border-strong)'}`,
+          background: prayedToday ? 'rgba(39,174,96,0.22)' : 'transparent',
+          color: prayedToday ? '#27AE60' : 'var(--text-muted)',
+        }} title={prayedToday ? 'Modlono' : 'Odhacz modlitwę'}>
+          {prayedToday ? <IconCheck size={32} /> : <IconPrayer size={30} />}
+        </button>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {showPerson && person && (
+            <div style={{ fontSize: 21, fontWeight: 800, color: '#8b5cf6', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={24} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{person.name}</span>
+            </div>
+          )}
+          <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.2 }}>{item.title}</div>
+          {item.prayedDates?.length > 0 && (
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <IconPrayer size={13} /> ×{item.prayedDates.length}
+              {days === 0 && ' · dziś'}
+              {days !== null && days > 0 && ` · ${days} dni temu`}
+            </div>
+          )}
+        </div>
+
+        <button type="button" onClick={onEdit} style={{
+          width: 44, height: 44, borderRadius: 12, flexShrink: 0, cursor: 'pointer',
+          display: 'grid', placeItems: 'center',
+          border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text-muted)',
+        }} title="Edytuj"><IconEdit size={20} /></button>
+      </div>
+    )
+  }
+
+  const fs = { title: 14, sub: 12, badge: 10, action: 12, note: 12 }
+  const pad = '12px 14px'
 
   return (
     <div style={{
@@ -777,13 +811,10 @@ function TodayView({ user, intentions, people, carMode }) {
         <button className="icon-btn" onClick={() => setViewDate(d => format(addDays(parseISO(d), 1), 'yyyy-MM-dd'))}><IconChevronRight size={16} /></button>
       </div>
 
-      {visibleIntentions.length > 0 && (
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: carMode ? '18px' : '14px 16px', textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: carMode ? 36 : 28, fontWeight: 700 }}>{prayedCount}<span style={{ fontSize: carMode ? 24 : 18, color: 'var(--text-muted)' }}>/{visibleIntentions.length}</span></p>
-          <p style={{ margin: '2px 0 0', fontSize: carMode ? 14 : 12, color: 'var(--text-muted)' }}>modlono {isToday ? 'dziś' : dateLabel.toLowerCase()}</p>
-          {prayedCount > 0 && prayedCount === visibleIntentions.length && (
-            <p style={{ margin: '6px 0 0', fontSize: carMode ? 15 : 13, color: '#27AE60', fontWeight: 600 }}>Wszystkie prośby modlone!</p>
-          )}
+      {/* Licznik modlono X/Y jest już w prawym górnym rogu nagłówka — tu tylko komunikat o komplecie */}
+      {visibleIntentions.length > 0 && prayedCount === visibleIntentions.length && (
+        <div style={{ background: 'rgba(39,174,96,0.12)', border: '1px solid #27AE60', borderRadius: 12, padding: carMode ? '14px' : '10px 14px', textAlign: 'center' }}>
+          <p style={{ margin: 0, fontSize: carMode ? 17 : 14, color: '#27AE60', fontWeight: 700 }}>Wszystkie prośby modlone {isToday ? 'dziś' : 'tego dnia'}!</p>
         </div>
       )}
 

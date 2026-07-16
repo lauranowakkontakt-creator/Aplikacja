@@ -806,13 +806,14 @@ select.form-input, select.form-input option { background: var(--bg); color: var(
 @media (max-width: 480px) {
   .drawer { width: 100%; max-width: 100%; border-left: none; border-top: 1px solid var(--border); }
 }
-.drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+/* Sticky + safe-area: na telefonie (PWA) nagłówek z „×" nie chowa się pod paskiem systemowym i zawsze da się zamknąć */
+.drawer-header { position: sticky; top: 0; z-index: 2; background: var(--surface); display: flex; align-items: center; justify-content: space-between; padding: calc(20px + env(safe-area-inset-top, 0px)) 20px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .drawer-user { display: flex; align-items: center; gap: 12px; }
 .drawer-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
 .drawer-avatar-placeholder { width: 40px; height: 40px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: var(--bg); flex-shrink: 0; }
 .drawer-name { font-size: 15px; font-weight: 600; }
 .drawer-email { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
-.drawer-close { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; padding: 6px; border-radius: 6px; transition: background 0.15s; }
+.drawer-close { background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-size: 18px; cursor: pointer; padding: 10px; border-radius: 10px; transition: background 0.15s; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .drawer-close:hover { background: var(--surface2); }
 .drawer-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
 .drawer-section-title { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.14em; margin-bottom: 12px; }

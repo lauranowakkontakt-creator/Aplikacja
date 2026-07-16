@@ -5,12 +5,14 @@ import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import AccountForm from './AccountForm'
+import AccountReorderModal from './AccountReorderModal'
 import CurrencyTiles from './CurrencyTiles'
 import { fmt } from '../../utils/currency'
-import { CatIcon, IconBank, IconCash, IconCard, IconSavings, IconEdit, IconTrash, IconEye, IconEyeOff, IconChevronLeft } from '../Icons'
+import { CatIcon, IconBank, IconCash, IconCard, IconSavings, IconEdit, IconTrash, IconEye, IconEyeOff, IconChevronLeft, IconReorder } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import { sortTransactionsByDate } from '../../utils/txSort'
+import { byAccountOrder } from '../../utils/accountOrder'
 
 const fmtAcc = (n, currency = 'PLN') =>
   new Intl.NumberFormat('pl-PL', { style: 'currency', currency }).format(n)
@@ -27,6 +29,7 @@ export default function AccountsView({ user, privateMode }) {
   const [showForm, setShowForm]   = useState(false)
   const [editAccount, setEditAccount] = useState(null)
   const [selected, setSelected]   = useState(null)
+  const [showReorder, setShowReorder] = useState(false)
   const storageKey = `excludedAccounts_${user.uid}`
   const [excludedFromTotal, setExcludedFromTotal] = useState(() => {
     try { const s = localStorage.getItem(`excludedAccounts_${user.uid}`); return s ? JSON.parse(s) : [] } catch { return [] }
@@ -40,6 +43,7 @@ export default function AccountsView({ user, privateMode }) {
     })
   }, [user.uid])
 
+  const orderedAccounts = [...accounts].sort(byAccountOrder)
   const includedAccounts = accounts.filter(a => !excludedFromTotal.includes(a.id))
 
   const totalsByCurrency = includedAccounts.reduce((acc, a) => {
@@ -89,6 +93,12 @@ export default function AccountsView({ user, privateMode }) {
       <div className="accounts-total">
         <span className="accounts-total-label">
           Suma kont{excludedFromTotal.length > 0 ? ` (${includedAccounts.length}/${accounts.length})` : ''}
+          {accounts.length > 1 && (
+            <button className="t-btn" title="Zmień kolejność kont" onClick={() => setShowReorder(true)}
+              style={{ marginLeft: 8, verticalAlign: 'middle' }}>
+              <IconReorder size={14} />
+            </button>
+          )}
         </span>
         {privateMode ? (
           <span className="accounts-total-amount">••••</span>
@@ -108,7 +118,7 @@ export default function AccountsView({ user, privateMode }) {
         </div>
       ) : (
         <div className="accounts-list">
-          {accounts.map(acc => {
+          {orderedAccounts.map(acc => {
             const excluded = excludedFromTotal.includes(acc.id)
             const color = acc.color || '#3B82F6'
             const balance = acc.balance || 0
@@ -120,35 +130,33 @@ export default function AccountsView({ user, privateMode }) {
                 border: '1px solid var(--border)',
                 borderLeft: `4px solid ${color}`,
                 borderRadius: 'var(--r)',
-                padding: '10px 14px',
-                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '7px 12px',
+                display: 'flex', alignItems: 'center', gap: 10,
                 cursor: 'pointer', transition: 'background .15s',
               }}
                 onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${color}14 0%, var(--surface2) 60%)`}
                 onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${color}08 0%, var(--surface) 60%)`}
               >
                 <div style={{
-                  width: 40, height: 40, borderRadius: 11, flexShrink: 0,
+                  width: 32, height: 32, borderRadius: 9, flexShrink: 0,
                   background: color + '22', border: `1px solid ${color}40`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', color
                 }}>
-                  <Ic size={20} />
+                  <Ic size={17} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{acc.name}</div>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 2 }}>{acc.typeName || acc.type}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{acc.name}</div>
+                  <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 1 }}>{acc.typeName || acc.type}</div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                  <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
-                    {privateMode ? '••••' : fmtAcc(balance, acc.currency || 'PLN')}
-                  </div>
-                  <div style={{ display: 'flex', gap: 3 }}>
-                    <button className="t-btn" title={excluded ? 'Uwzględnij w sumie' : 'Wyklucz z sumy'} onClick={(e) => toggleExcluded(acc.id, e)}>
-                      {excluded ? <IconEyeOff size={13} /> : <IconEye size={13} />}
-                    </button>
-                    <button className="t-btn" onClick={(e) => { e.stopPropagation(); setEditAccount(acc); setShowForm(true) }}><IconEdit size={13} /></button>
-                    <button className="t-btn delete" onClick={(e) => handleDelete(acc.id, e)}><IconTrash size={13} /></button>
-                  </div>
+                <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', flexShrink: 0, color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
+                  {privateMode ? '••••' : fmtAcc(balance, acc.currency || 'PLN')}
+                </div>
+                <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+                  <button className="t-btn" title={excluded ? 'Uwzględnij w sumie' : 'Wyklucz z sumy'} onClick={(e) => toggleExcluded(acc.id, e)}>
+                    {excluded ? <IconEyeOff size={13} /> : <IconEye size={13} />}
+                  </button>
+                  <button className="t-btn" onClick={(e) => { e.stopPropagation(); setEditAccount(acc); setShowForm(true) }}><IconEdit size={13} /></button>
+                  <button className="t-btn delete" onClick={(e) => handleDelete(acc.id, e)}><IconTrash size={13} /></button>
                 </div>
               </div>
             )
@@ -163,6 +171,14 @@ export default function AccountsView({ user, privateMode }) {
           user={user}
           onClose={() => { setShowForm(false); setEditAccount(null) }}
           editData={editAccount}
+        />
+      )}
+
+      {showReorder && (
+        <AccountReorderModal
+          user={user}
+          accounts={accounts}
+          onClose={() => setShowReorder(false)}
         />
       )}
     </div>

@@ -4,7 +4,7 @@ import { db } from '../firebase/config'
 import { CatIcon, IconChevronLeft, IconChevronRight, IconChart } from './Icons'
 import { useMounted, GroupedBars } from './ChartPrimitives'
 import { startOfMonth, subMonths } from 'date-fns'
-import { getBounds, shiftPivot, build12MonthTimeline } from '../utils/budgetMath'
+import { getBounds, shiftPivot, buildPeriodTimeline } from '../utils/budgetMath'
 import { fmt } from '../utils/currency'
 import { getSubcategoryColor, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, isTransfer } from '../utils/categories'
 
@@ -195,7 +195,6 @@ export default function Charts({ user, privateMode = false }) {
               expenses={expenses} incomes={incomes}
               totalExp={totalExp} totalInc={totalInc} balance={balance}
               period={period} pivot={pivot} allTx={filtered}
-              yearTx={(accountFilter === 'all' ? allYearTx : allYearTx.filter(t => t.accountId === accountFilter)).filter(t => !isTransfer(t))}
               privateMode={privateMode}
             />
           )}
@@ -223,17 +222,22 @@ export default function Charts({ user, privateMode = false }) {
 }
 
 /* ─── General Tab ─── */
-function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pivot, allTx, yearTx = [], privateMode = false }) {
+function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pivot, allTx, privateMode = false }) {
   const savingsRate = totalInc > 0 ? Math.round((balance / totalInc) * 100) : null
   const on = useMounted(80)
 
-  // Always show last 12 months (monthly buckets) — more informative than day-by-day
-  const monthly12 = build12MonthTimeline(yearTx.length > 0 ? yearTx : allTx)
-  const hasTimeline = monthly12.some(d => d.income > 0 || d.expense > 0)
+  // Oś czasu dopasowana do okresu: rok → miesiące, miesiąc/tydzień → dni (dzień → brak wykresu)
+  const timeline = useMemo(() => buildPeriodTimeline(allTx, period, pivot), [allTx, period, pivot])
+  const hasTimeline = timeline.some(d => d.income > 0 || d.expense > 0)
+  const timelineTitle =
+    period === 'year'  ? 'Przychody i wydatki · wg miesięcy' :
+    period === 'week'  ? 'Przychody i wydatki · wg dni' :
+                         'Przychody i wydatki · wg dni'
+  const unitWord = period === 'year' ? 'miesiąc' : 'dzień'
 
-  // Zmiana przepływów: ostatni miesiąc z aktywnością vs poprzedni miesiąc z aktywnością
+  // Zmiana przepływów: ostatni kubełek z aktywnością vs poprzedni z aktywnością
   const flowDelta = (() => {
-    const active = monthly12.filter(d => d.income > 0 || d.expense > 0)
+    const active = timeline.filter(d => d.income > 0 || d.expense > 0)
     if (active.length < 2) return null
     const cur  = active[active.length - 1]
     const prev = active[active.length - 2]
@@ -299,14 +303,14 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
       {hasTimeline && (
         <div className="card card-pad" style={{ overflow: 'hidden' }}>
           <p style={{ margin: '0 0 8px', fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-            Przychody i wydatki · ostatnie 12 miesięcy
+            {timelineTitle}
           </p>
           {flowDelta !== null && (
             <p style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: flowDelta >= 0 ? 'var(--income)' : 'var(--expense)' }}>
-              {flowDelta >= 0 ? '↑' : '↓'} {Math.abs(flowDelta).toFixed(1).replace('.', ',')}% <span style={{ fontWeight: 500, color: 'var(--text-muted)' }}>vs poprzedni miesiąc</span>
+              {flowDelta >= 0 ? '↑' : '↓'} {Math.abs(flowDelta).toFixed(1).replace('.', ',')}% <span style={{ fontWeight: 500, color: 'var(--text-muted)' }}>vs poprzedni {unitWord}</span>
             </p>
           )}
-          <GroupedBars data={monthly12} height={150} barMaxWidth={10} fmt={privateMode ? () => '••' : (n) => Math.round(n).toLocaleString('pl-PL')} />
+          <GroupedBars data={timeline} height={150} barMaxWidth={10} fmt={privateMode ? () => '••' : (n) => Math.round(n).toLocaleString('pl-PL')} />
           <div style={{ display: 'flex', gap: 16, marginTop: 14 }}>
             {[['var(--income)','Przychody'],['var(--expense)','Wydatki']].map(([color, lbl]) => (
               <div key={lbl} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

@@ -100,7 +100,9 @@ export default function Pulpit({ user, onNavigate }) {
     const todayLogs = moodLogs.filter(l => l.date === today)
     const last = todayLogs[0] || null
     const last30 = moodLogs.filter(l => l.date >= format(subDays(new Date(), 29), 'yyyy-MM-dd') && l.moodValue)
-    const avg = last30.length ? last30.reduce((s, l) => s + l.moodValue, 0) / last30.length : 0
+    const avgRaw = last30.length ? last30.reduce((s, l) => s + l.moodValue, 0) / last30.length : 0
+    // Nastrój trzymany wewnętrznie w skali 1–5, ale pokazujemy 1–10 (spójnie z modułem Nastrój)
+    const avg = avgRaw > 0 ? ((avgRaw - 1) / 4) * 9 + 1 : 0
     return { loggedToday: !!last, lastLabel: last?.moodLabel, lastColor: last?.moodColor, avg }
   }, [moodLogs, today])
 
@@ -214,20 +216,6 @@ export default function Pulpit({ user, onNavigate }) {
       <div className="pulpit-today">
         <div className="pulpit-today-head">
           <span className="pulpit-today-kicker"><IconClock size={12} /> Dziś i jutro</span>
-          {(habitsLeft > 0 || prayerLeft > 0) && (
-            <div className="pulpit-today-chips">
-              {habitsLeft > 0 && (
-                <button className="pulpit-today-chip" onClick={() => onNavigate('habits')} style={{ '--c': '#E0B15A' }}>
-                  <IconHabits size={11} /> {habitsLeft} {habitsLeft === 1 ? 'nawyk' : 'nawyki'}
-                </button>
-              )}
-              {prayerLeft > 0 && (
-                <button className="pulpit-today-chip" onClick={() => onNavigate('prayer')} style={{ '--c': '#C9A24A' }}>
-                  <IconPrayer size={11} /> {prayerLeft} do modlitwy
-                </button>
-              )}
-            </div>
-          )}
         </div>
         <div className="pulpit-today-cols">
           <AgendaColumn
@@ -300,7 +288,7 @@ export default function Pulpit({ user, onNavigate }) {
             <div className="pulpit-value" style={{ fontSize: 18 }}>Brak wpisu</div>
           )}
           <div className="pulpit-sub">
-            {moodStat.avg > 0 ? `Śr. ${moodStat.avg.toFixed(1).replace('.', ',')}/5 · 30 dni` : 'Zapisz jak się masz'}
+            {moodStat.avg > 0 ? `Śr. ${moodStat.avg.toFixed(1).replace('.', ',')}/10 · 30 dni` : 'Zapisz jak się masz'}
           </div>
         </PulpitCard>
 
