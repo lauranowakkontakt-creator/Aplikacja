@@ -5,7 +5,7 @@ import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import StatTiles from '../StatTiles'
 import { format, startOfMonth, getDaysInMonth, addDays, subMonths, addMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { LineAreaSVG } from '../ChartPrimitives'
+import { LineAreaSVG, DonutStat, BarChartSVG } from '../ChartPrimitives'
 import { IconTrash, IconChevronLeft, IconChevronRight, IconPlus, IconClose } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { ALL_EMOTIONS } from './EmotionWheel'
@@ -134,6 +134,7 @@ export default function MoodDashboard({ user }) {
   const [logs, setLogs]       = useState([])
   const [loading, setLoading] = useState(true)
   const [entryDate, setEntryDate] = useState(null) // otwiera modal wpisu dla danego dnia
+  const [selDate, setSelDate]     = useState(TODAY()) // wybrany dzień (kalendarz) — dzielony z „+" w rogu
   useFallbackTimeout(() => setLoading(false))
 
   useEffect(() => {
@@ -168,7 +169,7 @@ export default function MoodDashboard({ user }) {
           <div className="mod-header-title">{format(new Date(), 'EEEE, d MMMM', { locale: pl })}</div>
         </div>
         <div className="mod-header-right">
-          <button className="icon-btn" title="Dodaj wpis nastroju" onClick={() => setEntryDate(TODAY())}
+          <button className="icon-btn" title="Dodaj wpis nastroju" onClick={() => setEntryDate(selDate <= TODAY() ? selDate : TODAY())}
             style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none' }}>
             <IconPlus size={16} />
           </button>
@@ -179,7 +180,7 @@ export default function MoodDashboard({ user }) {
         { label: 'Średni nastrój', value: moodAvg, color: avgColor },
         { label: 'W tym miesiącu', value: moodMonth },
       ]} />
-      <MoodPage user={user} logs={logs} onDelete={handleDelete} onAddForDate={setEntryDate} />
+      <MoodPage user={user} logs={logs} onDelete={handleDelete} selDate={selDate} setSelDate={setSelDate} />
 
       {/* Modal wpisu — emocje / jak się masz / ocena dnia otwierane spod „+" */}
       {entryDate && (
@@ -368,10 +369,9 @@ function MoodEntryForm({ user, date, onSaved }) {
 /* ============================================================
    JEDEN WIDOK — wykres + średnia + emocje + wpis + kalendarz
    ============================================================ */
-function MoodPage({ user, logs, onDelete, onAddForDate }) {
+function MoodPage({ user, logs, onDelete, selDate, setSelDate }) {
   const [viewMode, setViewMode] = useState('month') // month | year
   const [month, setMonth]     = useState(new Date())
-  const [selDate, setSelDate] = useState(TODAY())
   const today = TODAY()
 
   const year = month.getFullYear()
@@ -402,9 +402,8 @@ function MoodPage({ user, logs, onDelete, onAddForDate }) {
   const topEms = useMemo(() => {
     const c = {}
     emoSource.forEach(l => (l.emotions || []).forEach(id => { c[id] = (c[id] || 0) + 1 }))
-    return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([id, n]) => ({ ...findEmotion(id), count: n }))
+    return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id, n]) => ({ ...findEmotion(id), count: n }))
   }, [emoSource])
-  const maxEm = topEms[0]?.count || 1
 
   // Kalendarz miesiąca
   const firstDow = (mStart.getDay() + 6) % 7
@@ -434,16 +433,14 @@ function MoodPage({ user, logs, onDelete, onAddForDate }) {
 
   const nav = (dir) => setMonth(m => addMonths(m, viewMode === 'year' ? dir * 12 : dir))
   const navLabel = viewMode === 'year' ? String(year) : `${monthLbl} ${year}`
-  const emoBars = (list) => (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-      {list.map(em => (
-        <div key={em.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 12, color: 'var(--text-sub)', width: 90, flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{em.label}</span>
-          <div style={{ flex: 1, height: 8, borderRadius: 99, background: 'var(--surface3)', overflow: 'hidden' }}><AnimBar pct={(em.count / maxEm) * 100} color={em.color} /></div>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', width: 20, textAlign: 'right' }}>{em.count}×</span>
-        </div>
-      ))}
-    </div>
+  // Emocje jako wykres kołowy (donut) — czytelniejszy podział niż same słupki
+  const emoDonut = (list) => (
+    <DonutStat
+      data={list.map(em => ({ name: em.label, value: em.count }))}
+      colors={list.map(em => em.color)}
+      fmtValue={v => `${v}×`}
+      thickness={22}
+    />
   )
 
   return (
@@ -506,22 +503,11 @@ function MoodPage({ user, logs, onDelete, onAddForDate }) {
           {topEms.length > 0 && (
             <div className="card card-hover-glow" style={{ padding: 16 }}>
               {kicker('Najczęstsze emocje', { marginBottom: 12 })}
-              {emoBars(topEms)}
+              {emoDonut(topEms)}
             </div>
           )}
 
-          {/* Dodawanie wpisu dla wybranego dnia (formularz otwiera się pod „+") */}
-          {canAdd && (
-            <button onClick={() => onAddForDate?.(selDate)} style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, alignSelf: 'flex-start',
-              padding: '10px 16px', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
-              background: 'var(--accent)', color: 'var(--bg)', border: 'none',
-            }}>
-              <IconPlus size={15} /> {selDate === today ? 'Dodaj wpis na dziś' : `Dodaj wpis · ${format(new Date(selDate + 'T12:00:00'), 'd MMM', { locale: pl })}`}
-            </button>
-          )}
-
-          {/* Wpisy wybranego dnia */}
+          {/* Wpisy wybranego dnia (dodawanie tylko przez „+" w prawym górnym rogu) */}
           {dayLogs.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {kicker(selDate === today ? 'Wpisy dziś' : `Wpisy · ${selLabel}`)}
@@ -531,7 +517,18 @@ function MoodPage({ user, logs, onDelete, onAddForDate }) {
         </>
       ) : (
         <>
-          {/* ROK: 12 miesięcy z kolorem nastroju */}
+          {/* ROK: średnia nastroju miesiąc po miesiącu (1–10) — wizualny wykres słupkowy */}
+          {yearValid.length > 0 && (
+            <div className="card card-hover-glow" style={{ padding: 16 }}>
+              {kicker(`Średnia nastroju miesięcami · ${year}`, { marginBottom: 12 })}
+              <BarChartSVG
+                data={yearMonths.map(m => ({ label: m.label, value: m.avgV ? Math.round(to10(m.avgV) * 10) / 10 : 0 }))}
+                height={150} accent="var(--accent)" fmt={v => v ? `${v.toFixed(1).replace('.', ',')}/10` : ''}
+              />
+            </div>
+          )}
+
+          {/* 12 miesięcy z kolorem nastroju */}
           <div className="card card-hover-glow" style={{ padding: 16 }}>
             {kicker(`Nastrój w roku ${year}`, { marginBottom: 12 })}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
@@ -549,11 +546,11 @@ function MoodPage({ user, logs, onDelete, onAddForDate }) {
             </div>
           </div>
 
-          {/* Najczęstsze emocje roku (średnia jest w kafelkach u góry) */}
+          {/* Najczęstsze emocje roku — wykres kołowy */}
           {topEms.length > 0 && (
             <div className="card card-hover-glow" style={{ padding: 16 }}>
               {kicker('Najczęstsze emocje roku', { marginBottom: 12 })}
-              {emoBars(topEms)}
+              {emoDonut(topEms)}
             </div>
           )}
         </>

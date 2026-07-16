@@ -270,8 +270,6 @@ export default function CalendarDashboard({ user }) {
         </div>
         <div className="mod-header-right">
           <button className="icon-btn" onClick={() => setCurrentMonth(m => subMonths(m, 1))}><IconChevronLeft size={16} /></button>
-          <button className="icon-btn" style={{ width: 'auto', padding: '0 10px', fontSize: 11 }}
-            onClick={() => { setCurrentMonth(new Date()); setSelectedDay(new Date()) }}>Dziś</button>
           <button className="icon-btn" onClick={() => setCurrentMonth(m => addMonths(m, 1))}><IconChevronRight size={16} /></button>
           <button className="icon-btn" onClick={() => { setEditEvent(null); setShowForm(true) }}
             style={{ background: 'var(--accent)', color: 'var(--bg)', border: 'none' }}>
@@ -283,7 +281,7 @@ export default function CalendarDashboard({ user }) {
       {/* Tabs + category btn */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         <div style={{ display: 'flex', flex: 1, gap: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 4 }}>
-          {[['month','Miesiąc'],['week','Tydzień'],['agenda','Agenda'],['people','Osoby']].map(([key, label]) => (
+          {[['month','Miesiąc'],['agenda','Agenda'],['people','Osoby']].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)} style={{
               flex: 1, padding: '7px 0', borderRadius: 10, fontSize: 13, fontWeight: tab === key ? 700 : 400,
               background: tab === key ? 'var(--surface3)' : 'transparent',
