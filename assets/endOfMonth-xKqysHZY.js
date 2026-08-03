@@ -1,0 +1,1 @@
+import{$ as n,aq as o}from"./index-CythlC1M.js";function r(e,t){const a=t*7;return n(e,a)}function d(e){const t=o(e),a=t.getMonth();return t.setFullYear(t.getFullYear(),a+1,0),t.setHours(23,59,59,999),t}export{r as a,d as e};
