@@ -3,7 +3,7 @@ import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Times
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { fmt, parseAmount } from '../../utils/currency'
-import { IconEdit, IconTrash, IconClose, IconUsers, IconCheck, IconArrowUp, IconArrowDown } from '../Icons'
+import { IconEdit, IconTrash, IconClose, IconUsers, IconCheck, IconArrowUp, IconArrowDown, IconChevronDown } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 
 const INCOME_COLOR  = '#5FBF98' // var(--income)
@@ -15,9 +15,11 @@ export default function Debtors({ user, onClose }) {
   useFallbackTimeout(() => setLoading(false))
   const [showForm, setShowForm] = useState(false)
   const [editDebt, setEditDebt] = useState(null)
+  const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
-    const q = query(collection(db, 'users', user.uid, 'debtors'), orderBy('createdAt', 'asc'))
+    // Najnowsze wpisy na górze (desc), a nie na samym dole.
+    const q = query(collection(db, 'users', user.uid, 'debtors'), orderBy('createdAt', 'desc'))
     return onSnapshot(q, snap => {
       setDebts(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
@@ -37,10 +39,55 @@ export default function Debtors({ user, onClose }) {
     })
   }
 
-  const active = debts.filter(d => !d.settled)
+  const active   = debts.filter(d => !d.settled)
+  const archived = debts.filter(d => d.settled)
   // "theyOwe" = ktoś jest winien mnie, "iOwe" = ja jestem winna
   const totalTheyOwe = active.filter(d => d.direction === 'theyOwe').reduce((s, d) => s + (d.amount || 0), 0)
   const totalIOwe    = active.filter(d => d.direction === 'iOwe').reduce((s, d) => s + (d.amount || 0), 0)
+
+  const renderDebt = (debt) => {
+    const theyOwe = debt.direction === 'theyOwe'
+    const color = theyOwe ? INCOME_COLOR : EXPENSE_COLOR
+    const DirIcon = theyOwe ? IconArrowDown : IconArrowUp
+    return (
+      <div key={debt.id} style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderLeft: `4px solid ${debt.settled ? 'var(--border)' : color}`, borderRadius: 14, padding: 14,
+        opacity: debt.settled ? 0.55 : 1,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+            background: debt.settled ? 'var(--surface2)' : color + '22',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: debt.settled ? 'var(--text-muted)' : color,
+          }}>
+            <DirIcon size={19} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: debt.settled ? 'line-through' : 'none' }}>{debt.name}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+              {theyOwe ? 'winien(-a) mi' : 'jestem winna'}
+              {debt.notes ? ` · ${debt.notes}` : ''}
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: debt.settled ? 'var(--text-muted)' : color }}>
+              {fmt(debt.amount || 0)}
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
+          <button className="t-btn" onClick={() => toggleSettled(debt)}
+            title={debt.settled ? 'Przywróć do aktywnych' : 'Oznacz jako rozliczone'}>
+            <IconCheck size={13} /> {debt.settled ? 'Przywróć' : 'Rozlicz'}
+          </button>
+          <button className="t-btn" onClick={() => { setEditDebt(debt); setShowForm(true) }}><IconEdit size={13} /></button>
+          <button className="t-btn delete" onClick={() => handleDelete(debt.id)}><IconTrash size={13} /></button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -77,51 +124,38 @@ export default function Debtors({ user, onClose }) {
                   <p className="list-empty-hint">Dodaj kto jest Ci winien pieniądze lub komu jesteś winna</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {debts.map(debt => {
-                    const theyOwe = debt.direction === 'theyOwe'
-                    const color = theyOwe ? INCOME_COLOR : EXPENSE_COLOR
-                    const DirIcon = theyOwe ? IconArrowDown : IconArrowUp
-                    return (
-                      <div key={debt.id} style={{
-                        background: 'var(--surface)', border: '1px solid var(--border)',
-                        borderLeft: `4px solid ${debt.settled ? 'var(--border)' : color}`, borderRadius: 14, padding: 14,
-                        opacity: debt.settled ? 0.55 : 1,
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{
-                            width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-                            background: debt.settled ? 'var(--surface2)' : color + '22',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: debt.settled ? 'var(--text-muted)' : color,
-                          }}>
-                            <DirIcon size={19} />
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: debt.settled ? 'line-through' : 'none' }}>{debt.name}</p>
-                            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
-                              {theyOwe ? 'winien(-a) mi' : 'jestem winna'}
-                              {debt.notes ? ` · ${debt.notes}` : ''}
-                            </p>
-                          </div>
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: debt.settled ? 'var(--text-muted)' : color }}>
-                              {fmt(debt.amount || 0)}
-                            </p>
-                          </div>
+                <>
+                  {active.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {active.map(renderDebt)}
+                    </div>
+                  )}
+
+                  {active.length === 0 && archived.length > 0 && (
+                    <div className="list-empty"><p>Wszystko rozliczone</p></div>
+                  )}
+
+                  {archived.length > 0 && (
+                    <div style={{ marginTop: active.length > 0 ? 6 : 0 }}>
+                      <button
+                        onClick={() => setShowArchived(v => !v)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                          background: 'transparent', border: 'none', cursor: 'pointer',
+                          padding: '6px 2px', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600,
+                        }}
+                      >
+                        <IconChevronDown size={14} style={{ transform: showArchived ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+                        Zarchiwizowane ({archived.length})
+                      </button>
+                      {showArchived && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
+                          {archived.map(renderDebt)}
                         </div>
-                        <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
-                          <button className={`t-btn ${debt.settled ? '' : ''}`} onClick={() => toggleSettled(debt)}
-                            title={debt.settled ? 'Oznacz jako nierozliczone' : 'Oznacz jako rozliczone'}>
-                            <IconCheck size={13} /> {debt.settled ? 'Rozliczone' : 'Rozlicz'}
-                          </button>
-                          <button className="t-btn" onClick={() => { setEditDebt(debt); setShowForm(true) }}><IconEdit size={13} /></button>
-                          <button className="t-btn delete" onClick={() => handleDelete(debt.id)}><IconTrash size={13} /></button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}

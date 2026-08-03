@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { collection, doc, Timestamp, onSnapshot, orderBy, query, getDoc, getDocs, limit, increment, writeBatch } from 'firebase/firestore'
+import { collection, doc, Timestamp, onSnapshot, orderBy, query, getDocs, limit, increment, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { getCurrencyCode, parseAmount } from '../utils/currency'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, getSubcategoryColor } from '../utils/categories'
+import useFallbackTimeout from '../utils/useFallbackTimeout'
 import { byAccountOrder } from '../utils/accountOrder'
 import { CatIcon, IconClose } from './Icons'
 
@@ -19,38 +20,58 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
   const [date, setDate]             = useState(editData?.date ? format(editData.date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
   const [accountId, setAccountId]   = useState(editData?.accountId || defaultAccountId || '')
   const [accounts, setAccounts]     = useState([])
-  const [accountUsage, setAccountUsage] = useState({})
+  const [accountUsage, setAccountUsage] = useState({ income: {}, expense: {} })
   const [showAllAccounts, setShowAllAccounts] = useState(false)
   const [expCats, setExpCats]       = useState(DEFAULT_EXPENSE_CATEGORIES)
   const [incCats, setIncCats]       = useState(DEFAULT_INCOME_CATEGORIES)
+  const [catsLoaded, setCatsLoaded] = useState(false)
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
 
   const categories = type === 'expense' ? expCats : incCats
+
+  // Zabezpieczenie: gdyby snapshot kategorii nie odpowiedział (brak sieci, zimny
+  // start), po `ms` i tak pokaż domyślne, żeby formularz nie utknął na spinnerze.
+  useFallbackTimeout(() => setCatsLoaded(true))
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
 
-  // Częstotliwość użycia kont (z ostatnich transakcji) → najczęściej używane na początku
+  // Użycie kont z ostatnich transakcji, osobno dla przychodów i wydatków.
+  // Świeższe transakcje ważą więcej (1/(1+i)) → na górze lądują konta „częste
+  // LUB ostatnio używane", a nie tylko te z największą liczbą wpisów kiedykolwiek.
   useEffect(() => {
     getDocs(query(collection(db, 'users', user.uid, 'transactions'), orderBy('createdAt', 'desc'), limit(200)))
       .then(snap => {
-        const u = {}
-        snap.docs.forEach(d => { const a = d.data().accountId; if (a) u[a] = (u[a] || 0) + 1 })
+        const u = { income: {}, expense: {} }
+        snap.docs.forEach((d, i) => {
+          const data = d.data()
+          const a = data.accountId
+          if (!a) return
+          const t = data.type === 'income' ? 'income' : 'expense'
+          u[t][a] = (u[t][a] || 0) + 1 / (1 + i)
+        })
         setAccountUsage(u)
       }).catch(() => {})
   }, [user.uid])
 
-  // Widoczna kolejność kont = kolejność ustawiona ręcznie (ta sama co w zakładce Konta)
-  const sortedAccounts = [...accounts].sort(byAccountOrder)
+  // Kolejność kont w formularzu: najczęściej/ostatnio używane dla bieżącego typu
+  // na górze (drugi typ jako słaby tie-break), a przy remisie ręczna kolejność
+  // z zakładki Konta. Dzięki temu przy przychodzie nie trzeba szukać konta.
+  const usageScore = (id) => {
+    const same  = accountUsage[type]?.[id] || 0
+    const other = accountUsage[type === 'income' ? 'expense' : 'income']?.[id] || 0
+    return same * 10 + other
+  }
+  const sortedAccounts = [...accounts].sort((a, b) =>
+    (usageScore(b.id) - usageScore(a.id)) || byAccountOrder(a, b))
 
-  // Domyślnie wybierz najczęściej używane konto (brak opcji „bez konta")
+  // Domyślnie wybierz najczęściej/ostatnio używane konto (brak opcji „bez konta")
   useEffect(() => {
     if (!accountId && !editData && accounts.length) {
-      const sorted = [...accounts].sort((a, b) => (accountUsage[b.id] || 0) - (accountUsage[a.id] || 0))
-      setAccountId(sorted[0].id)
+      setAccountId(sortedAccounts[0].id)
     }
   }, [accounts, accountUsage]) // eslint-disable-line
 
@@ -62,6 +83,7 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
         if (d.data().expense?.length) setExpCats(d.data().expense)
         if (d.data().income?.length)  setIncCats(d.data().income)
       }
+      setCatsLoaded(true)
     })
   }, [user.uid])
 
@@ -109,18 +131,20 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
         const reversal = editData.type === 'income' ? -editData.amount : editData.amount
         // Konto transakcji mogło zostać usunięte — update na nieistniejącym
         // dokumencie wywala cały batch i edycji nie dałoby się nigdy zapisać
-        const accExists = async (id) => !!id && (await getDoc(doc(db, 'users', user.uid, 'accounts', id))).exists()
+        // Istnienie konta sprawdzamy po wczytanej liście (bez strzału do sieci,
+        // który przy słabym połączeniu potrafił zawisnąć i blokować zapis)
+        const accExists = (id) => !!id && accounts.some(a => a.id === id)
         if (editData.accountId && editData.accountId === accountId) {
           // To samo konto: jedna korekta — dwa update'y na tym samym dokumencie
           // w batchu nadpisałyby się nawzajem zamiast zsumować
-          if (await accExists(accountId)) {
+          if (accExists(accountId)) {
             batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(reversal + delta) })
           }
         } else {
-          if (await accExists(editData.accountId)) {
+          if (accExists(editData.accountId)) {
             batch.update(doc(db, 'users', user.uid, 'accounts', editData.accountId), { balance: increment(reversal) })
           }
-          if (await accExists(accountId)) {
+          if (accExists(accountId)) {
             batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(delta) })
           }
         }
@@ -157,19 +181,23 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
 
           <div className="form-group">
             <label>Kategoria</label>
-            <div className="category-icons-grid">
-              {categories.map(cat => (
-                <button key={cat.id} type="button"
-                  className={`cat-icon-btn ${category === cat.id ? 'active' : ''}`}
-                  onClick={() => setCategory(cat.id)}
-                >
-                  <div className="cat-circle" style={{ background: category === cat.id ? cat.color : cat.color + '33', borderColor: category === cat.id ? cat.color : 'transparent', color: category === cat.id ? '#fff' : cat.color }}>
-                    <CatIcon categoryId={cat.id} emoji={cat.icon} size={18} />
-                  </div>
-                  <span className="cat-label">{cat.label}</span>
-                </button>
-              ))}
-            </div>
+            {!catsLoaded ? (
+              <div className="list-loading">Ładowanie...</div>
+            ) : (
+              <div className="category-icons-grid">
+                {categories.map(cat => (
+                  <button key={cat.id} type="button"
+                    className={`cat-icon-btn ${category === cat.id ? 'active' : ''}`}
+                    onClick={() => setCategory(cat.id)}
+                  >
+                    <div className="cat-circle" style={{ background: category === cat.id ? cat.color : cat.color + '33', borderColor: category === cat.id ? cat.color : 'transparent', color: category === cat.id ? '#fff' : cat.color }}>
+                      <CatIcon categoryId={cat.id} emoji={cat.icon} size={18} />
+                    </div>
+                    <span className="cat-label">{cat.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {(() => {
