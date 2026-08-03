@@ -272,10 +272,10 @@ export default function Dashboard({ user, onCurrencyChange }) {
               )}
 
               <div style={{ marginTop: 16 }}>
-                {kicker('Wydatki / zostało')}
+                {kicker('Przychody / wydatki')}
                 <FlowBar segments={[
                   { value: expenses, color: 'var(--expense)', label: `Wydatki: ${fmt(expenses)}` },
-                  { value: Math.max(0, income - expenses), color: 'var(--income)', label: `Zostało: ${fmt(Math.max(0, income - expenses))}` },
+                  { value: income, color: 'var(--income)', label: `Przychody: ${fmt(income)}` },
                 ]} height={10} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
                   <span style={{ fontSize: 11, color: 'var(--expense)' }}>Wydatki {!privateMode && fmt(expenses)}</span>

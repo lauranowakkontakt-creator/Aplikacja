@@ -6,6 +6,7 @@ import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import AccountForm from './AccountForm'
 import AccountReorderModal from './AccountReorderModal'
+import TransactionForm from '../TransactionForm'
 import CurrencyTiles from './CurrencyTiles'
 import { fmt } from '../../utils/currency'
 import { CatIcon, IconBank, IconCash, IconCard, IconSavings, IconEdit, IconTrash, IconEye, IconEyeOff, IconChevronLeft, IconReorder } from '../Icons'
@@ -190,6 +191,7 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
   const [loading, setLoading] = useState(true)
   useFallbackTimeout(() => setLoading(false))
   const [months, setMonths]   = useState(1) // 1 | 3 | 12 | 0 (all)
+  const [showTxForm, setShowTxForm] = useState(false)
 
   useEffect(() => {
     let q
@@ -232,6 +234,9 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
         <button className="t-btn" onClick={onEdit}><IconEdit size={16} /></button>
       </div>
 
+      {/* Dodawanie transakcji bezpośrednio na to konto (bez wchodzenia w pulpit) */}
+      <button className="btn-add-account" onClick={() => setShowTxForm(true)}>+ Dodaj transakcję</button>
+
       {/* Period filter */}
       <div className="habit-view-tabs">
         {[[1,'1 mies.'],[3,'3 mies.'],[12,'Rok'],[0,'Wszystko']].map(([v,l]) => (
@@ -273,6 +278,14 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
             </div>
           ))}
         </div>
+      )}
+
+      {showTxForm && (
+        <TransactionForm
+          user={user}
+          defaultAccountId={account.id}
+          onClose={() => setShowTxForm(false)}
+        />
       )}
     </div>
   )
