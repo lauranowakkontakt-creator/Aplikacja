@@ -5,12 +5,14 @@ import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { fmt, parseAmount } from '../../utils/currency'
 import { IconEdit, IconTrash, IconClose, IconUsers, IconCheck, IconArrowUp, IconArrowDown } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
+import PersonBubble from '../PersonBubble'
 
 const INCOME_COLOR  = '#5FBF98' // var(--income)
 const EXPENSE_COLOR = '#E0673E' // var(--expense)
 
 export default function Debtors({ user, onClose }) {
   const [debts, setDebts]       = useState([])
+  const [people, setPeople]     = useState([])
   const [loading, setLoading]   = useState(true)
   useFallbackTimeout(() => setLoading(false))
   const [showForm, setShowForm] = useState(false)
@@ -23,6 +25,13 @@ export default function Debtors({ user, onClose }) {
       setLoading(false)
     })
   }, [user.uid])
+
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
+
+  const peopleById = Object.fromEntries(people.map(p => [p.id, p]))
 
   const handleDelete = async (id) => {
     const ok = await confirmDialog({ title: 'Usunąć wpis?' })
@@ -82,6 +91,7 @@ export default function Debtors({ user, onClose }) {
                     const theyOwe = debt.direction === 'theyOwe'
                     const color = theyOwe ? INCOME_COLOR : EXPENSE_COLOR
                     const DirIcon = theyOwe ? IconArrowDown : IconArrowUp
+                    const linkedPerson = debt.personId ? peopleById[debt.personId] : null
                     return (
                       <div key={debt.id} style={{
                         background: 'var(--surface)', border: '1px solid var(--border)',
@@ -89,14 +99,28 @@ export default function Debtors({ user, onClose }) {
                         opacity: debt.settled ? 0.55 : 1,
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{
-                            width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-                            background: debt.settled ? 'var(--surface2)' : color + '22',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: debt.settled ? 'var(--text-muted)' : color,
-                          }}>
-                            <DirIcon size={19} />
-                          </div>
+                          {linkedPerson ? (
+                            <div style={{ position: 'relative', flexShrink: 0, opacity: debt.settled ? 0.55 : 1 }}>
+                              <PersonBubble person={linkedPerson} size={38} />
+                              <div style={{
+                                position: 'absolute', right: -4, bottom: -4, width: 18, height: 18, borderRadius: '50%',
+                                background: 'var(--surface)', border: `2px solid ${debt.settled ? 'var(--border)' : color}`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: debt.settled ? 'var(--text-muted)' : color,
+                              }}>
+                                <DirIcon size={10} />
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{
+                              width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+                              background: debt.settled ? 'var(--surface2)' : color + '22',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: debt.settled ? 'var(--text-muted)' : color,
+                            }}>
+                              <DirIcon size={19} />
+                            </div>
+                          )}
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ margin: 0, fontSize: 15, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: debt.settled ? 'line-through' : 'none' }}>{debt.name}</p>
                             <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
@@ -128,27 +152,36 @@ export default function Debtors({ user, onClose }) {
         </div>
       </div>
       {showForm && (
-        <DebtForm user={user} editData={editDebt} onClose={() => { setShowForm(false); setEditDebt(null) }} />
+        <DebtForm user={user} people={people} editData={editDebt} onClose={() => { setShowForm(false); setEditDebt(null) }} />
       )}
     </>
   )
 }
 
-function DebtForm({ user, editData, onClose }) {
+function DebtForm({ user, people = [], editData, onClose }) {
   const [name, setName]           = useState(editData?.name || '')
+  const [personId, setPersonId]   = useState(editData?.personId || null)
   const [direction, setDirection] = useState(editData?.direction || 'theyOwe')
   const [amount, setAmount]       = useState(editData?.amount?.toString() || '')
   const [notes, setNotes]         = useState(editData?.notes || '')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
 
+  // Wybór osoby z bazy — ustawia powiązanie i podpowiada imię.
+  const pickPerson = (p) => {
+    if (personId === p.id) { setPersonId(null); return }
+    setPersonId(p.id)
+    setName(p.name)
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!name.trim()) { setError('Wpisz imię / nazwę'); return }
+    if (!name.trim()) { setError('Wpisz imię / nazwę lub wybierz osobę'); return }
     if (!(parseAmount(amount) > 0)) { setError('Podaj kwotę'); return }
     setSaving(true)
     const data = {
       name: name.trim(),
+      personId: personId || null,
       direction,
       amount: parseAmount(amount),
       notes: notes.trim(),
@@ -174,9 +207,34 @@ function DebtForm({ user, editData, onClose }) {
         </div>
         <form onSubmit={handleSubmit} className="form">
 
+          {people.length > 0 && (
+            <div className="form-group">
+              <label>Osoba (opcjonalnie)</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {people.map(p => {
+                  const on = personId === p.id
+                  return (
+                    <button type="button" key={p.id} onClick={() => pickPerson(p)} style={{
+                      display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px 5px 5px', borderRadius: 999,
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
+                      border: `1px solid ${on ? (p.color || 'var(--accent)') : 'var(--border)'}`,
+                      background: on ? (p.color || 'var(--accent)') + '1e' : 'var(--surface2)',
+                      color: on ? (p.color || 'var(--accent)') : 'var(--text-sub)',
+                    }}>
+                      <PersonBubble person={p} size={24} />
+                      {p.name}
+                      {on && <IconCheck size={13} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="form-group">
             <label>Imię / nazwa</label>
-            <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)}
+            <input type="text" className="form-input" value={name}
+              onChange={e => { setName(e.target.value); if (personId) setPersonId(null) }}
               placeholder="np. Ania, Sklep, Mama..." autoFocus maxLength={50} />
           </div>
 

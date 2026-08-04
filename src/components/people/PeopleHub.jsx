@@ -6,11 +6,14 @@ import { format, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
   ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconCalendar, IconPrayer,
-  IconChevronRight, IconChevronLeft, IconUsers, IconEye, IconEyeOff, IconCheck, IconMoon
+  IconChevronRight, IconChevronLeft, IconUsers, IconEye, IconEyeOff, IconCheck, IconMoon,
+  IconCash, IconTodo, IconArrowUp, IconArrowDown
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { setPersonHidden, purgePerson } from '../../utils/people'
 import { getCategory, dreamPeopleIds } from '../../utils/dreams'
+import { debtsForPerson, debtSummary, todosForPerson, linkCountsByPerson } from '../../utils/personLinks'
+import { fmt } from '../../utils/currency'
 
 const PERSON_COLORS = [
   '#E74C3C','#E91E63','#9C27B0','#8B5CF6','#3F51B5','#2196F3',
@@ -39,6 +42,8 @@ export default function PeopleHub({ user, onOpenDream }) {
   const [events, setEvents]         = useState([])
   const [intentions, setIntentions] = useState([])
   const [dreams, setDreams]         = useState([])
+  const [debts, setDebts]           = useState([])
+  const [todos, setTodos]           = useState([])
   const [loading, setLoading]       = useState(true)
   useFallbackTimeout(() => setLoading(false))
   const [selectedId, setSelectedId] = useState(null)
@@ -62,15 +67,25 @@ export default function PeopleHub({ user, onOpenDream }) {
     const q = query(collection(db, 'users', user.uid, 'dreams'), orderBy('date', 'desc'))
     return onSnapshot(q, snap => setDreams(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'debtors'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setDebts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc'))
+    return onSnapshot(q, snap => setTodos(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
 
   const stats = useMemo(() => {
     const m = {}
-    people.forEach(p => { m[p.id] = { events: 0, intentions: 0, dreams: 0 } })
+    people.forEach(p => { m[p.id] = { events: 0, intentions: 0, dreams: 0, debts: 0, todos: 0 } })
     events.forEach(e => { if (e.personId && m[e.personId]) m[e.personId].events++ })
     intentions.forEach(i => { if (i.personId && m[i.personId]) m[i.personId].intentions++ })
     dreams.forEach(d => { dreamPeopleIds(d).forEach(pid => { if (m[pid]) m[pid].dreams++ }) })
+    const links = linkCountsByPerson(people, debts, todos)
+    people.forEach(p => { m[p.id].debts = links[p.id]?.debts || 0; m[p.id].todos = links[p.id]?.todos || 0 })
     return m
-  }, [people, events, intentions, dreams])
+  }, [people, events, intentions, dreams, debts, todos])
 
   const toggleHidden = async (person, module) => {
     const field = module === 'calendar' ? 'hiddenInCalendar' : 'hiddenInPrayer'
@@ -112,6 +127,8 @@ export default function PeopleHub({ user, onOpenDream }) {
           events={events.filter(e => e.personId === selected.id)}
           intentions={intentions.filter(i => i.personId === selected.id)}
           dreams={dreams.filter(d => dreamPeopleIds(d).includes(selected.id))}
+          debts={debtsForPerson(debts, selected.id)}
+          todos={todosForPerson(todos, selected.id)}
           onOpenDream={onOpenDream}
           onBack={() => setSelectedId(null)}
           onToggleHidden={toggleHidden}
@@ -143,6 +160,8 @@ export default function PeopleHub({ user, onOpenDream }) {
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconCalendar size={11} /> {s.events}</span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconPrayer size={11} /> {s.intentions}</span>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconMoon size={11} /> {s.dreams}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconTodo size={11} /> {s.todos}</span>
+                    {s.debts > 0 && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: 'var(--accent)' }}><IconCash size={11} /> {s.debts}</span>}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
@@ -180,13 +199,18 @@ function VisToggle({ active, label, Icon, onClick }) {
 }
 
 /* ─── PersonDetail ─────────────────────────────────────────────────────── */
-function PersonDetail({ uid, person, events, intentions, dreams = [], onOpenDream, onBack, onToggleHidden, onEdit, onDelete }) {
+function PersonDetail({ uid, person, events, intentions, dreams = [], debts = [], todos = [], onOpenDream, onBack, onToggleHidden, onEdit, onDelete }) {
   const today = TODAY()
   const personDreams = [...dreams].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
   const upcoming = events.filter(e => (e.dateEnd || e.date) >= today).sort((a, b) => a.date.localeCompare(b.date))
   const past     = events.filter(e => (e.dateEnd || e.date) < today).sort((a, b) => b.date.localeCompare(a.date))
   const activeInt = intentions.filter(i => i.status === 'active' || !i.status)
   const endedInt  = intentions.filter(i => i.status === 'ended')
+  const activeDebts = debts.filter(d => !d.settled)
+  const settledDebts = debts.filter(d => d.settled)
+  const { theyOwe, iOwe, net } = debtSummary(debts)
+  const activeTodos = todos.filter(t => !t.done)
+  const doneTodos   = todos.filter(t => t.done)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -210,6 +234,63 @@ function PersonDetail({ uid, person, events, intentions, dreams = [], onOpenDrea
 
       {/* Ważne informacje */}
       <InfoNotes uid={uid} person={person} />
+
+      {/* Finanse / długi */}
+      <Section title="Rozliczenia" icon={<IconCash size={13} />}>
+        {activeDebts.length === 0 && settledDebts.length === 0 ? (
+          <Empty>Brak wpisów — dodaj w module „Budżet → Dłużnicy"</Empty>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {activeDebts.length > 0 && (
+              <div style={{
+                fontSize: 13, fontWeight: 600, padding: '8px 10px', borderRadius: 8, background: 'var(--surface2)',
+                color: net === 0 ? 'var(--text-muted)' : net > 0 ? 'var(--income)' : 'var(--expense)',
+              }}>
+                {net > 0 ? `${person.name} jest Ci winien(-a) ${fmt(net)}` :
+                 net < 0 ? `Jesteś winna ${person.name} ${fmt(-net)}` :
+                 'Wzajemne rozliczenia się bilansują'}
+                {theyOwe > 0 && iOwe > 0 && (
+                  <span style={{ display: 'block', fontSize: 11, fontWeight: 400, color: 'var(--text-muted)', marginTop: 2 }}>
+                    winien(-a) mi {fmt(theyOwe)} · jestem winna {fmt(iOwe)}
+                  </span>
+                )}
+              </div>
+            )}
+            {activeDebts.map(d => <DebtRow key={d.id} debt={d} />)}
+            {settledDebts.length > 0 && (
+              <details>
+                <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, listStyle: 'none', padding: '4px 0' }}>
+                  <IconChevronRight size={11} style={{ verticalAlign: 'middle' }} /> Rozliczone ({settledDebts.length})
+                </summary>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                  {settledDebts.map(d => <DebtRow key={d.id} debt={d} muted />)}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+      </Section>
+
+      {/* Zadania */}
+      <Section title="Zadania" icon={<IconTodo size={13} />}>
+        {activeTodos.length === 0 && doneTodos.length === 0 ? (
+          <Empty>Brak zadań z tą osobą</Empty>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {activeTodos.map(t => <TodoRow key={t.id} todo={t} />)}
+            {doneTodos.length > 0 && (
+              <details>
+                <summary style={{ fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', fontWeight: 600, listStyle: 'none', padding: '4px 0' }}>
+                  <IconChevronRight size={11} style={{ verticalAlign: 'middle' }} /> Ukończone ({doneTodos.length})
+                </summary>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                  {doneTodos.map(t => <TodoRow key={t.id} todo={t} muted />)}
+                </div>
+              </details>
+            )}
+          </div>
+        )}
+      </Section>
 
       {/* Prośby modlitewne */}
       <Section title="Prośby modlitewne" icon={<IconPrayer size={13} />}>
@@ -384,6 +465,40 @@ function Row({ color, muted, children }) {
 }
 function Empty({ children }) {
   return <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>{children}</div>
+}
+
+function DebtRow({ debt, muted }) {
+  const theyOwe = debt.direction === 'theyOwe'
+  const color = muted ? 'var(--border)' : theyOwe ? '#5FBF98' : '#E0673E'
+  const DirIcon = theyOwe ? IconArrowDown : IconArrowUp
+  return (
+    <Row color={color} muted={muted}>
+      <DirIcon size={14} style={{ color: muted ? 'var(--text-muted)' : theyOwe ? '#5FBF98' : '#E0673E', flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500 }}>{theyOwe ? 'Winien(-a) mi' : 'Jestem winna'}</div>
+        {debt.notes && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{debt.notes}</div>}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: muted ? 'var(--text-muted)' : theyOwe ? '#5FBF98' : '#E0673E', flexShrink: 0, textDecoration: muted ? 'line-through' : 'none' }}>
+        {fmt(debt.amount || 0)}
+      </div>
+    </Row>
+  )
+}
+
+function TodoRow({ todo, muted }) {
+  return (
+    <Row color={muted ? 'var(--border)' : 'var(--sky)'} muted={muted}>
+      {todo.done && <IconCheck size={14} style={{ color: '#27AE60', flexShrink: 0 }} />}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, textDecoration: todo.done ? 'line-through' : 'none', color: todo.done ? 'var(--text-muted)' : 'var(--text)' }}>{todo.title}</div>
+        {todo.dueDate && (
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+            <IconCalendar size={10} /> {(() => { try { return format(parseISO(todo.dueDate), 'd MMM yy', { locale: pl }) } catch { return todo.dueDate } })()}
+          </div>
+        )}
+      </div>
+    </Row>
+  )
 }
 
 /* ─── PersonForm ───────────────────────────────────────────────────────── */

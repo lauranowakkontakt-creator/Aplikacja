@@ -1,4 +1,4 @@
-import { collection, query, where, getDocs, deleteDoc, updateDoc, doc } from 'firebase/firestore'
+import { collection, query, where, getDocs, deleteDoc, updateDoc, doc, arrayRemove } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { scrubPersonFromDreams } from './dreams'
 
@@ -23,5 +23,11 @@ export async function purgePerson(uid, personId) {
   }
   // Sny zostają — odpinamy tylko osobę od ich list uczestników/wzmianek.
   await scrubPersonFromDreams(uid, personId)
+  // Długi zostają, ale tracą powiązanie z osobą (imię pozostaje we wpisie).
+  const debtSnap = await getDocs(query(collection(db, 'users', uid, 'debtors'), where('personId', '==', personId)))
+  await Promise.all(debtSnap.docs.map(d => updateDoc(d.ref, { personId: null })))
+  // Zadania zostają — odpinamy osobę z listy `peopleIds`.
+  const todoSnap = await getDocs(query(collection(db, 'users', uid, 'todos'), where('peopleIds', 'array-contains', personId)))
+  await Promise.all(todoSnap.docs.map(d => updateDoc(d.ref, { peopleIds: arrayRemove(personId) })))
   await deleteDoc(doc(db, 'users', uid, 'calendarPeople', personId))
 }

@@ -15,6 +15,7 @@ import StatTiles from '../StatTiles'
 import SegTabs from '../SegTabs'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import PersonBubble from '../PersonBubble'
 
 const PRIORITY = [
   { id: 'high',   label: 'Wysoki',  color: '#E53935' },
@@ -49,6 +50,7 @@ const kicker = (t) => (
 export default function TodoDashboard({ user }) {
   const [todos, setTodos]           = useState([])
   const [lists, setLists]           = useState([])
+  const [people, setPeople]         = useState([])
   const [loading, setLoading]       = useState(true)
   useFallbackTimeout(() => setLoading(false))
   const [tab, setTab]               = useState('calendar')
@@ -74,6 +76,13 @@ export default function TodoDashboard({ user }) {
     const q = query(collection(db, 'users', user.uid, 'todoLists'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setLists(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
+
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
+
+  const peopleById = Object.fromEntries(people.map(p => [p.id, p]))
 
   const toggleDone = async (todo) => {
     // Zadanie cykliczne: zamiast „zrobione" przesuwamy na kolejny termin i odznaczamy podzadania
@@ -251,7 +260,7 @@ export default function TodoDashboard({ user }) {
               <div className="kicker" style={{ marginBottom: 10 }}>Aktywne · {active.length}</div>
               <div data-stagger style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {active.map(todo => (
-                  <TodoItem key={todo.id} todo={todo} lists={lists}
+                  <TodoItem key={todo.id} todo={todo} lists={lists} peopleById={peopleById}
                     onToggle={toggleDone} onToggleSubtask={toggleSubtask}
                     onEdit={() => { setEditTodo(todo); setShowForm(true) }}
                     onDelete={handleDelete} />
@@ -278,7 +287,7 @@ export default function TodoDashboard({ user }) {
               {showDone && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, opacity: 0.55 }}>
                   {done.map(todo => (
-                    <TodoItem key={todo.id} todo={todo} lists={lists}
+                    <TodoItem key={todo.id} todo={todo} lists={lists} peopleById={peopleById}
                       onToggle={toggleDone} onToggleSubtask={toggleSubtask}
                       onEdit={() => { setEditTodo(todo); setShowForm(true) }}
                       onDelete={handleDelete} />
@@ -292,7 +301,7 @@ export default function TodoDashboard({ user }) {
       )}
 
       {showForm && (
-        <TodoForm user={user} lists={lists} editData={editTodo} defaultListId={activeList} defaultDueDate={formDefaultDue}
+        <TodoForm user={user} lists={lists} people={people} editData={editTodo} defaultListId={activeList} defaultDueDate={formDefaultDue}
           onClose={() => { setShowForm(false); setEditTodo(null); setFormDefaultDue('') }} />
       )}
       {showListForm && <ListForm user={user} onClose={() => setShowListForm(false)} />}
@@ -302,7 +311,7 @@ export default function TodoDashboard({ user }) {
 }
 
 /* ─── TodoItem ─── */
-function TodoItem({ todo, lists, onToggle, onToggleSubtask, onEdit, onDelete }) {
+function TodoItem({ todo, lists, peopleById = {}, onToggle, onToggleSubtask, onEdit, onDelete }) {
   const list     = lists.find(l => l.id === todo.listId)
   const priority = PRIORITY.find(p => p.id === todo.priority)
   const date     = todo.dueDate ? parseISO(todo.dueDate) : null
@@ -311,6 +320,7 @@ function TodoItem({ todo, lists, onToggle, onToggleSubtask, onEdit, onDelete }) 
   const listColor = list?.color || 'var(--border)'
   const subs     = todo.subtasks || []
   const subsDone = subs.filter(s => s.done).length
+  const linkedPeople = (todo.peopleIds || []).map(id => peopleById[id]).filter(Boolean)
 
   return (
     <div className="card hover" style={{
@@ -365,6 +375,20 @@ function TodoItem({ todo, lists, onToggle, onToggleSubtask, onEdit, onDelete }) 
             </span>
           )}
         </div>
+
+        {/* Osoby, których dotyczy zadanie */}
+        {linkedPeople.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
+            {linkedPeople.map(p => (
+              <span key={p.id} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px 2px 2px', borderRadius: 999,
+                background: (p.color || 'var(--accent)') + '18', color: p.color || 'var(--accent)', fontSize: 11, fontWeight: 600,
+              }}>
+                <PersonBubble person={p} size={18} /> {p.name}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Podzadania */}
         {subs.length > 0 && (
@@ -685,7 +709,7 @@ function TodoCalendar({ todos, lists, onToggle, onEdit, onAddOnDay }) {
 }
 
 /* ─── TodoForm ─── */
-function TodoForm({ user, lists, editData, defaultListId, defaultDueDate, onClose }) {
+function TodoForm({ user, lists, people = [], editData, defaultListId, defaultDueDate, onClose }) {
   const [title, setTitle]       = useState(editData?.title || '')
   const [note, setNote]         = useState(editData?.note || '')
   const [listId, setListId]     = useState(editData?.listId || defaultListId || '')
@@ -693,9 +717,12 @@ function TodoForm({ user, lists, editData, defaultListId, defaultDueDate, onClos
   const [dueDate, setDueDate]   = useState(editData?.dueDate || defaultDueDate || '')
   const [recurrence, setRecurrence] = useState(editData?.recurrence || '')
   const [subtasks, setSubtasks] = useState(editData?.subtasks || [])
+  const [peopleIds, setPeopleIds] = useState(editData?.peopleIds || [])
   const [subInput, setSubInput] = useState('')
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
+
+  const togglePerson = (id) => setPeopleIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
 
   const addSub = () => {
     const t = subInput.trim()
@@ -715,6 +742,7 @@ function TodoForm({ user, lists, editData, defaultListId, defaultDueDate, onClos
       dueDate: dueDate || null,
       recurrence: recurrence || null,
       subtasks,
+      peopleIds,
       done: editData?.done ?? false,
       updatedAt: Timestamp.now()
     }
@@ -799,6 +827,30 @@ function TodoForm({ user, lists, editData, defaultListId, defaultDueDate, onClos
               <button type="button" className="btn-save" style={{ width: 'auto', margin: 0, padding: '0 14px' }} onClick={addSub}><IconPlus size={16} /></button>
             </div>
           </div>
+
+          {people.length > 0 && (
+            <div className="form-group">
+              <label>Osoby, których dotyczy (opcjonalnie)</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {people.map(p => {
+                  const on = peopleIds.includes(p.id)
+                  return (
+                    <button type="button" key={p.id} onClick={() => togglePerson(p.id)} style={{
+                      display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px 5px 5px', borderRadius: 999,
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
+                      border: `1px solid ${on ? (p.color || 'var(--accent)') : 'var(--border)'}`,
+                      background: on ? (p.color || 'var(--accent)') + '1e' : 'var(--surface2)',
+                      color: on ? (p.color || 'var(--accent)') : 'var(--text-sub)',
+                    }}>
+                      <PersonBubble person={p} size={24} />
+                      {p.name}
+                      {on && <IconCheck size={13} />}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {lists.length > 0 && (
             <div className="form-group">
