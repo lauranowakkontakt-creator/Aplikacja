@@ -179,7 +179,8 @@ export default function MoodDashboard({ user }) {
         { label: 'Średni nastrój', value: moodAvg, color: avgColor },
         { label: 'W tym miesiącu', value: moodMonth },
       ]} />
-      <MoodPage user={user} logs={logs} onDelete={handleDelete} selDate={selDate} setSelDate={setSelDate} />
+      <MoodPage user={user} logs={logs} onDelete={handleDelete} selDate={selDate} setSelDate={setSelDate}
+        onAddEntry={(d) => setEntryDate(d <= TODAY() ? d : TODAY())} />
 
       {/* Modal wpisu — emocje / jak się masz / ocena dnia otwierane spod „+" */}
       {entryDate && (
@@ -368,7 +369,7 @@ function MoodEntryForm({ user, date, onSaved }) {
 /* ============================================================
    JEDEN WIDOK — wykres + średnia + emocje + wpis + kalendarz
    ============================================================ */
-function MoodPage({ user, logs, onDelete, selDate, setSelDate }) {
+function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry }) {
   const [viewMode, setViewMode] = useState('month') // month | year
   const [month, setMonth]     = useState(new Date())
   const today = TODAY()
@@ -506,13 +507,25 @@ function MoodPage({ user, logs, onDelete, selDate, setSelDate }) {
             </div>
           )}
 
-          {/* Wpisy wybranego dnia (dodawanie tylko przez „+" w prawym górnym rogu) */}
-          {dayLogs.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Wpisy wybranego dnia + dodawanie (przycisk widoczny też na komputerze) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
               {kicker(selDate === today ? 'Wpisy dziś' : `Wpisy · ${selLabel}`)}
-              {dayLogs.map(log => <LogEntry key={log.id} log={log} onDelete={() => onDelete(log.id)} />)}
+              {canAdd && (
+                <button className="t-btn" onClick={() => onAddEntry?.(selDate)}
+                  style={{ width: 'auto', padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600 }}>
+                  <IconPlus size={13} /> Dodaj wpis
+                </button>
+              )}
             </div>
-          )}
+            {dayLogs.length > 0 ? (
+              dayLogs.map(log => <LogEntry key={log.id} log={log} onDelete={() => onDelete(log.id)} />)
+            ) : (
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '10px 0', margin: 0 }}>
+                {canAdd ? 'Brak wpisów tego dnia' : 'Nie można dodać wpisu z przyszłości'}
+              </p>
+            )}
+          </div>
         </>
       ) : (
         <>

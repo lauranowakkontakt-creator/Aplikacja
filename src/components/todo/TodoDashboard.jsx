@@ -53,7 +53,7 @@ export default function TodoDashboard({ user }) {
   const [people, setPeople]         = useState([])
   const [loading, setLoading]       = useState(true)
   useFallbackTimeout(() => setLoading(false))
-  const [tab, setTab]               = useState('calendar')
+  const [tab, setTab]               = useState('tasks')
   const [activeList, setActiveList] = useState(null)
   const [showForm, setShowForm]     = useState(false)
   const [editTodo, setEditTodo]     = useState(null)
