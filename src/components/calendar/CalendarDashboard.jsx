@@ -8,9 +8,9 @@ import {
   addMonths, subMonths, getDate, addDays, subDays, addWeeks, addYears, differenceInCalendarDays
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconTag, IconClose, IconChevronLeft, IconChevronRight, IconChevronDown, IconCheck, IconCalendar, IconRepeat, IconPrayer, IconArchive, IconRestore } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChevronLeft, IconChevronRight, IconChevronDown, IconCheck, IconCalendar, IconRepeat, IconPrayer, IconArchive, IconRestore, IconPlus } from '../Icons'
+import CalendarMenu from './CalendarMenu'
 import { confirmDialog } from '../ConfirmModal'
-import SegTabs from '../SegTabs'
 import { toast } from '../Toast'
 import { setPersonHidden, purgePerson } from '../../utils/people'
 
@@ -126,7 +126,7 @@ function PersonBubble({ person, size = 32 }) {
 }
 
 /* ─── CalendarDashboard ────────────────────────────────────────────────── */
-export default function CalendarDashboard({ user }) {
+export default function CalendarDashboard({ user, setHeaderExtras }) {
   const [events, setEvents]         = useState([])
   const [todos, setTodos]           = useState([])
   const [payments, setPayments]     = useState([])
@@ -250,12 +250,24 @@ export default function CalendarDashboard({ user }) {
   const todosOnDay    = (day) => todos.filter(t => t.dueDate === format(day, 'yyyy-MM-dd'))
   const paymentsOnDay = (day) => payments.filter(p => p.dayOfMonth === getDate(day))
 
+  // Górna belka („Mój Świat"): [＋ Dodaj wydarzenie][⋮ Agenda / Osoby / Kategorie].
+  // Hook musi być przed early-returnem (zasady hooków).
+  useEffect(() => {
+    setHeaderExtras?.(
+      <>
+        <CalendarMenu onAction={(id) => {
+          if (id === 'categories') setShowCatMgr(true)
+          else setTab(id)
+        }} />
+        <button className="hdr-btn accent" title="Nowe wydarzenie" onClick={() => { setEditEvent(null); setShowForm(true) }}><IconPlus size={17} /></button>
+      </>
+    )
+    return () => setHeaderExtras?.(null)
+  }, [])
+
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   const calMonthLabel  = format(currentMonth, 'LLLL yyyy', { locale: pl })
-  const selEvts  = eventsOnDay(selectedDay)
-  const selTodos = todosOnDay(selectedDay)
-  const selPmts  = paymentsOnDay(selectedDay)
   const monthStr = format(currentMonth, 'yyyy-MM')
   const monthEvents = expandedEvents.filter(e => e.date.startsWith(monthStr))
   const colorOf = (e) => getEventColor(categories, calPeople, e)
@@ -264,30 +276,13 @@ export default function CalendarDashboard({ user }) {
 
   return (
     <div className="calendar-dashboard">
-      <div className="mod-header">
-        <div>
-          <div className="mod-header-kicker">Kalendarz</div>
-          <div className="mod-header-title" style={{ textTransform: 'capitalize' }}>{calMonthLabel}</div>
+      {/* Podstrona (Agenda / Osoby / Tydzień) — pasek ze strzałką wstecz do Miesiąca */}
+      {tab !== 'month' && (
+        <div className="rev-subhead">
+          <button className="rev-back" onClick={() => setTab('month')} title="Wróć"><IconChevronLeft size={18} /></button>
+          <div className="rev-subhead-title">{tab === 'agenda' ? 'Agenda' : tab === 'people' ? 'Osoby' : tab === 'week' ? 'Tydzień' : 'Kalendarz'}</div>
         </div>
-        <div className="mod-header-right">
-          <button className="icon-btn" onClick={() => setCurrentMonth(m => subMonths(m, 1))}><IconChevronLeft size={16} /></button>
-          <button className="icon-btn" onClick={() => setCurrentMonth(m => addMonths(m, 1))}><IconChevronRight size={16} /></button>
-          <button className="mod-header-add" title="Nowe wydarzenie" onClick={() => { setEditEvent(null); setShowForm(true) }}>
-            <span style={{ fontSize: 18 }}>+</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs + category btn */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <SegTabs
-          items={[{ id: 'month', label: 'Miesiąc' }, { id: 'agenda', label: 'Agenda' }, { id: 'people', label: 'Osoby' }]}
-          active={tab} onChange={setTab}
-          style={{ flex: 1, minWidth: 0 }}
-        />
-        <button className="icon-btn" title="Kategorie" style={{ flexShrink: 0 }}
-          onClick={() => setShowCatMgr(true)}><IconTag size={14} /></button>
-      </div>
+      )}
 
       {/* Filtr osób — jedna przewijana linia (wybierz osobę albo „Wszyscy") */}
       {activePeople.length > 0 && tab !== 'people' && (
@@ -349,99 +344,34 @@ export default function CalendarDashboard({ user }) {
       </div>
       )}
 
-      {/* MONTH TAB */}
+      {/* MONTH TAB — jedna kolumna: nazwa miesiąca nad kalendarzem */}
       {tab === 'month' && (
-        <div className="g2-14">
-          {/* Left: calendar */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
-            <CalendarGrid
-              currentMonth={currentMonth}
-              selectedDay={selectedDay}
-              categories={categories}
-              calPeople={calPeople}
-              events={filterPersonId ? expandedEvents.filter(e => e.personId === filterPersonId) : expandedEvents}
-              onDayClick={handleDayClick}
-              todosOnDay={todosOnDay}
-              paymentsOnDay={paymentsOnDay}
-            />
-
-            <div className="cal-mini-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginTop: 14 }}>
-              {[[monthEvents.length,'Wydarzeń'],[todos.filter(t=>t.dueDate?.startsWith(monthStr)).length,'Zadań'],[payments.length,'Płatności']].map(([n,lbl]) => (
-                <div key={lbl} style={{ background: 'var(--surface2)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
-                  <div className="cal-stat-num" style={{ fontSize: 16, fontWeight: 700 }}>{n}</div>
-                  <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>{lbl}</div>
-                </div>
-              ))}
-            </div>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
+          {/* Nazwa miesiąca + nawigacja — nad kalendarzem */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <button className="icon-btn" onClick={() => setCurrentMonth(m => subMonths(m, 1))} title="Poprzedni miesiąc"><IconChevronLeft size={16} /></button>
+            <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '-.02em', textTransform: 'capitalize' }}>{calMonthLabel}</div>
+            <button className="icon-btn" onClick={() => setCurrentMonth(m => addMonths(m, 1))} title="Następny miesiąc"><IconChevronRight size={16} /></button>
           </div>
 
-          {/* Right: day detail */}
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
-              <div>
-                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
-                  {format(selectedDay, 'EEEE', { locale: pl })}
-                  {isToday(selectedDay) && <span style={{ marginLeft: 8, background: 'var(--accent)', color: '#fff', padding: '1px 6px', borderRadius: 4, fontSize: 8, fontWeight: 700 }}>DZIŚ</span>}
-                </div>
-                <div className="cal-day-panel-date" style={{ fontFamily: 'var(--font-serif)', fontSize: 28, fontWeight: 500, letterSpacing: '-0.02em', lineHeight: 1.15, textTransform: 'capitalize', marginTop: 2 }}>
-                  {format(selectedDay, 'd MMMM', { locale: pl })}
-                </div>
-              </div>
-              <button onClick={() => { setEditEvent(null); setShowForm(true) }} style={{
-                display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 20,
-                background: 'var(--accent)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600,
-              }}>+ Wydarzenie</button>
-            </div>
+          <CalendarGrid
+            currentMonth={currentMonth}
+            selectedDay={selectedDay}
+            categories={categories}
+            calPeople={calPeople}
+            events={filterPersonId ? expandedEvents.filter(e => e.personId === filterPersonId) : expandedEvents}
+            onDayClick={handleDayClick}
+            todosOnDay={todosOnDay}
+            paymentsOnDay={paymentsOnDay}
+          />
 
-            {selEvts.length + selTodos.length + selPmts.length === 0 ? (
-              <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>Brak wydarzeń</div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {selEvts.map(e => {
-                  const color  = colorOf(e)
-                  const person = findPerson(calPeople, e.personId)
-                  const cat    = findCat(categories, e.categoryId)
-                  return (
-                    <div key={e.id} style={{ background: 'var(--surface2)', border: `1px solid ${color}33`, borderLeft: `3px solid ${color}`, borderRadius: 10, padding: '10px 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {person && <PersonBubble person={person} size={26} />}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
-                            {e.title}
-                            {e.prayer?.enabled && <IconPrayer size={12} style={{ color: '#a78bfa', flexShrink: 0 }} />}
-                          </div>
-                          {e.startTime && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{e.startTime}{e.endTime ? ` – ${e.endTime}` : ''}</div>}
-                        </div>
-                        <button className="t-btn" onClick={() => { setEditEvent(e); setShowForm(true) }}><IconEdit size={12} /></button>
-                        <button className="t-btn delete" onClick={() => handleDelete(e.id)}><IconTrash size={12} /></button>
-                      </div>
-                      {person && <div style={{ fontSize: 11, color: person.color, fontWeight: 600, marginTop: 5 }}>{person.name}</div>}
-                      {!person && e.who && <div style={{ fontSize: 11, fontWeight: 600, marginTop: 5 }}>Dla: <span style={{ color }}>{e.who}</span></div>}
-                      {!person && cat && <div style={{ fontSize: 10, color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.05em', marginTop: 4 }}>{cat.label}</div>}
-                      {e.note && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>{e.note}</div>}
-                    </div>
-                  )
-                })}
-                {selTodos.map(t => (
-                  <div key={t.id} className="cal-event-row" style={{ borderLeftColor: '#6366f1', opacity: 0.8 }}>
-                    <IconCheck size={14} style={{ color: '#6366f1', flexShrink: 0 }} />
-                    <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)', flex: 1 }}>
-                      {t.title} <span style={{ fontSize: 10, color: '#6366f1', fontWeight: 600 }}>TERMIN ZADANIA</span>
-                    </p>
-                  </div>
-                ))}
-                {selPmts.map(p => (
-                  <div key={p.id} className="cal-event-row" style={{ borderLeftColor: '#f59e0b', opacity: 0.8 }}>
-                    <CatIcon categoryId={p.categoryId} emoji={p.categoryIcon} size={14} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>{p.name}</p>
-                      <p style={{ margin: '1px 0 0', fontSize: 10, color: '#f59e0b', fontWeight: 600 }}>REGULARNA PŁATNOŚĆ</p>
-                    </div>
-                  </div>
-                ))}
+          <div className="cal-mini-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginTop: 14 }}>
+            {[[monthEvents.length,'Wydarzeń'],[todos.filter(t=>t.dueDate?.startsWith(monthStr)).length,'Zadań'],[payments.length,'Płatności']].map(([n,lbl]) => (
+              <div key={lbl} style={{ background: 'var(--surface2)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
+                <div className="cal-stat-num" style={{ fontSize: 16, fontWeight: 700 }}>{n}</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 2 }}>{lbl}</div>
               </div>
-            )}
+            ))}
           </div>
         </div>
       )}

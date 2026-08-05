@@ -9,7 +9,7 @@ globalThis.localStorage = {
   removeItem: (k) => store.delete(k),
 }
 
-const { CURRENCIES, getCurrencyCode, setCurrencyCode, fmt, parseAmount } = await import('../src/utils/currency.js')
+const { CURRENCIES, getCurrencyCode, setCurrencyCode, fmt, parseAmount, splitAmount } = await import('../src/utils/currency.js')
 
 beforeEach(() => store.clear())
 
@@ -58,4 +58,26 @@ test('parseAmount — puste/nieprawidłowe wejście daje NaN (walidacja je odrzu
   assert.equal(!(parseAmount('abc') > 0), true)
   assert.equal(!(parseAmount('0') > 0), true)
   assert.equal(!(parseAmount('12,50') > 0), false)
+})
+
+test('splitAmount — rozbija na część całkowitą i grosze, grupuje tysiące', () => {
+  const a = splitAmount(1203)
+  assert.equal(a.int.replace(/\s/g, ''), '1203')
+  assert.equal(a.dec, '00')
+
+  const b = splitAmount(1234.5)
+  assert.equal(b.int.replace(/\s/g, ''), '1234')
+  assert.equal(b.dec, '50')
+})
+
+test('splitAmount — liczby ujemne dostają znak minus (U+2212)', () => {
+  const a = splitAmount(-49)
+  assert.equal(a.int, '−49')
+  assert.equal(a.dec, '00')
+})
+
+test('splitAmount — wartości nieliczbowe traktuje jak 0', () => {
+  assert.deepEqual(splitAmount(NaN), { int: '0', dec: '00' })
+  assert.deepEqual(splitAmount(undefined), { int: '0', dec: '00' })
+  assert.deepEqual(splitAmount(null), { int: '0', dec: '00' })
 })

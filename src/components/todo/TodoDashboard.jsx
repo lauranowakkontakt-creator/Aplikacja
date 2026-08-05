@@ -10,7 +10,7 @@ import {
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { BarChartSVG } from '../ChartPrimitives'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMore, IconFlag, IconChevronDown, IconChevronLeft, IconChevronRight, IconCalendar, IconClock, IconRepeat, IconPlus } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMoreVert, IconFlag, IconChevronDown, IconChevronLeft, IconChevronRight, IconCalendar, IconClock, IconRepeat, IconPlus } from '../Icons'
 import StatTiles from '../StatTiles'
 import SegTabs from '../SegTabs'
 import { confirmDialog } from '../ConfirmModal'
@@ -157,7 +157,7 @@ export default function TodoDashboard({ user }) {
             onClick={() => { setEditTodo(null); setFormDefaultDue(''); setShowForm(true) }}>
             <IconPlus size={16} />
           </button>
-          <button className="icon-btn" onClick={() => setShowMenu(m => !m)}><IconMore size={16} /></button>
+          <button className="icon-btn" onClick={() => setShowMenu(m => !m)}><IconMoreVert size={16} /></button>
           {showMenu && (
             <div style={{
               position: 'absolute', top: '110%', right: 0, background: 'var(--surface)',

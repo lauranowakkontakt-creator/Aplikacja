@@ -242,7 +242,7 @@ export default function Pulpit({ user, onNavigate }) {
       <div className="pulpit-grid">
 
         {/* BUDŻET */}
-        <PulpitCard accent="#E0673E" Icon={IconBudget} label="Budżet" onClick={() => onNavigate('budget')}>
+        <PulpitCard accent="#33C3A6" Icon={IconBudget} label="Budżet" onClick={() => onNavigate('budget')}>
           <div className="pulpit-value" style={{ color: privateMode ? 'var(--text-muted)' : (budget.totalPLN >= 0 ? 'var(--income)' : 'var(--expense)') }}>
             {privateMode ? '••••' : fmt(budget.totalPLN)}
           </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, onSnapshot, orderBy, query, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
-import { format, startOfWeek, addDays, subDays, subWeeks, addWeeks, startOfMonth, endOfMonth, getDaysInMonth, addMonths, subMonths } from 'date-fns'
+import { format, startOfWeek, addDays, subDays, startOfMonth, endOfMonth, getDaysInMonth, addMonths, subMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import HabitForm, { HABIT_CATEGORIES, DEFAULT_HABIT_CATEGORIES } from './HabitForm'
 import PauseForm from './PauseForm'
@@ -122,7 +122,7 @@ function MonthCalendar({ month, renderCell, cellH = 20, gap = 3, font = 8.5, max
   )
 }
 
-export default function HabitsDashboard({ user, onMoodClick }) {
+export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) {
   const [habits, setHabits]         = useState([])
   const [pauses, setPauses]         = useState([])
   const [customCats, setCustomCats] = useState([])
@@ -132,9 +132,7 @@ export default function HabitsDashboard({ user, onMoodClick }) {
   const [showPause, setShowPause]   = useState(false)
   const [editHabit, setEditHabit]   = useState(null)
   const [view, setView]             = useState('today')
-  const [compact, setCompact]       = useState(false)
   const [filterCat, setFilterCat]   = useState('all')
-  const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [showArchived, setShowArchived] = useState(false)
   const [showReorder, setShowReorder] = useState(false)
@@ -146,11 +144,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
 
   const TODAY = format(new Date(), 'yyyy-MM-dd')
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = addDays(weekStart, i)
-    return { date: format(d, 'yyyy-MM-dd'), label: format(d, 'EEE', { locale: pl }), dayNum: format(d, 'd') }
-  })
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habits'), orderBy('createdAt', 'asc'))
@@ -202,14 +195,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
   const todayDue  = filtered.filter(h => isHabitDue(h, TODAY, pauses) === 'due')
   const doneToday = todayDue.filter(h => h.completedDates?.includes(TODAY)).length
 
-  const weekPct = (() => {
-    let exp = 0, done = 0
-    filtered.forEach(h => weekDays.forEach(d => {
-      if (isHabitDue(h, d.date, pauses) === 'due') { exp++; if (h.completedDates?.includes(d.date)) done++ }
-    }))
-    return exp > 0 ? Math.round((done / exp) * 100) : 0
-  })()
-
   const todayIsPaused = isPausedDay(TODAY, pauses)
 
   // Overall streak — max streak across all habits
@@ -222,6 +207,27 @@ export default function HabitsDashboard({ user, onMoodClick }) {
     ? Math.max(...filtered.map(h => getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)))
     : 0
 
+  // Akcje z menu „⋮": Analiza / Pauza / Kolejność
+  const handleMenu = (id) => {
+    if (id === 'stats') setView('stats')
+    else if (id === 'pause') setShowPause(true)
+    else if (id === 'reorder') setShowReorder(true)
+  }
+  const addBtn = (
+    <button className="hdr-btn accent" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk">
+      <IconPlus size={17} />
+    </button>
+  )
+
+  // Akcje modułu w górnej belce („Mój Świat"): [＋ Dodaj][⋮ Więcej — z Analizą].
+  // UWAGA: hook musi być przed early-returnem (zasady hooków).
+  useEffect(() => {
+    setHeaderExtras?.(
+      <><HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} />{addBtn}</>
+    )
+    return () => setHeaderExtras?.(null)
+  }, [activeHabits.length])
+
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   const todayLabel = format(new Date(), 'EEEE, d LLL', { locale: pl })
@@ -231,17 +237,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
       <span style={{ display: 'inline-block', width: 14, height: 2, borderRadius: 2, background: 'var(--accent)', opacity: 0.6 }} />
       {t}
     </div>
-  )
-
-  // Akcje z menu „⋮" (pauza / kolejność) i szybki dodaj
-  const handleMenu = (id) => {
-    if (id === 'pause') setShowPause(true)
-    else if (id === 'reorder') setShowReorder(true)
-  }
-  const addBtn = (
-    <button className="mod-header-add" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk">
-      <IconPlus size={16} />
-    </button>
   )
 
   // Komórka kalendarza — zbiorczo (intensywność realizacji dnia dla listy nawyków)
@@ -283,78 +278,65 @@ export default function HabitsDashboard({ user, onMoodClick }) {
 
   return (
     <div className="habits-dashboard">
-      {/* Mobile module header */}
-      <div className="mod-header">
-        <div>
-          <div className="mod-header-kicker">Nawyki</div>
-          <div className="mod-header-title" style={{ textTransform: 'capitalize' }}>{todayLabel}</div>
-        </div>
-        <div className="mod-header-right">
-          {addBtn}
-          <HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} />
-        </div>
-      </div>
-
-      {/* Hero — Postęp dnia i Kalendarz jako osobne karty */}
-      <div className="g2-br" data-stagger style={{ gap: 12, marginBottom: 14, alignItems: 'start' }}>
-        {/* Postęp dnia */}
-        <div className="card card-hover-glow" style={{
-          padding: 18, display: 'flex', alignItems: 'center', gap: 16,
-          borderTop: '2px solid color-mix(in oklab, var(--accent) 80%, transparent)',
-          background: 'linear-gradient(140deg, var(--surface) 45%, color-mix(in oklab, var(--accent) 7%, var(--surface)) 100%)',
-        }}>
-          <Ring
-            value={todayDue.length > 0 ? Math.round((doneToday / todayDue.length) * 100) : 0}
-            size={88} thickness={8} color="var(--warn)" label="dziś"
-          />
-          <div style={{ minWidth: 0 }}>
-            {kicker('Postęp dnia')}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '2px 0 8px', whiteSpace: 'nowrap' }}>
-              <span className="serif" style={{ fontSize: 40 }}>{doneToday}</span>
-              <span className="mono" style={{ fontSize: 17, color: 'var(--text-muted)' }}>/ {todayDue.length}</span>
+      {/* ===== EKRAN GŁÓWNY (Dziś): hero (akcje są w górnej belce) ===== */}
+      {view === 'today' && (
+        <>
+          {/* Hero — Postęp dnia i Kalendarz jako osobne karty */}
+          <div className="g2-br" data-stagger style={{ gap: 12, marginBottom: 14, marginTop: 4, alignItems: 'start' }}>
+            {/* Postęp dnia */}
+            <div className="card card-hover-glow" style={{
+              padding: 18, display: 'flex', alignItems: 'center', gap: 16,
+              borderTop: '2px solid color-mix(in oklab, var(--accent) 80%, transparent)',
+              background: 'linear-gradient(140deg, var(--surface) 45%, color-mix(in oklab, var(--accent) 7%, var(--surface)) 100%)',
+            }}>
+              <Ring
+                value={todayDue.length > 0 ? Math.round((doneToday / todayDue.length) * 100) : 0}
+                size={88} thickness={8} color="var(--warn)" label="dziś"
+              />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-sub)', textTransform: 'capitalize', marginBottom: 6 }}>{todayLabel}</div>
+                {kicker('Postęp dnia')}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '2px 0 8px', whiteSpace: 'nowrap' }}>
+                  <span className="serif" style={{ fontSize: 40 }}>{doneToday}</span>
+                  <span className="mono" style={{ fontSize: 17, color: 'var(--text-muted)' }}>/ {todayDue.length}</span>
+                </div>
+                {maxStreak > 0 && (
+                  <div style={{ color: 'var(--warn)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+                    <IconFlame size={14}/> <span className="mono" style={{ fontSize: 12.5 }}>{maxStreak} dni serii</span>
+                  </div>
+                )}
+                {recordStreak > 0 && (
+                  <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 5, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <IconStar size={12} style={{ color: 'var(--text-muted)' }} /> rekord: {recordStreak} dni
+                  </div>
+                )}
+              </div>
             </div>
-            {maxStreak > 0 && (
-              <div style={{ color: 'var(--warn)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                <IconFlame size={14}/> <span className="mono" style={{ fontSize: 12.5 }}>{maxStreak} dni serii</span>
-              </div>
-            )}
-            {recordStreak > 0 && (
-              <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 5, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
-                <IconStar size={12} style={{ color: 'var(--text-muted)' }} /> rekord: {recordStreak} dni
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Kalendarz miesiąca — z przewijaniem (jak w budżecie) */}
-        <div className="card card-hover-glow" style={{ padding: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            {kicker('Kalendarz')}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => setDashMonth(subMonths(dashMonth, 1))} title="Poprzedni miesiąc"><IconChevronLeft size={14} /></button>
-              <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-sub)', textTransform: 'capitalize', minWidth: 78, textAlign: 'center' }}>{format(dashMonth, 'LLLL yyyy', { locale: pl })}</span>
-              <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => setDashMonth(addMonths(dashMonth, 1))} title="Następny miesiąc"><IconChevronRight size={14} /></button>
+            {/* Kalendarz miesiąca — z przewijaniem (jak w budżecie) */}
+            <div className="card card-hover-glow" style={{ padding: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                {kicker('Kalendarz')}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => setDashMonth(subMonths(dashMonth, 1))} title="Poprzedni miesiąc"><IconChevronLeft size={14} /></button>
+                  <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-sub)', textTransform: 'capitalize', minWidth: 78, textAlign: 'center' }}>{format(dashMonth, 'LLLL yyyy', { locale: pl })}</span>
+                  <button className="icon-btn" style={{ width: 26, height: 26 }} onClick={() => setDashMonth(addMonths(dashMonth, 1))} title="Następny miesiąc"><IconChevronRight size={14} /></button>
+                </div>
+              </div>
+              <MonthCalendar month={dashMonth} renderCell={aggCellFor(filtered)} cellH={20} font={8.5} maxWidth={266} />
+              {intensityLegend}
             </div>
           </div>
-          <MonthCalendar month={dashMonth} renderCell={aggCellFor(filtered)} cellH={20} font={8.5} maxWidth={266} />
-          {intensityLegend}
-        </div>
-      </div>
+        </>
+      )}
 
-      {/* View tabs + akcje (desktop: + i ⋮ obok zakładek) */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <SegTabs
-          items={[{ id: 'today', label: 'Dziś' }, { id: 'week', label: 'Tydzień' }, { id: 'stats', label: 'Statystyki' }]}
-          active={view} onChange={setView}
-          style={{ maxWidth: 420, flex: 1, minWidth: 0 }}
-        />
-        <div className="desktop-only" style={{ flexShrink: 0, marginLeft: 'auto' }}>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {addBtn}
-            <HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} />
-          </div>
+      {/* ===== ANALIZA I STATYSTYKI — nagłówek ze strzałką wstecz ===== */}
+      {view === 'stats' && (
+        <div className="rev-subhead">
+          <button className="rev-back" onClick={() => setView('today')} title="Wróć"><IconChevronLeft size={18} /></button>
+          <div className="rev-subhead-title">Analiza i statystyki</div>
         </div>
-      </div>
+      )}
 
       {/* ===== DZIŚ ===== */}
       {view === 'today' && (() => {
@@ -540,129 +522,6 @@ export default function HabitsDashboard({ user, onMoodClick }) {
           </>
         )
       })()}
-
-      {/* ===== TYDZIEŃ ===== */}
-      {view === 'week' && (
-        <>
-          <div className="habit-week-nav" style={{ marginBottom: 12 }}>
-            <button className="month-btn" onClick={() => setCurrentDate(d => subWeeks(d, 1))}>‹</button>
-            <span className="habit-period-label">
-              {format(weekStart, 'd MMM', { locale: pl })} – {format(addDays(weekStart, 6), 'd MMM', { locale: pl })}
-            </span>
-            <button className="month-btn" onClick={() => setCurrentDate(d => addWeeks(d, 1))}>›</button>
-          </div>
-
-          {filtered.length === 0 ? (
-            <div className="list-empty"><p>Brak nawyków</p><p className="list-empty-hint">Kliknij "+ Nowy" aby dodać</p></div>
-          ) : (
-            <>
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', overflow: 'hidden' }}>
-              {/* Header */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) repeat(7,30px)', gap: 4, padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em' }}>NAWYK</div>
-                {weekDays.map(d => (
-                  <div key={d.date} style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: d.date === TODAY ? 'var(--warn)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.05em' }}>{d.label}</div>
-                    <div style={{ fontSize: 11, fontWeight: d.date === TODAY ? 700 : 400, color: d.date === TODAY ? 'var(--warn)' : 'var(--text)' }}>{d.dayNum}</div>
-                  </div>
-                ))}
-              </div>
-
-              {filtered.map((habit, idx) => {
-                const streak = getStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)
-                const color  = habit.color || 'var(--accent)'
-                return (
-                  <div key={habit.id} style={{
-                    display: 'grid', gridTemplateColumns: 'minmax(0,1fr) repeat(7,30px)', gap: 4,
-                    padding: '10px 14px', alignItems: 'center',
-                    borderBottom: idx < filtered.length - 1 ? '1px solid var(--border)' : 'none',
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
-                      onClick={() => { setEditHabit(habit); setShowForm(true) }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: color + '1A', color,
-                      }}>
-                        <CatIcon categoryId={null} emoji={habit.emoji} size={14} />
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2, wordBreak: 'break-word' }}>{habit.name}</div>
-                        {streak > 0 && <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 2, marginTop: 2 }}><IconFlame size={10} style={{color:'var(--warn)'}}/>{streak}</div>}
-                      </div>
-                    </div>
-                    {weekDays.map(d => {
-                      const status = isHabitDue(habit, d.date, pauses)
-                      const done   = habit.completedDates?.includes(d.date)
-                      const isFut  = d.date > TODAY
-                      const locked = status === 'before-start' || status === 'after-end'
-                      const pauseCol = status === 'paused' ? (getPauseColor(pauses, d.date) || 'var(--text-muted)') : null
-                      const deep = `color-mix(in oklab, ${color} 58%, #000)` // ciemniejszy — zrobione dodatkowo / w pauzie
-
-                      let bg = 'transparent', border = '1px solid transparent', opacity = 1, content = null
-                      if (locked) {
-                        border = '1px dashed var(--border)'; opacity = 0.22
-                      } else if (done) {
-                        const bonus = status !== 'due'               // poza harmonogramem lub w pauzie → ciemniejszy
-                        bg = bonus ? deep : color; border = `1px solid ${bonus ? deep : color}`
-                        content = <IconCheck size={12} style={{ color: '#fff' }} />
-                      } else if (status === 'paused') {
-                        bg = pauseCol + '2b'; border = `1px solid ${pauseCol}66`
-                        content = getPauseIcon(pauses, d.date)
-                          ? <span style={{ color: pauseCol, display: 'grid', placeItems: 'center' }}><CatIcon categoryId={null} emoji={getPauseIcon(pauses, d.date)} size={12} /></span>
-                          : <IconPause size={10} style={{ color: pauseCol }} />
-                      } else if (status === 'off') {
-                        content = <span style={{ width: 4, height: 4, borderRadius: 99, background: 'var(--border-strong)' }} />
-                      } else if (isFut) {          // do zrobienia w przyszłości
-                        bg = 'var(--surface2)'; border = '1px solid var(--border)'; opacity = 0.4
-                      } else if (d.date === TODAY) { // do zrobienia dziś
-                        border = `1.5px dashed ${color}`
-                      } else {                       // obowiązkowe, pominięte
-                        border = '1px solid var(--border-strong)'
-                      }
-                      return (
-                        <button key={d.date}
-                          onClick={() => !isFut && !locked && toggleDay(habit, d.date)}
-                          disabled={isFut || locked}
-                          title={status === 'paused' ? (pauseForDay(d.date, pauses)?.reasonLabel || 'Przerwa') : undefined}
-                          style={{
-                            width: 28, height: 28, borderRadius: 7, margin: '0 auto',
-                            background: bg, border, opacity,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            cursor: isFut || locked ? 'default' : 'pointer',
-                          }}
-                        >
-                          {content}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Legenda oznaczeń */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 14px', marginTop: 10, padding: '0 4px' }}>
-              {(() => {
-                const sw = (style) => <span style={{ width: 15, height: 15, borderRadius: 5, flexShrink: 0, display: 'grid', placeItems: 'center', ...style }} />
-                const item = (node, label) => (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10.5, color: 'var(--text-muted)' }}>{node}<span>{label}</span></span>
-                )
-                const usedPauses = [...new Set(pauses.map(p => p.reason))]
-                return <>
-                  {item(sw({ background: 'var(--accent)', color: '#fff' }), 'zrobione')}
-                  {item(sw({ background: 'color-mix(in oklab, var(--accent) 58%, #000)', color: '#fff' }), 'dodatkowo / w przerwie')}
-                  {item(sw({ border: '1.5px dashed var(--accent)' }), 'na dziś')}
-                  {item(sw({ border: '1px solid var(--border-strong)' }), 'pominięte')}
-                  {item(<span style={{ width: 15, height: 15, display: 'grid', placeItems: 'center' }}><span style={{ width: 4, height: 4, borderRadius: 99, background: 'var(--border-strong)' }} /></span>, 'poza planem')}
-                  {usedPauses.map(rid => { const m = pauseReasonMeta(rid); return item(sw({ background: m.color + '2b', border: `1px solid ${m.color}66` }), m.label.toLowerCase()) })}
-                </>
-              })()}
-            </div>
-            </>
-          )}
-        </>
-      )}
 
       {/* ===== STATYSTYKI ===== */}
       {view === 'stats' && (() => {

@@ -204,6 +204,23 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
   const savingsRate = totalInc > 0 ? Math.round((balance / totalInc) * 100) : null
   const on = useMounted(80)
 
+  // Statystyki pomocnicze — do kafelków „na pierwszy rzut oka"
+  const txCount = expenses.length + incomes.length
+  const avgExp  = expenses.length ? totalExp / expenses.length : 0
+  const topCat  = useMemo(() => {
+    const m = {}
+    expenses.forEach(t => { const k = t.category || 'Inne'; m[k] = (m[k] || 0) + t.amount })
+    const e = Object.entries(m).sort((a, b) => b[1] - a[1])[0]
+    return e ? { name: e[0], val: e[1] } : null
+  }, [expenses])
+  const statTile = (label, value, sub, color) => (
+    <div className="card card-pad" style={{ padding: 14 }}>
+      <p style={{ margin: 0, fontSize: 9.5, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em' }}>{label}</p>
+      <p style={{ margin: '6px 0 0', fontSize: 18, fontWeight: 800, letterSpacing: '-.02em', color: color || 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</p>
+      {sub && <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>{sub}</p>}
+    </div>
+  )
+
   // Oś czasu dopasowana do okresu: rok → miesiące, miesiąc/tydzień → dni (dzień → brak wykresu)
   const timeline = useMemo(() => buildPeriodTimeline(allTx, period, pivot), [allTx, period, pivot])
   const hasTimeline = timeline.some(d => d.income > 0 || d.expense > 0)
@@ -275,6 +292,14 @@ function GeneralTab({ expenses, incomes, totalExp, totalInc, balance, period, pi
             </span>
           </div>
         )}
+      </div>
+
+      {/* Kafelki statystyk — szybki przegląd okresu */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+        {statTile('Transakcje', txCount, `${expenses.length} wyd. · ${incomes.length} przych.`)}
+        {statTile('Śr. wydatek', privateMode ? '••' : fmt(avgExp), 'na transakcję', 'var(--expense)')}
+        {statTile('Największa kategoria', topCat ? topCat.name : '—', topCat && !privateMode ? fmt(topCat.val) : '', 'var(--text)')}
+        {statTile('Stopa oszczędności', savingsRate !== null ? `${savingsRate}%` : '—', savingsRate !== null ? (savingsRate >= 0 ? 'odłożone z przychodów' : 'na minusie') : 'brak przychodów', savingsRate !== null ? (savingsRate >= 0 ? 'var(--income)' : 'var(--expense)') : undefined)}
       </div>
 
       {/* Przychody i wydatki — jeden zgrupowany wykres słupkowy (para obok siebie / miesiąc) */}

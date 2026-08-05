@@ -104,19 +104,6 @@ export default function BibleDashboard({ user }) {
 
   return (
     <div className="bible-dashboard">
-      <div className="mod-header">
-        <div>
-          <div className="mod-header-kicker">Biblia</div>
-          <div className="mod-header-title">Plan czytania</div>
-        </div>
-        <div className="mod-header-right">
-          <div className="mod-header-stat">
-            <IconBook size={14} style={{ color: 'var(--accent)' }} />
-            <span>{stats.read}/{TOTAL_CHAPTERS}</span>
-          </div>
-        </div>
-      </div>
-
       {/* Zakładki */}
       <SegTabs
         items={[{ id: 'plan', label: 'Plan czytania' }, { id: 'notes', label: 'Notatki' }]}

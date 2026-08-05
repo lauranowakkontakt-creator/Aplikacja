@@ -27,7 +27,7 @@ const DEV_MODE = import.meta.env.DEV
 
 const MODULE_ACCENTS = {
   home:     '#7C8AF0',
-  budget:   '#E0673E',
+  budget:   '#33C3A6',
   habits:   '#E0B15A',
   mood:     '#9B7CF0',
   todo:     '#5BB6D9',
@@ -72,6 +72,10 @@ export default function App() {
   }, [activeModule])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
+  // Akcje modułu wstrzykiwane do górnej belki („Mój Świat") — jeden pasek zamiast dwóch
+  const [headerExtras, setHeaderExtras] = useState(null)
+  // Przy zmianie modułu czyścimy akcje poprzedniego (nowy moduł ustawi swoje)
+  useEffect(() => { setHeaderExtras(null) }, [activeModule])
   const [modules, setModules] = useState(() => buildModules())
   const [dreamFocus, setDreamFocus] = useState(null) // sen otwierany z innego modułu
 
@@ -123,7 +127,8 @@ export default function App() {
   const activeIdx = inOverflow ? navItems.length : navItems.findIndex(m => m.id === activeModule)
 
   return (
-    <div className="app" style={accentVars}>
+    <div className={`app app--glass app--${activeModule}`} style={accentVars}>
+      <div className={`rev-bg rev-bg--${activeModule}`} aria-hidden="true"><span /><span /></div>
 
       {/* SIDEBAR — desktop only */}
       <aside className="sidebar">
@@ -186,6 +191,7 @@ export default function App() {
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {headerExtras}
             <button className="icon-btn" onClick={() => setDrawerOpen(true)}><IconSettings size={15}/></button>
           </div>
         </div>
@@ -198,7 +204,8 @@ export default function App() {
             </div>
             <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-.02em', marginTop: 2 }}>Mój Świat</div>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {headerExtras}
             <button
               className="icon-btn"
               style={{ width: 34, height: 34, background: 'var(--accent-soft)', color: 'var(--accent)', border: 'none' }}
@@ -215,15 +222,15 @@ export default function App() {
             <ErrorBoundary moduleId={activeModule}>
             <Suspense fallback={<div className="loading-screen" style={{ minHeight: '40vh' }}><div className="spinner" /></div>}>
             {activeModule === 'home'     && <Pulpit user={user} onNavigate={goTo} />}
-            {activeModule === 'budget'   && <Dashboard user={user} onCurrencyChange={handleCurrencyChange} />}
-            {activeModule === 'habits'   && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} />}
+            {activeModule === 'budget'   && <Dashboard user={user} onCurrencyChange={handleCurrencyChange} setHeaderExtras={setHeaderExtras} />}
+            {activeModule === 'habits'   && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'mood'     && <MoodDashboard user={user} />}
             {activeModule === 'todo'     && <TodoDashboard user={user} />}
-            {activeModule === 'calendar' && <CalendarDashboard user={user} />}
-            {activeModule === 'prayer'   && <PrayerDashboard user={user} />}
+            {activeModule === 'calendar' && <CalendarDashboard user={user} setHeaderExtras={setHeaderExtras} />}
+            {activeModule === 'prayer'   && <PrayerDashboard user={user} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'bible'    && <BibleDashboard user={user} />}
-            {activeModule === 'people'   && <PeopleHub user={user} onOpenDream={openDream} />}
-            {activeModule === 'dream'    && <DreamDashboard user={user} focusId={dreamFocus} onFocusConsumed={() => setDreamFocus(null)} />}
+            {activeModule === 'people'   && <PeopleHub user={user} onOpenDream={openDream} setHeaderExtras={setHeaderExtras} />}
+            {activeModule === 'dream'    && <DreamDashboard user={user} focusId={dreamFocus} onFocusConsumed={() => setDreamFocus(null)} setHeaderExtras={setHeaderExtras} />}
             </Suspense>
             </ErrorBoundary>
           </div>

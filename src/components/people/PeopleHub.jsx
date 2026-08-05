@@ -7,7 +7,7 @@ import { pl } from 'date-fns/locale'
 import {
   ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconCalendar, IconPrayer,
   IconChevronRight, IconChevronLeft, IconUsers, IconEye, IconEyeOff, IconCheck, IconMoon,
-  IconCash, IconTodo, IconArrowUp, IconArrowDown
+  IconCash, IconTodo, IconArrowUp, IconArrowDown, IconPlus
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { setPersonHidden, purgePerson } from '../../utils/people'
@@ -37,7 +37,7 @@ function Bubble({ person, size = 44 }) {
   )
 }
 
-export default function PeopleHub({ user, onOpenDream }) {
+export default function PeopleHub({ user, onOpenDream, setHeaderExtras }) {
   const [people, setPeople]         = useState([])
   const [events, setEvents]         = useState([])
   const [intentions, setIntentions] = useState([])
@@ -101,25 +101,24 @@ export default function PeopleHub({ user, onOpenDream }) {
     if (selectedId === id) setSelectedId(null)
   }
 
+  // Górna belka („Mój Świat"): liczba osób + ＋ Dodaj osobę.
+  // Hook przed early-returnem (zasady hooków).
+  useEffect(() => {
+    setHeaderExtras?.(
+      <>
+        <span className="mod-header-stat"><IconUsers size={14} style={{ color: 'var(--accent)' }} /><span>{people.length}</span></span>
+        <button className="hdr-btn accent" title="Dodaj osobę" onClick={() => { setEditPerson(null); setShowForm(true) }}><IconPlus size={17} /></button>
+      </>
+    )
+    return () => setHeaderExtras?.(null)
+  }, [people.length])
+
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   const selected = people.find(p => p.id === selectedId)
 
   return (
     <div className="people-hub">
-      <div className="mod-header">
-        <div>
-          <div className="mod-header-kicker">Osoby</div>
-          <div className="mod-header-title">{selected ? selected.name : 'Baza osób'}</div>
-        </div>
-        <div className="mod-header-right">
-          <div className="mod-header-stat">
-            <IconUsers size={14} style={{ color: 'var(--accent)' }} />
-            <span>{people.length}</span>
-          </div>
-        </div>
-      </div>
-
       {selected ? (
         <PersonDetail
           uid={user.uid}
@@ -137,10 +136,6 @@ export default function PeopleHub({ user, onOpenDream }) {
         />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button className="btn-add-account" onClick={() => { setEditPerson(null); setShowForm(true) }}>
-            + Dodaj osobę
-          </button>
-
           {people.length === 0 ? (
             <div className="list-empty">
               <p>Brak osób</p>

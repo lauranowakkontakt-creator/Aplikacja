@@ -28,3 +28,15 @@ export function fmt(n) {
   const code = getCurrencyCode()
   return new Intl.NumberFormat('pl-PL', { style: 'currency', currency: code }).format(n ?? 0)
 }
+
+// Rozbija kwotę na część całkowitą (z grupowaniem tysięcy i ewentualnym znakiem
+// minus) oraz dwucyfrową część dziesiętną — do dużego „hero" w stylu Revolut,
+// gdzie grosze wyświetlamy mniejszą czcionką. Znak minus to U+2212 (−).
+export function splitAmount(n) {
+  const num = Number(n)
+  const safe = Number.isFinite(num) ? num : 0
+  const parts = Math.abs(safe)
+    .toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    .split(',')
+  return { int: (safe < 0 ? '−' : '') + parts[0], dec: parts[1] ?? '00' }
+}

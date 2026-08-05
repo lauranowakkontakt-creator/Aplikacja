@@ -4,7 +4,8 @@ import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, subDays, addDays, parseISO, differenceInDays, isBefore, startOfDay, startOfMonth, getDaysInMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat, IconArchive, IconRestore, IcCar } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconPrayer, IconUsers, IconChart, IconFlame, IconCheck, IconChevronLeft, IconChevronRight, IconChevronDown, IconCalendar, IconRepeat, IconArchive, IconRestore, IconPlus, IcCar } from '../Icons'
+import PrayerMenu from './PrayerMenu'
 import StatSummary from '../StatSummary'
 import SegTabs from '../SegTabs'
 import { confirmDialog } from '../ConfirmModal'
@@ -55,10 +56,12 @@ const kicker = (t) => (
   </div>
 )
 
-export default function PrayerDashboard({ user }) {
+export default function PrayerDashboard({ user, setHeaderExtras }) {
   const [intentions, setIntentions] = useState([])
   const [people, setPeople]         = useState([])
   const [loading, setLoading]       = useState(true)
+  const [showPersonForm, setShowPersonForm] = useState(false)
+  const [editPerson, setEditPerson] = useState(null)
   useFallbackTimeout(() => setLoading(false))
   const [tab, setTab]               = useState('people')
   const [selectedPerson, setSelectedPerson] = useState(null)
@@ -114,58 +117,55 @@ export default function PrayerDashboard({ user }) {
     return s
   }, [allPrayedDates])
 
+  // Górna belka („Mój Świat"): [＋ Dodaj osobę][⋮ Statystyki / Archiwum / Tryb auto].
+  // Hook przed early-returnem (zasady hooków).
+  useEffect(() => {
+    setHeaderExtras?.(
+      <>
+        <PrayerMenu onAction={(id) => { setTab(id); setSelectedPerson(null) }} />
+        <button className="hdr-btn accent" title="Dodaj osobę" onClick={() => { setEditPerson(null); setShowPersonForm(true) }}><IconPlus size={17} /></button>
+      </>
+    )
+    return () => setHeaderExtras?.(null)
+  }, [])
+
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   const switchTab = (t) => { setTab(t); setSelectedPerson(null) }
-  // W trybie auto zostają tylko „Osoby" i „Dziś" — statystyki i archiwum są ukryte.
-  const toggleCarMode = () => setCarMode(m => {
-    const next = !m
-    if (next && tab !== 'people' && tab !== 'today') { setTab('today'); setSelectedPerson(null) }
-    return next
-  })
-  const TABS = carMode
-    ? [['people', 'Osoby'], ['today', 'Dziś']]
-    : [['people', 'Osoby'], ['today', 'Dziś'], ['stats', 'Statystyki'], ['archive', 'Archiwum']]
 
   return (
     <div className={`prayer-dashboard${carMode ? ' car-mode' : ''}`}>
-      {/* Header */}
-      <div className="mod-header">
-        <div>
-          <div className="mod-header-kicker">Modlitwa</div>
-          <div className="mod-header-title">
-            {tab === 'people' ? (selectedPerson ? selectedPerson.name : 'Osoby') : tab === 'today' ? 'Dziś' : tab === 'archive' ? 'Archiwum' : 'Statystyki'}
-          </div>
+      {/* Statystyki / Archiwum — podstrona ze strzałką wstecz do Osób */}
+      {(tab === 'stats' || tab === 'archive') ? (
+        <div className="rev-subhead">
+          <button className="rev-back" onClick={() => switchTab('people')} title="Wróć"><IconChevronLeft size={18} /></button>
+          <div className="rev-subhead-title">{tab === 'stats' ? 'Statystyki' : 'Archiwum'}</div>
         </div>
-        <div className="mod-header-right">
-          <button
-            onClick={toggleCarMode}
-            style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-              padding: '4px 10px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
-              border: `1px solid ${carMode ? 'var(--accent)' : 'var(--border)'}`,
-              background: carMode ? 'var(--accent)' : 'var(--surface)',
-              color: carMode ? '#fff' : 'var(--text-sub)',
-            }}
-            title="Tryb auto (większe przyciski do prowadzenia)"
-          ><IcCar size={carMode ? 18 : 16} /></button>
-          <div className="mod-header-stat">
-            <IconFlame size={14} style={{ color: 'var(--accent)' }} />
-            <span>{streak}</span>
+      ) : (
+        <>
+          {/* Pigułki: seria, tryb auto i „pomodlono dziś" */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginBottom: 10 }}>
+            <div className="mod-header-stat"><IconFlame size={14} style={{ color: 'var(--accent)' }} /><span>{streak}</span></div>
+            <button
+              onClick={() => setCarMode(m => !m)}
+              title="Tryb auto (większe przyciski do prowadzenia)"
+              className="mod-header-stat"
+              style={{
+                cursor: 'pointer', fontFamily: 'inherit',
+                border: `1px solid ${carMode ? 'var(--accent)' : 'var(--border)'}`,
+                background: carMode ? 'var(--accent)' : undefined,
+                color: carMode ? '#fff' : 'var(--text-sub)',
+              }}
+            ><IcCar size={14} /></button>
+            <div className="mod-header-stat"><IconPrayer size={14} style={{ color: 'var(--warn)' }} /><span>{prayedToday}/{dueToday.length}</span></div>
           </div>
-          <div className="mod-header-stat">
-            <IconPrayer size={14} style={{ color: 'var(--warn)' }} />
-            <span>{prayedToday}/{dueToday.length}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <SegTabs
-        items={TABS.map(([id, label]) => ({ id, label }))}
-        active={tab} onChange={switchTab}
-        size={carMode ? 'lg' : undefined}
-      />
+          <SegTabs
+            items={[{ id: 'people', label: 'Osoby' }, { id: 'today', label: 'Dziś' }]}
+            active={tab} onChange={switchTab}
+            size={carMode ? 'lg' : undefined}
+          />
+        </>
+      )}
 
       {tab === 'people' && (
         selectedPerson
@@ -182,6 +182,8 @@ export default function PrayerDashboard({ user }) {
               intentions={intentions}
               carMode={carMode}
               onSelect={setSelectedPerson}
+              onAdd={() => { setEditPerson(null); setShowPersonForm(true) }}
+              onEdit={(p) => { setEditPerson(p); setShowPersonForm(true) }}
             />
       )}
       {tab === 'today' && (
@@ -193,14 +195,16 @@ export default function PrayerDashboard({ user }) {
       {tab === 'archive' && (
         <ArchiveView user={user} intentions={intentions} people={people} />
       )}
+
+      {showPersonForm && (
+        <PersonForm user={user} editData={editPerson} onClose={() => { setShowPersonForm(false); setEditPerson(null) }} />
+      )}
     </div>
   )
 }
 
 /* ─── PeopleView ─────────────────────────────────────────────────────────── */
-function PeopleView({ user, people, intentions, carMode, onSelect }) {
-  const [showForm, setShowForm] = useState(false)
-  const [editPerson, setEditPerson] = useState(null)
+function PeopleView({ user, people, intentions, carMode, onSelect, onAdd, onEdit }) {
   const [showArchive, setShowArchive] = useState(false)
   const today = TODAY()
 
@@ -244,9 +248,9 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <button className="btn-add-account" onClick={() => { setEditPerson(null); setShowForm(true) }}>
-        + Dodaj osobę
-      </button>
+      {carMode && (
+        <button className="btn-add-account" onClick={onAdd}>+ Dodaj osobę</button>
+      )}
 
       {!carMode && suggestion && (
         <button onClick={() => onSelect(suggestion)} style={{
@@ -317,7 +321,7 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-                <button className="t-btn" title="Edytuj" onClick={e => { e.stopPropagation(); setEditPerson(p); setShowForm(true) }}><IconEdit size={13} /></button>
+                <button className="t-btn" title="Edytuj" onClick={e => { e.stopPropagation(); onEdit(p) }}><IconEdit size={13} /></button>
                 <button className="t-btn" title="Ukryj w modlitwie (zostaje w bazie Osób)" onClick={e => archivePersonH(p.id, e)}><IconArchive size={13} /></button>
                 <button className="t-btn delete" title="Usuń trwale (z prośbami i wydarzeniami)" onClick={e => handleDeletePerson(p.id, e)}><IconTrash size={13} /></button>
               </div>
@@ -368,9 +372,6 @@ function PeopleView({ user, people, intentions, carMode, onSelect }) {
         </div>
       )}
 
-      {showForm && (
-        <PersonForm user={user} editData={editPerson} onClose={() => { setShowForm(false); setEditPerson(null) }} />
-      )}
     </div>
   )
 }

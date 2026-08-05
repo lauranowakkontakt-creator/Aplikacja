@@ -148,6 +148,15 @@ export const IconMore = (p) => (
   </Icon>
 )
 
+// Pionowe „trzy kropki" — trigger menu „Więcej" (spójnie w całej aplikacji)
+export const IconMoreVert = (p) => (
+  <Icon {...p}>
+    <circle cx="12" cy="5" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="19" r="1.4" fill="currentColor" stroke="none" />
+  </Icon>
+)
+
 export const IconPlus = (p) => (
   <Icon {...p} stroke={p.stroke || 2}>
     <path d="M12 5v14M5 12h14" />

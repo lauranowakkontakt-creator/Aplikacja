@@ -1935,3 +1935,360 @@ body { overscroll-behavior-y: none; }
   color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 90px; flex-shrink: 0;
 }
+
+/* =====================================================================
+   REVOLUT-STYLE OVERVIEW (zakładka „Przegląd" w Budżecie)
+   Czysty, przewiewny układ inspirowany appką Revolut, ale na naszych danych.
+   ===================================================================== */
+.rev-overview { display: flex; flex-direction: column; gap: 22px; max-width: 620px; margin: 0 auto; width: 100%; }
+
+/* --- Hero: łączny majątek --- */
+.rev-hero { text-align: center; padding: 8px 0 4px; }
+.rev-hero-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: none; border: none; cursor: pointer; padding: 4px 8px;
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--text-sub);
+  border-radius: 99px; transition: color .15s;
+}
+.rev-hero-label:hover { color: var(--text); }
+.rev-hero-label svg { opacity: .7; }
+.rev-hero-amount { display: flex; align-items: baseline; justify-content: center; gap: 2px; line-height: 1; margin-top: 4px; white-space: nowrap; }
+.rev-hero-int { font-size: 52px; font-weight: 700; letter-spacing: -0.035em; color: var(--text); }
+.rev-hero-dec { font-size: 26px; font-weight: 600; color: var(--text-muted); letter-spacing: -0.02em; }
+.rev-hero-hidden { font-size: 44px; font-weight: 700; color: var(--text-muted); letter-spacing: .06em; }
+.rev-hero-trend {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 12px;
+  font-size: 13px; font-weight: 600; padding: 5px 12px; border-radius: 99px;
+  background: var(--surface); border: 1px solid var(--border);
+}
+.rev-hero-trend.up   { color: var(--income); }
+.rev-hero-trend.down { color: var(--expense); }
+.rev-hero-trend .sep { color: var(--text-muted); font-weight: 500; }
+.rev-hero-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 12px; }
+.rev-hero-chip { font-size: 12px; font-weight: 600; color: var(--text-sub); background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 4px 11px; }
+
+/* --- Szybkie akcje: okrągłe przyciski jak w Revolut --- */
+.rev-actions { display: flex; justify-content: center; gap: 18px; }
+.rev-action { display: flex; flex-direction: column; align-items: center; gap: 8px; background: none; border: none; cursor: pointer; font-family: inherit; }
+.rev-action-circle {
+  width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  transition: transform .12s var(--spring), background .15s, border-color .15s;
+}
+.rev-action:hover .rev-action-circle { background: var(--surface3); border-color: var(--border-strong); }
+.rev-action:active .rev-action-circle { transform: scale(.92); }
+.rev-action-circle.accent { background: var(--accent); border-color: transparent; color: var(--bg); }
+.rev-action:hover .rev-action-circle.accent { background: color-mix(in oklab, var(--accent) 85%, black); }
+.rev-action-label { font-size: 12px; font-weight: 600; color: var(--text-sub); }
+/* „Więcej" reużywa istniejącego BudgetMenu — stylizujemy jego trigger na kółko */
+.rev-action .budget-menu-wrap { display: flex; }
+.rev-action .budget-menu-btn {
+  width: 58px; height: 58px; border-radius: 50%; font-size: 22px;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+}
+.rev-action .budget-menu-btn:hover { background: var(--surface3); }
+
+/* --- Sekcja z listą (karta) --- */
+.rev-section { display: flex; flex-direction: column; gap: 10px; }
+.rev-section-head { display: flex; align-items: baseline; justify-content: space-between; padding: 0 4px; }
+.rev-section-title { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+.rev-section-meta { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: capitalize; }
+.rev-section-link { background: none; border: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--accent); padding: 0; }
+
+.rev-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+
+/* --- Wiersze listy (aktywa / transakcje) --- */
+.rev-row { display: flex; align-items: center; gap: 14px; padding: 13px 16px; border-bottom: 1px solid var(--border); transition: background .15s; }
+.rev-row:last-child { border-bottom: none; }
+.rev-row.clickable { cursor: pointer; }
+.rev-row.clickable:hover { background: var(--surface2); }
+.rev-row-icon { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-size: 18px; }
+.rev-row-main { flex: 1; min-width: 0; }
+.rev-row-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rev-row-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rev-row-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+.rev-row-amt { font-size: 15px; font-weight: 700; letter-spacing: -0.02em; }
+.rev-row-trend { font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 3px; }
+.rev-row-trend.up { color: var(--income); }
+.rev-row-trend.down { color: var(--text-muted); }
+
+/* --- Karta „wg kategorii" z donutem --- */
+.rev-donut-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; }
+.rev-donut-wrap { display: flex; align-items: center; gap: 20px; }
+.rev-donut-legend { flex: 1; display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.rev-legend-item { display: flex; align-items: center; gap: 9px; }
+.rev-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.rev-legend-name { font-size: 13px; color: var(--text-sub); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rev-legend-val { font-size: 13px; font-weight: 600; color: var(--text); flex-shrink: 0; }
+.rev-empty { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0; }
+
+@media (max-width: 420px) {
+  .rev-hero-int { font-size: 44px; }
+  .rev-hero-dec { font-size: 22px; }
+  .rev-actions { gap: 12px; }
+  .rev-action-circle, .rev-action .budget-menu-btn { width: 54px; height: 54px; }
+  .rev-donut-wrap { flex-direction: column; }
+}
+
+/* =====================================================================
+   KOLOROWE, FALUJĄCE TŁO CAŁEGO EKRANU (moduł Budżet) + szklane kafelki
+   ===================================================================== */
+/* Pełnoekranowe tło — rewolutowy teal-gradient za całą aplikacją (pod treścią,
+   nagłówkiem i przezroczystymi kafelkami). z-index:0 pod treścią (która ma z:1). */
+.rev-bg {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+  /* Kolor wyliczany z akcentu modułu — jeden mechanizm, każda zakładka w swoim kolorze */
+  background:
+    radial-gradient(130% 75% at 50% -12%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 55%),
+    linear-gradient(180deg,
+      color-mix(in oklab, var(--accent) 22%, #0a0b11) 0%,
+      color-mix(in oklab, var(--accent) 11%, #0a0b11) 28%,
+      var(--bg) 76%);
+}
+/* Dwie rozmyte „fale" koloru, które powoli płyną w górnej części ekranu */
+.rev-bg span {
+  position: absolute; border-radius: 45%; filter: blur(60px); opacity: 0.55; will-change: transform;
+}
+.rev-bg span:nth-child(1) {
+  width: 90vw; height: 62vh; top: -22vh; left: -22vw;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent) 52%, transparent), transparent 62%);
+  animation: revWaveA 18s ease-in-out infinite alternate;
+}
+.rev-bg span:nth-child(2) {
+  width: 82vw; height: 56vh; top: -12vh; right: -26vw;
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 62%);
+  animation: revWaveB 24s ease-in-out infinite alternate;
+}
+@keyframes revWaveA {
+  0%   { transform: translate(0,0) rotate(0deg) scale(1); }
+  100% { transform: translate(16%,12%) rotate(26deg) scale(1.18); }
+}
+@keyframes revWaveB {
+  0%   { transform: translate(0,0) rotate(0deg) scale(1.05); }
+  100% { transform: translate(-14%,-9%) rotate(-22deg) scale(1.22); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rev-bg span { animation: none; }
+}
+
+/* Treść modułu ponad tłem; nagłówek/ramka aplikacji przepuszczają kolor */
+.app--glass .main, .app--glass .content { position: relative; z-index: 1; background: transparent; }
+/* Górna belka („Mój Świat") — jedno, przezroczyste, szklane pasmo dla każdego modułu */
+.app--glass .mobile-header {
+  background: rgba(12,14,20,0.5);
+  backdrop-filter: blur(18px) saturate(1.1); -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  border-bottom-color: rgba(255,255,255,0.07);
+}
+.app--glass .topbar { background: transparent; border-bottom-color: rgba(255,255,255,0.07); }
+
+/* Przyciski akcji wstrzykiwane do belki — spójne, szklane kółka */
+.hdr-btn {
+  width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+  display: grid; place-items: center; cursor: pointer;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); color: var(--text);
+  transition: background .15s, border-color .15s, transform .12s;
+}
+.hdr-btn:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.22); }
+.hdr-btn:active { transform: scale(.92); }
+.hdr-btn.accent { background: var(--accent); border-color: transparent; color: #fff; }
+.hdr-btn.accent:hover { background: color-mix(in oklab, var(--accent) 85%, black); }
+/* Menu (⋮ / kropki) w belce też jako szklane kółko — spójnie z hdr-btn */
+.app--glass .mobile-header .budget-menu-btn, .app--glass .topbar .budget-menu-btn,
+.app--glass .mobile-header .budget-menu-wrap .icon-btn, .app--glass .topbar .budget-menu-wrap .icon-btn {
+  width: 36px; height: 36px; border-radius: 50%; font-size: 19px;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14); color: var(--text);
+}
+.app--glass .mobile-header .budget-menu-btn:hover, .app--glass .topbar .budget-menu-btn:hover,
+.app--glass .mobile-header .budget-menu-wrap .icon-btn:hover, .app--glass .topbar .budget-menu-wrap .icon-btn:hover { background: rgba(255,255,255,0.14); }
+
+/* Hero: przezroczysty, szklany kafelek — kolor jest na TLE, nie w kafelku */
+.rev-glass-hero {
+  position: relative; overflow: hidden;
+  border-radius: var(--r-lg);
+  padding: 22px 20px 20px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid rgba(255,255,255,0.10);
+  backdrop-filter: blur(16px) saturate(1.25); -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  box-shadow: 0 18px 44px -28px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.10);
+}
+/* Delikatny szklany refleks u góry */
+.rev-glass-hero::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), transparent 28%);
+  border-radius: inherit;
+}
+.rev-glass-waves { display: none; }
+.rev-glass-hero .rev-hero, .rev-glass-hero .rev-actions { position: relative; z-index: 3; }
+.rev-glass-hero .rev-actions { margin-top: 20px; }
+
+/* Górny rząd Przeglądu: kółka Wykresy/Konta (jak ikony w prawym górnym rogu Revolut) */
+.rev-tophead { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 2px; }
+.rev-topcircle {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); color: var(--text);
+  cursor: pointer; transition: background .15s, border-color .15s, transform .12s;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.rev-topcircle:hover { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.22); }
+.rev-topcircle:active { transform: scale(.92); }
+/* Menu „Więcej" jako górne szklane kółko */
+.rev-topmenu .budget-menu-wrap { display: flex; }
+.rev-topmenu .budget-menu-btn {
+  width: 42px; height: 42px; border-radius: 50%; font-size: 20px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); color: var(--text);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.rev-topmenu .budget-menu-btn:hover { background: rgba(255,255,255,0.12); }
+
+/* Pasek podstrony: strzałka wstecz + tytuł + menu (bez miesiąca/roku) */
+.rev-subhead {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
+  padding: 2px 0;
+}
+.rev-back {
+  width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); color: var(--text);
+  cursor: pointer; transition: background .15s, transform .12s;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.rev-back:hover { background: rgba(255,255,255,0.12); }
+.rev-back:active { transform: scale(.92); }
+.rev-subhead-title { flex: 1; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
+
+/* Kolory tekstu/elementów na teal tle */
+.rev-glass-hero .rev-hero-label { color: rgba(255,255,255,0.82); }
+.rev-glass-hero .rev-hero-label:hover { color: #fff; }
+.rev-glass-hero .rev-hero-int { color: #fff; }
+.rev-glass-hero .rev-hero-dec { color: rgba(255,255,255,0.68); }
+.rev-glass-hero .rev-hero-hidden { color: rgba(255,255,255,0.6); }
+.rev-glass-hero .rev-hero-trend {
+  background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.20);
+  color: #fff; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.rev-glass-hero .rev-hero-trend.up   { color: #b8f5df; }
+.rev-glass-hero .rev-hero-trend.down { color: #ffd7cb; }
+.rev-glass-hero .rev-hero-trend .sep { color: rgba(255,255,255,0.6); }
+.rev-glass-hero .rev-hero-chip { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.18); color: #fff; }
+
+/* Szklane kółka akcji na teal tle */
+.rev-glass-hero .rev-action-circle,
+.rev-glass-hero .budget-menu-btn {
+  background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.22); color: #fff;
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.rev-glass-hero .rev-action:hover .rev-action-circle,
+.rev-glass-hero .budget-menu-btn:hover { background: rgba(255,255,255,0.24); }
+.rev-glass-hero .rev-action-circle.accent { background: var(--accent); border-color: transparent; color: #fff; }
+.rev-glass-hero .rev-action:hover .rev-action-circle.accent { background: color-mix(in oklab, var(--accent) 85%, black); }
+.rev-glass-hero .rev-action-label { color: rgba(255,255,255,0.88); }
+
+/* Szklane karty sekcji poniżej — przezroczyste na kolorowym tle */
+.rev-card, .rev-donut-card {
+  background: rgba(255,255,255,0.045);
+  backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,0.09);
+  box-shadow: 0 14px 36px -26px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.rev-row { border-bottom-color: rgba(255,255,255,0.07); }
+.rev-row.clickable:hover { background: rgba(255,255,255,0.05); }
+
+/* Uszklanienie podstron Budżetu (Transakcje / Konta / …), żeby wszystko było
+   spójnie przezroczyste na kolorowym tle. Nadpisujemy solidne powierzchnie. */
+.app--glass .tx-group-body,
+.app--glass .accounts-total,
+.app--glass .account-item,
+.app--glass .balance-hero,
+.app--glass .summary-card,
+.app--glass .currency-tile {
+  background: rgba(255,255,255,0.045) !important;
+  border-color: rgba(255,255,255,0.09);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 12px 32px -26px rgba(0,0,0,0.8);
+}
+.app--glass .accounts-total, .app--glass .balance-hero { border-top-color: rgba(255,255,255,0.14); }
+.app--glass .transaction-item { border-bottom-color: rgba(255,255,255,0.07); }
+.app--glass .transaction-item:hover { background: rgba(255,255,255,0.05); }
+.app--glass .account-item:hover { background: rgba(255,255,255,0.09) !important; }
+/* Wiersze kont używają inline var(--surface) — podmieniamy zmienną w tym poddrzewie */
+.app--glass .accounts-list { --surface: rgba(255,255,255,0.05); --surface2: rgba(255,255,255,0.10); }
+
+/* =====================================================================
+   SPÓJNE SZKŁO W CAŁYM MODULE BUDŻET (wszystkie zakładki i modale)
+   Podmieniamy tokeny powierzchni na przezroczyste — elementy używające
+   var(--surface*) (karty, kafelki, pola, listy) stają się szklane same z siebie.
+   ===================================================================== */
+/* Cały obszar treści dowolnego modułu → tokeny powierzchni szklane */
+.app--glass .content {
+  --surface:  rgba(255,255,255,0.05);
+  --surface2: rgba(255,255,255,0.09);
+  --surface3: rgba(255,255,255,0.13);
+  --border:   rgba(255,255,255,0.09);
+  --border-strong: rgba(255,255,255,0.16);
+}
+/* Przygaszony tekst zlewał się z ciemnym teal — rozjaśniamy sub/muted w całym
+   module (nagłówek, treść, modale). Główny --text zostaje bez zmian. */
+.app--glass .main {
+  --text-sub:   rgba(236,234,242,0.82);
+  --text-muted: rgba(236,234,242,0.60);
+}
+/* Modale (Statystyki, Przelew, Cele, Dziesięcina, Kategorie, Dłużnicy…) —
+   ciemne „dymne szkło" nad przyciemnionym, rozmytym tłem */
+.app--glass .modal-overlay {
+  background: rgba(6,16,15,0.62);
+  backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+}
+.app--glass .modal {
+  background: rgba(18,29,30,0.74) !important;
+  border-color: rgba(255,255,255,0.10);
+  backdrop-filter: blur(26px) saturate(1.2); -webkit-backdrop-filter: blur(26px) saturate(1.2);
+  box-shadow: 0 -24px 64px -34px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.06);
+  /* wewnątrz modala tokeny znów szklane (bo .modal bywa poza .dashboard w DOM) */
+  --surface:  rgba(255,255,255,0.05);
+  --surface2: rgba(255,255,255,0.09);
+  --surface3: rgba(255,255,255,0.13);
+  --border:   rgba(255,255,255,0.09);
+}
+.app--glass .modal-header { border-bottom-color: rgba(255,255,255,0.10); }
+/* Menu „Więcej" (dropdown) — musi być nieprześwitujące, żeby treść pod nim nie
+   przebijała. Solidne, ciemne tło zamiast szklanego tokenu. */
+.app--glass .budget-menu-dropdown {
+  background: rgba(15,25,26,0.96);
+  border-color: rgba(255,255,255,0.12);
+  backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+  box-shadow: 0 18px 48px rgba(0,0,0,0.6);
+}
+.app--glass .budget-menu-item:hover { background: rgba(255,255,255,0.07); }
+.app--glass .modal-grip { background: rgba(255,255,255,0.18); }
+/* Karty/panele wewnątrz zakładek i modali — jednolite szkło */
+.app--glass .card {
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 12px 32px -26px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.app--glass .card::before { display: none; }
+/* Pola formularzy — subtelne szkło zamiast solidnego bloku */
+.app--glass input, .app--glass select, .app--glass textarea {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* --- „Więcej" na dolnym pasku (MoreSheet — wszystkie aplikacje) w motywie glass --- */
+.app--glass .more-overlay {
+  background: rgba(6,10,16,0.6);
+  backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+}
+.app--glass .more-sheet {
+  background: rgba(18,22,30,0.8);
+  border-top-color: rgba(255,255,255,0.10);
+  backdrop-filter: blur(26px) saturate(1.2); -webkit-backdrop-filter: blur(26px) saturate(1.2);
+  box-shadow: 0 -24px 64px -34px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.app--glass .more-handle { background: rgba(255,255,255,0.18); }
+.app--glass .more-item {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.app--glass .more-item.active {
+  border-color: color-mix(in oklab, var(--card-accent) 50%, transparent);
+  background: color-mix(in oklab, var(--card-accent) 18%, rgba(255,255,255,0.06));
+}

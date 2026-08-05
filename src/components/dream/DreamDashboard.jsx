@@ -2,14 +2,14 @@ import { useState, useEffect, useMemo, useRef, useLayoutEffect } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp, orderBy, arrayUnion } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, startOfMonth, getDaysInMonth, addDays, addMonths, subMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
   CatIcon, IconMoon, IconEdit, IconTrash, IconClose, IconChevronLeft, IconChevronRight,
   IconUsers, IconCheck, IconCalendar, IconTag, IconPlus,
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
-import SegTabs from '../SegTabs'
+import DreamMenu from './DreamMenu'
 import { toast } from '../Toast'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS, getEmotion, getCategory,
@@ -104,7 +104,7 @@ function DreamText({ text, highlightPeople = [], highlightSymbols = [] }) {
   )
 }
 
-export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
+export default function DreamDashboard({ user, focusId, onFocusConsumed, setHeaderExtras }) {
   const [dreams, setDreams]   = useState([])
   const [people, setPeople]   = useState([])
   const [symbols, setSymbols] = useState([])
@@ -146,6 +146,18 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
     return m
   }, [symbols, dreams])
 
+  // Górna belka („Mój Świat"): [＋ Zapisz sen][⋮ Symbole / Statystyki].
+  // Hook przed early-returnem (zasady hooków).
+  useEffect(() => {
+    setHeaderExtras?.(
+      <>
+        <DreamMenu onAction={(id) => { setSelectedId(null); setSelectedSymbolId(null); setTab(id) }} />
+        <button className="hdr-btn accent" title="Zapisz sen" onClick={() => { setEditDream(null); setShowForm(true) }}><IconPlus size={17} /></button>
+      </>
+    )
+    return () => setHeaderExtras?.(null)
+  }, [])
+
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   const selected = dreams.find(d => d.id === selectedId)
@@ -169,18 +181,13 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
 
   return (
     <div className="dream-dashboard">
-      <div className="mod-header">
-        <div>
-          <div className="mod-header-kicker">Sen</div>
-          <div className="mod-header-title">{selected ? (selected.title || 'Sen') : tab === 'symbols' ? 'Symbole' : 'Dziennik snów'}</div>
+      {/* Podstrona Symbole / Statystyki — pasek ze strzałką wstecz do dziennika */}
+      {!selected && (tab === 'symbols' || tab === 'stats') && (
+        <div className="rev-subhead">
+          <button className="rev-back" onClick={() => { setTab('dreams'); setSelectedSymbolId(null) }} title="Wróć"><IconChevronLeft size={18} /></button>
+          <div className="rev-subhead-title">{tab === 'symbols' ? 'Symbole' : 'Statystyki'}</div>
         </div>
-        <div className="mod-header-right">
-          <div className="mod-header-stat">
-            <IconMoon size={14} style={{ color: 'var(--accent)' }} />
-            <span>{dreams.length}</span>
-          </div>
-        </div>
-      </div>
+      )}
 
       {selected ? (
         <DreamDetail
@@ -192,44 +199,32 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed }) {
           onEdit={() => { setEditDream(selected); setShowForm(true) }}
           onDelete={() => deleteDream(selected.id)}
         />
+      ) : tab === 'stats' ? (
+        <DreamStats dreams={dreams} />
+      ) : tab === 'symbols' ? (
+        <SymbolsView
+          user={user}
+          symbols={symbols}
+          dreams={dreams}
+          counts={symbolCounts}
+          peopleById={peopleById}
+          symbolsById={symbolsById}
+          selectedSymbolId={selectedSymbolId}
+          onSelectSymbol={setSelectedSymbolId}
+          onOpenDream={(id) => setSelectedId(id)}
+          onCreateSymbol={createSymbol}
+        />
       ) : (
-        <>
-          {/* Zakładki */}
-          <SegTabs
-            items={[{ id: 'dreams', label: 'Sny' }, { id: 'symbols', label: 'Symbole' }]}
-            active={tab} onChange={(id) => { setTab(id); setSelectedSymbolId(null) }}
-          />
-
-          {tab === 'dreams' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button className="btn-add-account" onClick={() => { setEditDream(null); setShowForm(true) }}>
-                + Zapisz sen
-              </button>
-
-              {dreams.length === 0 ? (
-                <div className="list-empty">
-                  <p>Brak zapisanych snów</p>
-                  <p className="list-empty-hint">Zapisz, co Ci się śniło — emocje, kategorię, osoby (@) i symbole (#)</p>
-                </div>
-              ) : dreams.map(d => (
-                <DreamCard key={d.id} dream={d} peopleById={peopleById} symbolsById={symbolsById} onClick={() => setSelectedId(d.id)} />
-              ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {dreams.length === 0 ? (
+            <div className="list-empty">
+              <p>Brak zapisanych snów</p>
+              <p className="list-empty-hint">Zapisz, co Ci się śniło — emocje, kategorię, osoby (@) i symbole (#)</p>
             </div>
-          ) : (
-            <SymbolsView
-              user={user}
-              symbols={symbols}
-              dreams={dreams}
-              counts={symbolCounts}
-              peopleById={peopleById}
-              symbolsById={symbolsById}
-              selectedSymbolId={selectedSymbolId}
-              onSelectSymbol={setSelectedSymbolId}
-              onOpenDream={(id) => setSelectedId(id)}
-              onCreateSymbol={createSymbol}
-            />
-          )}
-        </>
+          ) : dreams.map(d => (
+            <DreamCard key={d.id} dream={d} peopleById={peopleById} symbolsById={symbolsById} onClick={() => setSelectedId(d.id)} />
+          ))}
+        </div>
       )}
 
       {showForm && (
@@ -777,4 +772,84 @@ const dropItemStyle = {
   display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px',
   background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)',
   cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+}
+
+/* ─── DreamStats — kalendarz-heatmapa dni ze snami (ciemniej = więcej snów) ─── */
+const DREAM_WD = ['P', 'W', 'Ś', 'C', 'P', 'S', 'N']
+function DreamStats({ dreams }) {
+  const [month, setMonth] = useState(new Date())
+
+  // Liczba snów na dzień (klucz yyyy-MM-dd)
+  const counts = useMemo(() => {
+    const m = {}
+    dreams.forEach(d => { if (d.date) m[d.date] = (m[d.date] || 0) + 1 })
+    return m
+  }, [dreams])
+
+  const mStart = startOfMonth(month)
+  const lead   = (mStart.getDay() + 6) % 7
+  const total  = getDaysInMonth(month)
+  const cells  = [...Array.from({ length: lead }, () => null),
+                  ...Array.from({ length: total }, (_, i) => format(addDays(mStart, i), 'yyyy-MM-dd'))]
+  const monthKey     = format(month, 'yyyy-MM')
+  const monthDreams  = dreams.filter(d => d.date?.startsWith(monthKey)).length
+  const daysWithDream = Object.keys(counts).filter(k => k.startsWith(monthKey)).length
+  const todayStr     = format(new Date(), 'yyyy-MM-dd')
+  const shade = (lvl) => lvl === 0 ? 'var(--surface2)' : `color-mix(in oklab, var(--accent) ${28 + lvl * 22}%, var(--surface2))`
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Podsumowanie miesiąca */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="card card-pad" style={{ padding: 14 }}>
+          <div style={{ fontSize: 9.5, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Sny w miesiącu</div>
+          <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{monthDreams}</div>
+        </div>
+        <div className="card card-pad" style={{ padding: 14 }}>
+          <div style={{ fontSize: 9.5, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em' }}>Dni ze snem</div>
+          <div style={{ fontSize: 22, fontWeight: 800, marginTop: 4 }}>{daysWithDream}</div>
+        </div>
+      </div>
+
+      {/* Kalendarz-heatmapa */}
+      <div className="card card-pad" style={{ padding: 18 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <button className="icon-btn" onClick={() => setMonth(m => subMonths(m, 1))} title="Poprzedni miesiąc"><IconChevronLeft size={16} /></button>
+          <div style={{ fontSize: 15, fontWeight: 700, textTransform: 'capitalize' }}>{format(month, 'LLLL yyyy', { locale: pl })}</div>
+          <button className="icon-btn" onClick={() => setMonth(m => addMonths(m, 1))} title="Następny miesiąc"><IconChevronRight size={16} /></button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 4 }}>
+          {DREAM_WD.map((l, i) => <div key={i} style={{ textAlign: 'center', fontSize: 9, color: 'var(--text-muted)', fontWeight: 700 }}>{l}</div>)}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+          {cells.map((c, idx) => {
+            if (!c) return <div key={'b' + idx} />
+            const n = counts[c] || 0
+            const lvl = Math.min(n, 3)
+            const isToday = c === todayStr
+            return (
+              <div key={c}
+                title={`${format(parseISO(c), 'd MMM', { locale: pl })}${n ? ` • ${n} ${n === 1 ? 'sen' : 'sny'}` : ''}`}
+                style={{
+                  aspectRatio: '1', borderRadius: 6, background: shade(lvl),
+                  boxShadow: isToday ? '0 0 0 1.5px var(--accent)' : 'none',
+                  display: 'grid', placeItems: 'center',
+                  fontSize: 11, fontWeight: 600, color: n >= 2 ? '#fff' : 'var(--text-muted)',
+                }}>
+                {format(parseISO(c), 'd')}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Legenda intensywności */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 12, justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>mniej</span>
+          {[0, 1, 2, 3].map(lvl => <div key={lvl} style={{ width: 11, height: 11, borderRadius: 3, background: shade(lvl) }} />)}
+          <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>więcej</span>
+        </div>
+      </div>
+    </div>
+  )
 }

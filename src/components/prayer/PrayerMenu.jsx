@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { IconPause, IconReorder, IconMoreVert, IconChart } from '../Icons'
+import { IconMoreVert, IconChart, IconArchive } from '../Icons'
 
-// Menu „trzy kropki" dla Nawyków — spójne wizualnie z BudgetMenu (te same klasy CSS).
-// Kryje opcje Pauza i Kolejność, żeby nagłówek był czysty (tylko + i ⋮).
-export default function HabitMenu({ onAction, canReorder = true }) {
+// Menu „trzy kropki" dla Modlitwy — Statystyki / Archiwum.
+export default function PrayerMenu({ onAction }) {
   const [open, setOpen] = useState(false)
   const ref = useRef()
 
@@ -14,9 +13,8 @@ export default function HabitMenu({ onAction, canReorder = true }) {
   }, [])
 
   const items = [
-    { id: 'stats',   Icon: IconChart,   label: 'Analiza i statystyki' },
-    { id: 'pause',   Icon: IconPause,   label: 'Pauza (wyjazd / choroba)' },
-    ...(canReorder ? [{ id: 'reorder', Icon: IconReorder, label: 'Kolejność nawyków' }] : []),
+    { id: 'stats',   Icon: IconChart,   label: 'Statystyki' },
+    { id: 'archive', Icon: IconArchive, label: 'Archiwum' },
   ]
 
   const handle = (id) => { onAction(id); setOpen(false) }
