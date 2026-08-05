@@ -284,35 +284,8 @@ export default function CalendarDashboard({ user, setHeaderExtras }) {
         </div>
       )}
 
-      {/* Filtr osób — jedna przewijana linia (wybierz osobę albo „Wszyscy") */}
-      {activePeople.length > 0 && tab !== 'people' && (
-        <div className="cal-filter-row" style={{ marginBottom: 12 }}>
-          <button onClick={() => setFilterPersonId(null)} style={{
-            flexShrink: 0, whiteSpace: 'nowrap',
-            padding: '4px 12px', borderRadius: 99, fontSize: 12, cursor: 'pointer',
-            border: `1.5px solid ${filterPersonId === null ? 'var(--text)' : 'var(--border)'}`,
-            background: filterPersonId === null ? 'var(--surface3)' : 'transparent',
-            color: filterPersonId === null ? 'var(--text)' : 'var(--text-muted)',
-            fontWeight: filterPersonId === null ? 700 : 400,
-          }}>Wszyscy</button>
-          {activePeople.map(p => (
-            <button key={p.id} onClick={() => setFilterPersonId(filterPersonId === p.id ? null : p.id)} style={{
-              flexShrink: 0, whiteSpace: 'nowrap',
-              display: 'flex', alignItems: 'center', gap: 5, padding: '3px 10px 3px 4px',
-              borderRadius: 99, fontSize: 12, cursor: 'pointer',
-              border: `1.5px solid ${p.color}`,
-              background: filterPersonId === p.id ? p.color + '28' : 'transparent',
-              color: filterPersonId === p.id ? p.color : 'var(--text-muted)',
-              fontWeight: filterPersonId === p.id ? 700 : 400,
-            }}>
-              <div style={{ width: 18, height: 18, borderRadius: '50%', background: p.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 8, fontWeight: 700, flexShrink: 0 }}>
-                {initials(p.name)}
-              </div>
-              {p.name}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Kalendarz zawsze pokazuje wszystkich — bez ręcznego wybierania osoby.
+          (Zarządzanie osobami jest w ⋮ → Osoby.) */}
 
       {/* Dziś / Jutro — szybki podgląd (tylko na widoku Miesiąc; w Tygodniu/Agendzie i tak jest to widoczne) */}
       {tab === 'month' && (
