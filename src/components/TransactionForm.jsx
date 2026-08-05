@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { collection, doc, Timestamp, onSnapshot, orderBy, query, getDocs, limit, increment, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
-import { getCurrencyCode, parseAmount } from '../utils/currency'
+import { getCurrencyCode, parseAmount, CURRENCIES } from '../utils/currency'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, getSubcategoryColor } from '../utils/categories'
 import useFallbackTimeout from '../utils/useFallbackTimeout'
 import { byAccountOrder } from '../utils/accountOrder'
@@ -19,6 +19,7 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
   const [description, setDescription] = useState(editData?.description || '')
   const [date, setDate]             = useState(editData?.date ? format(editData.date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
   const [accountId, setAccountId]   = useState(editData?.accountId || defaultAccountId || '')
+  const [currency, setCurrency]     = useState(editData?.currency || getCurrencyCode())
   const [accounts, setAccounts]     = useState([])
   const [accountUsage, setAccountUsage] = useState({ income: {}, expense: {} })
   const [showAllAccounts, setShowAllAccounts] = useState(false)
@@ -102,6 +103,18 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
     setSubcategoryId('')
   }, [category])
 
+  // Waluta podąża za wybranym portfelem: wybór konta EUR ustawia walutę na EUR.
+  // Pierwsze uruchomienie pomijamy, żeby przy edycji nie nadpisać zapisanej
+  // waluty transakcji zanim wczytają się konta. Po zmianie konta przez
+  // użytkownika (albo po wybraniu domyślnego) synchronizujemy — a i tak można
+  // ją potem zmienić ręcznie selektorem obok kwoty.
+  const firstAcc = useRef(true)
+  useEffect(() => {
+    if (firstAcc.current) { firstAcc.current = false; return }
+    const acc = accounts.find(a => a.id === accountId)
+    if (acc?.currency) setCurrency(acc.currency)
+  }, [accountId]) // eslint-disable-line
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!(parseAmount(amount) > 0)) { setError('Podaj prawidłową kwotę'); return }
@@ -116,6 +129,7 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
       categoryIcon: cat?.icon || 'IconMore',
       subcategoryId: subcat?.id || null,
       subcategoryLabel: subcat?.label || null,
+      currency,
       description: description.trim(),
       date: Timestamp.fromDate(new Date(date)),
       accountId: accountId || null,
@@ -172,11 +186,19 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
             <button type="button" className={`type-btn ${type === 'income' ? 'active income' : ''}`} onClick={() => setType('income')}>Przychód</button>
           </div>
 
-          <div className="form-group">
-            <label>Kwota ({getCurrencyCode()})</label>
-            <input type="number" inputMode="decimal" step="0.01" min="0" placeholder="0,00"
-              value={amount} onChange={e => setAmount(e.target.value)}
-              className="form-input amount-input" />
+          <div className="form-row">
+            <div className="form-group" style={{ flex: 1 }}>
+              <label>Kwota</label>
+              <input type="number" inputMode="decimal" step="0.01" min="0" placeholder="0,00"
+                value={amount} onChange={e => setAmount(e.target.value)}
+                className="form-input amount-input" />
+            </div>
+            <div className="form-group" style={{ width: 96 }}>
+              <label>Waluta</label>
+              <select className="form-input" value={currency} onChange={e => setCurrency(e.target.value)}>
+                {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
+              </select>
+            </div>
           </div>
 
           <div className="form-group">

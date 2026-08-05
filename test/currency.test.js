@@ -32,6 +32,15 @@ test('fmt — formatuje kwotę w wybranej walucie (pl-PL)', () => {
   assert.match(fmt(10), /10,00\s?€$/u)
 })
 
+test('fmt — jawny kod waluty nadpisuje globalny (transakcja z portfela EUR)', () => {
+  // Globalnie PLN, ale pojedynczą transakcję pokazujemy w jej walucie.
+  assert.equal(getCurrencyCode(), 'PLN')
+  assert.match(fmt(10, 'EUR'), /10,00\s?€$/u)
+  assert.match(fmt(10, 'USD'), /10,00/u)
+  // Bez kodu nadal działa globalna waluta.
+  assert.match(fmt(10), /10,00\s?zł$/u)
+})
+
 test('fmt — null/undefined traktowane jak zero', () => {
   assert.match(fmt(null), /0,00/)
   assert.match(fmt(undefined), /0,00/)

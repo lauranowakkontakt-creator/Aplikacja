@@ -24,9 +24,11 @@ export function parseAmount(v) {
   return parseFloat(s)
 }
 
-export function fmt(n) {
-  const code = getCurrencyCode()
-  return new Intl.NumberFormat('pl-PL', { style: 'currency', currency: code }).format(n ?? 0)
+// Formatuje kwotę. Opcjonalny `code` pozwala pokazać transakcję w walucie jej
+// portfela (np. wydatek z konta EUR), a nie w globalnej walucie aplikacji.
+export function fmt(n, code) {
+  const cur = code || getCurrencyCode()
+  return new Intl.NumberFormat('pl-PL', { style: 'currency', currency: cur }).format(n ?? 0)
 }
 
 // Rozbija kwotę na część całkowitą (z grupowaniem tysięcy i ewentualnym znakiem

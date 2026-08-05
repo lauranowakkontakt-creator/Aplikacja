@@ -102,7 +102,7 @@ export default function TransactionList({ transactions, accounts = [], loading, 
                   </div>
                   <div className="t-right">
                     <span className={`t-amount ${t.type}`}>
-                      {privateMode ? hide : `${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}`}
+                      {privateMode ? hide : `${t.type === 'income' ? '+' : '-'}${fmt(t.amount, t.currency)}`}
                     </span>
                     <div className="t-actions">
                       <button className="t-btn edit" onClick={() => onEdit(t)}><IconEdit size={13} /></button>

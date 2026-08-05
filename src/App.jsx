@@ -74,8 +74,11 @@ export default function App() {
   const [moreOpen, setMoreOpen] = useState(false)
   // Akcje modułu wstrzykiwane do górnej belki („Mój Świat") — jeden pasek zamiast dwóch
   const [headerExtras, setHeaderExtras] = useState(null)
-  // Przy zmianie modułu czyścimy akcje poprzedniego (nowy moduł ustawi swoje)
-  useEffect(() => { setHeaderExtras(null) }, [activeModule])
+  // Przy WYJŚCIU z modułu czyścimy akcje w cleanupie. Efekty potomków (Dashboard
+  // itd.) odpalają się przed efektem rodzica, więc gdyby rodzic czyścił w ciele
+  // efektu, kasowałby przyciski dopiero co ustawione przez moduł (znikała belka).
+  // Cleanup odpala się przy zmianie modułu — przed montażem efektu nowego modułu.
+  useEffect(() => () => setHeaderExtras(null), [activeModule])
   const [modules, setModules] = useState(() => buildModules())
   const [dreamFocus, setDreamFocus] = useState(null) // sen otwierany z innego modułu
 
