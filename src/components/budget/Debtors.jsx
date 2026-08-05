@@ -3,35 +3,28 @@ import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Times
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { fmt, parseAmount } from '../../utils/currency'
-import { IconEdit, IconTrash, IconClose, IconUsers, IconCheck, IconArrowUp, IconArrowDown } from '../Icons'
+import { IconEdit, IconTrash, IconClose, IconUsers, IconCheck, IconArrowUp, IconArrowDown, IconChevronDown } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
-import PersonBubble from '../PersonBubble'
 
 const INCOME_COLOR  = '#5FBF98' // var(--income)
 const EXPENSE_COLOR = '#E0673E' // var(--expense)
 
 export default function Debtors({ user, onClose }) {
   const [debts, setDebts]       = useState([])
-  const [people, setPeople]     = useState([])
   const [loading, setLoading]   = useState(true)
   useFallbackTimeout(() => setLoading(false))
   const [showForm, setShowForm] = useState(false)
   const [editDebt, setEditDebt] = useState(null)
+  const [showArchived, setShowArchived] = useState(false)
 
   useEffect(() => {
-    const q = query(collection(db, 'users', user.uid, 'debtors'), orderBy('createdAt', 'asc'))
+    // Najnowsze wpisy na górze (desc), a nie na samym dole.
+    const q = query(collection(db, 'users', user.uid, 'debtors'), orderBy('createdAt', 'desc'))
     return onSnapshot(q, snap => {
       setDebts(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
     })
   }, [user.uid])
-
-  useEffect(() => {
-    const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
-  }, [user.uid])
-
-  const peopleById = Object.fromEntries(people.map(p => [p.id, p]))
 
   const handleDelete = async (id) => {
     const ok = await confirmDialog({ title: 'Usunąć wpis?' })
@@ -46,10 +39,55 @@ export default function Debtors({ user, onClose }) {
     })
   }
 
-  const active = debts.filter(d => !d.settled)
+  const active   = debts.filter(d => !d.settled)
+  const archived = debts.filter(d => d.settled)
   // "theyOwe" = ktoś jest winien mnie, "iOwe" = ja jestem winna
   const totalTheyOwe = active.filter(d => d.direction === 'theyOwe').reduce((s, d) => s + (d.amount || 0), 0)
   const totalIOwe    = active.filter(d => d.direction === 'iOwe').reduce((s, d) => s + (d.amount || 0), 0)
+
+  const renderDebt = (debt) => {
+    const theyOwe = debt.direction === 'theyOwe'
+    const color = theyOwe ? INCOME_COLOR : EXPENSE_COLOR
+    const DirIcon = theyOwe ? IconArrowDown : IconArrowUp
+    return (
+      <div key={debt.id} style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderLeft: `4px solid ${debt.settled ? 'var(--border)' : color}`, borderRadius: 14, padding: 14,
+        opacity: debt.settled ? 0.55 : 1,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+            background: debt.settled ? 'var(--surface2)' : color + '22',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: debt.settled ? 'var(--text-muted)' : color,
+          }}>
+            <DirIcon size={19} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: debt.settled ? 'line-through' : 'none' }}>{debt.name}</p>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+              {theyOwe ? 'winien(-a) mi' : 'jestem winna'}
+              {debt.notes ? ` · ${debt.notes}` : ''}
+            </p>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: debt.settled ? 'var(--text-muted)' : color }}>
+              {fmt(debt.amount || 0)}
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
+          <button className="t-btn" onClick={() => toggleSettled(debt)}
+            title={debt.settled ? 'Przywróć do aktywnych' : 'Oznacz jako rozliczone'}>
+            <IconCheck size={13} /> {debt.settled ? 'Przywróć' : 'Rozlicz'}
+          </button>
+          <button className="t-btn" onClick={() => { setEditDebt(debt); setShowForm(true) }}><IconEdit size={13} /></button>
+          <button className="t-btn delete" onClick={() => handleDelete(debt.id)}><IconTrash size={13} /></button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -86,102 +124,65 @@ export default function Debtors({ user, onClose }) {
                   <p className="list-empty-hint">Dodaj kto jest Ci winien pieniądze lub komu jesteś winna</p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {debts.map(debt => {
-                    const theyOwe = debt.direction === 'theyOwe'
-                    const color = theyOwe ? INCOME_COLOR : EXPENSE_COLOR
-                    const DirIcon = theyOwe ? IconArrowDown : IconArrowUp
-                    const linkedPerson = debt.personId ? peopleById[debt.personId] : null
-                    return (
-                      <div key={debt.id} style={{
-                        background: 'var(--surface)', border: '1px solid var(--border)',
-                        borderLeft: `4px solid ${debt.settled ? 'var(--border)' : color}`, borderRadius: 14, padding: 14,
-                        opacity: debt.settled ? 0.55 : 1,
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          {linkedPerson ? (
-                            <div style={{ position: 'relative', flexShrink: 0, opacity: debt.settled ? 0.55 : 1 }}>
-                              <PersonBubble person={linkedPerson} size={38} />
-                              <div style={{
-                                position: 'absolute', right: -4, bottom: -4, width: 18, height: 18, borderRadius: '50%',
-                                background: 'var(--surface)', border: `2px solid ${debt.settled ? 'var(--border)' : color}`,
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                color: debt.settled ? 'var(--text-muted)' : color,
-                              }}>
-                                <DirIcon size={10} />
-                              </div>
-                            </div>
-                          ) : (
-                            <div style={{
-                              width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-                              background: debt.settled ? 'var(--surface2)' : color + '22',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              color: debt.settled ? 'var(--text-muted)' : color,
-                            }}>
-                              <DirIcon size={19} />
-                            </div>
-                          )}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontSize: 15, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: debt.settled ? 'line-through' : 'none' }}>{debt.name}</p>
-                            <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
-                              {theyOwe ? 'winien(-a) mi' : 'jestem winna'}
-                              {debt.notes ? ` · ${debt.notes}` : ''}
-                            </p>
-                          </div>
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: debt.settled ? 'var(--text-muted)' : color }}>
-                              {fmt(debt.amount || 0)}
-                            </p>
-                          </div>
+                <>
+                  {active.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {active.map(renderDebt)}
+                    </div>
+                  )}
+
+                  {active.length === 0 && archived.length > 0 && (
+                    <div className="list-empty"><p>Wszystko rozliczone</p></div>
+                  )}
+
+                  {archived.length > 0 && (
+                    <div style={{ marginTop: active.length > 0 ? 6 : 0 }}>
+                      <button
+                        onClick={() => setShowArchived(v => !v)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                          background: 'transparent', border: 'none', cursor: 'pointer',
+                          padding: '6px 2px', color: 'var(--text-muted)', fontSize: 13, fontWeight: 600,
+                        }}
+                      >
+                        <IconChevronDown size={14} style={{ transform: showArchived ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }} />
+                        Zarchiwizowane ({archived.length})
+                      </button>
+                      {showArchived && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 6 }}>
+                          {archived.map(renderDebt)}
                         </div>
-                        <div style={{ display: 'flex', gap: 6, marginTop: 10, justifyContent: 'flex-end' }}>
-                          <button className={`t-btn ${debt.settled ? '' : ''}`} onClick={() => toggleSettled(debt)}
-                            title={debt.settled ? 'Oznacz jako nierozliczone' : 'Oznacz jako rozliczone'}>
-                            <IconCheck size={13} /> {debt.settled ? 'Rozliczone' : 'Rozlicz'}
-                          </button>
-                          <button className="t-btn" onClick={() => { setEditDebt(debt); setShowForm(true) }}><IconEdit size={13} /></button>
-                          <button className="t-btn delete" onClick={() => handleDelete(debt.id)}><IconTrash size={13} /></button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
         </div>
       </div>
       {showForm && (
-        <DebtForm user={user} people={people} editData={editDebt} onClose={() => { setShowForm(false); setEditDebt(null) }} />
+        <DebtForm user={user} editData={editDebt} onClose={() => { setShowForm(false); setEditDebt(null) }} />
       )}
     </>
   )
 }
 
-function DebtForm({ user, people = [], editData, onClose }) {
+function DebtForm({ user, editData, onClose }) {
   const [name, setName]           = useState(editData?.name || '')
-  const [personId, setPersonId]   = useState(editData?.personId || null)
   const [direction, setDirection] = useState(editData?.direction || 'theyOwe')
   const [amount, setAmount]       = useState(editData?.amount?.toString() || '')
   const [notes, setNotes]         = useState(editData?.notes || '')
   const [saving, setSaving]       = useState(false)
   const [error, setError]         = useState('')
 
-  // Wybór osoby z bazy — ustawia powiązanie i podpowiada imię.
-  const pickPerson = (p) => {
-    if (personId === p.id) { setPersonId(null); return }
-    setPersonId(p.id)
-    setName(p.name)
-  }
-
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!name.trim()) { setError('Wpisz imię / nazwę lub wybierz osobę'); return }
+    if (!name.trim()) { setError('Wpisz imię / nazwę'); return }
     if (!(parseAmount(amount) > 0)) { setError('Podaj kwotę'); return }
     setSaving(true)
     const data = {
       name: name.trim(),
-      personId: personId || null,
       direction,
       amount: parseAmount(amount),
       notes: notes.trim(),
@@ -207,34 +208,9 @@ function DebtForm({ user, people = [], editData, onClose }) {
         </div>
         <form onSubmit={handleSubmit} className="form">
 
-          {people.length > 0 && (
-            <div className="form-group">
-              <label>Osoba (opcjonalnie)</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {people.map(p => {
-                  const on = personId === p.id
-                  return (
-                    <button type="button" key={p.id} onClick={() => pickPerson(p)} style={{
-                      display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px 5px 5px', borderRadius: 999,
-                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
-                      border: `1px solid ${on ? (p.color || 'var(--accent)') : 'var(--border)'}`,
-                      background: on ? (p.color || 'var(--accent)') + '1e' : 'var(--surface2)',
-                      color: on ? (p.color || 'var(--accent)') : 'var(--text-sub)',
-                    }}>
-                      <PersonBubble person={p} size={24} />
-                      {p.name}
-                      {on && <IconCheck size={13} />}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
           <div className="form-group">
             <label>Imię / nazwa</label>
-            <input type="text" className="form-input" value={name}
-              onChange={e => { setName(e.target.value); if (personId) setPersonId(null) }}
+            <input type="text" className="form-input" value={name} onChange={e => setName(e.target.value)}
               placeholder="np. Ania, Sklep, Mama..." autoFocus maxLength={50} />
           </div>
 
