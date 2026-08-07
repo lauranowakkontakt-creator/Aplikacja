@@ -26,6 +26,7 @@ import { IconTransfer, IconBank, IconChart, IconShopping, IconPlus, IconChevronL
 import { Donut, useNarrow } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES, splitAmount } from '../utils/currency'
 import { isTransfer } from '../utils/categories'
+import { isInvestment, sumByCurrency } from '../utils/investmentMath'
 
 // Tytuły podstron pokazywane na pasku „wstecz" (nawigacja bez zakładek)
 const SUB_LABELS = {
@@ -82,12 +83,13 @@ export default function Dashboard({ user, onCurrencyChange, setHeaderExtras }) {
     try { const s = localStorage.getItem(`excludedAccounts_${user.uid}`); return s ? JSON.parse(s) : [] } catch { return [] }
   })()
   const includedAccounts = accounts.filter(a => !excludedFromTotal.includes(a.id))
-  const totalsByCurrency = includedAccounts.reduce((acc, a) => {
-    const cur = a.currency || 'PLN'
-    acc[cur] = (acc[cur] || 0) + (a.balance || 0)
-    return acc
-  }, {})
+  // Inwestycje (krypto, surowce...) pokazujemy osobno — NIE wliczamy ich do
+  // głównego salda kont ani „łącznego majątku" na ekranie głównym.
+  const includedRegular     = includedAccounts.filter(a => !isInvestment(a))
+  const includedInvestments = includedAccounts.filter(isInvestment)
+  const totalsByCurrency = sumByCurrency(includedRegular)
   const totalPLN = totalsByCurrency['PLN'] || 0
+  const investTotalsByCurrency = sumByCurrency(includedInvestments)
 
   const monthLabel = format(currentMonth, 'LLLL yyyy', { locale: pl })
 
@@ -165,6 +167,8 @@ export default function Dashboard({ user, onCurrencyChange, setHeaderExtras }) {
         const heroHi = splitAmount(totalPLN)
         const otherCur = Object.entries(totalsByCurrency).filter(([cur]) => cur !== 'PLN')
         const balanceUp = balance >= 0
+        const investEntries = Object.entries(investTotalsByCurrency)
+        const investLabel = investEntries.map(([cur, amt]) => fmtAcc(amt, cur)).join(' · ')
 
         return (
         <div className="rev-overview">
@@ -188,8 +192,11 @@ export default function Dashboard({ user, onCurrencyChange, setHeaderExtras }) {
                   {balanceUp ? '↑' : '↓'} {fmt(Math.abs(balance))}
                   <span className="sep">· ten miesiąc</span>
                 </div>
-                {otherCur.length > 0 && (
+                {(otherCur.length > 0 || investEntries.length > 0) && (
                   <div className="rev-hero-chips">
+                    {investEntries.length > 0 && (
+                      <span className="rev-hero-chip">Inwestycje · {investLabel}</span>
+                    )}
                     {otherCur.map(([cur, amt]) => (
                       <span key={cur} className="rev-hero-chip">{fmtAcc(amt, cur)}</span>
                     ))}
@@ -321,6 +328,14 @@ export default function Dashboard({ user, onCurrencyChange, setHeaderExtras }) {
                       </div>
                     )
                   })()}
+                  {includedInvestments.length > 0 && (
+                    <div style={{ paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Inwestycje</span>
+                      <span style={{ fontSize: 15, fontWeight: 700 }}>
+                        {Object.entries(investTotalsByCurrency).map(([cur, amt]) => fmtAcc(amt, cur)).join(' · ')}
+                      </span>
+                    </div>
+                  )}
                   <div style={{ paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Saldo miesiąca</span>
                     <span style={{ fontSize: 15, fontWeight: 700, color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>

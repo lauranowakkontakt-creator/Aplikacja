@@ -9,6 +9,7 @@ import {
 } from './Icons'
 import { Ring } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
+import { isInvestment, sumByCurrency } from '../utils/investmentMath'
 import { BIBLE_BOOKS, TOTAL_CHAPTERS, chapterKey } from '../utils/bibleData'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
@@ -80,14 +81,14 @@ export default function Pulpit({ user, onNavigate }) {
     let excluded = []
     try { const s = localStorage.getItem(`excludedAccounts_${user.uid}`); excluded = s ? JSON.parse(s) : [] } catch {}
     const included = accounts.filter(a => !excluded.includes(a.id))
-    const byCur = included.reduce((acc, a) => {
-      const cur = a.currency || 'PLN'
-      acc[cur] = (acc[cur] || 0) + (a.balance || 0)
-      return acc
-    }, {})
+    // Inwestycje liczymy osobno — nie wchodzą do głównej sumy salda kont.
+    const byCur = sumByCurrency(included.filter(a => !isInvestment(a)))
     const totalPLN = byCur['PLN'] || 0
     const others = Object.entries(byCur).filter(([c]) => c !== 'PLN')
-    return { totalPLN, others, count: accounts.length }
+    const investByCur = sumByCurrency(included.filter(isInvestment))
+    const investPLN = investByCur['PLN'] || 0
+    const hasInvest = included.some(isInvestment)
+    return { totalPLN, others, count: accounts.length, investPLN, hasInvest }
   }, [accounts, user.uid])
 
   /* ── NAWYKI ── */
@@ -253,6 +254,11 @@ export default function Pulpit({ user, onNavigate }) {
                 ? budget.others.map(([c, v]) => `${Math.round(v)} ${c}`).join(' · ')
                 : `Saldo łączne · ${budget.count} ${budget.count === 1 ? 'konto' : 'kont'}`}
           </div>
+          {!privateMode && budget.hasInvest && (
+            <div className="pulpit-sub" style={{ marginTop: 2 }}>
+              Inwestycje: {fmt(budget.investPLN)}
+            </div>
+          )}
         </PulpitCard>
 
         {/* NAWYKI */}
