@@ -2250,15 +2250,16 @@ body { overscroll-behavior-y: none; }
 .app--glass .modal-overlay {
   /* Bez backdrop-filter! Filtr na overlayu (przodku) blokował touch-scroll
      wewnątrz .modal na iOS Safari — przewinięcie do „Zapisz" nie działało.
-     Zamiast rozmycia mocniejsze przyciemnienie — wygląd panelu-szkła zostaje. */
-  background: rgba(4,10,10,0.78);
+     Mocne przyciemnienie zamiast rozmycia: tło (kwoty, kafelki) nie przebija
+     w części nieprzykrytej panelem. */
+  background: rgba(3,7,8,0.94);
 }
 .app--glass .modal {
   /* UWAGA: żadnego backdrop-filter na .modal — to ON jest kontenerem przewijania,
      a na iOS Safari backdrop-filter + overflow:auto blokuje scroll do końca
      (przycisk „Zapisz" był nieosiągalny na telefonie). Rozmycie tła robi overlay,
      a panel jest po prostu mocno matowy, więc dalej wygląda jak szkło. */
-  background: rgba(18,29,30,0.94) !important;
+  background: rgba(15,24,25,0.995) !important;
   border-color: rgba(255,255,255,0.10);
   box-shadow: 0 -24px 64px -34px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.06);
   /* wewnątrz modala tokeny znów szklane (bo .modal bywa poza .dashboard w DOM) */
