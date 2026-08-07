@@ -575,6 +575,10 @@ body:has(.drawer-overlay) { overflow: hidden; }
    NOTE: position:relative + z-index here does NOT trap position:fixed (only
    transform/filter/overflow-scroll do), so the modal still fills the viewport. */
 body:has(.modal-overlay) .content { position: relative; z-index: 300; }
+/* Dodatkowo: przy otwartym modalu chowamy dolny pasek nawigacji. Sam lift
+   z-index bywał zawodny (pasek fixed z-index:30 potrafił zasłonić przyklejony
+   przycisk „Zapisz" na telefonie) — a pełnoekranowy modal i tak zakrywa nav. */
+body:has(.modal-overlay) .bottom-nav { display: none; }
 /* Lock the scroll container too. Desktop scrolls inside .content, so lock it
    there. On MOBILE the page scrolls on <body> (locked above) and .content MUST
    keep overflow:visible — an overflow scroll container + -webkit-overflow-
