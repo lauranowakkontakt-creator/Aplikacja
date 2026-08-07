@@ -244,10 +244,15 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
     const { done, due, pct, paused } = dayAggregate(list, pauses, d)
     const future = d > TODAY, isToday = d === TODAY
     let bg = 'var(--surface2)', border = '1px solid transparent', color = 'var(--text-muted)'
-    if (future) { bg = 'transparent'; border = '1px dashed var(--border)' }
+    // Przyszły dzień: jeśli jest w zaplanowanej pauzie (wyjazd/choroba), pokaż już
+    // jej kolor z przerywaną ramką (= zaplanowane), a nie pustą kratkę.
+    if (future) {
+      if (paused) { const p = getPauseColor(pauses, d) || 'var(--text-muted)'; bg = p + '22'; border = `1px dashed ${p}88` }
+      else { bg = 'transparent'; border = '1px dashed var(--border)' }
+    }
     else if (due > 0) { bg = `color-mix(in oklab, var(--warn) ${Math.round(22 + pct * 78)}%, var(--surface2))`; if (pct >= 1) border = '1px solid var(--warn)'; if (pct >= 0.5) color = 'var(--bg)' }
     else if (paused) { const p = getPauseColor(pauses, d) || 'var(--text-muted)'; bg = p + '33'; border = `1px solid ${p}66` }
-    const title = `${format(new Date(d + 'T12:00:00'), 'd MMM', { locale: pl })}${due ? ` • ${done}/${due}` : paused ? ` • ${pauseReasonMeta(pauseForDay(d, pauses)?.reason).label.toLowerCase()}` : ' • wolne'}`
+    const title = `${format(new Date(d + 'T12:00:00'), 'd MMM', { locale: pl })}${due ? ` • ${done}/${due}` : paused ? ` • ${pauseReasonMeta(pauseForDay(d, pauses)?.reason).label.toLowerCase()}${future ? ' (zaplanowane)' : ''}` : ' • wolne'}`
     return { bg, border, color, ring: isToday, title }
   }
 
@@ -258,7 +263,10 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
     const future = d > TODAY, isToday = d === TODAY
     const deep = `color-mix(in oklab, ${color} 58%, #000)`
     let bg = 'transparent', border = '1px solid transparent', textColor = 'var(--text-muted)'
-    if (future) { border = '1px dashed var(--border)' }
+    if (future) {
+      if (status === 'paused') { const m = pauseReasonMeta(pauseForDay(d, pauses)?.reason); bg = m.color + '22'; border = `1px dashed ${m.color}88` }
+      else border = '1px dashed var(--border)'
+    }
     else if (isDone) { const bonus = status !== 'due'; bg = bonus ? deep : color; border = `1px solid ${bonus ? deep : color}`; textColor = '#fff' }
     else if (status === 'paused') { const m = pauseReasonMeta(pauseForDay(d, pauses)?.reason); bg = m.color + '33'; border = `1px solid ${m.color}66` }
     else if (status === 'due') { border = '1px solid var(--border-strong)' }

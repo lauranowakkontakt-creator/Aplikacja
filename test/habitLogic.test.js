@@ -18,6 +18,15 @@ test('isPausedDay — wykrywa dzień w zakresie pauzy (włącznie z krańcami)',
   assert.equal(isPausedDay('2026-07-06', []), false)
 })
 
+test('isPausedDay/pauseForDay — rozpoznaje pauzę zaplanowaną w przyszłości', () => {
+  // Kalendarz nawyków pokazuje wyjazd już przed terminem, więc logika pauzy
+  // musi działać dla dat przyszłych (czysty test zakresu — bez „dziś").
+  const future = [{ from: '2099-12-24', to: '2099-12-31', reason: 'vacation' }]
+  assert.equal(isPausedDay('2099-12-27', future), true)
+  assert.equal(isPausedDay('2099-12-23', future), false)
+  assert.equal(pauseForDay('2099-12-27', future)?.reason, 'vacation')
+})
+
 // ---------- isHabitDue ----------
 test('isHabitDue — przed startem i po końcu', () => {
   const h = { frequencyDays: DAILY, startDate: '2026-07-05', endDate: '2026-07-10' }

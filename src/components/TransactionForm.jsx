@@ -186,16 +186,15 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
             <button type="button" className={`type-btn ${type === 'income' ? 'active income' : ''}`} onClick={() => setType('income')}>Przychód</button>
           </div>
 
-          <div className="form-row">
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>Kwota</label>
+          <div className="form-group">
+            <label>Kwota</label>
+            {/* Waluta obok kwoty (nie pod) — jedna linia, bez dodatkowego wiersza. */}
+            <div className="amount-row">
               <input type="number" inputMode="decimal" step="0.01" min="0" placeholder="0,00"
                 value={amount} onChange={e => setAmount(e.target.value)}
                 className="form-input amount-input" />
-            </div>
-            <div className="form-group" style={{ width: 96 }}>
-              <label>Waluta</label>
-              <select className="form-input" value={currency} onChange={e => setCurrency(e.target.value)}>
+              <select className="form-input currency-select" value={currency}
+                onChange={e => setCurrency(e.target.value)} aria-label="Waluta">
                 {CURRENCIES.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
               </select>
             </div>

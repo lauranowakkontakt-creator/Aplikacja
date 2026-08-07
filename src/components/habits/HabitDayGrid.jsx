@@ -25,7 +25,13 @@ export default function HabitDayGrid({ habit, pauses = [], start, end, today, co
         const future = d > today
         let bg = 'transparent', border = '1px solid transparent', title = d
         if (future) {
-          border = '1px dashed var(--border)'
+          // Zaplanowana pauza (wyjazd/choroba) widoczna już przed terminem.
+          if (status === 'paused') {
+            const m = pauseReasonMeta(pauseForDay(d, pauses)?.reason)
+            bg = m.color + '22'; border = `1px dashed ${m.color}88`; title = `${d} • ${m.label.toLowerCase()} (zaplanowane)`
+          } else {
+            border = '1px dashed var(--border)'
+          }
         } else if (isDone) {
           const bonus = status !== 'due'
           bg = bonus ? deep : color; border = `1px solid ${bonus ? deep : color}`

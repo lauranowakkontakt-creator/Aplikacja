@@ -608,6 +608,11 @@ body:has(.modal-overlay) .bottom-nav { display: none; }
 
 /* ===== FORM ===== */
 .form { display: flex; flex-direction: column; gap: 18px; }
+/* Kwota + waluta w jednej linii (waluta „za kwotą", nie pod). Nie używa
+   .form-row, który na telefonie łamie się do kolumny — tu ma zostać w rzędzie. */
+.amount-row { display: flex; gap: 8px; align-items: stretch; }
+.amount-row .amount-input { flex: 1; min-width: 0; }
+.amount-row .currency-select { flex: 0 0 auto; width: auto; padding-right: 10px; }
 .type-toggle { display: flex; background: var(--bg); border-radius: var(--r); padding: 4px; gap: 4px; }
 .type-btn { flex: 1; padding: 10px; background: transparent; border: none; color: var(--text-muted); font-size: 14px; font-weight: 500; border-radius: var(--r-sm); cursor: pointer; transition: all 0.15s; }
 .type-btn.active.expense { background: var(--expense); color: white; }
