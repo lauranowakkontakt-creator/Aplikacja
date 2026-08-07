@@ -599,34 +599,6 @@ body:has(.modal-overlay) .bottom-nav { display: none; }
 @media (min-width: 600px) { .modal { border-radius: var(--r-lg); max-height: 88vh; } }
 /* Taller modal variant */
 .modal-tall { max-height: 92dvh; }
-/* MOBILE: modal pełnoekranowy z JEDNYM, pionowym scrollem na overlayu (display:
-   block → scroll w osi bloku, który iOS obsługuje niezawodnie; flex + scroll w
-   poprzek gubił dół i „odbijał" do góry). Modal wypełnia ekran, a przycisk
-   „Zapisz" jest sticky przyklejony do dołu — nie trzeba do niego scrollować. */
-@media (max-width: 599px) {
-  .modal-overlay {
-    display: block; overflow-y: auto; -webkit-overflow-scrolling: touch;
-    padding: 0;
-  }
-  /* .modal-overlay .modal → wyższa specyficzność niż samotne .modal w blokach
-     @media(max-width:480px), więc te reguły wygrywają bez ich edycji. */
-  .modal-overlay .modal, .modal-overlay .modal-tall {
-    margin: 0 auto; width: 100%; max-width: 520px;
-    max-height: none; min-height: 100dvh; overflow: visible;
-    border-radius: 0;
-    padding: max(16px, env(safe-area-inset-top)) 16px 0;
-  }
-  /* Przycisk „Zapisz" przyklejony do dołu ekranu — zawsze w zasięgu kciuka.
-     (Modale bez .btn-save, np. Dłużnicy, po prostu przewijają się na całą stronę.) */
-  .modal-overlay .modal .btn-save {
-    position: sticky; bottom: 0; z-index: 3;
-    margin: 16px -16px 0; width: calc(100% + 32px);
-    border-radius: 0;
-    padding-top: 14px;
-    padding-bottom: calc(14px + env(safe-area-inset-bottom));
-    box-shadow: 0 -12px 24px -12px rgba(0,0,0,0.55);
-  }
-}
 .modal-grip { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .modal-header h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
@@ -2266,8 +2238,10 @@ body { overscroll-behavior-y: none; }
 /* Modale (Statystyki, Przelew, Cele, Dziesięcina, Kategorie, Dłużnicy…) —
    ciemne „dymne szkło" nad przyciemnionym, rozmytym tłem */
 .app--glass .modal-overlay {
-  background: rgba(6,16,15,0.62);
-  backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+  /* Bez backdrop-filter! Filtr na overlayu (przodku) blokował touch-scroll
+     wewnątrz .modal na iOS Safari — przewinięcie do „Zapisz" nie działało.
+     Zamiast rozmycia mocniejsze przyciemnienie — wygląd panelu-szkła zostaje. */
+  background: rgba(4,10,10,0.78);
 }
 .app--glass .modal {
   /* UWAGA: żadnego backdrop-filter na .modal — to ON jest kontenerem przewijania,
