@@ -204,7 +204,7 @@ export default function TodoDashboard({ user, setHeaderExtras }) {
               <button className="icon-btn" style={{ width: 32, height: 32 }} title="Edytuj listę" onClick={() => setEditList(activeListObj)}><IconEdit size={13} /></button>
             )}
             {showLists && (
-              <div style={{ position: 'absolute', top: '110%', left: 0, zIndex: 200, minWidth: 230, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 6, boxShadow: '0 10px 30px rgba(0,0,0,.4)', display: 'flex', flexDirection: 'column', gap: 2 }}
+              <div style={{ position: 'absolute', top: '110%', left: 0, zIndex: 200, minWidth: 230, background: 'var(--popover-bg)', border: '1px solid var(--border-strong)', borderRadius: 12, padding: 6, boxShadow: '0 10px 30px rgba(0,0,0,.4)', display: 'flex', flexDirection: 'column', gap: 2 }}
                 onClick={() => setShowLists(false)}>
                 <button onClick={() => setActiveList(null)} style={listRow(!activeList, 'var(--sky)')}>
                   <span style={{ width: 8, height: 8, borderRadius: 99, background: 'var(--sky)', flexShrink: 0 }} /> Wszystkie

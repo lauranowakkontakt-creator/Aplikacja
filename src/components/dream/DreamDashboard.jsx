@@ -646,7 +646,7 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
             {showDrop && (
               <div style={{
                 position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 20, marginTop: -6,
-                background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 10,
+                background: 'var(--popover-bg)', border: '1px solid var(--border-strong)', borderRadius: 10,
                 boxShadow: '0 8px 24px rgba(0,0,0,0.18)', overflow: 'hidden',
               }}>
                 {trigger.type === 'person' && personMatches.map(p => {

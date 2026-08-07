@@ -8,6 +8,9 @@
   --surface: #161825;
   --surface2: #1E2130;
   --surface3: #262A3B;
+  /* Tło pływających list rozwijanych — ZAWSZE nieprzezroczyste, żeby treść pod
+     nimi nie prześwitywała i tekst się nie nakładał (także w motywie szklanym). */
+  --popover-bg: #1E2130;
   --border: rgba(223,225,243,0.085);
   --border-strong: rgba(223,225,243,0.16);
   --text: #ECEAF2;
@@ -2233,6 +2236,8 @@ body { overscroll-behavior-y: none; }
   --surface3: rgba(255,255,255,0.13);
   --border:   rgba(255,255,255,0.09);
   --border-strong: rgba(255,255,255,0.16);
+  /* Pływające listy rozwijane pozostają NIEPRZEZROCZYSTE (nie prześwitują). */
+  --popover-bg: rgba(15,25,26,0.98);
 }
 /* Przygaszony tekst zlewał się z ciemnym teal — rozjaśniamy sub/muted w całym
    module (nagłówek, treść, modale). Główny --text zostaje bez zmian. */
