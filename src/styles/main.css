@@ -595,6 +595,17 @@ body:has(.modal-overlay) .content { position: relative; z-index: 300; }
 @media (min-width: 600px) { .modal { border-radius: var(--r-lg); max-height: 88vh; } }
 /* Taller modal variant */
 .modal-tall { max-height: 92dvh; }
+/* MOBILE: jeden kontener przewijania. Wcześniej scrollował i overlay, i .modal
+   (zagnieżdżony scroll), a do tego overlay miał align-items:flex-end — gdy
+   formularz był wyższy niż ekran, iOS ucinał górę/dół i nie dało się dojechać do
+   „Zapisz". Teraz przewija sam overlay, a modal jest doklejony do dołu przez
+   margin-top:auto (który przy wysokiej treści zwija się do 0 → cała treść w
+   zasięgu scrolla). .modal bez własnego overflow/max-height. */
+@media (max-width: 599px) {
+  .modal-overlay { align-items: flex-start; }
+  .modal { margin-top: auto; max-height: none; overflow: visible; }
+  .modal-tall { max-height: none; }
+}
 .modal-grip { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .modal-header h3 { font-size: 18px; font-weight: 700; letter-spacing: -0.02em; }
