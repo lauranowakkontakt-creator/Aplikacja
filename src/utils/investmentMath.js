@@ -55,6 +55,27 @@ export function makeSnapshot(value, invested, now = new Date()) {
   return { date: now, value: Number(value) || 0, invested: Number(invested) || 0 }
 }
 
+// Skala osi Y wykresu wartości: min i max z 15% marginesem oraz 3 znaczniki.
+// Dla jednego (lub stałego) pomiaru margines liczymy od jego wartości.
+export function investmentChartScale(values = []) {
+  if (values.length === 0) return { min: 0, max: 1, yTicks: [] }
+  const lo = Math.min(...values), hi = Math.max(...values)
+  const pad = lo === hi ? Math.max(1, Math.abs(hi) * 0.1) : (hi - lo) * 0.15
+  const min = lo - pad, max = hi + pad
+  return { min, max, yTicks: [Math.round(min), Math.round((min + max) / 2), Math.round(max)] }
+}
+
+// Dane do wykresu wartości w czasie: punkty { value, label } (najstarszy →
+// najnowszy) plus skala. `fmtLabel(date)` formatuje etykietę osi X — podajemy
+// z komponentu, żeby ta logika została bez zależności od date-fns (testowalna).
+export function investmentChartData(history = [], fmtLabel = () => '') {
+  const data = history.map(h => {
+    const d = h.date?.toDate?.() ?? (h.date instanceof Date ? h.date : null)
+    return { value: Number(h.value) || 0, label: d ? fmtLabel(d) : '' }
+  })
+  return { data, ...investmentChartScale(data.map(d => d.value)) }
+}
+
 // Historia z policzoną zmianą względem POPRZEDNIego (starszego) wpisu.
 // Wejście: tablica wpisów { date, value, invested } w kolejności chronologicznej
 // (najstarszy pierwszy). Zwraca od najnowszego do najstarszego, każdy z `delta`

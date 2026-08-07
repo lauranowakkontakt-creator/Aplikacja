@@ -14,7 +14,8 @@ import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import { sortTransactionsByDate } from '../../utils/txSort'
 import { byAccountOrder } from '../../utils/accountOrder'
-import { isInvestment, investmentStats, sumByCurrency, mergeTotals, historyWithDeltas } from '../../utils/investmentMath'
+import { isInvestment, investmentStats, sumByCurrency, mergeTotals, historyWithDeltas, investmentChartData } from '../../utils/investmentMath'
+import { LineAreaSVG } from '../ChartPrimitives'
 
 const fmtAcc = (n, currency = 'PLN') =>
   new Intl.NumberFormat('pl-PL', { style: 'currency', currency }).format(n)
@@ -117,7 +118,7 @@ export default function AccountsView({ user, privateMode }) {
     return <CurrencyTiles totals={totals} privateMode={privateMode} />
   }
 
-  const renderAccountRow = (acc, { extra = null } = {}) => {
+  const renderAccountRow = (acc, { footer = null } = {}) => {
     const excluded = excludedFromTotal.includes(acc.id)
     const color = acc.color || '#3B82F6'
     const balance = acc.balance || 0
@@ -130,36 +131,36 @@ export default function AccountsView({ user, privateMode }) {
         borderLeft: `4px solid ${color}`,
         borderRadius: 'var(--r)',
         padding: '7px 12px',
-        display: 'flex', alignItems: 'center', gap: 10,
+        display: 'flex', flexDirection: 'column', gap: footer ? 6 : 0,
         cursor: 'pointer', transition: 'background .15s',
       }}
         onMouseEnter={e => e.currentTarget.style.background = `linear-gradient(135deg, ${color}14 0%, var(--surface2) 60%)`}
         onMouseLeave={e => e.currentTarget.style.background = `linear-gradient(135deg, ${color}08 0%, var(--surface) 60%)`}
       >
-        <div style={{
-          width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-          background: color + '22', border: `1px solid ${color}40`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', color
-        }}>
-          <Ic size={17} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{acc.name}</div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 1 }}>{acc.typeName || acc.type}</div>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+            background: color + '22', border: `1px solid ${color}40`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color
+          }}>
+            <Ic size={17} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{acc.name}</div>
+            <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 1 }}>{acc.typeName || acc.type}</div>
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.02em', flexShrink: 0, whiteSpace: 'nowrap', color: balance >= 0 ? 'var(--income)' : 'var(--expense)' }}>
             {privateMode ? '••••' : fmtAcc(balance, acc.currency || 'PLN')}
           </div>
-          {extra}
+          <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
+            <button className="t-btn" title={excluded ? 'Uwzględnij w sumie' : 'Wyklucz z sumy'} onClick={(e) => toggleExcluded(acc.id, e)}>
+              {excluded ? <IconEyeOff size={13} /> : <IconEye size={13} />}
+            </button>
+            <button className="t-btn" onClick={(e) => { e.stopPropagation(); setEditAccount(acc); setShowForm(true) }}><IconEdit size={13} /></button>
+            <button className="t-btn delete" onClick={(e) => handleDelete(acc.id, e)}><IconTrash size={13} /></button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
-          <button className="t-btn" title={excluded ? 'Uwzględnij w sumie' : 'Wyklucz z sumy'} onClick={(e) => toggleExcluded(acc.id, e)}>
-            {excluded ? <IconEyeOff size={13} /> : <IconEye size={13} />}
-          </button>
-          <button className="t-btn" onClick={(e) => { e.stopPropagation(); setEditAccount(acc); setShowForm(true) }}><IconEdit size={13} /></button>
-          <button className="t-btn delete" onClick={(e) => handleDelete(acc.id, e)}><IconTrash size={13} /></button>
-        </div>
+        {footer}
       </div>
     )
   }
@@ -204,13 +205,21 @@ export default function AccountsView({ user, privateMode }) {
             {orderedInvestments.map(acc => {
               const { profit, percent } = investmentStats(acc)
               const up = profit >= 0
-              const extra = privateMode ? null : (
-                <div style={{ fontSize: 11, fontWeight: 600, marginTop: 2, color: up ? 'var(--income)' : 'var(--expense)' }}>
-                  {up ? '+' : '−'}{fmtAcc(Math.abs(profit), acc.currency || 'PLN')}
-                  {percent != null && <span style={{ opacity: 0.8 }}> ({up ? '+' : '−'}{Math.abs(percent).toFixed(1)}%)</span>}
+              const footer = privateMode ? null : (
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  borderTop: '1px dashed var(--border)', paddingTop: 6, fontSize: 12, fontWeight: 600,
+                }}>
+                  <span style={{ color: 'var(--text-muted)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: 10 }}>
+                    {up ? 'Zysk' : 'Strata'}
+                  </span>
+                  <span style={{ color: up ? 'var(--income)' : 'var(--expense)', whiteSpace: 'nowrap' }}>
+                    {up ? '+' : '−'}{fmtAcc(Math.abs(profit), acc.currency || 'PLN')}
+                    {percent != null && <span style={{ opacity: 0.85 }}> ({up ? '+' : '−'}{Math.abs(percent).toFixed(1)}%)</span>}
+                  </span>
                 </div>
               )
-              return renderAccountRow(acc, { extra })
+              return renderAccountRow(acc, { footer })
             })}
           </div>
         </>
@@ -253,6 +262,7 @@ function InvestmentDetail({ user, account, privateMode, onBack, onEdit }) {
   const { value, invested, profit, percent } = investmentStats(account)
   const up = profit >= 0
   const history = historyWithDeltas(account.valueHistory || [])
+  const chart = investmentChartData(account.valueHistory || [], d => format(d, 'd MMM', { locale: pl }))
 
   const saveUpdate = async ({ newValue, deposit }) => {
     const nextInvested = (account.invested || 0) + (deposit || 0)
@@ -295,6 +305,22 @@ function InvestmentDetail({ user, account, privateMode, onBack, onEdit }) {
       </div>
 
       <button className="btn-add-account" onClick={() => setShowUpdate(true)}>Aktualizuj wartość</button>
+
+      {/* Wykres wartości w czasie (z zapisanych pomiarów) */}
+      {!privateMode && chart.data.length >= 2 && (
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 8px 4px' }}>
+          <p style={{ margin: '0 0 6px 8px', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Wartość w czasie</p>
+          <LineAreaSVG
+            data={chart.data}
+            height={150}
+            min={chart.min}
+            max={chart.max}
+            yTicks={chart.yTicks}
+            accent={up ? 'var(--income)' : 'var(--expense)'}
+            fmtValue={(v) => fmtAcc(v, cur)}
+          />
+        </div>
+      )}
 
       {/* Historia pomiarów */}
       <div>

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   isInvestment, investmentStats, sumByCurrency, mergeTotals,
   investmentTotals, makeSnapshot, historyWithDeltas,
+  investmentChartScale, investmentChartData,
 } from '../src/utils/investmentMath.js'
 
 test('isInvestment rozpoznaje konto typu investment', () => {
@@ -78,4 +79,43 @@ test('historyWithDeltas liczy zmianę względem poprzedniego i odwraca kolejnoś
 test('historyWithDeltas: pusta historia → pusto', () => {
   assert.deepEqual(historyWithDeltas([]), [])
   assert.deepEqual(historyWithDeltas(), [])
+})
+
+test('investmentChartScale: margines 15% i 3 znaczniki', () => {
+  const s = investmentChartScale([3750, 3900, 4200])
+  // rozpiętość 450, margines 67.5
+  assert.ok(Math.abs(s.min - 3682.5) < 1e-9)
+  assert.ok(Math.abs(s.max - 4267.5) < 1e-9)
+  assert.deepEqual(s.yTicks, [3683, 3975, 4268])
+})
+
+test('investmentChartScale: równe wartości → margines od wartości', () => {
+  const s = investmentChartScale([1000, 1000])
+  assert.equal(s.min, 900)
+  assert.equal(s.max, 1100)
+})
+
+test('investmentChartScale: pusto → bezpieczna skala', () => {
+  assert.deepEqual(investmentChartScale([]), { min: 0, max: 1, yTicks: [] })
+})
+
+test('investmentChartData: buduje punkty {value,label} + skalę', () => {
+  const hist = [
+    { date: new Date('2026-07-25'), value: 3750 },
+    { date: new Date('2026-08-01'), value: 3900 },
+  ]
+  const r = investmentChartData(hist, d => `d${d.getUTCDate()}`)
+  assert.deepEqual(r.data, [{ value: 3750, label: 'd25' }, { value: 3900, label: 'd1' }])
+  assert.ok(r.max > r.min)
+  assert.equal(r.yTicks.length, 3)
+})
+
+test('investmentChartData: obsługuje Timestamp (.toDate) i brak daty', () => {
+  const hist = [
+    { date: { toDate: () => new Date('2026-08-01') }, value: 100 },
+    { value: 200 }, // brak daty
+  ]
+  const r = investmentChartData(hist, () => 'X')
+  assert.deepEqual(r.data.map(d => d.label), ['X', ''])
+  assert.deepEqual(r.data.map(d => d.value), [100, 200])
 })
