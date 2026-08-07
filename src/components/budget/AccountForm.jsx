@@ -24,6 +24,7 @@ export default function AccountForm({ user, onClose, editData }) {
   const [type, setType]         = useState(editData ? (isKnownType(editData.type) ? editData.type : 'custom') : 'bank')
   const [customType, setCustomType] = useState(editData && !isKnownType(editData.type) ? (editData.typeName || '') : '')
   const [balance, setBalance]   = useState(editData?.balance?.toString() || '0')
+  const [invested, setInvested] = useState(editData?.invested?.toString() || '')
   const [currency, setCurrency] = useState(editData?.currency || 'PLN')
   const [color, setColor]       = useState(editData?.color || COLORS[0])
   const [saving, setSaving]     = useState(false)
@@ -40,6 +41,8 @@ export default function AccountForm({ user, onClose, editData }) {
     // Dla własnego typu zapisujemy slug jako type, żeby filtry/ikony działały
     const storedType = type === 'custom' ? `custom:${customType.trim().toLowerCase()}` : type
     const data = { name: name.trim(), type: storedType, typeName, balance: parseAmount(balance) || 0, currency, color }
+    // Inwestycje: zapisujemy dodatkowo kwotę wpłaconą (koszt) do liczenia zysku.
+    if (type === 'investment') data.invested = parseAmount(invested) || 0
     try {
       if (editData) {
         await updateDoc(doc(db, 'users', user.uid, 'accounts', editData.id), data)
@@ -96,10 +99,10 @@ export default function AccountForm({ user, onClose, editData }) {
               onChange={e => setName(e.target.value)} placeholder="Nazwa konta" maxLength={30} />
           </div>
 
-          {/* Saldo i waluta */}
+          {/* Saldo / wartość i waluta */}
           <div className="form-row">
             <div className="form-group" style={{flex:1}}>
-              <label>Aktualne saldo</label>
+              <label>{type === 'investment' ? 'Aktualna wartość' : 'Aktualne saldo'}</label>
               <input type="number" inputMode="decimal" step="0.01" className="form-input" value={balance}
                 onChange={e => setBalance(e.target.value)} />
             </div>
@@ -110,6 +113,18 @@ export default function AccountForm({ user, onClose, editData }) {
               </select>
             </div>
           </div>
+
+          {/* Inwestycje: ile łącznie wpłacone (koszt), do liczenia zysku/straty */}
+          {type === 'investment' && (
+            <div className="form-group">
+              <label>Wpłacone łącznie (koszt)</label>
+              <input type="number" inputMode="decimal" step="0.01" className="form-input" value={invested}
+                onChange={e => setInvested(e.target.value)} placeholder="ile w sumie włożyłaś" />
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
+                Wartość aktualizujesz później przyciskiem „Aktualizuj wartość".
+              </p>
+            </div>
+          )}
 
           {/* Kolor */}
           <div className="form-group">
