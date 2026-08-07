@@ -6,7 +6,7 @@ import StatTiles from '../StatTiles'
 import { format, startOfMonth, getDaysInMonth, addDays, subMonths, addMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { LineAreaSVG, DonutStat, BarChartSVG } from '../ChartPrimitives'
-import { IconTrash, IconChevronLeft, IconChevronRight, IconPlus, IconClose } from '../Icons'
+import { IconTrash, IconChevronLeft, IconChevronRight, IconPlus, IconClose, IconChart } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { ALL_EMOTIONS } from './EmotionWheel'
 import SegTabs from '../SegTabs'
@@ -130,11 +130,12 @@ const kicker = (t, extra) => (
 )
 
 // ── Root component ────────────────────────────────────────────────────────────
-export default function MoodDashboard({ user }) {
+export default function MoodDashboard({ user, setHeaderExtras }) {
   const [logs, setLogs]       = useState([])
   const [loading, setLoading] = useState(true)
   const [entryDate, setEntryDate] = useState(null) // otwiera modal wpisu dla danego dnia
   const [selDate, setSelDate]     = useState(TODAY()) // wybrany dzień (kalendarz) — dzielony z „+" w rogu
+  const [view, setView]           = useState('main') // main | stats (analiza pod ikoną w belce)
   useFallbackTimeout(() => setLoading(false))
 
   useEffect(() => {
@@ -144,6 +145,23 @@ export default function MoodDashboard({ user }) {
       setLoading(false)
     })
   }, [user.uid])
+
+  // Górna belka („Mój Świat"): [analiza][＋ Dodaj] — spójnie z innymi modułami.
+  // „+” jest ostatni (przy ustawieniach). Hook przed early-returnem (zasady hooków).
+  useEffect(() => {
+    setHeaderExtras?.(
+      <>
+        <button className="hdr-btn" title="Analiza i statystyki" onClick={() => setView('stats')}>
+          <IconChart size={17} />
+        </button>
+        <button className="hdr-btn accent" title="Dodaj wpis nastroju"
+          onClick={() => setEntryDate(selDate <= TODAY() ? selDate : TODAY())}>
+          <IconPlus size={17} />
+        </button>
+      </>
+    )
+    return () => setHeaderExtras?.(null)
+  }, [selDate])
 
   const handleDelete = async (id) => {
     const ok = await confirmDialog({ title: 'Usunąć wpis nastroju?' })
@@ -161,26 +179,25 @@ export default function MoodDashboard({ user }) {
 
   const entryLabel = entryDate ? format(new Date(entryDate + 'T12:00:00'), 'd MMMM', { locale: pl }) : ''
 
+  const statTiles = (
+    <StatTiles tiles={[
+      { label: 'Wpisy', value: moodCount },
+      { label: 'Średni nastrój', value: moodAvg, color: avgColor },
+      { label: 'W tym miesiącu', value: moodMonth },
+    ]} />
+  )
+
   return (
     <div className="mood-dashboard">
-      <div className="mod-header">
-        <div>
-          <div className="mod-header-kicker">Nastrój</div>
-          <div className="mod-header-title">{format(new Date(), 'EEEE, d MMMM', { locale: pl })}</div>
+      {view === 'stats' && (
+        <div className="rev-subhead">
+          <button className="rev-back" onClick={() => setView('main')} title="Wróć"><IconChevronLeft size={18} /></button>
+          <div className="rev-subhead-title">Analiza i statystyki</div>
         </div>
-        <div className="mod-header-right">
-          <button className="mod-header-add" title="Dodaj wpis nastroju" onClick={() => setEntryDate(selDate <= TODAY() ? selDate : TODAY())}>
-            <IconPlus size={16} />
-          </button>
-        </div>
-      </div>
-      <StatTiles tiles={[
-        { label: 'Wpisy', value: moodCount },
-        { label: 'Średni nastrój', value: moodAvg, color: avgColor },
-        { label: 'W tym miesiącu', value: moodMonth },
-      ]} />
+      )}
+      {statTiles}
       <MoodPage user={user} logs={logs} onDelete={handleDelete} selDate={selDate} setSelDate={setSelDate}
-        onAddEntry={(d) => setEntryDate(d <= TODAY() ? d : TODAY())} />
+        view={view} onAddEntry={(d) => setEntryDate(d <= TODAY() ? d : TODAY())} />
 
       {/* Modal wpisu — emocje / jak się masz / ocena dnia otwierane spod „+" */}
       {entryDate && (
@@ -369,7 +386,7 @@ function MoodEntryForm({ user, date, onSaved }) {
 /* ============================================================
    JEDEN WIDOK — wykres + średnia + emocje + wpis + kalendarz
    ============================================================ */
-function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry }) {
+function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry, view = 'main' }) {
   const [viewMode, setViewMode] = useState('month') // month | year
   const [month, setMonth]     = useState(new Date())
   const today = TODAY()
@@ -443,6 +460,63 @@ function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry }) {
     />
   )
 
+  // ── WIDOK GŁÓWNY: kalendarz miesiąca + wpisy wybranego dnia ──────────────────
+  if (view === 'main') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Nawigacja miesiąca (nazwa nad kalendarzem) */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <button className="month-btn" style={{ width: 32, height: 32 }} onClick={() => setMonth(m => addMonths(m, -1))}><IconChevronLeft size={15} /></button>
+          <span style={{ fontSize: 15, fontWeight: 700, textTransform: 'capitalize' }}>{monthLbl} {year}</span>
+          <button className="month-btn" style={{ width: 32, height: 32 }} onClick={() => setMonth(m => addMonths(m, 1))}><IconChevronRight size={15} /></button>
+        </div>
+
+        {/* Kalendarz miesiąca (kolor = nastrój dnia; klik wybiera dzień) */}
+        <div className="card card-hover-glow" style={{ padding: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 6 }}>
+            {['P', 'W', 'Ś', 'C', 'P', 'S', 'N'].map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: 9, fontWeight: 700, color: 'var(--text-muted)' }}>{d}</div>)}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+            {Array.from({ length: firstDow }, (_, i) => <div key={'e' + i} />)}
+            {calDays.map(({ date, dayNum, count, color }) => {
+              const isSel = date === selDate
+              const isTd = date === today
+              return (
+                <button key={date} onClick={() => setSelDate(date)} title={count ? `${dayNum} · ${count} wpis.` : dayNum} style={{
+                  aspectRatio: '1 / 1', borderRadius: 8, display: 'grid', placeItems: 'center', cursor: 'pointer',
+                  background: color ? color + '33' : 'var(--surface2)',
+                  border: `1.5px solid ${isSel ? (color || 'var(--accent)') : isTd ? 'var(--accent)' : 'transparent'}`,
+                  fontSize: 12, fontWeight: isTd ? 700 : 500, color: color ? '#fff' : 'var(--text-muted)', transition: 'all .15s',
+                }}>{dayNum}</button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Wpisy wybranego dnia + dodawanie */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            {kicker(selDate === today ? 'Wpisy dziś' : `Wpisy · ${selLabel}`)}
+            {canAdd && (
+              <button className="t-btn" onClick={() => onAddEntry?.(selDate)}
+                style={{ width: 'auto', padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600 }}>
+                <IconPlus size={13} /> Dodaj wpis
+              </button>
+            )}
+          </div>
+          {dayLogs.length > 0 ? (
+            dayLogs.map(log => <LogEntry key={log.id} log={log} onDelete={() => onDelete(log.id)} />)
+          ) : (
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '10px 0', margin: 0 }}>
+              {canAdd ? 'Brak wpisów tego dnia' : 'Nie można dodać wpisu z przyszłości'}
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── WIDOK ANALIZY: wykresy nastroju i emocji (miesiąc / rok) ─────────────────
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
@@ -458,74 +532,30 @@ function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry }) {
 
       {viewMode === 'month' ? (
         <>
-          {/* Wykres + mały kalendarz obok siebie */}
-          <div className="mood-top">
-            <div className="card card-hover-glow" style={{ padding: 16 }}>
-              {kicker('Nastrój w czasie', { marginBottom: 10 })}
-              {chartData.length === 1 ? (
-                <SingleMoodPreview point={chartData[0]} />
-              ) : chartData.length > 1 ? (
-                <LineAreaSVG
-                  data={chartData.map(d => ({ label: d.day, value: d.value }))}
-                  height={150} min={0.5} max={5.5} yTicks={[1, 2, 3, 4, 5]} accent="var(--accent)" allLabels
-                  fmtValue={v => MOODS.find(m => Math.abs(m.value - v) < 0.5)?.label || v.toFixed(1)}
-                  fmtLabel={d => `${d} ${monthLbl.toLowerCase()}`}
-                />
-              ) : (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '30px 0' }}>Brak wpisów w tym miesiącu</div>
-              )}
-            </div>
-
-            <div className="card card-hover-glow" style={{ padding: 16 }}>
-              {kicker('Kalendarz', { marginBottom: 10 })}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3, marginBottom: 4 }}>
-                {['P', 'W', 'Ś', 'C', 'P', 'S', 'N'].map((d, i) => <div key={i} style={{ textAlign: 'center', fontSize: 8, fontWeight: 700, color: 'var(--text-muted)' }}>{d}</div>)}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 3 }}>
-                {Array.from({ length: firstDow }, (_, i) => <div key={'e' + i} />)}
-                {calDays.map(({ date, dayNum, count, color }) => {
-                  const isSel = date === selDate
-                  const isTd = date === today
-                  return (
-                    <button key={date} onClick={() => setSelDate(date)} title={count ? `${dayNum} · ${count} wpis.` : dayNum} style={{
-                      height: 30, borderRadius: 6, display: 'grid', placeItems: 'center', cursor: 'pointer',
-                      background: color ? color + '33' : 'var(--surface2)',
-                      border: `1.5px solid ${isSel ? (color || 'var(--accent)') : isTd ? 'var(--accent)' : 'transparent'}`,
-                      fontSize: 10, fontWeight: isTd ? 700 : 500, color: color ? '#fff' : 'var(--text-muted)', transition: 'all .15s',
-                    }}>{dayNum}</button>
-                  )
-                })}
-              </div>
-            </div>
+          {/* Nastrój w czasie */}
+          <div className="card card-hover-glow" style={{ padding: 16 }}>
+            {kicker('Nastrój w czasie', { marginBottom: 10 })}
+            {chartData.length === 1 ? (
+              <SingleMoodPreview point={chartData[0]} />
+            ) : chartData.length > 1 ? (
+              <LineAreaSVG
+                data={chartData.map(d => ({ label: d.day, value: d.value }))}
+                height={160} min={0.5} max={5.5} yTicks={[1, 2, 3, 4, 5]} accent="var(--accent)" allLabels
+                fmtValue={v => MOODS.find(m => Math.abs(m.value - v) < 0.5)?.label || v.toFixed(1)}
+                fmtLabel={d => `${d} ${monthLbl.toLowerCase()}`}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, padding: '30px 0' }}>Brak wpisów w tym miesiącu</div>
+            )}
           </div>
 
-          {/* Najczęstsze emocje (średnia jest już w kafelkach u góry) */}
+          {/* Najczęstsze emocje */}
           {topEms.length > 0 && (
             <div className="card card-hover-glow" style={{ padding: 16 }}>
               {kicker('Najczęstsze emocje', { marginBottom: 12 })}
               {emoDonut(topEms)}
             </div>
           )}
-
-          {/* Wpisy wybranego dnia + dodawanie (przycisk widoczny też na komputerze) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              {kicker(selDate === today ? 'Wpisy dziś' : `Wpisy · ${selLabel}`)}
-              {canAdd && (
-                <button className="t-btn" onClick={() => onAddEntry?.(selDate)}
-                  style={{ width: 'auto', padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600 }}>
-                  <IconPlus size={13} /> Dodaj wpis
-                </button>
-              )}
-            </div>
-            {dayLogs.length > 0 ? (
-              dayLogs.map(log => <LogEntry key={log.id} log={log} onDelete={() => onDelete(log.id)} />)
-            ) : (
-              <p style={{ fontSize: 13, color: 'var(--text-muted)', textAlign: 'center', padding: '10px 0', margin: 0 }}>
-                {canAdd ? 'Brak wpisów tego dnia' : 'Nie można dodać wpisu z przyszłości'}
-              </p>
-            )}
-          </div>
         </>
       ) : (
         <>

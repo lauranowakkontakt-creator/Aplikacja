@@ -227,8 +227,8 @@ export default function App() {
             {activeModule === 'home'     && <Pulpit user={user} onNavigate={goTo} />}
             {activeModule === 'budget'   && <Dashboard user={user} onCurrencyChange={handleCurrencyChange} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'habits'   && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} setHeaderExtras={setHeaderExtras} />}
-            {activeModule === 'mood'     && <MoodDashboard user={user} />}
-            {activeModule === 'todo'     && <TodoDashboard user={user} />}
+            {activeModule === 'mood'     && <MoodDashboard user={user} setHeaderExtras={setHeaderExtras} />}
+            {activeModule === 'todo'     && <TodoDashboard user={user} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'calendar' && <CalendarDashboard user={user} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'prayer'   && <PrayerDashboard user={user} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'bible'    && <BibleDashboard user={user} />}

@@ -10,9 +10,10 @@ import {
 } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { BarChartSVG } from '../ChartPrimitives'
-import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChart, IconCheck, IconSearch, IconMoreVert, IconFlag, IconChevronDown, IconChevronLeft, IconChevronRight, IconCalendar, IconClock, IconRepeat, IconPlus } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconCheck, IconFlag, IconChevronDown, IconChevronLeft, IconChevronRight, IconCalendar, IconClock, IconRepeat, IconPlus } from '../Icons'
 import StatTiles from '../StatTiles'
 import SegTabs from '../SegTabs'
+import TodoMenu from './TodoMenu'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import PersonBubble from '../PersonBubble'
@@ -47,13 +48,13 @@ const kicker = (t) => (
   </div>
 )
 
-export default function TodoDashboard({ user }) {
+export default function TodoDashboard({ user, setHeaderExtras }) {
   const [todos, setTodos]           = useState([])
   const [lists, setLists]           = useState([])
   const [people, setPeople]         = useState([])
   const [loading, setLoading]       = useState(true)
   useFallbackTimeout(() => setLoading(false))
-  const [tab, setTab]               = useState('tasks')
+  const [view, setView]             = useState('main') // main | stats (analiza w ⋮)
   const [activeList, setActiveList] = useState(null)
   const [showForm, setShowForm]     = useState(false)
   const [editTodo, setEditTodo]     = useState(null)
@@ -63,7 +64,6 @@ export default function TodoDashboard({ user }) {
   const [editList, setEditList]       = useState(null)
   const [showSearch, setShowSearch] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [showMenu, setShowMenu]     = useState(false)
   const [showLists, setShowLists]   = useState(false)
 
   useEffect(() => {
@@ -128,10 +128,30 @@ export default function TodoDashboard({ user }) {
   const active   = sortActive(filtered.filter(t => !t.done))
   const done     = filtered.filter(t => t.done)
 
+  // Górna belka („Mój Świat"): [⋮ Więcej — z Analizą][＋ Nowe zadanie].
+  // Hook przed early-returnem (zasady hooków).
+  const handleMenu = (id) => {
+    if (id === 'stats')   setView('stats')
+    if (id === 'search')  { setShowSearch(s => !s); setSearchQuery('') }
+    if (id === 'done')    setShowDone(v => !v)
+    if (id === 'newlist') setShowListForm(true)
+  }
+  useEffect(() => {
+    setHeaderExtras?.(
+      <>
+        <TodoMenu onAction={handleMenu} />
+        <button className="hdr-btn accent" title="Nowe zadanie"
+          onClick={() => { setEditTodo(null); setFormDefaultDue(''); setShowForm(true) }}>
+          <IconPlus size={17} />
+        </button>
+      </>
+    )
+    return () => setHeaderExtras?.(null)
+  }, [])
+
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
   const activeListObj = lists.find(l => l.id === activeList)
-  const headerTitle = activeListObj ? activeListObj.name : 'Zadania'
   const activeListColor = activeListObj?.color || 'var(--sky)'
 
   const dueToday = active.filter(t => t.dueDate && isToday(parseISO(t.dueDate)))
@@ -146,76 +166,28 @@ export default function TodoDashboard({ user }) {
 
   return (
     <div className="todo-dashboard">
-      {/* Mobile module header */}
-      <div className="mod-header">
-        <div>
-          <div className="mod-header-kicker">To-do</div>
-          <div className="mod-header-title">{headerTitle}</div>
-        </div>
-        <div className="mod-header-right" style={{ position: 'relative' }}>
-          <button className="mod-header-add" title="Nowe zadanie"
-            onClick={() => { setEditTodo(null); setFormDefaultDue(''); setShowForm(true) }}>
-            <IconPlus size={16} />
-          </button>
-          <button className="icon-btn" onClick={() => setShowMenu(m => !m)}><IconMoreVert size={16} /></button>
-          {showMenu && (
-            <div style={{
-              position: 'absolute', top: '110%', right: 0, background: 'var(--surface)',
-              border: '1px solid var(--border)', borderRadius: 10, padding: '6px 0',
-              minWidth: 190, zIndex: 200, boxShadow: '0 8px 24px rgba(0,0,0,0.15)'
-            }} onClick={() => setShowMenu(false)}>
-              <button style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
-                onClick={() => { setShowSearch(s => !s); setSearchQuery('') }}>
-                <IconSearch size={15} /> Szukaj zadań
-              </button>
-              <button style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
-                onClick={() => { setShowDone(v => !v) }}>
-                <IconCheck size={15} /> Ukończone zadania
-              </button>
-              <button style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 16px', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: 'var(--text)' }}
-                onClick={() => { setShowListForm(true) }}>
-                <IconPlus size={15} /> Nowa lista
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <StatTiles tiles={[
-        { label: 'Aktywne', value: active.length },
-        { label: 'Na dziś', value: dueToday.length, color: dueToday.length ? 'var(--accent)' : undefined },
-        { label: 'Ukończone', value: done.length },
-      ]} />
-
-      {showSearch && (
-        <div style={{ padding: '0 0 12px' }}>
-          <input className="form-input" placeholder="Szukaj zadań..." value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)} style={{ margin: 0 }} />
-        </div>
-      )}
-
-      {/* Tabs */}
-      <SegTabs
-        items={[
-          { id: 'calendar', label: 'Kalendarz', icon: <IconCalendar size={13} /> },
-          { id: 'tasks', label: 'Zadania' },
-          { id: 'stats', label: 'Statystyki', icon: <IconChart size={13} /> },
-        ]}
-        active={tab} onChange={setTab}
-        style={{ maxWidth: 460, marginBottom: 14 }}
-      />
-
-      {tab === 'stats' ? (
-        <TodoStats todos={todos} lists={lists} />
-      ) : tab === 'calendar' ? (
-        <TodoCalendar
-          todos={todos} lists={lists}
-          onToggle={toggleDone}
-          onEdit={(t) => { setEditTodo(t); setShowForm(true) }}
-          onAddOnDay={(dateStr) => { setEditTodo(null); setFormDefaultDue(dateStr); setShowForm(true) }}
-        />
+      {view === 'stats' ? (
+        <>
+          <div className="rev-subhead">
+            <button className="rev-back" onClick={() => setView('main')} title="Wróć"><IconChevronLeft size={18} /></button>
+            <div className="rev-subhead-title">Analiza i statystyki</div>
+          </div>
+          <TodoStats todos={todos} lists={lists} />
+        </>
       ) : (
         <>
+          <StatTiles tiles={[
+            { label: 'Aktywne', value: active.length },
+            { label: 'Na dziś', value: dueToday.length, color: dueToday.length ? 'var(--accent)' : undefined },
+            { label: 'Ukończone', value: done.length },
+          ]} />
+
+          {showSearch && (
+            <div style={{ padding: '0 0 12px' }}>
+              <input className="form-input" placeholder="Szukaj zadań..." value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)} style={{ margin: 0 }} />
+            </div>
+          )}
           {/* Wybór listy (kategorie) — zwinięte, rozwijasz „Listy" */}
           <div style={{ position: 'relative', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
             <button onClick={() => setShowLists(s => !s)} style={{
@@ -278,7 +250,7 @@ export default function TodoDashboard({ user }) {
 
           {/* Done tasks */}
           {done.length > 0 && (
-            <div style={{ marginBottom: 80 }}>
+            <div style={{ marginBottom: 24 }}>
               <button onClick={() => setShowDone(v => !v)} style={{
                 fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', marginBottom: 6
               }}>
@@ -297,6 +269,16 @@ export default function TodoDashboard({ user }) {
             </div>
           )}
 
+          {/* Kalendarz pod zadaniami */}
+          <div style={{ marginTop: 8, marginBottom: 80 }}>
+            <div className="kicker" style={{ marginBottom: 10 }}>Kalendarz</div>
+            <TodoCalendar
+              todos={todos} lists={lists}
+              onToggle={toggleDone}
+              onEdit={(t) => { setEditTodo(t); setShowForm(true) }}
+              onAddOnDay={(dateStr) => { setEditTodo(null); setFormDefaultDue(dateStr); setShowForm(true) }}
+            />
+          </div>
         </>
       )}
 
