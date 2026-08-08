@@ -637,6 +637,12 @@ input[type="datetime-local"] {
   background: var(--surface);
   color: var(--text);
   font-family: inherit;
+  /* iOS/WebKit: bez tego natywne pole daty ignoruje width:100% i wystaje
+     poza kafelek/ekran. min-width:0 pozwala mu się zmieścić w kontenerze. */
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
 }
 .form-input[type="date"]:focus,
 .form-input[type="time"]:focus,

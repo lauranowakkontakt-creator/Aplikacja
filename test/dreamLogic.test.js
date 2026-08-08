@@ -3,7 +3,50 @@ import assert from 'node:assert/strict'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS,
   getEmotion, getCategory, parseMentions, parseSymbols, dreamPeopleIds, nameStem, personForms,
+  detectTrigger,
 } from '../src/utils/dreamLogic.js'
+
+test('detectTrigger: #symbol jednowyrazowy', () => {
+  const t = detectTrigger('Śniło mi się #drzewo')
+  assert.equal(t.type, 'symbol')
+  assert.equal(t.query, 'drzewo')
+  assert.equal(t.start, 13) // pozycja znaku #
+})
+
+test('detectTrigger: #symbol wielowyrazowy (do 4 słów)', () => {
+  assert.equal(detectTrigger('#stary dom').query, 'stary dom')
+  assert.equal(detectTrigger('#dom nad jeziorem').query, 'dom nad jeziorem')
+  assert.equal(detectTrigger('#a b c d').query, 'a b c d')
+})
+
+test('detectTrigger: spacja po ostatnim słowie kończy tag', () => {
+  assert.equal(detectTrigger('#drzewo '), null)
+  assert.equal(detectTrigger('#stary dom '), null)
+})
+
+test('detectTrigger: powyżej 4 słów przestaje być tagiem (zwykłe zdanie)', () => {
+  assert.equal(detectTrigger('#a b c d e'), null)
+})
+
+test('detectTrigger: samo # otwiera przeglądanie (pusty query)', () => {
+  const t = detectTrigger('opis #')
+  assert.equal(t.type, 'symbol')
+  assert.equal(t.query, '')
+})
+
+test('detectTrigger: @osoba to jedno słowo, kończy się na spacji', () => {
+  assert.equal(detectTrigger('spotkałam @Kasia').query, 'Kasia')
+  assert.equal(detectTrigger('spotkałam @Kasia w'), null) // @ to jedno słowo
+})
+
+test('detectTrigger: interpunkcja kończy tag symbolu', () => {
+  assert.equal(detectTrigger('#dom, potem'), null)
+  assert.equal(detectTrigger('#dom.'), null)
+})
+
+test('detectTrigger: brak triggera w zwykłym tekście', () => {
+  assert.equal(detectTrigger('zwykły tekst bez znaczników'), null)
+})
 
 const people = [
   { id: 'p1', name: 'Kasia' },

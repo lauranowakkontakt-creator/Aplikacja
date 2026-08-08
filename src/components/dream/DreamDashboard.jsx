@@ -13,7 +13,7 @@ import DreamMenu from './DreamMenu'
 import { toast } from '../Toast'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS, getEmotion, getCategory,
-  parseMentions, dreamPeopleIds, scrubSymbolFromDreams, personForms, nameStem,
+  parseMentions, dreamPeopleIds, scrubSymbolFromDreams, personForms, nameStem, detectTrigger,
 } from '../../utils/dreams'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
@@ -524,9 +524,8 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
     const val = e.target.value
     setText(val)
     const caret = e.target.selectionStart
-    const before = val.slice(0, caret)
-    const m = before.match(/([@#])([\p{L}\p{N}]*)$/u)
-    setTrigger(m ? { type: m[1] === '#' ? 'symbol' : 'person', query: m[2], start: caret - m[2].length - 1 } : null)
+    // Symbol (#) może mieć kilka słów (np. „#stary dom"); osoba (@) — jedno.
+    setTrigger(detectTrigger(val.slice(0, caret)))
   }
 
   const personMatches = useMemo(() => {

@@ -90,6 +90,20 @@ export function parseSymbols(text, symbols) {
   return [...found]
 }
 
+// Wykrywa aktywny „trigger" autouzupełniania na końcu tekstu przed kursorem.
+//  - @osoba  — jedno słowo (imię/odmiana),
+//  - #symbol — do 4 słów oddzielonych POJEDYNCZĄ spacją (np. „#stary dom"),
+//    dzięki czemu można tworzyć symbole wielowyrazowe; spacja po ostatnim słowie
+//    kończy tag, więc dalsze pisanie zdania działa normalnie.
+// Zwraca { type, query, start } albo null. `start` to indeks znaku # / @.
+export function detectTrigger(before) {
+  const mSymbol = before.match(/#([\p{L}\p{N}]*(?: +[\p{L}\p{N}]+){0,3})$/u)
+  if (mSymbol) return { type: 'symbol', query: mSymbol[1], start: before.length - mSymbol[1].length - 1 }
+  const mPerson = before.match(/@([\p{L}\p{N}]*)$/u)
+  if (mPerson) return { type: 'person', query: mPerson[1], start: before.length - mPerson[1].length - 1 }
+  return null
+}
+
 // Wszystkie osoby powiązane ze snem (uczestnicy + wspomniani).
 export const dreamPeopleIds = (dream) =>
   [...new Set([...(dream.peopleIds || []), ...(dream.mentionIds || [])])]
