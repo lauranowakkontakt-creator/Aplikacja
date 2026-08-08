@@ -611,9 +611,34 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
       updatedAt: Timestamp.now(),
     }
     try {
-      if (editData) await updateDoc(doc(db, 'users', user.uid, 'dreams', editData.id), data)
-      else await addDoc(collection(db, 'users', user.uid, 'dreams'), { ...data, createdAt: Timestamp.now() })
-      onClose()
+      if (editData) {
+        // Zapamiętaj poprzednią wersję, żeby dać „Cofnij" po zapisie edycji.
+        const ref = doc(db, 'users', user.uid, 'dreams', editData.id)
+        const prev = {
+          title: editData.title ?? '', date: editData.date ?? date, text: editData.text ?? '',
+          interpretation: editData.interpretation ?? '',
+          category: editData.category ?? null, emotions: editData.emotions ?? [],
+          peopleIds: editData.peopleIds ?? [], mentionIds: editData.mentionIds ?? [],
+          symbolIds: editData.symbolIds ?? [],
+        }
+        await updateDoc(ref, data)
+        onClose()
+        toast.success('Zapisano zmiany', {
+          duration: 6000,
+          action: {
+            label: 'Cofnij',
+            onClick: async () => {
+              try {
+                await updateDoc(ref, { ...prev, updatedAt: Timestamp.now() })
+                toast.info('Przywrócono poprzednią wersję')
+              } catch { toast.error('Nie udało się cofnąć') }
+            },
+          },
+        })
+      } else {
+        await addDoc(collection(db, 'users', user.uid, 'dreams'), { ...data, createdAt: Timestamp.now() })
+        onClose()
+      }
     } catch { setSaving(false) }
   }
 
