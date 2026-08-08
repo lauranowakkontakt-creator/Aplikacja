@@ -139,6 +139,7 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
   const [showReorder, setShowReorder] = useState(false)
   const [showRoutineMgr, setShowRoutineMgr] = useState(false)
   const [routines, setRoutines]       = useState([])
+  const [collapsedRoutines, setCollapsedRoutines] = useState({}) // ręczne nadpisania zwinięcia (per dzień)
   const [statPeriod, setStatPeriod]   = useState('month')
   const [dashMonth, setDashMonth]     = useState(new Date())     // nawigacja miesiąca na dashboardzie
   const [weekAnchor, setWeekAnchor]   = useState(new Date())     // nawigacja tygodnia w statystykach
@@ -168,6 +169,10 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
     const q = query(collection(db, 'users', user.uid, 'habitRoutines'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byRoutineOrder)))
   }, [user.uid])
+
+  // Zmiana dnia — czyścimy ręczne rozwinięcia (każdy dzień startuje „domyślnie":
+  // zrobione rutyny zwinięte).
+  useEffect(() => { setCollapsedRoutines({}) }, [selectedDay])
 
   const toggleDay = async (habit, date) => {
     const ref = doc(db, 'users', user.uid, 'habits', habit.id)
@@ -516,23 +521,41 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
                   <div style={{ marginBottom: extra.length > 0 ? 18 : 0 }}>
                     {kicker('Na dziś')}
                     {(() => {
-                      const groups = groupByRoutine(mandatory, routines, x => x.h.routineId)
+                      const isItemDone = (x) => x.h.completedDates?.includes(selectedDay)
+                      // Zrobione „rzeczy" na dół (stabilnie — reszta kolejności zostaje).
+                      const sortedMandatory = [...mandatory].sort((a, b) => (isItemDone(a) ? 1 : 0) - (isItemDone(b) ? 1 : 0))
                       // Nagłówki sekcji pokazujemy tylko, gdy realnie dzielą dzień na
                       // części (są rutyny i choć jedna nazwana grupa). Inaczej — jak dawniej.
-                      const showHeaders = routines.length > 0 && groups.some(g => g.id != null)
-                      if (!showHeaders) return grid(mandatory)
+                      const showHeaders = routines.length > 0 && groupByRoutine(mandatory, routines, x => x.h.routineId).some(g => g.id != null)
+                      if (!showHeaders) return grid(sortedMandatory)
+
+                      let groups = groupByRoutine(sortedMandatory, routines, x => x.h.routineId)
+                      const isSectionDone = (g) => g.items.length > 0 && g.items.every(isItemDone)
+                      // Zrobione segmenty (całe rutyny) na sam dół.
+                      groups = [...groups].sort((a, b) => (isSectionDone(a) ? 1 : 0) - (isSectionDone(b) ? 1 : 0))
+
                       return groups.map(g => {
-                        const doneN = g.items.filter(x => x.h.completedDates?.includes(selectedDay)).length
+                        const doneN = g.items.filter(isItemDone).length
+                        const secDone = isSectionDone(g)
+                        // Domyślnie zrobiona rutyna jest zwinięta; ręczny klik nadpisuje.
+                        const collapsed = collapsedRoutines[g.id ?? '_none'] ?? secDone
+                        const toggle = () => setCollapsedRoutines(prev => ({ ...prev, [g.id ?? '_none']: !collapsed }))
                         return (
                           <div key={g.id ?? '_none'} style={{ marginBottom: 14 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: g.id ? 'var(--text)' : 'var(--text-muted)' }}>
+                            <button type="button" onClick={toggle} style={{
+                              display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, width: '100%',
+                              background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'inherit',
+                              color: 'inherit', textAlign: 'left',
+                            }}>
+                              <IconChevronDown size={13} style={{ color: 'var(--text-muted)', flexShrink: 0, transform: collapsed ? 'rotate(-90deg)' : 'none', transition: 'transform .15s' }} />
+                              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: secDone ? 'var(--text-muted)' : (g.id ? 'var(--text)' : 'var(--text-muted)') }}>
                                 {g.name || 'Pozostałe'}
                               </span>
+                              {secDone && <IconCheck size={12} style={{ color: 'var(--income, #5FBF98)' }} />}
                               <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>{doneN}/{g.items.length}</span>
                               <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                            </div>
-                            {grid(g.items)}
+                            </button>
+                            {!collapsed && grid(g.items)}
                           </div>
                         )
                       })
