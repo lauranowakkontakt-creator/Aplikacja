@@ -116,13 +116,11 @@ export function tokenizeDreamText(text, people = [], symbols = []) {
   const isWord = (c) => !!c && /[\p{L}\p{N}]/u.test(c)
   const lowText = text.toLowerCase()
 
-  // Symbole przypięte do snu — do dopasowania po # (najdłuższa nazwa pierwsza).
+  // Symbole przypięte do snu — najdłuższa nazwa pierwsza (żeby „stary dom" wygrał
+  // nad „dom"). Dopasowujemy zarówno po #, jak i w zwykłym tekście (także WIELE słów).
   const symList = symbols.filter(s => s.name?.trim())
     .map(s => ({ s, low: s.name.trim().toLowerCase() }))
     .sort((a, b) => b.low.length - a.low.length)
-  // Zwykłe (jednowyrazowe) nazwy symboli — do zgodności ze starymi snami bez #.
-  const symExact = new Map()
-  for (const { s, low } of symList) if (!low.includes(' ')) if (!symExact.has(low)) symExact.set(low, s)
   // Formy osób (imię, odmiany, ksywki) — najdłuższa pierwsza.
   const forms = []
   for (const p of people) for (const f of personForms(p)) if (f) forms.push({ p, low: f.toLowerCase(), len: f.length })
@@ -130,29 +128,22 @@ export function tokenizeDreamText(text, people = [], symbols = []) {
 
   const segs = []
   let plain = ''
-  const pushPlain = () => {
-    if (!plain) return
-    // W zwykłym tekście podświetl słowa równe dokładnie nazwie symbolu (stare sny).
-    if (symExact.size) {
-      plain.split(/([\p{L}\p{N}]+)/u).forEach(seg => {
-        const hit = seg && symExact.get(seg.toLowerCase())
-        if (hit && /^[\p{L}\p{N}]+$/u.test(seg)) segs.push({ t: seg, kind: 'symbol', id: hit.id, color: hit.color || '#5BB6D9' })
-        else if (seg) segs.push({ t: seg, kind: 'plain', id: null, color: null })
-      })
-    } else {
-      segs.push({ t: plain, kind: 'plain', id: null, color: null })
-    }
-    plain = ''
+  const pushPlain = () => { if (plain) { segs.push({ t: plain, kind: 'plain', id: null, color: null }); plain = '' } }
+  const symAt = (pos) => {
+    const rest = lowText.slice(pos)
+    return symList.find(({ low }) => rest.startsWith(low) && !isWord(text[pos + low.length]))
   }
 
   let i = 0
   while (i < text.length) {
     const c = text[i]
-    const prev = i > 0 ? text[i - 1] : ' '
-    if ((c === '#' || c === '@') && !isWord(prev)) {
+    const atBoundary = i === 0 || !isWord(text[i - 1])
+
+    // Znaczniki #symbol / @osoba — prefiks jest pochłaniany (nie pokazujemy go).
+    if (atBoundary && (c === '#' || c === '@')) {
       const restLow = lowText.slice(i + 1)
       if (c === '#') {
-        const m = symList.find(({ low }) => restLow.startsWith(low) && !isWord(text[i + 1 + low.length]))
+        const m = symAt(i + 1)
         if (m) { pushPlain(); segs.push({ t: text.slice(i + 1, i + 1 + m.low.length), kind: 'symbol', id: m.s.id, color: m.s.color || '#5BB6D9' }); i += 1 + m.low.length; continue }
         const w = text.slice(i + 1).match(/^[\p{L}\p{N}]+/u)
         if (w) { pushPlain(); segs.push({ t: w[0], kind: 'symbol', id: null, color: '#5BB6D9' }); i += 1 + w[0].length; continue }
@@ -163,6 +154,13 @@ export function tokenizeDreamText(text, people = [], symbols = []) {
         if (w) { pushPlain(); segs.push({ t: w[0], kind: 'person', id: null, color: null }); i += 1 + w[0].length; continue }
       }
     }
+
+    // Zwykły tekst: podświetl nazwę symbolu (też wielowyrazową) bez #.
+    if (atBoundary && isWord(c)) {
+      const m = symAt(i)
+      if (m) { pushPlain(); segs.push({ t: text.slice(i, i + m.low.length), kind: 'symbol', id: m.s.id, color: m.s.color || '#5BB6D9' }); i += m.low.length; continue }
+    }
+
     plain += c
     i++
   }

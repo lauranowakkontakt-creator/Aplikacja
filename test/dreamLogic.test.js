@@ -51,6 +51,29 @@ test('tokenizeDreamText: stary sen bez # — dokładna nazwa symbolu też podśw
   assert.equal(syms[0].t, 'woda')
 })
 
+test('tokenizeDreamText: wielowyrazowy symbol w zwykłym tekście (bez #)', () => {
+  const symbols = [{ id: 's1', name: 'stary dom', color: '#abc' }]
+  const segs = tokenizeDreamText('wróciłam do stary dom i spałam', [], symbols)
+  const syms = segs.filter(s => s.kind === 'symbol')
+  assert.equal(syms.length, 1)
+  assert.equal(syms[0].t, 'stary dom')
+  assert.equal(syms[0].id, 's1')
+})
+
+test('tokenizeDreamText: dłuższa nazwa wygrywa (stary dom > dom)', () => {
+  const symbols = [{ id: 'd', name: 'dom' }, { id: 'sd', name: 'stary dom' }]
+  const segs = tokenizeDreamText('to był stary dom', [], symbols)
+  const syms = segs.filter(s => s.kind === 'symbol')
+  assert.equal(syms.length, 1)
+  assert.equal(syms[0].id, 'sd')
+})
+
+test('tokenizeDreamText: nazwa symbolu w środku słowa nie łapie', () => {
+  const symbols = [{ id: 'd', name: 'dom' }]
+  const segs = tokenizeDreamText('domek na wsi', [], symbols)
+  assert.ok(!segs.some(s => s.kind === 'symbol')) // „domek" != „dom"
+})
+
 test('tokenizeDreamText: e-mail nie jest traktowany jak @osoba', () => {
   const segs = tokenizeDreamText('napisz na a@b', [], [])
   assert.ok(!segs.some(s => s.kind === 'person'))
