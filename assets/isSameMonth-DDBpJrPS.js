@@ -1,1 +1,0 @@
-import{ax as a}from"./index-Bh4IgK9O.js";function g(t){return a(t).getDate()}function s(t,n){const e=a(t),o=a(n);return e.getFullYear()===o.getFullYear()&&e.getMonth()===o.getMonth()}export{g,s as i};
