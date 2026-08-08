@@ -3,8 +3,62 @@ import assert from 'node:assert/strict'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS,
   getEmotion, getCategory, parseMentions, parseSymbols, dreamPeopleIds, nameStem, personForms,
-  detectTrigger,
+  detectTrigger, tokenizeDreamText,
 } from '../src/utils/dreamLogic.js'
+
+test('tokenizeDreamText: #symbol podświetlony bez prefiksu, z id i kolorem', () => {
+  const symbols = [{ id: 's1', name: 'drzewo', color: '#5BB6D9' }]
+  const segs = tokenizeDreamText('Widziałam #drzewo w parku', [], symbols)
+  const sym = segs.find(s => s.kind === 'symbol')
+  assert.equal(sym.t, 'drzewo')
+  assert.equal(sym.id, 's1')
+  assert.equal(sym.color, '#5BB6D9')
+  // prefiks # nie trafia do tekstu
+  assert.ok(!segs.some(s => s.t.includes('#')))
+})
+
+test('tokenizeDreamText: #symbol wielowyrazowy dopasowany po nazwie', () => {
+  const symbols = [{ id: 's1', name: 'stary dom', color: '#fff' }]
+  const segs = tokenizeDreamText('Śniłam #stary dom nocą', [], symbols)
+  const sym = segs.find(s => s.kind === 'symbol')
+  assert.equal(sym.t, 'stary dom')
+  assert.equal(sym.id, 's1')
+  // reszta zostaje zwykłym tekstem
+  assert.ok(segs.some(s => s.kind === 'plain' && s.t.includes('nocą')))
+})
+
+test('tokenizeDreamText: @osoba dopasowana po formie, bez prefiksu, z id', () => {
+  const people = [{ id: 'p1', name: 'Kasia', color: '#E8607A' }]
+  const segs = tokenizeDreamText('Byłam z @Kasia nad morzem', people, [])
+  const per = segs.find(s => s.kind === 'person')
+  assert.equal(per.t, 'Kasia')
+  assert.equal(per.id, 'p1')
+  assert.equal(per.color, '#E8607A')
+})
+
+test('tokenizeDreamText: @osoba nierozpoznana i tak podświetlona (id null)', () => {
+  const segs = tokenizeDreamText('spotkałam @Zenobia', [], [])
+  const per = segs.find(s => s.kind === 'person')
+  assert.equal(per.t, 'Zenobia')
+  assert.equal(per.id, null) // brak dopasowania → nadal podświetlone
+})
+
+test('tokenizeDreamText: stary sen bez # — dokładna nazwa symbolu też podświetlona', () => {
+  const symbols = [{ id: 's1', name: 'woda', color: '#5BB6D9' }]
+  const segs = tokenizeDreamText('piłam wodę i woda była zimna', [], symbols)
+  const syms = segs.filter(s => s.kind === 'symbol')
+  assert.equal(syms.length, 1) // tylko dokładne „woda", nie „wodę"
+  assert.equal(syms[0].t, 'woda')
+})
+
+test('tokenizeDreamText: e-mail nie jest traktowany jak @osoba', () => {
+  const segs = tokenizeDreamText('napisz na a@b', [], [])
+  assert.ok(!segs.some(s => s.kind === 'person'))
+})
+
+test('tokenizeDreamText: pusty tekst → pusto', () => {
+  assert.deepEqual(tokenizeDreamText('', [], []), [])
+})
 
 test('detectTrigger: #symbol jednowyrazowy', () => {
   const t = detectTrigger('Śniło mi się #drzewo')

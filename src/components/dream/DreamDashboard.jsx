@@ -13,7 +13,7 @@ import DreamMenu from './DreamMenu'
 import { toast } from '../Toast'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS, getEmotion, getCategory,
-  parseMentions, dreamPeopleIds, scrubSymbolFromDreams, personForms, nameStem, detectTrigger,
+  parseMentions, dreamPeopleIds, scrubSymbolFromDreams, personForms, nameStem, detectTrigger, tokenizeDreamText,
 } from '../../utils/dreams'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
@@ -54,51 +54,28 @@ const SymbolChip = ({ symbol, onClick }) => (
   </Chip>
 )
 
-const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const WORD_RE = /^[\p{L}\p{N}]+$/u
-
-/* Treść snu: osoby jako @Imię (dokładne, pewne podświetlenie), symbole jako słowo.
-   Bez lookbehind, żeby działało też na starszym Safari/iOS. */
-function DreamText({ text, highlightPeople = [], highlightSymbols = [] }) {
+/* Treść snu: osoby (@Imię) i symbole (#nazwa) podświetlone kolorem, BEZ prefiksu.
+   Podświetlanie opiera się na znacznikach @/# i jawnym powiązaniu (id), a nie na
+   zgadywaniu po nazwie — patrz tokenizeDreamText. */
+function DreamText({ text, highlightPeople = [], highlightSymbols = [], onOpenSymbol }) {
   if (!text) return null
-  const baseStyle = { margin: 0, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }
-
-  // Każda osoba może być oznaczona wieloma formami (imię, ksywka…). Najdłuższa forma wygrywa.
-  const formToPerson = {}
-  for (const p of highlightPeople) for (const f of personForms(p)) if (!(f in formToPerson)) formToPerson[f] = p
-  const pNames = [...new Set(Object.keys(formToPerson))].sort((a, b) => b.length - a.length)
-  const syms = highlightSymbols.filter(s => s.name?.trim()).map(s => ({ sym: s, low: s.name.toLowerCase() }))
-
-  // Podświetl symbole w zwykłym fragmencie tekstu (dopasowanie po nazwie/prefiksie)
-  const renderSymbols = (str, keyBase) => {
-    if (!syms.length || !str) return str
-    return str.split(/([\p{L}\p{N}]+)/u).map((seg, i) => {
-      if (seg && WORD_RE.test(seg)) {
-        const low = seg.toLowerCase()
-        const m = syms.find(s => low === s.low || (s.low.length >= 4 && low.startsWith(s.low)))
-        if (m) return <span key={`${keyBase}-${i}`} style={{ color: m.sym.color || '#5BB6D9', fontWeight: 600 }}>{seg}</span>
-      }
-      return <span key={`${keyBase}-${i}`}>{seg}</span>
-    })
-  }
-
-  // Najpierw rozdziel po @Imię, resztę przepuść przez podświetlanie symboli
-  const personRe = pNames.length ? new RegExp(`(@(?:${pNames.map(escRe).join('|')}))`, 'gu') : null
-  const chunks = personRe ? text.split(personRe) : [text]
-
+  const segs = tokenizeDreamText(text, highlightPeople, highlightSymbols)
   return (
-    <p style={baseStyle}>
-      {chunks.map((chunk, ci) => {
-        if (chunk && chunk.startsWith('@') && formToPerson[chunk.slice(1)]) {
-          const person = formToPerson[chunk.slice(1)]
-          const form = chunk.slice(1) // dokładnie ta forma, którą wybrano przy pisaniu (imię/ksywka/pełne)
-          return (
-            <span key={ci} title={person.name} style={{
-              color: person.color || 'var(--accent)', fontWeight: 600, whiteSpace: 'nowrap',
-            }}>{form}</span>
-          )
-        }
-        return <span key={ci}>{renderSymbols(chunk || '', `c${ci}`)}</span>
+    <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+      {segs.map((s, i) => {
+        if (s.kind === 'plain') return <span key={i}>{s.t}</span>
+        const color = s.color || (s.kind === 'person' ? 'var(--accent)' : '#5BB6D9')
+        const clickable = s.kind === 'symbol' && s.id && onOpenSymbol
+        return (
+          <span key={i}
+            onClick={clickable ? () => onOpenSymbol(s.id) : undefined}
+            style={{
+              color, fontWeight: 600, whiteSpace: 'nowrap',
+              textDecoration: 'underline', textDecorationColor: color,
+              textUnderlineOffset: 2, textDecorationThickness: '1px',
+              cursor: clickable ? 'pointer' : 'inherit',
+            }}>{s.t}</span>
+        )
       })}
     </p>
   )
@@ -442,7 +419,7 @@ function DreamDetail({ dream, peopleById, symbolsById, onBack, onOpenSymbol, onE
 
       {dream.text && (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: 16 }}>
-          <DreamText text={dream.text} highlightPeople={linkedPeople} highlightSymbols={syms} />
+          <DreamText text={dream.text} highlightPeople={linkedPeople} highlightSymbols={syms} onOpenSymbol={onOpenSymbol} />
         </div>
       )}
 
@@ -569,14 +546,15 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
     }
     insertToken('@', form)
   }
-  // # tylko wybiera symbol — wstawiamy samo słowo (bez #); powiązanie trzyma lista symbolIds.
-  const pickSymbol = (s) => { if (!symbolIds.includes(s.id)) setSymbolIds([...symbolIds, s.id]); insertToken('', s.name) }
+  // Wybór symbolu: wstawiamy #nazwa (prefiks widać przy edycji, znika po zapisie),
+  // a powiązanie trzyma lista symbolIds.
+  const pickSymbol = (s) => { if (!symbolIds.includes(s.id)) setSymbolIds([...symbolIds, s.id]); insertToken('#', s.name) }
   const createAndPick = async () => {
     const n = trigger.query.trim()
     const sym = await onCreateSymbol(n)
     setLocalSymbols(prev => [...prev, sym])
     setSymbolIds(prev => prev.includes(sym.id) ? prev : [...prev, sym.id])
-    insertToken('', sym.name)
+    insertToken('#', sym.name)
   }
 
   // Przywróć kursor po wstawieniu
