@@ -9,12 +9,13 @@ import PauseForm from './PauseForm'
 import HabitReorderModal from './HabitReorderModal'
 import HabitDayGrid from './HabitDayGrid'
 import HabitMenu from './HabitMenu'
+import RoutineManager from './RoutineManager'
 import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronLeft, IconChevronRight, IconPlus } from '../Icons'
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
-  pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats } from '../../utils/habitLogic'
+  pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine } from '../../utils/habitLogic'
 
 function getPauseIcon(pauses, dateStr) {
   const p = pauseForDay(dateStr, pauses)
@@ -136,6 +137,8 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
   const [selectedDay, setSelectedDay] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [showArchived, setShowArchived] = useState(false)
   const [showReorder, setShowReorder] = useState(false)
+  const [showRoutineMgr, setShowRoutineMgr] = useState(false)
+  const [routines, setRoutines]       = useState([])
   const [statPeriod, setStatPeriod]   = useState('month')
   const [dashMonth, setDashMonth]     = useState(new Date())     // nawigacja miesiąca na dashboardzie
   const [weekAnchor, setWeekAnchor]   = useState(new Date())     // nawigacja tygodnia w statystykach
@@ -159,6 +162,11 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitCategories'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, label: d.data().name, icon: d.data().icon || 'IcTag', color: d.data().color }))))
+  }, [user.uid])
+
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'habitRoutines'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byRoutineOrder)))
   }, [user.uid])
 
   const toggleDay = async (habit, date) => {
@@ -212,6 +220,7 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
     if (id === 'stats') setView('stats')
     else if (id === 'pause') setShowPause(true)
     else if (id === 'reorder') setShowReorder(true)
+    else if (id === 'routines') setShowRoutineMgr(true)
   }
   const addBtn = (
     <button className="hdr-btn accent" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk">
@@ -502,11 +511,32 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
               <div className="list-empty"><p>Brak nawyków</p><p className="list-empty-hint">Kliknij "+ Nowy" aby dodać</p></div>
             ) : (
               <>
-                {/* Obowiązkowe na dziś */}
+                {/* Obowiązkowe na dziś — pogrupowane w rutyny (części dnia), jeśli są */}
                 {mandatory.length > 0 && (
                   <div style={{ marginBottom: extra.length > 0 ? 18 : 0 }}>
                     {kicker('Na dziś')}
-                    {grid(mandatory)}
+                    {(() => {
+                      const groups = groupByRoutine(mandatory, routines, x => x.h.routineId)
+                      // Nagłówki sekcji pokazujemy tylko, gdy realnie dzielą dzień na
+                      // części (są rutyny i choć jedna nazwana grupa). Inaczej — jak dawniej.
+                      const showHeaders = routines.length > 0 && groups.some(g => g.id != null)
+                      if (!showHeaders) return grid(mandatory)
+                      return groups.map(g => {
+                        const doneN = g.items.filter(x => x.h.completedDates?.includes(selectedDay)).length
+                        return (
+                          <div key={g.id ?? '_none'} style={{ marginBottom: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: g.id ? 'var(--text)' : 'var(--text-muted)' }}>
+                                {g.name || 'Pozostałe'}
+                              </span>
+                              <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>{doneN}/{g.items.length}</span>
+                              <span style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                            </div>
+                            {grid(g.items)}
+                          </div>
+                        )
+                      })
+                    })()}
                   </div>
                 )}
 
@@ -735,6 +765,7 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
       )}
 
       {showPause && <PauseForm user={user} onClose={() => setShowPause(false)} />}
+      {showRoutineMgr && <RoutineManager user={user} onClose={() => setShowRoutineMgr(false)} />}
       {showReorder && <HabitReorderModal user={user} habits={activeHabits} onClose={() => setShowReorder(false)} />}
       {showForm && (
         <HabitForm user={user} onClose={() => { setShowForm(false); setEditHabit(null) }} editData={editHabit} />

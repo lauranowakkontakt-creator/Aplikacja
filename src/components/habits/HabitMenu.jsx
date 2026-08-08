@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { IconPause, IconReorder, IconMoreVert, IconChart } from '../Icons'
+import { IconPause, IconReorder, IconMoreVert, IconChart, IconClock } from '../Icons'
 
 // Menu „trzy kropki" dla Nawyków — spójne wizualnie z BudgetMenu (te same klasy CSS).
 // Kryje opcje Pauza i Kolejność, żeby nagłówek był czysty (tylko + i ⋮).
@@ -14,8 +14,9 @@ export default function HabitMenu({ onAction, canReorder = true }) {
   }, [])
 
   const items = [
-    { id: 'stats',   Icon: IconChart,   label: 'Analiza i statystyki' },
-    { id: 'pause',   Icon: IconPause,   label: 'Pauza (wyjazd / choroba)' },
+    { id: 'stats',    Icon: IconChart,   label: 'Analiza i statystyki' },
+    { id: 'routines', Icon: IconClock,   label: 'Rutyny (części dnia)' },
+    { id: 'pause',    Icon: IconPause,   label: 'Pauza (wyjazd / choroba)' },
     ...(canReorder ? [{ id: 'reorder', Icon: IconReorder, label: 'Kolejność nawyków' }] : []),
   ]
 

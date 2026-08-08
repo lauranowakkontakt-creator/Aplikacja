@@ -6,6 +6,8 @@ import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconArchive, IconRestore, 
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import HabitCategoryManager from './HabitCategoryManager'
+import RoutineManager from './RoutineManager'
+import { byRoutineOrder } from '../../utils/habitLogic'
 
 export const HABIT_CATEGORIES = [
   { id: 'health',  label: 'Zdrowie',   icon: 'IcDrop' },
@@ -47,10 +49,18 @@ export default function HabitForm({ user, onClose, editData }) {
   const [error, setError]         = useState('')
   const [customCats, setCustomCats] = useState([])
   const [showCatMgr, setShowCatMgr] = useState(false)
+  const [routineId, setRoutineId] = useState(editData?.routineId || null)
+  const [routines, setRoutines]   = useState([])
+  const [showRoutineMgr, setShowRoutineMgr] = useState(false)
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitCategories'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, label: d.data().name, icon: d.data().icon || 'IcTag', color: d.data().color }))))
+  }, [user.uid])
+
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'habitRoutines'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byRoutineOrder)))
   }, [user.uid])
 
   const categories = [...HABIT_CATEGORIES, ...customCats]
@@ -85,7 +95,7 @@ export default function HabitForm({ user, onClose, editData }) {
     const data = {
       name: name.trim(), emoji: iconKey, color, category, frequency, frequencyDays: getFreqDays(),
       startDate, endDate: hasEnd && endDate ? endDate : null,
-      checklist,
+      checklist, routineId: routineId || null,
       updatedAt: Timestamp.now()
     }
     try {
@@ -173,6 +183,33 @@ export default function HabitForm({ user, onClose, editData }) {
                 >
                   <CatIcon categoryId={cat.id} emoji={cat.icon} size={16} />
                   <span>{cat.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Rutyna (część dnia) — opcjonalna */}
+          <div className="form-group">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ margin: 0 }}>Rutyna <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— część dnia (opcjonalnie)</span></label>
+              <button type="button" onClick={() => setShowRoutineMgr(true)} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none',
+                color: 'var(--accent)', cursor: 'pointer', fontSize: 12, fontWeight: 600, padding: 0, fontFamily: 'inherit',
+              }}>
+                <IconEdit size={12} /> Zarządzaj
+              </button>
+            </div>
+            <div className="habit-cat-grid" style={{ marginTop: 8 }}>
+              <button type="button"
+                className={`habit-cat-btn ${!routineId ? 'active' : ''}`}
+                onClick={() => setRoutineId(null)}>
+                <span>Bez grupy</span>
+              </button>
+              {routines.map(r => (
+                <button key={r.id} type="button"
+                  className={`habit-cat-btn ${routineId === r.id ? 'active' : ''}`}
+                  onClick={() => setRoutineId(r.id)}>
+                  <span>{r.name}</span>
                 </button>
               ))}
             </div>
@@ -282,6 +319,7 @@ export default function HabitForm({ user, onClose, editData }) {
         </form>
       </div>
       {showCatMgr && <HabitCategoryManager user={user} onClose={() => setShowCatMgr(false)} />}
+      {showRoutineMgr && <RoutineManager user={user} onClose={() => setShowRoutineMgr(false)} />}
     </div>
   )
 }

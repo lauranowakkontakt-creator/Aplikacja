@@ -32,6 +32,35 @@ export function byHabitOrder(a, b) {
   return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)
 }
 
+// Rutyny (części dnia / dowolne grupy) — kolejność wg pola `order`, remis wg
+// czasu utworzenia. Taki sam kontrakt jak byHabitOrder.
+export function byRoutineOrder(a, b) {
+  const oa = a.order ?? Number.MAX_SAFE_INTEGER
+  const ob = b.order ?? Number.MAX_SAFE_INTEGER
+  if (oa !== ob) return oa - ob
+  return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)
+}
+
+// Grupuje nawyki (lub dowolne elementy) w sekcje wg przypisanej rutyny.
+// `items` — lista elementów; `routines` — lista grup; `keyOf(item)` zwraca id
+// rutyny elementu. Zwraca sekcje w kolejności rutyn (tylko niepuste), a na końcu
+// sekcję bez grupy (id:null), jeśli są nieprzypisane elementy.
+// Gdy nie ma żadnych rutyn — zwraca jedną sekcję {id:null} ze wszystkimi
+// elementami, więc widok wygląda jak wcześniej (rutyny są opcjonalne).
+export function groupByRoutine(items = [], routines = [], keyOf = (x) => x.routineId) {
+  const ordered = [...routines].sort(byRoutineOrder)
+  const sections = ordered.map(r => ({ id: r.id, name: r.name, items: [] }))
+  const byId = Object.fromEntries(sections.map(s => [s.id, s]))
+  const none = { id: null, name: null, items: [] }
+  for (const it of items) {
+    const rid = keyOf(it)
+    ;(byId[rid] || none).items.push(it)
+  }
+  const result = sections.filter(s => s.items.length > 0)
+  if (none.items.length > 0) result.push(none)
+  return result
+}
+
 // Status nawyku danego dnia:
 //  'before-start' | 'after-end' | 'paused' | 'due' | 'off'
 //  'due'  = obowiązkowy tego dnia (wg harmonogramu)

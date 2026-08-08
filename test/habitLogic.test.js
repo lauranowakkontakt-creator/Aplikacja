@@ -1,7 +1,49 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
-  PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats } from '../src/utils/habitLogic.js'
+  PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats,
+  byRoutineOrder, groupByRoutine } from '../src/utils/habitLogic.js'
+
+test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
+  const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
+  assert.deepEqual([a, b, c].sort(byRoutineOrder).map(x => x.id), ['b', 'c', 'a'])
+})
+
+test('groupByRoutine: sekcje w kolejności rutyn + „bez grupy" na końcu', () => {
+  const routines = [{ id: 'wiecz', name: 'Wieczór', order: 2 }, { id: 'poranek', name: 'Poranek', order: 0 }]
+  const habits = [
+    { id: 'h1', routineId: 'poranek' },
+    { id: 'h2', routineId: 'wiecz' },
+    { id: 'h3', routineId: 'poranek' },
+    { id: 'h4', routineId: null },       // bez grupy
+    { id: 'h5', routineId: 'nieistnieje' }, // osierocone → bez grupy
+  ]
+  const g = groupByRoutine(habits, routines)
+  assert.deepEqual(g.map(s => s.id), ['poranek', 'wiecz', null])
+  assert.deepEqual(g[0].items.map(h => h.id), ['h1', 'h3'])
+  assert.deepEqual(g[1].items.map(h => h.id), ['h2'])
+  assert.deepEqual(g[2].items.map(h => h.id), ['h4', 'h5'])
+})
+
+test('groupByRoutine: pomija puste rutyny', () => {
+  const routines = [{ id: 'a', name: 'A', order: 0 }, { id: 'b', name: 'B', order: 1 }]
+  const g = groupByRoutine([{ id: 'h1', routineId: 'b' }], routines)
+  assert.deepEqual(g.map(s => s.id), ['b'])
+})
+
+test('groupByRoutine: brak rutyn → jedna sekcja bez grupy ze wszystkim', () => {
+  const g = groupByRoutine([{ id: 'h1', routineId: null }, { id: 'h2', routineId: 'x' }], [])
+  assert.equal(g.length, 1)
+  assert.equal(g[0].id, null)
+  assert.deepEqual(g[0].items.map(h => h.id), ['h1', 'h2'])
+})
+
+test('groupByRoutine: własny keyOf (np. elementy {h})', () => {
+  const routines = [{ id: 'p', name: 'Poranek', order: 0 }]
+  const items = [{ h: { routineId: 'p' }, status: 'due' }]
+  const g = groupByRoutine(items, routines, x => x.h.routineId)
+  assert.deepEqual(g.map(s => s.id), ['p'])
+})
 
 // Punkt odniesienia: 2026-07-06 to poniedziałek (getDay() === 1)
 const TODAY = '2026-07-06'
