@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, query, where, orderBy, onSnapshot, Timestamp, getDocs } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import useFallbackTimeout from '../utils/useFallbackTimeout'
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import TransactionForm from './TransactionForm'
 import TransactionList from './TransactionList'
@@ -92,6 +92,9 @@ export default function Dashboard({ user, onCurrencyChange, setHeaderExtras }) {
   const investTotalsByCurrency = sumByCurrency(includedInvestments)
 
   const monthLabel = format(currentMonth, 'LLLL yyyy', { locale: pl })
+  const isCurrentMonth = isSameMonth(currentMonth, new Date())
+  const prevMonth = () => setCurrentMonth(m => subMonths(m, 1))
+  const nextMonth = () => setCurrentMonth(m => addMonths(m, 1))
 
   const handleMenuAction = (id) => {
     if (id === 'private') {
@@ -304,6 +307,18 @@ export default function Dashboard({ user, onCurrencyChange, setHeaderExtras }) {
 
       {activeTab === 'transactions' && (
         <>
+          {/* Nawigator miesiąca — przewijanie do poprzednich miesięcy */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r)', padding: '10px 14px', marginBottom: 14 }}>
+            <button className="month-btn" onClick={prevMonth} style={{ width: 32, height: 32 }} title="Poprzedni miesiąc">‹</button>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'capitalize' }}>{monthLabel}</div>
+              {isCurrentMonth
+                ? <div style={{ fontSize: 10, color: 'var(--accent)', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2 }}>Bieżący miesiąc</div>
+                : <button onClick={() => setCurrentMonth(new Date())} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 10, letterSpacing: '.06em', textTransform: 'uppercase', marginTop: 2, cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}>← wróć do bieżącego</button>}
+            </div>
+            <button className="month-btn" onClick={nextMonth} disabled={isCurrentMonth} style={{ width: 32, height: 32, opacity: isCurrentMonth ? 0.3 : 1 }} title="Następny miesiąc">›</button>
+          </div>
+
           {/* Balance hero — mobile */}
           {!privateMode && (
             <div className="balance-hero mobile-only">
