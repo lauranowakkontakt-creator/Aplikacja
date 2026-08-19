@@ -104,16 +104,19 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
   }, [category])
 
   // Waluta podąża za wybranym portfelem: wybór konta EUR ustawia walutę na EUR.
-  // Pierwsze uruchomienie pomijamy, żeby przy edycji nie nadpisać zapisanej
-  // waluty transakcji zanim wczytają się konta. Po zmianie konta przez
-  // użytkownika (albo po wybraniu domyślnego) synchronizujemy — a i tak można
-  // ją potem zmienić ręcznie selektorem obok kwoty.
-  const firstAcc = useRef(true)
+  // Synchronizujemy dopiero, gdy konta są wczytane, i tylko raz na dane konto —
+  // dzięki temu przy edycji zapisana waluta transakcji zostaje nietknięta,
+  // dopóki użytkowniczka sama nie przełączy konta. Przy nowej transakcji
+  // (także tej dodawanej z poziomu konta) walutę bierzemy z tego konta.
+  // Ręczny selektor obok kwoty i tak ma ostatnie słowo.
+  const syncedAcc = useRef(editData ? (editData.accountId || null) : null)
   useEffect(() => {
-    if (firstAcc.current) { firstAcc.current = false; return }
+    if (!accountId || syncedAcc.current === accountId) return
     const acc = accounts.find(a => a.id === accountId)
-    if (acc?.currency) setCurrency(acc.currency)
-  }, [accountId]) // eslint-disable-line
+    if (!acc) return
+    syncedAcc.current = accountId
+    if (acc.currency) setCurrency(acc.currency)
+  }, [accountId, accounts]) // eslint-disable-line
 
   const handleSubmit = async (e) => {
     e.preventDefault()

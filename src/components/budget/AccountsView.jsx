@@ -7,9 +7,10 @@ import { pl } from 'date-fns/locale'
 import AccountForm from './AccountForm'
 import AccountReorderModal from './AccountReorderModal'
 import TransactionForm from '../TransactionForm'
+import TransactionList from '../TransactionList'
 import CurrencyTiles from './CurrencyTiles'
 import { fmt, parseAmount } from '../../utils/currency'
-import { CatIcon, IconBank, IconCash, IconCard, IconSavings, IconTrendUp, IconTrendDown, IconEdit, IconTrash, IconEye, IconEyeOff, IconChevronLeft, IconReorder, IconClose } from '../Icons'
+import { IconBank, IconCash, IconCard, IconSavings, IconTrendUp, IconTrendDown, IconEdit, IconTrash, IconEye, IconEyeOff, IconChevronLeft, IconReorder, IconClose } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import { sortTransactionsByDate } from '../../utils/txSort'
@@ -102,6 +103,7 @@ export default function AccountsView({ user, privateMode }) {
       <AccountHistory
         user={user}
         account={live}
+        accounts={accounts}
         privateMode={privateMode}
         onBack={() => setSelected(null)}
         onEdit={() => { setEditAccount(live); setShowForm(true) }}
@@ -407,12 +409,14 @@ function InvestmentUpdateModal({ account, onSave, onClose }) {
   )
 }
 
-function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
+function AccountHistory({ user, account, accounts = [], privateMode, onBack, onEdit }) {
   const [transactions, setTx] = useState([])
   const [loading, setLoading] = useState(true)
   useFallbackTimeout(() => setLoading(false))
   const [months, setMonths]   = useState(1) // 1 | 3 | 12 | 0 (all)
   const [showTxForm, setShowTxForm] = useState(false)
+  const [editTx, setEditTx]   = useState(null)
+  const cur = account.currency || 'PLN'
 
   useEffect(() => {
     let q
@@ -440,6 +444,8 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
   const totalIn  = transactions.filter(t => t.type === 'income').reduce((s,t) => s+t.amount, 0)
   const totalOut = transactions.filter(t => t.type === 'expense').reduce((s,t) => s+t.amount, 0)
 
+  const closeTxForm = () => { setShowTxForm(false); setEditTx(null) }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {/* Header */}
@@ -450,13 +456,13 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
           <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{account.typeName}</p>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{privateMode ? '••••' : fmtAcc(account.balance || 0, account.currency || 'PLN')}</p>
+          <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{privateMode ? '••••' : fmtAcc(account.balance || 0, cur)}</p>
         </div>
         <button className="t-btn" onClick={onEdit}><IconEdit size={16} /></button>
       </div>
 
       {/* Dodawanie transakcji bezpośrednio na to konto (bez wchodzenia w pulpit) */}
-      <button className="btn-add-account" onClick={() => setShowTxForm(true)}>+ Dodaj transakcję</button>
+      <button className="btn-add-account" onClick={() => { setEditTx(null); setShowTxForm(true) }}>+ Dodaj transakcję</button>
 
       {/* Period filter */}
       <div className="habit-view-tabs">
@@ -470,42 +476,35 @@ function AccountHistory({ user, account, privateMode, onBack, onEdit }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px' }}>
             <p style={{ margin: '0 0 3px', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Wpływy</p>
-            <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#27AE60' }}>{privateMode ? '••••' : fmt(totalIn)}</p>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#27AE60' }}>{privateMode ? '••••' : fmt(totalIn, cur)}</p>
           </div>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px' }}>
             <p style={{ margin: '0 0 3px', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Wypływy</p>
-            <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--expense)' }}>{privateMode ? '••••' : fmt(totalOut)}</p>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--expense)' }}>{privateMode ? '••••' : fmt(totalOut, cur)}</p>
           </div>
         </div>
       )}
 
-      {/* Transaction list */}
-      {loading ? <div className="list-loading">Ładowanie...</div> :
-       transactions.length === 0 ? (
-        <div className="list-empty"><p>Brak transakcji w tym okresie</p></div>
-      ) : (
-        <div className="transaction-list">
-          {transactions.map(t => (
-            <div key={t.id} className={`transaction-item ${t.type}`}>
-              <div className="t-icon"><CatIcon categoryId={t.categoryId} emoji={t.categoryIcon} size={20} /></div>
-              <div className="t-details">
-                <span className="t-category">{t.category}</span>
-                {t.description && <span className="t-desc">{t.description}</span>}
-                <span className="t-date">{format(t.date, 'd MMM yyyy', { locale: pl })}</span>
-              </div>
-              <span className={`t-amount ${t.type}`}>
-                {t.type === 'income' ? '+' : '-'}{privateMode ? '••••' : fmt(t.amount)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Lista transakcji — ta sama co na pulpicie, więc z edycją i usuwaniem
+          (usunięcie cofa saldo konta, edycja idzie przez TransactionForm). */}
+      <TransactionList
+        transactions={transactions}
+        accounts={accounts}
+        loading={loading}
+        onEdit={(t) => { setEditTx(t); setShowTxForm(true) }}
+        user={user}
+        privateMode={privateMode}
+        showAccount={false}
+        emptyText="Brak transakcji w tym okresie"
+        emptyHint="Dodaj pierwszą przyciskiem powyżej"
+      />
 
       {showTxForm && (
         <TransactionForm
           user={user}
+          editData={editTx}
           defaultAccountId={account.id}
-          onClose={() => setShowTxForm(false)}
+          onClose={closeTxForm}
         />
       )}
     </div>

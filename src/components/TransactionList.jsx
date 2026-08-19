@@ -13,7 +13,14 @@ const getCatColor = (id, type) => ALL_CATS.find(c => c.id === id)?.color || (typ
 
 const hide = '••••'
 
-export default function TransactionList({ transactions, accounts = [], loading, onEdit, user, privateMode }) {
+export default function TransactionList({
+  transactions, accounts = [], loading, onEdit, user, privateMode,
+  emptyText = 'Brak transakcji w tym miesiącu',
+  emptyHint = 'Kliknij + aby dodać pierwszą',
+  // W historii konkretnego konta nazwa konta przy każdym wierszu to szum —
+  // wszystkie transakcje i tak są z tego samego portfela.
+  showAccount = true,
+}) {
   const accName = (id) => accounts.find(a => a.id === id)?.name
   const handleDelete = async (t) => {
     const ok = await confirmDialog({ title: 'Usunąć transakcję?', message: 'Ta operacja jest nieodwracalna.' })
@@ -41,8 +48,8 @@ export default function TransactionList({ transactions, accounts = [], loading, 
   if (transactions.length === 0) {
     return (
       <div className="list-empty">
-        <p>Brak transakcji w tym miesiącu</p>
-        <p className="list-empty-hint">Kliknij + aby dodać pierwszą</p>
+        <p>{emptyText}</p>
+        {emptyHint && <p className="list-empty-hint">{emptyHint}</p>}
       </div>
     )
   }
@@ -94,7 +101,7 @@ export default function TransactionList({ transactions, accounts = [], loading, 
                       {t.category}{t.subcategoryLabel ? <span style={{ opacity: 0.7 }}> › {t.subcategoryLabel}</span> : ''}
                     </span>
                     {t.description && <span className="t-desc">{t.description}</span>}
-                    {accName(t.accountId) && (
+                    {showAccount && accName(t.accountId) && (
                       <span className="t-desc" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, opacity: 0.85 }}>
                         <IconBank size={10} /> {accName(t.accountId)}
                       </span>
