@@ -25,7 +25,7 @@ export default function BudgetMenu({ onAction, privateMode, onCurrencyChange }) 
     { id: 'private',    Icon: privateMode ? IconEye : IconEyeOff, label: privateMode ? 'Pokaż salda' : 'Tryb prywatny', toggle: true },
     { id: 'search',     Icon: IconSearch,   label: 'Szukaj transakcji' },
     { id: 'stats',      Icon: IconChart,    label: 'Statystyki i analiza' },
-    { id: 'transfer',   Icon: IconTransfer, label: 'Przelew między kontami' },
+    { id: 'transfer',   Icon: IconTransfer, label: 'Przelew i przewalutowanie' },
     { id: 'regular',    Icon: IconRepeat,   label: 'Regularne płatności' },
     { id: 'shopping',   Icon: IconShopping, label: 'Lista zakupów' },
     { id: 'tithe',      Icon: IconPrayer,   label: 'Dziesięcina' },
