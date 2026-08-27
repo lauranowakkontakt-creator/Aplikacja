@@ -113,7 +113,7 @@ export default function Dashboard({ user, onCurrencyChange, setHeaderExtras }) {
     if (id === 'regular')    return setActiveTab('regular')
   }
 
-  // Górna belka („Mój Świat"): [＋ Dodaj][⋮ Więcej] — spójnie z Nawykami
+  // Górna belka („Apka"): [＋ Dodaj][⋮ Więcej] — spójnie z Nawykami
   useEffect(() => {
     setHeaderExtras?.(
       <>

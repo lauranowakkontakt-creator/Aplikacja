@@ -1,192 +1,360 @@
-import { useState, useEffect } from 'react'
-import { collection, query, where, orderBy, onSnapshot, Timestamp, doc, setDoc, getDoc } from 'firebase/firestore'
+import { useState, useEffect, useMemo } from 'react'
+import {
+  collection, query, where, orderBy, onSnapshot, Timestamp,
+  doc, setDoc, getDoc, writeBatch, increment,
+} from 'firebase/firestore'
 import { db } from '../../firebase/config'
-import { startOfMonth, endOfMonth, format } from 'date-fns'
-import { INCOME_CATEGORIES } from '../TransactionForm'
-import { fmt } from '../../utils/currency'
-import { CatIcon, IconPrayer, IconSettings, IconClose, IconRestore } from '../Icons'
+import { format } from 'date-fns'
+import { pl } from 'date-fns/locale'
+import { fmt, parseAmount, getCurrencyCode } from '../../utils/currency'
+import { byAccountOrder } from '../../utils/accountOrder'
+import { DEFAULT_EXPENSE_CATEGORIES } from '../../utils/categories'
+import {
+  normalizeTitheSettings, tithePool, titheDue, ensureTitheCategory,
+  DEFAULT_PERCENT, TITHE_CATEGORY, TITHE_CATEGORY_ID,
+} from '../../utils/titheLogic'
+import { CatIcon, IconPrayer, IconSettings, IconClose, IconCheck, IconChevronLeft } from '../Icons'
+import { confirmDialog } from '../ConfirmModal'
+import { toast } from '../Toast'
 
-const MONTH_KEY = () => format(new Date(), 'yyyy-MM')
-
+/* Dziesięcina — pula z zaznaczonych przychodów.
+   Przychody oznaczone „do dziesięciny" zbierają się aż do oddania; po wpłacie
+   dostają `titheSettledAt` i pula rusza od zera. Procent ustawia użytkownik. */
 export default function TitheView({ user, onClose }) {
-  const [income, setIncome]         = useState(0)
-  const [paid, setPaid]             = useState(0)
-  const [incCats, setIncCats]       = useState(INCOME_CATEGORIES)
-  const [titheCats, setTitheCats]   = useState(INCOME_CATEGORIES.map(c => c.id))
-  const [titheIncome, setTitheIncome] = useState(0)
-  const [showSettings, setShowSettings] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [zeroedMonths, setZeroedMonths] = useState([])
+  const [settings, setSettings] = useState(null) // null = jeszcze nie wiadomo
+  const [incomes, setIncomes]   = useState([])
+  const [accounts, setAccounts] = useState([])
+  const [view, setView]         = useState('main') // main | settings | pay
 
-  const monthKey = MONTH_KEY()
-  const zeroed = zeroedMonths.includes(monthKey)
-
-  // Pobierz kategorie przychodów (własne, jeśli ustawione)
   useEffect(() => {
-    getDoc(doc(db, 'users', user.uid, 'settings', 'categories')).then(d => {
-      if (d.exists() && d.data().income?.length) setIncCats(d.data().income)
-    })
+    getDoc(doc(db, 'users', user.uid, 'settings', 'tithe'))
+      .then(d => setSettings(normalizeTitheSettings(d.exists() ? d.data() : null)))
+      .catch(() => setSettings(normalizeTitheSettings(null)))
   }, [user.uid])
 
-  // Load saved tithe settings (kategorie + wyzerowane miesiące)
+  // Wszystkie przychody oznaczone do dziesięciny i jeszcze nierozliczone.
+  // Bez ograniczenia do miesiąca — pula zbiera się do momentu oddania.
+  //
+  // Świadomie tylko JEDEN filtr równościowy i bez orderBy: Firestore wymagałby
+  // wtedy złożonego indeksu, którego nikt by nie założył, i widok wywalałby się
+  // na telefonie. Typ i kolejność domykamy po stronie klienta — puli i tak
+  // nigdy nie jest dużo, bo znika po każdej wpłacie.
   useEffect(() => {
-    getDoc(doc(db, 'users', user.uid, 'settings', 'tithe')).then(d => {
-      if (d.exists()) {
-        if (d.data().categories?.length) setTitheCats(d.data().categories)
-        if (Array.isArray(d.data().zeroedMonths)) setZeroedMonths(d.data().zeroedMonths)
-      }
-    })
-  }, [user.uid])
-
-  // Listen to income transactions
-  useEffect(() => {
-    const start = startOfMonth(new Date())
-    const end   = endOfMonth(new Date())
     const q = query(
       collection(db, 'users', user.uid, 'transactions'),
-      where('type', '==', 'income'),
-      where('date', '>=', Timestamp.fromDate(start)),
-      where('date', '<=', Timestamp.fromDate(end)),
-      orderBy('date', 'desc')
+      where('tithe', '==', true)
     )
-    return onSnapshot(q, snap => {
-      let total = 0, titheTotal = 0
-      snap.docs.forEach(d => {
-        const t = d.data()
-        total += t.amount
-        if (titheCats.includes(t.categoryId)) titheTotal += t.amount
-      })
-      setIncome(total)
-      setTitheIncome(titheTotal)
-    })
-  }, [user.uid, titheCats])
-
-  // Listen to paid tithe/ofiara
-  useEffect(() => {
-    const start = startOfMonth(new Date())
-    const end   = endOfMonth(new Date())
-    const q = query(
-      collection(db, 'users', user.uid, 'transactions'),
-      where('categoryId', 'in', ['dziesiecina', 'ofiara']),
-      where('date', '>=', Timestamp.fromDate(start)),
-      where('date', '<=', Timestamp.fromDate(end)),
-      orderBy('date', 'desc')
-    )
-    return onSnapshot(q, snap => setPaid(snap.docs.reduce((s, d) => s + d.data().amount, 0)))
+    return onSnapshot(q,
+      snap => setIncomes(
+        snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0))
+      ),
+      () => setIncomes([]))
   }, [user.uid])
 
-  const tithe    = titheIncome * 0.10
-  const ofiara   = titheIncome * 0.05
-  const remaining = zeroed ? 0 : Math.max(0, tithe - paid)
-  const pct      = zeroed ? 100 : (tithe > 0 ? Math.min(100, (paid / tithe) * 100) : 0)
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
 
-  const saveSettings = async () => {
-    setSaving(true)
-    await setDoc(doc(db, 'users', user.uid, 'settings', 'tithe'), { categories: titheCats }, { merge: true })
-    setSaving(false)
-    setShowSettings(false)
+  const pool = useMemo(() => tithePool(incomes), [incomes])
+  const due  = useMemo(() => titheDue(pool.base, settings?.percent || DEFAULT_PERCENT), [pool.base, settings])
+
+  const saveSettings = async (next) => {
+    setSettings(next)
+    await setDoc(doc(db, 'users', user.uid, 'settings', 'tithe'), next, { merge: true })
   }
 
-  const toggleCat = (id) => {
-    setTitheCats(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
+  // Włączenie funkcji dopisuje kategorię „Dziesięcina" do kategorii wydatków —
+  // bez niej nie byłoby jak zaksięgować wpłaty.
+  const enable = async (percent) => {
+    const ref = doc(db, 'users', user.uid, 'settings', 'categories')
+    const snap = await getDoc(ref).catch(() => null)
+    const current = snap?.exists() && snap.data().expense?.length
+      ? snap.data().expense
+      : DEFAULT_EXPENSE_CATEGORIES
+    const withTithe = ensureTitheCategory(current)
+    if (withTithe !== current) {
+      await setDoc(ref, { expense: withTithe }, { merge: true }).catch(() => {})
+    }
+    await saveSettings({ enabled: true, percent })
+    toast.success('Dziesięcina włączona')
+    setView('main')
   }
 
-  const toggleZero = async () => {
-    const next = zeroed ? zeroedMonths.filter(m => m !== monthKey) : [...zeroedMonths, monthKey]
-    setZeroedMonths(next)
-    await setDoc(doc(db, 'users', user.uid, 'settings', 'tithe'), { zeroedMonths: next }, { merge: true })
+  const disable = async () => {
+    const ok = await confirmDialog({
+      title: 'Wyłączyć dziesięcinę?',
+      message: 'Zapisane wpłaty i oznaczenia przychodów zostają — znika tylko ten widok i pytanie przy przychodzie.',
+      confirmLabel: 'Wyłącz',
+    })
+    if (!ok) return
+    await saveSettings({ ...settings, enabled: false })
+    onClose()
   }
 
+  if (!settings) {
+    return (
+      <Shell onClose={onClose}>
+        <div className="list-loading">Ładowanie...</div>
+      </Shell>
+    )
+  }
+
+  if (!settings.enabled) {
+    return (
+      <Shell onClose={onClose}>
+        <TitheOnboarding onEnable={enable} />
+      </Shell>
+    )
+  }
+
+  if (view === 'settings') {
+    return (
+      <Shell onClose={onClose} onBack={() => setView('main')} title="Ustawienia dziesięciny">
+        <TitheSettings
+          settings={settings}
+          onSave={async (pct) => { await saveSettings({ ...settings, percent: pct }); setView('main') }}
+          onDisable={disable}
+        />
+      </Shell>
+    )
+  }
+
+  if (view === 'pay') {
+    return (
+      <Shell onClose={onClose} onBack={() => setView('main')} title="Oddaj dziesięcinę">
+        <TithePayment
+          user={user} accounts={accounts} due={due} items={pool.items}
+          onDone={() => setView('main')}
+        />
+      </Shell>
+    )
+  }
+
+  return (
+    <Shell onClose={onClose} onSettings={() => setView('settings')}>
+      <div className="tithe-content">
+        <div className="tithe-hero">
+          <div className="tithe-hero-label">Do oddania ({settings.percent}%)</div>
+          <div className="tithe-hero-amount">{fmt(due)}</div>
+          <div className="tithe-hero-sub">
+            z {fmt(pool.base)} · {pool.count} {pool.count === 1 ? 'przychód' : 'przychodów'} w puli
+          </div>
+        </div>
+
+        {pool.count === 0 ? (
+          <p className="tithe-note">
+            Pula jest pusta. Przy dodawaniu przychodu zaznacz „Wlicz do dziesięciny",
+            a kwota pojawi się tutaj.
+          </p>
+        ) : (
+          <>
+            <div className="tithe-pool-label">W puli</div>
+            <div className="tithe-pool-list">
+              {pool.items.map(t => (
+                <div key={t.id} className="tithe-pool-item">
+                  <span className="tithe-pool-icon">
+                    <CatIcon categoryId={t.categoryId} emoji={t.categoryIcon} size={14} />
+                  </span>
+                  <div className="tithe-pool-main">
+                    <div className="tithe-pool-title">{t.description || t.category || 'Przychód'}</div>
+                    <div className="tithe-pool-meta">
+                      {t.date?.toDate ? format(t.date.toDate(), 'd MMM yyyy', { locale: pl }) : ''}
+                    </div>
+                  </div>
+                  <strong className="tithe-pool-amount">{fmt(t.amount)}</strong>
+                </div>
+              ))}
+            </div>
+
+            <button className="btn-save" onClick={() => setView('pay')} disabled={!(due > 0)}>
+              Oddaj {fmt(due)}
+            </button>
+            <p className="tithe-note">
+              Po zapisaniu wpłaty te przychody znikną z puli — kolejna dziesięcina liczy się od nowa.
+            </p>
+          </>
+        )}
+      </div>
+    </Shell>
+  )
+}
+
+function Shell({ children, onClose, onBack, onSettings, title }) {
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h3><IconPrayer size={18} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Dziesięcina</h3>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="t-btn" onClick={() => setShowSettings(v => !v)} title="Ustawienia kategorii"><IconSettings size={16} /></button>
+          <h3 style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            {onBack && (
+              <button className="t-btn" style={{ width: 26, height: 26 }} onClick={onBack} title="Wróć">
+                <IconChevronLeft size={14} />
+              </button>
+            )}
+            <IconPrayer size={17} /> {title || 'Dziesięcina'}
+          </h3>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {onSettings && (
+              <button className="t-btn" onClick={onSettings} title="Ustawienia"><IconSettings size={15} /></button>
+            )}
             <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
           </div>
         </div>
-
-        {showSettings ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
-              Wybierz kategorie przychodów wliczane do podstawy dziesięciny:
-            </p>
-            <div className="mood-emotions">
-              {incCats.map(cat => (
-                <button key={cat.id}
-                  className={`mood-emotion-btn ${titheCats.includes(cat.id) ? 'active' : ''}`}
-                  style={titheCats.includes(cat.id) ? { borderColor: '#27AE60', background: '#27AE6020', color: 'var(--text)' } : {}}
-                  onClick={() => toggleCat(cat.id)}
-                >
-                  <CatIcon categoryId={cat.id} emoji={cat.icon} size={15} /> {cat.label}
-                </button>
-              ))}
-            </div>
-            <button className="btn-save" onClick={saveSettings} disabled={saving}>
-              {saving ? 'Zapisywanie...' : 'Zapisz ustawienia'}
-            </button>
-          </div>
-        ) : (
-          <div className="tithe-content">
-            <p className="tithe-month">Ten miesiąc</p>
-
-            <div className="tithe-stat">
-              <span>Wszystkie przychody</span>
-              <strong>{fmt(income)}</strong>
-            </div>
-            <div className="tithe-stat">
-              <span>Podstawa dziesięciny</span>
-              <strong>{fmt(titheIncome)}</strong>
-            </div>
-
-            <div className="tithe-stat highlight">
-              <span>Dziesięcina (10%)</span>
-              <strong>{fmt(tithe)}</strong>
-            </div>
-            <div className="tithe-stat" style={{ borderLeft: '3px solid #8E44AD', paddingLeft: 10 }}>
-              <span>Ofiara (5%)</span>
-              <strong style={{ color: '#8E44AD' }}>{fmt(ofiara)}</strong>
-            </div>
-
-            <div className="tithe-stat paid">
-              <span>Już oddane (dziesięcina + ofiara)</span>
-              <strong>{fmt(paid)}</strong>
-            </div>
-
-            <div className="progress-bar-wrap" style={{ margin: '12px 0' }}>
-              <div className="progress-bar" style={{ width: `${pct}%` }} />
-            </div>
-
-            <div className="tithe-stat remaining">
-              <span>Pozostało (10%){zeroed ? ' · wyzerowane' : ''}</span>
-              <strong style={zeroed ? { color: 'var(--text-muted)' } : {}}>{fmt(remaining)}</strong>
-            </div>
-
-            {/* Wyzeruj ten miesiąc */}
-            <button
-              onClick={toggleZero}
-              style={{
-                width: '100%', marginTop: 6, padding: '10px', borderRadius: 10, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                fontSize: 13, fontWeight: 600, fontFamily: 'inherit',
-                border: `1px solid ${zeroed ? 'var(--accent)' : 'var(--border)'}`,
-                background: zeroed ? 'var(--accent-soft)' : 'transparent',
-                color: zeroed ? 'var(--accent)' : 'var(--text-muted)',
-              }}>
-              <IconRestore size={14} />
-              {zeroed ? 'Cofnij wyzerowanie tego miesiąca' : 'Wyzeruj ten miesiąc (nie płacę)'}
-            </button>
-
-            <p className="tithe-note">
-              {zeroed
-                ? 'Ten miesiąc oznaczony jako wyzerowany — pozostała dziesięcina liczona jest jako 0.'
-                : <>Kliknij <IconSettings size={13} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 2 }} /> aby wybrać które kategorie przychodów wliczają się w podstawę. Kwoty "Już oddane" pobierane są z kategorii Dziesięcina i Ofiara w transakcjach.</>}
-            </p>
-          </div>
-        )}
+        {children}
       </div>
+    </div>
+  )
+}
+
+function TitheOnboarding({ onEnable }) {
+  const [pct, setPct] = useState(String(DEFAULT_PERCENT))
+  const [busy, setBusy] = useState(false)
+  const value = parseAmount(pct)
+  const valid = value > 0 && value <= 100
+
+  return (
+    <div className="form">
+      <p className="pause-info">
+        Dziesięcina liczy się z przychodów, które sama zaznaczysz — przy każdym przychodzie
+        pojawi się pytanie „Wlicz do dziesięciny". Zaznaczone kwoty zbierają się w puli,
+        a po oddaniu pula rusza od zera.
+      </p>
+      <div className="form-group">
+        <label>Twój procent</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="text" inputMode="decimal" className="form-input" value={pct}
+            onChange={e => setPct(e.target.value)} style={{ maxWidth: 120 }} />
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-muted)' }}>%</span>
+        </div>
+      </div>
+      <button className="btn-save" disabled={!valid || busy}
+        onClick={async () => { setBusy(true); await onEnable(value); setBusy(false) }}>
+        {busy ? 'Włączanie...' : 'Włącz dziesięcinę'}
+      </button>
+      <p className="tithe-note">
+        Kategoria wydatku „Dziesięcina" dopisze się automatycznie.
+      </p>
+    </div>
+  )
+}
+
+function TitheSettings({ settings, onSave, onDisable }) {
+  const [pct, setPct] = useState(String(settings.percent))
+  const [busy, setBusy] = useState(false)
+  const value = parseAmount(pct)
+  const valid = value > 0 && value <= 100
+
+  return (
+    <div className="form">
+      <div className="form-group">
+        <label>Procent dziesięciny</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input type="text" inputMode="decimal" className="form-input" value={pct}
+            onChange={e => setPct(e.target.value)} style={{ maxWidth: 120 }} />
+          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-muted)' }}>%</span>
+        </div>
+      </div>
+      <button className="btn-save" disabled={!valid || busy}
+        onClick={async () => { setBusy(true); await onSave(value); setBusy(false) }}>
+        {busy ? 'Zapisywanie...' : 'Zapisz'}
+      </button>
+      <button type="button" className="tithe-disable" onClick={onDisable}>
+        Wyłącz dziesięcinę
+      </button>
+    </div>
+  )
+}
+
+/* Zapis wpłaty: wydatek w kategorii „Dziesięcina" + oznaczenie przychodów
+   z puli jako rozliczonych. Wszystko jednym batchem, żeby nie dało się
+   zaksięgować wpłaty bez wyczyszczenia puli (ani odwrotnie). */
+function TithePayment({ user, accounts, due, items, onDone }) {
+  const [amount, setAmount]   = useState(String(due).replace('.', ','))
+  const [accountId, setAccountId] = useState('')
+  const [date, setDate]       = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [note, setNote]       = useState('')
+  const [busy, setBusy]       = useState(false)
+  const [error, setError]     = useState('')
+
+  const ordered = [...accounts].sort(byAccountOrder)
+  useEffect(() => { if (!accountId && ordered[0]) setAccountId(ordered[0].id) }, [accounts]) // eslint-disable-line
+
+  const value = parseAmount(amount)
+
+  const save = async () => {
+    if (!(value > 0)) { setError('Podaj kwotę'); return }
+    if (!accountId)   { setError('Wybierz konto'); return }
+    setBusy(true); setError('')
+    try {
+      const batch = writeBatch(db)
+      const txRef = doc(collection(db, 'users', user.uid, 'transactions'))
+      batch.set(txRef, {
+        type: 'expense',
+        amount: value,
+        category: TITHE_CATEGORY.label,
+        categoryId: TITHE_CATEGORY_ID,
+        categoryIcon: TITHE_CATEGORY.icon,
+        currency: getCurrencyCode(),
+        description: note.trim() || 'Dziesięcina',
+        date: Timestamp.fromDate(new Date(date)),
+        accountId,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      })
+      batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(-value) })
+      const settledAt = Timestamp.now()
+      items.forEach(t => {
+        batch.update(doc(db, 'users', user.uid, 'transactions', t.id), {
+          titheSettledAt: settledAt, titheSettledTxId: txRef.id,
+        })
+      })
+      await batch.commit()
+      toast.success('Dziesięcina zapisana')
+      onDone()
+    } catch {
+      setError('Nie udało się zapisać')
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="form">
+      <div className="form-group">
+        <label>Kwota</label>
+        <input type="text" inputMode="decimal" className="form-input" value={amount}
+          onChange={e => setAmount(e.target.value)} autoFocus />
+      </div>
+      <div className="form-group">
+        <label>Z konta</label>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {ordered.map(a => (
+            <button key={a.id} type="button"
+              className={`account-chip ${accountId === a.id ? 'active' : ''}`}
+              onClick={() => setAccountId(a.id)}>
+              {accountId === a.id && <IconCheck size={10} style={{ marginRight: 4, verticalAlign: '-1px' }} />}
+              {a.name}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="form-group">
+        <label>Data</label>
+        <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} />
+      </div>
+      <div className="form-group">
+        <label>Opis <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(opcjonalnie)</span></label>
+        <input type="text" className="form-input" placeholder="np. zbiórka niedzielna"
+          value={note} onChange={e => setNote(e.target.value)} />
+      </div>
+      {error && <p className="form-error">{error}</p>}
+      <button className="btn-save" onClick={save} disabled={busy}>
+        {busy ? 'Zapisywanie...' : 'Zapisz wpłatę'}
+      </button>
+      <p className="tithe-note">
+        Rozliczy {items.length} {items.length === 1 ? 'przychód' : 'przychodów'} z puli.
+      </p>
     </div>
   )
 }

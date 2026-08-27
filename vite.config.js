@@ -29,8 +29,8 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
       },
       manifest: {
-        name: 'Mój Świat',
-        short_name: 'Mój Świat',
+        name: 'Apka',
+        short_name: 'Apka',
         description: 'Budżet, nawyki, modlitwa i więcej',
         theme_color: '#D4A574',
         background_color: '#14110D',

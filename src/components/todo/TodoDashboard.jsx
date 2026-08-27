@@ -128,7 +128,7 @@ export default function TodoDashboard({ user, setHeaderExtras }) {
   const active   = sortActive(filtered.filter(t => !t.done))
   const done     = filtered.filter(t => t.done)
 
-  // Górna belka („Mój Świat"): [⋮ Więcej — z Analizą][＋ Nowe zadanie].
+  // Górna belka („Apka"): [⋮ Więcej — z Analizą][＋ Nowe zadanie].
   // Hook przed early-returnem (zasady hooków).
   const handleMenu = (id) => {
     if (id === 'stats')   setView('stats')

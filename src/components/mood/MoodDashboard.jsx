@@ -146,7 +146,7 @@ export default function MoodDashboard({ user, setHeaderExtras }) {
     })
   }, [user.uid])
 
-  // Górna belka („Mój Świat"): [analiza][＋ Dodaj] — spójnie z innymi modułami.
+  // Górna belka („Apka"): [analiza][＋ Dodaj] — spójnie z innymi modułami.
   // „+” jest ostatni (przy ustawieniach). Hook przed early-returnem (zasady hooków).
   useEffect(() => {
     setHeaderExtras?.(

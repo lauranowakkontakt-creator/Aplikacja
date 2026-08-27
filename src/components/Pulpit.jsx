@@ -35,7 +35,10 @@ function greeting() {
   return 'Dobry wieczór'
 }
 
-export default function Pulpit({ user, onNavigate }) {
+export default function Pulpit({ user, onNavigate, visibleIds }) {
+  // Pulpit pokazuje tylko te moduły, które użytkownik zostawił widoczne
+  // (Ustawienia → Twoje aplikacje). Brak listy = pokazujemy wszystko.
+  const shows = (id) => !visibleIds || visibleIds.includes(id)
   const [accounts, setAccounts]     = useState([])
   const [habits, setHabits]         = useState([])
   const [pauses, setPauses]         = useState([])
@@ -213,11 +216,12 @@ export default function Pulpit({ user, onNavigate }) {
       && (!p.dateFrom || p.dateFrom <= dateStr) && (!p.dateTo || p.dateTo >= dateStr)).forEach(p => {
       items.push({ key: 'pm-' + p.id + '-' + dateStr, module: 'budget', color: '#E0B15A', time: null, label: p.name, meta: `${p.type === 'income' ? '+' : '−'}${fmt(p.amount)}` })
     })
-    // Sortuj: z godziną najpierw (wg godziny), reszta po
-    return items.sort((a, b) => (a.time ? 0 : 1) - (b.time ? 0 : 1) || (a.time || '').localeCompare(b.time || ''))
+    // Sortuj: z godziną najpierw (wg godziny), reszta po. Pozycje z ukrytych
+    // modułów odpadają — skoro apka jest schowana, nie ma jej też w agendzie.
+    return items.filter(it => shows(it.module)).sort((a, b) => (a.time ? 0 : 1) - (b.time ? 0 : 1) || (a.time || '').localeCompare(b.time || ''))
   }
-  const agenda         = useMemo(() => buildAgenda(today),    [events, todos, payments, today])
-  const agendaTomorrow = useMemo(() => buildAgenda(tomorrow), [events, todos, payments, tomorrow])
+  const agenda         = useMemo(() => buildAgenda(today),    [events, todos, payments, today, visibleIds])
+  const agendaTomorrow = useMemo(() => buildAgenda(tomorrow), [events, todos, payments, tomorrow, visibleIds])
 
   const habitsLeft = habitsStat.due - habitsStat.done
   const prayerLeft = prayerStat.active - prayerStat.prayedToday
@@ -265,6 +269,7 @@ export default function Pulpit({ user, onNavigate }) {
       <div className="pulpit-grid">
 
         {/* BUDŻET */}
+        {shows('budget') && (
         <PulpitCard accent="#33C3A6" Icon={IconBudget} label="Budżet" onClick={() => onNavigate('budget')}>
           <div className="pulpit-value" style={{ color: privateMode ? 'var(--text-muted)' : (budget.totalPLN >= 0 ? 'var(--income)' : 'var(--expense)') }}>
             {privateMode ? '••••' : fmt(budget.totalPLN)}
@@ -282,8 +287,10 @@ export default function Pulpit({ user, onNavigate }) {
             </div>
           )}
         </PulpitCard>
+        )}
 
         {/* NAWYKI */}
+        {shows('habits') && (
         <PulpitCard accent="#E0B15A" Icon={IconHabits} label="Nawyki" onClick={() => onNavigate('habits')}>
           <div className="pulpit-row">
             <Ring value={habitsStat.pct} size={56} thickness={6} color="#E0B15A" />
@@ -295,8 +302,10 @@ export default function Pulpit({ user, onNavigate }) {
             </div>
           </div>
         </PulpitCard>
+        )}
 
         {/* TO-DO */}
+        {shows('todo') && (
         <PulpitCard accent="#5BB6D9" Icon={IconTodo} label="To-do" onClick={() => onNavigate('todo')}>
           <div className="pulpit-value" style={{ fontSize: 26 }}>
             {todoStat.active}<span className="pulpit-value-dim"> {todoStat.active === 1 ? 'zadanie' : 'zadań'}</span>
@@ -307,8 +316,10 @@ export default function Pulpit({ user, onNavigate }) {
               : todoStat.dueToday > 0 ? `${todoStat.dueToday} na dziś` : 'na bieżąco'}
           </div>
         </PulpitCard>
+        )}
 
         {/* NASTRÓJ */}
+        {shows('mood') && (
         <PulpitCard accent="#9B7CF0" Icon={IconMood} label="Nastrój" onClick={() => onNavigate('mood')}>
           {moodStat.loggedToday ? (
             <div className="pulpit-row" style={{ gap: 8 }}>
@@ -322,8 +333,10 @@ export default function Pulpit({ user, onNavigate }) {
             {moodStat.avg > 0 ? `Śr. ${moodStat.avg.toFixed(1).replace('.', ',')}/10 · 30 dni` : 'Zapisz jak się masz'}
           </div>
         </PulpitCard>
+        )}
 
         {/* MODLITWA */}
+        {shows('prayer') && (
         <PulpitCard accent="#C9A24A" Icon={IconPrayer} label="Modlitwa" onClick={() => onNavigate('prayer')}>
           <div className="pulpit-value" style={{ fontSize: 26 }}>
             {prayerStat.prayedToday}<span className="pulpit-value-dim">/{prayerStat.active}</span>
@@ -334,34 +347,40 @@ export default function Pulpit({ user, onNavigate }) {
               : 'modlono dziś'}
           </div>
         </PulpitCard>
+        )}
 
         {/* WDZIĘCZNIK */}
+        {shows('gratitude') && (
         <PulpitCard accent="#E8A33D" Icon={IcSun} label="Wdzięcznik" onClick={() => onNavigate('gratitude')}>
           <div className="pulpit-value" style={{ fontSize: 26 }}>
             {gratStat.todayCount}<span className="pulpit-value-dim"> dziś</span>
           </div>
           <div className="pulpit-sub" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {gratStat.streak > 0
-              ? <><IconFlame size={11} style={{ color: '#E8A33D' }} /> {gratStat.streak} dni z rzędu</>
-              : 'Za co jesteś dziś wdzięczna?'}
+              ? <><IconFlame size={11} style={{ color: '#E8A33D', flexShrink: 0 }} /> {gratStat.streak} dni serii</>
+              : 'Za co dziękujesz?'}
           </div>
         </PulpitCard>
+        )}
 
         {/* WSPOMNIK */}
+        {shows('memories') && (
         <PulpitCard accent="#B05FA8" Icon={IcCamera} label="Wspomnik" onClick={() => onNavigate('memories')}>
           <div className="pulpit-value" style={{ fontSize: 26 }}>
-            {memStat.total}<span className="pulpit-value-dim"> {memStat.total === 1 ? 'wspomnienie' : 'zapisanych'}</span>
+            {memStat.total}<span className="pulpit-value-dim"> wpisów</span>
           </div>
           <div className="pulpit-sub">
             {memStat.flashback > 0
               ? `${memStat.flashback} sprzed lat — tego dnia`
               : memStat.last
                 ? `Ostatnio: ${memStat.last.title || 'bez tytułu'}`
-                : 'Zapisz, co się dziś wydarzyło'}
+                : 'Co się dziś wydarzyło?'}
           </div>
         </PulpitCard>
+        )}
 
         {/* BIBLIA */}
+        {shows('bible') && (
         <PulpitCard accent="#4F74D9" Icon={IconBook} label="Biblia" onClick={() => onNavigate('bible')}>
           <div className="pulpit-row">
             <Ring value={bibleStat.pct} size={56} thickness={6} color="#4F74D9" />
@@ -373,6 +392,7 @@ export default function Pulpit({ user, onNavigate }) {
             </div>
           </div>
         </PulpitCard>
+        )}
 
       </div>
     </div>

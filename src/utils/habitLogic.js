@@ -23,6 +23,31 @@ export function isPausedDay(dateStr, pauses = []) {
   return pauses.some(p => dateStr >= p.from && dateStr <= p.to)
 }
 
+// Jak pokazać dany dzień nawyku. Jeden wspólny słownik stanów dla siatki dni,
+// siatki tygodnia i statystyk — żeby te same sytuacje wyglądały wszędzie tak samo.
+//
+//   'future-paused' — zaplanowany wyjazd/choroba (jeszcze przed terminem)
+//   'future'        — zwykły przyszły dzień
+//   'done-paused'   — ZROBIONE mimo wyjazdu/choroby (wyróżniamy obwódką powodu)
+//   'done-bonus'    — zrobione poza planem (nawyk nie wypadał tego dnia)
+//   'done'          — zrobione zgodnie z planem
+//   'paused'        — dzień przerwy bez wykonania (nie kara)
+//   'missed'        — wypadało, nie zrobione
+//   'off'           — poza planem (wolne)
+export function habitDayKind({ habit, dateStr, pauses = [], today, isDone }) {
+  const done = isDone !== undefined
+    ? isDone
+    : (habit?.completedDates || []).includes(dateStr)
+  const status = isHabitDue(habit, dateStr, pauses)
+  const paused = status === 'paused'
+  if (dateStr > today) return paused ? 'future-paused' : 'future'
+  if (done) return paused ? 'done-paused' : status !== 'due' ? 'done-bonus' : 'done'
+  if (paused) return 'paused'
+  return status === 'due' ? 'missed' : 'off'
+}
+
+export const isDoneKind = (kind) => kind.startsWith('done')
+
 // Ustala kolejność sortowania nawyków — najpierw wg pola `order` (ustawianego
 // ręcznie w „Kolejności"), potem wg czasu utworzenia jako stabilna rezerwa.
 export function byHabitOrder(a, b) {

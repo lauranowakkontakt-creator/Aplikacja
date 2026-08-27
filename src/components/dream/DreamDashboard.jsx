@@ -123,7 +123,7 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed, setHead
     return m
   }, [symbols, dreams])
 
-  // Górna belka („Mój Świat"): [＋ Zapisz sen][⋮ Symbole / Statystyki].
+  // Górna belka („Apka"): [＋ Zapisz sen][⋮ Symbole / Statystyki].
   // Hook przed early-returnem (zasady hooków).
   useEffect(() => {
     setHeaderExtras?.(

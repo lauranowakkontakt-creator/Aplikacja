@@ -15,7 +15,8 @@ import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
-  pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine } from '../../utils/habitLogic'
+  pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
+  habitDayKind } from '../../utils/habitLogic'
 
 function getPauseIcon(pauses, dateStr) {
   const p = pauseForDay(dateStr, pauses)
@@ -233,7 +234,7 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
     </button>
   )
 
-  // Akcje modułu w górnej belce („Mój Świat"): [＋ Dodaj][⋮ Więcej — z Analizą].
+  // Akcje modułu w górnej belce („Apka"): [＋ Dodaj][⋮ Więcej — z Analizą].
   // UWAGA: hook musi być przed early-returnem (zasady hooków).
   useEffect(() => {
     setHeaderExtras?.(
@@ -264,7 +265,14 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
       if (paused) { const p = getPauseColor(pauses, d) || 'var(--text-muted)'; bg = p + '22'; border = `1px dashed ${p}88` }
       else { bg = 'transparent'; border = '1px dashed var(--border)' }
     }
-    else if (due > 0) { bg = `color-mix(in oklab, var(--warn) ${Math.round(22 + pct * 78)}%, var(--surface2))`; if (pct >= 1) border = '1px solid var(--warn)'; if (pct >= 0.5) color = 'var(--bg)' }
+    else if (due > 0) {
+      bg = `color-mix(in oklab, var(--warn) ${Math.round(22 + pct * 78)}%, var(--surface2))`
+      if (pct >= 1) border = '1px solid var(--warn)'
+      if (pct >= 0.5) color = 'var(--bg)'
+      // Coś zrobione, ale to był dzień wyjazdu/choroby — obwódka powodu,
+      // żeby nie wyglądał jak każdy inny dzień.
+      if (paused) { const p = getPauseColor(pauses, d) || 'var(--text-muted)'; border = `2px solid ${p}` }
+    }
     else if (paused) { const p = getPauseColor(pauses, d) || 'var(--text-muted)'; bg = p + '33'; border = `1px solid ${p}66` }
     const title = `${format(new Date(d + 'T12:00:00'), 'd MMM', { locale: pl })}${due ? ` • ${done}/${due}` : paused ? ` • ${pauseReasonMeta(pauseForDay(d, pauses)?.reason).label.toLowerCase()}${future ? ' (zaplanowane)' : ''}` : ' • wolne'}`
     return { bg, border, color, ring: isToday, title }
@@ -281,7 +289,17 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
       if (status === 'paused') { const m = pauseReasonMeta(pauseForDay(d, pauses)?.reason); bg = m.color + '22'; border = `1px dashed ${m.color}88` }
       else border = '1px dashed var(--border)'
     }
-    else if (isDone) { const bonus = status !== 'due'; bg = bonus ? deep : color; border = `1px solid ${bonus ? deep : color}`; textColor = '#fff' }
+    else if (isDone) {
+      const kind = habitDayKind({ habit, dateStr: d, pauses, today: TODAY, isDone: true })
+      if (kind === 'done-paused') {
+        // Zrobione mimo wyjazdu/choroby — obwódka w kolorze powodu.
+        const m = pauseReasonMeta(pauseForDay(d, pauses)?.reason)
+        bg = color; border = `2px solid ${m.color}`; textColor = '#fff'
+      } else {
+        const bonus = kind === 'done-bonus'
+        bg = bonus ? deep : color; border = `1px solid ${bonus ? deep : color}`; textColor = '#fff'
+      }
+    }
     else if (status === 'paused') { const m = pauseReasonMeta(pauseForDay(d, pauses)?.reason); bg = m.color + '33'; border = `1px solid ${m.color}66` }
     else if (status === 'due') { border = '1px solid var(--border-strong)' }
     else { border = '1px solid var(--border)' }
@@ -695,7 +713,11 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
                 const usedPauses = [...new Set(pauses.map(p => p.reason))]
                 return <>
                   {chip('var(--accent)', null, 'zrobione')}
-                  {chip('color-mix(in oklab, var(--accent) 58%, #000)', null, 'dodatkowo / w przerwie')}
+                  {chip('color-mix(in oklab, var(--accent) 58%, #000)', null, 'dodatkowo')}
+                  {/* Zrobione mimo wyjazdu/choroby — wypełnienie jak zwykle,
+                      ale obwódka w kolorze powodu przerwy. */}
+                  {usedPauses.length > 0 && chip('var(--accent)',
+                    `2px solid ${pauseReasonMeta(usedPauses[0]).color}`, 'zrobione mimo przerwy')}
                   {chip('transparent', '1px solid var(--border-strong)', 'pominięte')}
                   {usedPauses.map(rid => { const m = pauseReasonMeta(rid); return <span key={rid}>{chip(m.color + '33', `1px solid ${m.color}66`, m.label.toLowerCase())}</span> })}
                 </>

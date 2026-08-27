@@ -29,7 +29,6 @@ export const DEFAULT_EXPENSE_CATEGORIES = [
   { id: 'praca',         label: 'Praca',           icon: 'IcBriefcase',  color: '#BAAE99' },
   { id: 'firma',         label: 'Firma',           icon: 'IcBriefcase',  color: '#9AAFB8' },
   { id: 'dziesiecina',   label: 'Dziesięcina',     icon: 'IcCross',      color: '#C97A55' },
-  { id: 'ofiara',        label: 'Ofiara / Datek',  icon: 'IcCross',      color: '#D4A574' },
   { id: 'oszczednosci',  label: 'Oszczędności',    icon: 'IcVault',      color: '#A8B5A0' },
   { id: 'inne',          label: 'Inne',            icon: 'IconMore',     color: '#7A6E5C' },
 ]

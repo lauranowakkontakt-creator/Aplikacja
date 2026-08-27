@@ -42,6 +42,8 @@
 }
 
 html, body, #root { height: 100%; }
+/* iOS po obrocie do poziomu sam powiększa tekst — to go powstrzymuje. */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   font-family: var(--font-sans);
   background: var(--bg);
@@ -52,7 +54,7 @@ body {
 
 /* ===== LOADING ===== */
 .loading-screen {
-  min-height: 100vh; display: flex; flex-direction: column;
+  min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 16px; color: var(--text-muted);
 }
 .spinner {
@@ -64,7 +66,7 @@ body {
 
 /* ===== LOGIN ===== */
 .login-screen {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+  min-height: 100vh; min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 20px;
   background: radial-gradient(ellipse at 50% 0%, rgba(224,103,62,0.12) 0%, var(--bg) 60%);
 }
 .login-card {
@@ -144,7 +146,7 @@ body {
 .topbar {
   height: 62px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
   padding: 0 clamp(18px, 4vw, 36px); border-bottom: 1px solid var(--border);
-  background: rgba(11,12,18,.75); backdrop-filter: blur(14px); z-index: 10;
+  background: rgba(11,12,18,.75); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); z-index: 10;
 }
 .content { flex: 1; overflow-y: auto; overflow-x: hidden; }
 .content-inner { max-width: 1180px; margin: 0 auto; padding: clamp(20px, 3vw, 32px) clamp(18px, 4vw, 36px) 80px; }
@@ -166,7 +168,7 @@ body {
 
 .bottom-nav {
   display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
-  background: rgba(15,17,26,.92); backdrop-filter: blur(18px);
+  background: rgba(15,17,26,.92); backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
   border-top: 1px solid var(--border);
   padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
 }
@@ -325,7 +327,7 @@ button { touch-action: manipulation; }
        a .mod-header może się przykleić dokładnie pod spodem (top liczony z tej samej stałej). */
     height: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px));
     padding: env(safe-area-inset-top, 0px) 18px 0; border-bottom: 1px solid var(--border);
-    background: rgba(11,12,18,.85); backdrop-filter: blur(14px);
+    background: rgba(11,12,18,.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
     position: sticky; top: 0; z-index: 11;
   }
   .bottom-nav { display: flex; }
@@ -1231,7 +1233,7 @@ input[type="date"]::-webkit-datetime-edit { color: var(--text); }
   display: flex; align-items: center; gap: 10px;
   padding: 12px 16px; border-radius: 14px;
   border: 1px solid var(--border-strong);
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   min-width: 220px; max-width: 340px;
   cursor: pointer;
   animation: toastIn .25s var(--spring) both;
@@ -1825,6 +1827,10 @@ body { overscroll-behavior-y: none; }
 
 .pulpit-card {
   text-align: left; cursor: pointer; width: 100%;
+  /* Karta to <button>, a ten w gridzie ma domyślnie min-width: auto — długie
+     słowo („wspomnienia") rozpychało wtedy kolumnę i cały Pulpit wychodził
+     poza ekran. min-width: 0 pozwala kafelkowi zwęzić się do kolumny. */
+  min-width: 0; max-width: 100%;
   background: linear-gradient(150deg, var(--surface) 55%, color-mix(in oklab, var(--card-accent) 9%, var(--surface)) 100%);
   border: 1px solid var(--border);
   border-top: 2px solid color-mix(in oklab, var(--card-accent) 75%, transparent);
@@ -1850,15 +1856,16 @@ body { overscroll-behavior-y: none; }
   font-size: 10px; font-weight: 700; letter-spacing: .12em;
   text-transform: uppercase; color: var(--text-muted);
 }
-.pulpit-card-body { display: flex; flex-direction: column; gap: 4px; min-height: 52px; justify-content: center; }
+.pulpit-card-body { display: flex; flex-direction: column; gap: 4px; min-height: 52px; justify-content: center; min-width: 0; }
 
 .pulpit-value {
   font-size: 22px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .pulpit-value-dim { color: var(--text-muted); font-weight: 400; }
-.pulpit-sub { font-size: 11px; color: var(--text-muted); }
-.pulpit-row { display: flex; align-items: center; gap: 12px; }
+.pulpit-sub { font-size: 11px; color: var(--text-muted); min-width: 0; overflow-wrap: anywhere; }
+.pulpit-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.pulpit-row > * { min-width: 0; }
 
 /* ===================================================================
    MORE SHEET („Więcej" — launcher aplikacji)
@@ -1953,6 +1960,181 @@ body { overscroll-behavior-y: none; }
   background: color-mix(in oklab, var(--accent) 12%, transparent);
   color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 90px; flex-shrink: 0;
+}
+
+/* ===== DZIESIĘCINA ===== */
+.tithe-hero {
+  text-align: center; padding: 6px 0 14px;
+  border-bottom: 1px solid var(--border); margin-bottom: 14px;
+}
+.tithe-hero-label {
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.tithe-hero-amount {
+  font-size: 34px; font-weight: 700; letter-spacing: -.03em; margin-top: 4px;
+  color: var(--accent);
+}
+.tithe-hero-sub { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; }
+
+.tithe-pool-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 8px;
+}
+.tithe-pool-list {
+  display: flex; flex-direction: column; gap: 5px;
+  max-height: 240px; overflow-y: auto; margin-bottom: 14px;
+}
+.tithe-pool-item {
+  display: flex; align-items: center; gap: 9px;
+  background: var(--surface2); border-radius: 9px; padding: 8px 10px;
+}
+.tithe-pool-icon {
+  width: 26px; height: 26px; flex-shrink: 0; border-radius: 8px;
+  display: grid; place-items: center;
+  background: color-mix(in oklab, var(--accent) 14%, transparent); color: var(--accent);
+}
+.tithe-pool-main { flex: 1; min-width: 0; }
+.tithe-pool-title {
+  font-size: 12.5px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tithe-pool-meta { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+.tithe-pool-amount { flex-shrink: 0; font-size: 13px; font-weight: 700; }
+
+.tithe-disable {
+  width: 100%; margin-top: 10px; padding: 11px; border-radius: 10px; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+  transition: color .15s, border-color .15s;
+}
+.tithe-disable:hover { color: var(--expense); border-color: var(--expense); }
+
+/* Przełącznik „Wlicz do dziesięciny" w formularzu transakcji */
+.tithe-toggle {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 11px 12px; border-radius: 10px; cursor: pointer; font-family: inherit;
+  background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+  transition: border-color .15s, background .15s;
+}
+.tithe-toggle.on {
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 10%, var(--surface2));
+}
+.tithe-toggle-box {
+  width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px;
+  display: grid; place-items: center;
+  border: 1.5px solid var(--border-strong); color: #fff;
+  transition: background .15s, border-color .15s;
+}
+.tithe-toggle.on .tithe-toggle-box { background: var(--accent); border-color: var(--accent); }
+.tithe-toggle-text { display: flex; flex-direction: column; gap: 2px; font-size: 13px; font-weight: 600; }
+.tithe-toggle-hint { font-size: 10.5px; font-weight: 400; color: var(--text-muted); }
+
+/* ===== KALENDARZ — panel wybranego dnia ===== */
+.cal-daydetail {
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.cal-daydetail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.cal-daydetail-kicker {
+  font-size: 9px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--accent);
+}
+.cal-daydetail-title {
+  font-size: 15px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px;
+  text-transform: capitalize;
+}
+.cal-daydetail-add {
+  width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; border: none; cursor: pointer;
+  display: grid; place-items: center;
+  background: color-mix(in oklab, var(--accent) 16%, transparent); color: var(--accent);
+  transition: background .15s, transform .12s;
+}
+.cal-daydetail-add:hover { background: color-mix(in oklab, var(--accent) 26%, transparent); }
+.cal-daydetail-add:active { transform: scale(.92); }
+
+.cal-daydetail-list { display: flex; flex-direction: column; gap: 6px; }
+
+.cal-dayitem {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  background: var(--surface2); border: 1px solid transparent;
+  border-left: 3px solid var(--accent);
+  border-radius: 9px; padding: 8px 10px;
+  font-family: inherit; color: inherit;
+}
+.cal-dayitem.as-button { cursor: pointer; transition: border-color .15s, transform .14s; }
+.cal-dayitem.as-button:hover { border-color: var(--border-strong); }
+.cal-dayitem.as-button:active { transform: scale(.99); }
+
+.cal-dayitem-time {
+  flex-shrink: 0; min-width: 46px;
+  font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: var(--text-sub);
+}
+.cal-dayitem-main { flex: 1; min-width: 0; }
+.cal-dayitem-title {
+  font-size: 13px; font-weight: 600; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cal-dayitem-meta {
+  font-size: 10.5px; color: var(--text-muted); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cal-dayitem-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+.cal-daydetail-empty { font-size: 12.5px; color: var(--text-muted); }
+.cal-daydetail-empty p { margin: 0 0 10px; }
+.cal-daydetail-next-label {
+  font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 6px;
+}
+
+/* ===== UKŁAD APLIKACJI (Ustawienia → Twoje aplikacje) ===== */
+.drawer-hint {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 11px; line-height: 1.45; color: var(--text-muted);
+  margin: 0 2px 10px;
+}
+.drawer-hint svg { flex-shrink: 0; margin-top: 2px; }
+
+.mod-layout-list { display: flex; flex-direction: column; gap: 5px; }
+
+.mod-layout-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface2); border: 1px solid transparent;
+  border-radius: 10px; padding: 7px 8px;
+  transition: opacity .16s, border-color .16s;
+}
+.mod-layout-row.hidden { opacity: .42; }
+
+.mod-layout-num {
+  width: 16px; flex-shrink: 0; text-align: center;
+  font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+.mod-layout-icon {
+  width: 28px; height: 28px; flex-shrink: 0; border-radius: 8px;
+  display: grid; place-items: center;
+  background: color-mix(in oklab, var(--accent) 13%, transparent); color: var(--accent);
+}
+.mod-layout-label {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mod-layout-badge {
+  flex-shrink: 0; font-size: 8.5px; font-weight: 700; letter-spacing: .07em;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 99px;
+  background: color-mix(in oklab, var(--accent) 15%, transparent); color: var(--accent);
+}
+.mod-layout-btn { width: 30px; height: 30px; flex-shrink: 0; }
+.mod-layout-btn:disabled { opacity: .28; cursor: default; }
+.mod-layout-btn.on { color: var(--accent); }
+
+/* Na telefonie strzałki i oko muszą być wygodne w kciuk */
+@media (pointer: coarse) {
+  .mod-layout-btn { width: 36px; height: 36px; }
 }
 
 /* ===== WDZIĘCZNIK ===== */
@@ -2224,7 +2406,7 @@ body { overscroll-behavior-y: none; }
 
 /* Treść modułu ponad tłem; nagłówek/ramka aplikacji przepuszczają kolor */
 .app--glass .main, .app--glass .content { position: relative; z-index: 1; background: transparent; }
-/* Górna belka („Mój Świat") — jedno, przezroczyste, szklane pasmo dla każdego modułu */
+/* Górna belka („Apka") — jedno, przezroczyste, szklane pasmo dla każdego modułu */
 .app--glass .mobile-header {
   background: rgba(12,14,20,0.5);
   backdrop-filter: blur(18px) saturate(1.1); -webkit-backdrop-filter: blur(18px) saturate(1.1);

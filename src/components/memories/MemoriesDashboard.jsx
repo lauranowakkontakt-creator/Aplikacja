@@ -78,18 +78,6 @@ export default function MemoriesDashboard({ user, setHeaderExtras }) {
   return (
     <div className="memories-dashboard">
 
-      {/* Mobile module header */}
-      <div className="mod-header">
-        <div>
-          <div className="mod-header-kicker">Wspomnik</div>
-          <div className="mod-header-title">
-            {stats.total} {stats.total === 1 ? 'wspomnienie'
-              : stats.total % 10 >= 2 && stats.total % 10 <= 4 && (stats.total % 100 < 12 || stats.total % 100 > 14)
-                ? 'wspomnienia' : 'wspomnień'}
-          </div>
-        </div>
-      </div>
-
       <StatTiles tiles={[
         { label: 'Łącznie', value: stats.total, Icon: IcCamera, color: 'var(--accent)' },
         { label: 'W tym roku', value: stats.thisYear },

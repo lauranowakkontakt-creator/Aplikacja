@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats,
-  byRoutineOrder, groupByRoutine } from '../src/utils/habitLogic.js'
+  byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -241,4 +241,47 @@ test('rangeStats — pauza bez wykonania nie jest karą (pomijana)', () => {
 test('rangeStats — pusty zakres nawyków to zera', () => {
   const s = rangeStats([], [], '2026-07-04', '2026-07-06')
   assert.deepEqual(s, { expected: 0, done: 0, completions: 0, perfectDays: 0, dueDays: 0, pct: 0 })
+})
+
+// ── habitDayKind — wspólny język stanów dnia (w tym „zrobione mimo wyjazdu") ──
+
+test('habitDayKind — zrobione w trakcie wyjazdu ma własny stan', () => {
+  const habit = { completedDates: ['2026-08-27'], frequencyDays: [0,1,2,3,4,5,6] }
+  const pauses = [{ from: '2026-08-25', to: '2026-08-29', reason: 'vacation' }]
+  assert.equal(habitDayKind({ habit, dateStr: '2026-08-27', pauses, today: '2026-08-31' }), 'done-paused')
+  // ten sam nawyk, ten sam dzień, ale bez pauzy → zwykłe „zrobione"
+  assert.equal(habitDayKind({ habit, dateStr: '2026-08-27', pauses: [], today: '2026-08-31' }), 'done')
+})
+
+test('habitDayKind — dzień przerwy bez wykonania to nie pominięcie', () => {
+  const habit = { completedDates: [], frequencyDays: [0,1,2,3,4,5,6] }
+  const pauses = [{ from: '2026-08-25', to: '2026-08-29', reason: 'illness' }]
+  assert.equal(habitDayKind({ habit, dateStr: '2026-08-27', pauses, today: '2026-08-31' }), 'paused')
+  assert.equal(habitDayKind({ habit, dateStr: '2026-08-30', pauses, today: '2026-08-31' }), 'missed')
+})
+
+test('habitDayKind — zrobione poza planem to bonus', () => {
+  // nawyk tylko w poniedziałki (1); 2026-08-27 to czwartek
+  const habit = { completedDates: ['2026-08-27'], frequencyDays: [1] }
+  assert.equal(habitDayKind({ habit, dateStr: '2026-08-27', pauses: [], today: '2026-08-31' }), 'done-bonus')
+})
+
+test('habitDayKind — przyszłość, w tym zaplanowany wyjazd', () => {
+  const habit = { completedDates: [], frequencyDays: [0,1,2,3,4,5,6] }
+  const pauses = [{ from: '2026-09-10', to: '2026-09-14', reason: 'vacation' }]
+  assert.equal(habitDayKind({ habit, dateStr: '2026-09-12', pauses, today: '2026-08-31' }), 'future-paused')
+  assert.equal(habitDayKind({ habit, dateStr: '2026-09-20', pauses, today: '2026-08-31' }), 'future')
+})
+
+test('habitDayKind — isDone można podać z zewnątrz', () => {
+  const habit = { completedDates: [], frequencyDays: [0,1,2,3,4,5,6] }
+  assert.equal(habitDayKind({ habit, dateStr: '2026-08-27', pauses: [], today: '2026-08-31', isDone: true }), 'done')
+})
+
+test('isDoneKind — wszystkie warianty zrobionego', () => {
+  assert.ok(isDoneKind('done'))
+  assert.ok(isDoneKind('done-paused'))
+  assert.ok(isDoneKind('done-bonus'))
+  assert.ok(!isDoneKind('paused'))
+  assert.ok(!isDoneKind('missed'))
 })

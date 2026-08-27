@@ -1,7 +1,7 @@
 // Geometric SVG icon system — stroke-based, 24x24 viewBox
 import { useId } from 'react'
 
-// Znak marki „Mój Świat" — pomarańczowa siatka-kula (wariant A z projektu ikony)
+// Znak marki „Apka" — pomarańczowa siatka-kula (wariant A z projektu ikony)
 export const IconAppMark = ({ size = 28, rounded = true, style }) => {
   const uid = useId().replace(/:/g, '')
   const bg = `bg-${uid}`, glow = `glow-${uid}`, clip = `clip-${uid}`

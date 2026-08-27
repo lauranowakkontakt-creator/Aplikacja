@@ -1,9 +1,10 @@
-import { isHabitDue, pauseForDay, pauseReasonMeta, eachDayStr } from '../../utils/habitLogic'
+import { isHabitDue, pauseForDay, pauseReasonMeta, eachDayStr, habitDayKind } from '../../utils/habitLogic'
 
 // Siatka małych kwadracików — jeden na każdy dzień zakresu [start..end].
 // Kolor mówi, co się działo danego dnia (spójny język z siatką tygodnia):
 //   pełny kolor        — zrobione
-//   ciemniejszy kolor  — zrobione dodatkowo / w trakcie wyjazdu-choroby
+//   ciemniejszy kolor  — zrobione dodatkowo (nawyk nie wypadał tego dnia)
+//   kolor + obwódka    — zrobione MIMO wyjazdu/choroby (obwódka w kolorze powodu)
 //   kolor pauzy         — dzień wyjazdu/choroby bez wykonania (nie kara)
 //   pusta ramka         — obowiązkowe, pominięte
 //   ledwo widoczne      — poza planem / przed startem / przyszłość
@@ -23,7 +24,7 @@ export default function HabitDayGrid({ habit, pauses = [], start, end, today, co
         const isDone = done.has(d)
         const status = isHabitDue(habit, d, pauses) // before-start|after-end|paused|due|off
         const future = d > today
-        let bg = 'transparent', border = '1px solid transparent', title = d
+        let bg = 'transparent', border = '1px solid transparent', title = d, pauseRing = null
         if (future) {
           // Zaplanowana pauza (wyjazd/choroba) widoczna już przed terminem.
           if (status === 'paused') {
@@ -33,9 +34,20 @@ export default function HabitDayGrid({ habit, pauses = [], start, end, today, co
             border = '1px dashed var(--border)'
           }
         } else if (isDone) {
-          const bonus = status !== 'due'
-          bg = bonus ? deep : color; border = `1px solid ${bonus ? deep : color}`
-          title = `${d} • zrobione${bonus ? ' (dodatkowo)' : ''}`
+          const kind = habitDayKind({ habit, dateStr: d, pauses, today, isDone: true })
+          if (kind === 'done-paused') {
+            // Zrobione, choć trwał wyjazd/choroba — wypełnienie jak zawsze,
+            // ale obwódka w kolorze powodu, żeby było widać, że to nie był
+            // zwykły dzień.
+            const m = pauseReasonMeta(pauseForDay(d, pauses)?.reason)
+            bg = color; border = `2px solid ${m.color}`
+            pauseRing = m.color
+            title = `${d} • zrobione mimo: ${m.label.toLowerCase()}`
+          } else {
+            const bonus = kind === 'done-bonus'
+            bg = bonus ? deep : color; border = `1px solid ${bonus ? deep : color}`
+            title = `${d} • zrobione${bonus ? ' (dodatkowo)' : ''}`
+          }
         } else if (status === 'paused') {
           const m = pauseReasonMeta(pauseForDay(d, pauses)?.reason)
           bg = m.color + '33'; border = `1px solid ${m.color}66`; title = `${d} • ${m.label.toLowerCase()}`
@@ -47,7 +59,10 @@ export default function HabitDayGrid({ habit, pauses = [], start, end, today, co
         return (
           <div key={d} title={title} style={{
             width: cell, height: cell, borderRadius: radius, background: bg, border, boxSizing: 'border-box',
-            boxShadow: d === today ? '0 0 0 2px var(--warn)' : 'none',
+            boxShadow: [
+              d === today ? '0 0 0 2px var(--warn)' : null,
+              pauseRing ? `inset 0 0 0 1px ${pauseRing}` : null,
+            ].filter(Boolean).join(', ') || 'none',
           }} />
         )
       })}

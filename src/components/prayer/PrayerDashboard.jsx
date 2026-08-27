@@ -117,7 +117,7 @@ export default function PrayerDashboard({ user, setHeaderExtras }) {
     return s
   }, [allPrayedDates])
 
-  // Górna belka („Mój Świat"): [＋ Dodaj osobę][⋮ Statystyki / Archiwum / Tryb auto].
+  // Górna belka („Apka"): [＋ Dodaj osobę][⋮ Statystyki / Archiwum / Tryb auto].
   // Hook przed early-returnem (zasady hooków).
   useEffect(() => {
     setHeaderExtras?.(

@@ -11,6 +11,7 @@ import { pl } from 'date-fns/locale'
 import { ICON_CATALOG, CatIcon, IconEdit, IconTrash, IconClose, IconChevronLeft, IconChevronRight, IconChevronDown, IconCheck, IconCalendar, IconRepeat, IconPrayer, IconArchive, IconRestore, IconPlus } from '../Icons'
 import CalendarMenu from './CalendarMenu'
 import { confirmDialog } from '../ConfirmModal'
+import { eventsOnDate, todosOnDate, paymentsOnDate, sortDayItems, spanInfo, upcomingEvents, daysBetween } from '../../utils/calendarDay'
 import { toast } from '../Toast'
 import { setPersonHidden, purgePerson } from '../../utils/people'
 
@@ -250,7 +251,7 @@ export default function CalendarDashboard({ user, setHeaderExtras }) {
   const todosOnDay    = (day) => todos.filter(t => t.dueDate === format(day, 'yyyy-MM-dd'))
   const paymentsOnDay = (day) => payments.filter(p => p.dayOfMonth === getDate(day))
 
-  // Górna belka („Mój Świat"): [＋ Dodaj wydarzenie][⋮ Agenda / Osoby / Kategorie].
+  // Górna belka („Apka"): [＋ Dodaj wydarzenie][⋮ Agenda / Osoby / Kategorie].
   // Hook musi być przed early-returnem (zasady hooków).
   useEffect(() => {
     setHeaderExtras?.(
@@ -338,6 +339,21 @@ export default function CalendarDashboard({ user, setHeaderExtras }) {
             paymentsOnDay={paymentsOnDay}
           />
 
+          {/* Co się dzieje w klikniętym dniu — wcześniej klik tylko podświetlał
+              kratkę i nic nie pokazywał. */}
+          <DayDetail
+            day={selectedDay}
+            events={filterPersonId ? expandedEvents.filter(e => e.personId === filterPersonId) : expandedEvents}
+            todos={todos}
+            payments={payments}
+            categories={categories}
+            calPeople={calPeople}
+            onAdd={() => { setEditEvent(null); setShowForm(true) }}
+            onEdit={(e) => { setEditEvent(e); setShowForm(true) }}
+            onDelete={handleDelete}
+            onGoToDay={(d) => { setSelectedDay(d); setCurrentMonth(d) }}
+          />
+
           <div className="cal-mini-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 6, marginTop: 14 }}>
             {[[monthEvents.length,'Wydarzeń'],[todos.filter(t=>t.dueDate?.startsWith(monthStr)).length,'Zadań'],[payments.length,'Płatności']].map(([n,lbl]) => (
               <div key={lbl} style={{ background: 'var(--surface2)', borderRadius: 8, padding: '8px 10px', textAlign: 'center' }}>
@@ -398,6 +414,111 @@ export default function CalendarDashboard({ user, setHeaderExtras }) {
 }
 
 /* ─── CalendarGrid ─── */
+/* ─── DayDetail — co się dzieje w wybranym dniu ─────────────────────────
+   Klik w kratkę pokazuje pełną listę: wydarzenia (z godziną, osobą,
+   oznaczeniem dni wielodniowych), zadania na ten dzień i płatności.
+   Gdy dzień jest pusty — podpowiadamy najbliższe nadchodzące wydarzenia,
+   żeby kliknięcie nigdy nie kończyło się pustką. */
+function DayDetail({ day, events, todos, payments, categories, calPeople, onAdd, onEdit, onDelete, onGoToDay }) {
+  const dateStr = format(day, 'yyyy-MM-dd')
+  const colorOf = (e) => getEventColor(categories, calPeople, e)
+
+  const items = sortDayItems([
+    ...eventsOnDate(events, dateStr).map(e => ({
+      kind: 'event', key: 'e-' + e.id + '-' + e.date, raw: e,
+      title: e.title, time: e.startTime || null, color: colorOf(e),
+      who: whoOf(e),
+      meta: e.startTime ? (e.endTime ? `${e.startTime}–${e.endTime}` : e.startTime) : 'cały dzień',
+      span: spanInfo(e, dateStr),
+      cat: findCat(categories, e.categoryId)?.name || '',
+    })),
+    ...todosOnDate(todos, dateStr).map(t => ({
+      kind: 'todo', key: 't-' + t.id, raw: t,
+      title: t.title, time: null, color: '#6366f1', meta: 'zadanie',
+    })),
+    ...paymentsOnDate(payments, getDate(day)).map(p => ({
+      kind: 'payment', key: 'p-' + p.id, raw: p,
+      title: p.name, time: null, color: '#f59e0b',
+      meta: `płatność${p.amount ? ` · ${p.type === 'income' ? '+' : '−'}${p.amount}` : ''}`,
+    })),
+  ])
+
+  const upcoming = items.length === 0 ? upcomingEvents(events, dateStr, 3) : []
+  const dayTitle = format(day, 'EEEE, d MMMM', { locale: pl })
+
+  return (
+    <div className="cal-daydetail">
+      <div className="cal-daydetail-head">
+        <div>
+          <div className="cal-daydetail-kicker">
+            {isToday(day) ? 'Dziś' : format(day, 'yyyy', { locale: pl })}
+          </div>
+          <div className="cal-daydetail-title">{dayTitle}</div>
+        </div>
+        <button className="cal-daydetail-add" onClick={onAdd} title="Dodaj wydarzenie tego dnia">
+          <IconPlus size={16} />
+        </button>
+      </div>
+
+      {items.length > 0 ? (
+        <div className="cal-daydetail-list">
+          {items.map(it => (
+            <div key={it.key} className="cal-dayitem" style={{ borderLeftColor: it.color }}>
+              <span className="cal-dayitem-time">{it.time || '—'}</span>
+              <div className="cal-dayitem-main">
+                <div className="cal-dayitem-title">{it.title}</div>
+                <div className="cal-dayitem-meta">
+                  {it.who && <span style={{ color: it.color, fontWeight: 600 }}>{it.who} · </span>}
+                  {it.meta}
+                  {it.cat && ` · ${it.cat}`}
+                  {it.span && ` · dzień ${it.span.index} z ${it.span.total}`}
+                </div>
+              </div>
+              {it.kind === 'event' && (
+                <div className="cal-dayitem-actions">
+                  <button className="t-btn" title="Edytuj" onClick={() => onEdit(it.raw)}><IconEdit size={13} /></button>
+                  <button className="t-btn delete" title="Usuń" onClick={() => onDelete(it.raw.id)}><IconTrash size={13} /></button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="cal-daydetail-empty">
+          <p>Nic zaplanowanego tego dnia.</p>
+          {upcoming.length > 0 && (
+            <>
+              <div className="cal-daydetail-next-label">Nadchodzące</div>
+              <div className="cal-daydetail-list">
+                {upcoming.map(e => {
+                  const inDays = daysBetween(dateStr, e.date)
+                  return (
+                    <button key={e.id + e.date} className="cal-dayitem as-button"
+                      style={{ borderLeftColor: colorOf(e) }}
+                      onClick={() => onGoToDay(parseISO(e.date))}>
+                      <span className="cal-dayitem-time">
+                        {inDays === 1 ? 'jutro' : `za ${inDays} dni`}
+                      </span>
+                      <div className="cal-dayitem-main">
+                        <div className="cal-dayitem-title">{e.title}</div>
+                        <div className="cal-dayitem-meta">
+                          {format(parseISO(e.date), 'd MMM', { locale: pl })}
+                          {e.startTime ? ` · ${e.startTime}` : ' · cały dzień'}
+                          {whoOf(e) ? ` · ${whoOf(e)}` : ''}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CalendarGrid({ currentMonth, selectedDay, categories, calPeople, events, onDayClick, todosOnDay, paymentsOnDay }) {
   const monthStart = startOfMonth(currentMonth)
   const monthEnd   = endOfMonth(currentMonth)

@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
-import { collection, doc, Timestamp, onSnapshot, orderBy, query, getDocs, limit, increment, writeBatch } from 'firebase/firestore'
+import { collection, doc, Timestamp, onSnapshot, orderBy, query, getDoc, getDocs, limit, increment, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { format } from 'date-fns'
 import { getCurrencyCode, parseAmount, CURRENCIES } from '../utils/currency'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, getSubcategoryColor } from '../utils/categories'
 import useFallbackTimeout from '../utils/useFallbackTimeout'
 import { byAccountOrder } from '../utils/accountOrder'
-import { CatIcon, IconClose } from './Icons'
+import { CatIcon, IconClose, IconCheck } from './Icons'
+import { normalizeTitheSettings } from '../utils/titheLogic'
 
 export const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_CATEGORIES
 export const INCOME_CATEGORIES  = DEFAULT_INCOME_CATEGORIES
@@ -28,12 +29,21 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
   const [catsLoaded, setCatsLoaded] = useState(false)
   const [saving, setSaving]         = useState(false)
   const [error, setError]           = useState('')
+  // Dziesięcina: przy przychodzie pytamy, czy kwota wchodzi do puli.
+  const [titheOn, setTitheOn]       = useState(false)
+  const [tithe, setTithe]           = useState(editData?.tithe === true)
 
   const categories = type === 'expense' ? expCats : incCats
 
   // Zabezpieczenie: gdyby snapshot kategorii nie odpowiedział (brak sieci, zimny
   // start), po `ms` i tak pokaż domyślne, żeby formularz nie utknął na spinnerze.
   useFallbackTimeout(() => setCatsLoaded(true))
+
+  useEffect(() => {
+    getDoc(doc(db, 'users', user.uid, 'settings', 'tithe'))
+      .then(d => setTitheOn(normalizeTitheSettings(d.exists() ? d.data() : null).enabled))
+      .catch(() => setTitheOn(false))
+  }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
@@ -136,6 +146,9 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
       description: description.trim(),
       date: Timestamp.fromDate(new Date(date)),
       accountId: accountId || null,
+      // Znacznik dziesięciny trzymamy tylko przy przychodach — przy wydatku
+      // pole nie ma sensu i zaśmiecałoby zapytania o pulę.
+      tithe: type === 'income' ? tithe : false,
       updatedAt: Timestamp.now()
     }
     try {
@@ -188,6 +201,17 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
             <button type="button" className={`type-btn ${type === 'expense' ? 'active expense' : ''}`} onClick={() => setType('expense')}>Wydatek</button>
             <button type="button" className={`type-btn ${type === 'income' ? 'active income' : ''}`} onClick={() => setType('income')}>Przychód</button>
           </div>
+
+          {type === 'income' && titheOn && (
+            <button type="button" className={`tithe-toggle${tithe ? ' on' : ''}`}
+              onClick={() => setTithe(v => !v)} aria-pressed={tithe}>
+              <span className="tithe-toggle-box">{tithe && <IconCheck size={12} />}</span>
+              <span className="tithe-toggle-text">
+                Wlicz do dziesięciny
+                <span className="tithe-toggle-hint">kwota trafi do puli w module Dziesięcina</span>
+              </span>
+            </button>
+          )}
 
           <div className="form-group">
             <label>Kwota</label>

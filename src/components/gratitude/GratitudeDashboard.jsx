@@ -110,16 +110,6 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
   return (
     <div className="gratitude-dashboard">
 
-      {/* Mobile module header */}
-      <div className="mod-header">
-        <div>
-          <div className="mod-header-kicker">Wdzięcznik</div>
-          <div className="mod-header-title">
-            {stats.streak > 0 ? `${stats.streak} ${stats.streak === 1 ? 'dzień' : 'dni'} z rzędu` : 'Zacznij dziś'}
-          </div>
-        </div>
-      </div>
-
       <StatTiles tiles={[
         { label: 'Seria', value: stats.streak, Icon: IconFlame, color: 'var(--accent)' },
         { label: 'W tym miesiącu', value: stats.month },

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from './firebase/config'
 import Login from './components/Login'
@@ -21,6 +21,7 @@ import MoreSheet from './components/MoreSheet'
 import ErrorBoundary from './components/ErrorBoundary'
 import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore, IconUsers, IconMoon, IcSun, IcCamera } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
+import { getLayout, saveLayout, applyLayout, visibleModules, navModules } from './utils/moduleLayout'
 import { getCurrencyCode, setCurrencyCode } from './utils/currency'
 import { useRegularPaymentsProcessor } from './utils/regularPayments'
 
@@ -42,9 +43,8 @@ const MODULE_ACCENTS = {
   memories: '#B05FA8',
 }
 
-// Moduły widoczne na dolnym pasku (mobile). Reszta trafia do „Więcej".
-const PRIMARY_NAV = ['home', 'budget', 'habits', 'calendar']
-
+// Pełna lista modułów. To, które trafią na dolny pasek i czy w ogóle są
+// widoczne, ustala użytkownik w Ustawieniach (patrz utils/moduleLayout).
 function buildModules() {
   const prefs = getModuleIcons()
   return [
@@ -78,19 +78,33 @@ export default function App() {
   }, [activeModule])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
-  // Akcje modułu wstrzykiwane do górnej belki („Mój Świat") — jeden pasek zamiast dwóch
+  // Akcje modułu wstrzykiwane do górnej belki („Apka") — jeden pasek zamiast dwóch
   const [headerExtras, setHeaderExtras] = useState(null)
   // Przy WYJŚCIU z modułu czyścimy akcje w cleanupie. Efekty potomków (Dashboard
   // itd.) odpalają się przed efektem rodzica, więc gdyby rodzic czyścił w ciele
   // efektu, kasowałby przyciski dopiero co ustawione przez moduł (znikała belka).
   // Cleanup odpala się przy zmianie modułu — przed montażem efektu nowego modułu.
   useEffect(() => () => setHeaderExtras(null), [activeModule])
-  const [modules, setModules] = useState(() => buildModules())
+  const [baseModules, setBaseModules] = useState(() => buildModules())
+  const [layout, setLayout] = useState(() => getLayout(buildModules().map(m => m.id)))
+  const modules = useMemo(() => applyLayout(baseModules, layout), [baseModules, layout])
+  const shown = useMemo(() => visibleModules(modules), [modules])
+
+  const handleLayoutChange = useCallback((next) => {
+    saveLayout(next)
+    setLayout(next)
+  }, [])
+
+  // Gdy użytkownik ukryje moduł, w którym właśnie jest — wracamy na Pulpit,
+  // żeby nie zostać w widoku, do którego nie ma już jak wrócić.
+  useEffect(() => {
+    if (modules.some(m => m.id === activeModule && m.hidden)) setActiveModule('home')
+  }, [modules, activeModule])
   const [dreamFocus, setDreamFocus] = useState(null) // sen otwierany z innego modułu
 
   const openDream = (dreamId) => { setDreamFocus(dreamId); setActiveModule('dream'); setMoreOpen(false) }
 
-  const handleModuleIconChange = () => setModules(buildModules())
+  const handleModuleIconChange = () => setBaseModules(buildModules())
 
   // Auto-księgowanie regularnych płatności w tle — działa zawsze, nie tylko w zakładce „Regularne"
   useRegularPaymentsProcessor(user?.uid)
@@ -128,11 +142,11 @@ export default function App() {
 
   const goTo = (id) => { setActiveModule(id); setMoreOpen(false); setDrawerOpen(false) }
 
-  // Dolny pasek: moduły z PRIMARY_NAV + przycisk „Więcej"
-  const navItems = PRIMARY_NAV.map(id => modules.find(m => m.id === id)).filter(Boolean)
+  // Dolny pasek: pierwsze widoczne moduły z układu użytkownika + „Więcej"
+  const navItems = navModules(modules)
   const slotCount = navItems.length + 1 // + „Więcej"
   const w = 100 / slotCount
-  const inOverflow = !PRIMARY_NAV.includes(activeModule)
+  const inOverflow = !navItems.some(m => m.id === activeModule)
   const activeIdx = inOverflow ? navItems.length : navItems.findIndex(m => m.id === activeModule)
 
   return (
@@ -148,7 +162,7 @@ export default function App() {
             </svg>
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.01em', lineHeight: 1.1 }}>Mój Świat</div>
+            <div style={{ fontSize: 15, fontWeight: 600, letterSpacing: '-.01em', lineHeight: 1.1 }}>Apka</div>
             <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.1em', textTransform: 'uppercase', marginTop: 2 }}>
               {user?.displayName || 'laura'}
             </div>
@@ -211,7 +225,7 @@ export default function App() {
             <div style={{ fontSize: 9, color: 'var(--text-muted)', letterSpacing: '.12em', textTransform: 'uppercase' }}>
               {modules.find(m => m.id === activeModule)?.label || ''}
             </div>
-            <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-.02em', marginTop: 2 }}>Mój Świat</div>
+            <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-.02em', marginTop: 2 }}>Apka</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {headerExtras}
@@ -230,7 +244,7 @@ export default function App() {
           <div className="content-inner">
             <ErrorBoundary moduleId={activeModule}>
             <Suspense fallback={<div className="loading-screen" style={{ minHeight: '40vh' }}><div className="spinner" /></div>}>
-            {activeModule === 'home'     && <Pulpit user={user} onNavigate={goTo} />}
+            {activeModule === 'home'     && <Pulpit user={user} onNavigate={goTo} visibleIds={shown.map(m => m.id)} />}
             {activeModule === 'budget'   && <Dashboard user={user} onCurrencyChange={handleCurrencyChange} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'habits'   && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'mood'     && <MoodDashboard user={user} setHeaderExtras={setHeaderExtras} />}
@@ -297,6 +311,8 @@ export default function App() {
         user={user}
         onIconChange={handleModuleIconChange}
         onCurrencyChange={handleCurrencyChange}
+        layout={layout}
+        onLayoutChange={handleLayoutChange}
       />
     </div>
   )

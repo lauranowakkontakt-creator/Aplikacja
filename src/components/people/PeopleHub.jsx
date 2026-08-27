@@ -101,7 +101,7 @@ export default function PeopleHub({ user, onOpenDream, setHeaderExtras }) {
     if (selectedId === id) setSelectedId(null)
   }
 
-  // Górna belka („Mój Świat"): liczba osób + ＋ Dodaj osobę.
+  // Górna belka („Apka"): liczba osób + ＋ Dodaj osobę.
   // Hook przed early-returnem (zasady hooków).
   useEffect(() => {
     setHeaderExtras?.(

@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { signOut } from 'firebase/auth'
 import { auth } from '../firebase/config'
-import { IconClose, IconChevronLeft, ICON_CATALOG } from './Icons'
+import { IconClose, IconChevronLeft, IconArrowUp, IconArrowDown, IconEye, IconEyeOff, IconReorder, ICON_CATALOG } from './Icons'
 import { saveModuleIcon } from '../utils/iconPrefs'
+import { moveModule, toggleHidden, isHidden, FIXED_FIRST, NAV_SLOTS } from '../utils/moduleLayout'
 import { CURRENCIES, getCurrencyCode, setCurrencyCode } from '../utils/currency'
 import { exportAllJSON, exportTransactionsCSV } from '../utils/dataExport'
 import { toast } from './Toast'
 
-export default function SettingsDrawer({ open, onClose, activeModule, modules, onModuleChange, onIconChange, onCurrencyChange, user }) {
+export default function SettingsDrawer({ open, onClose, activeModule, modules, onModuleChange, onIconChange, onCurrencyChange, user, layout, onLayoutChange }) {
   const handleLogout = () => { signOut(auth); onClose() }
   const displayName = user.displayName || 'Laura'
   const initials = displayName[0]?.toUpperCase() || 'L'
@@ -51,6 +52,14 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
             ))}
           </div>
         </div>
+
+        {/* Układ aplikacji — kolejność i ukrywanie */}
+        {layout && onLayoutChange && (
+          <div className="drawer-section">
+            <p className="drawer-section-title">Twoje aplikacje</p>
+            <ModuleLayoutPanel modules={modules} layout={layout} onChange={onLayoutChange} />
+          </div>
+        )}
 
         {/* Ikony aplikacji */}
         <div className="drawer-section">
@@ -98,7 +107,7 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
         {/* Footer */}
         <div className="drawer-footer">
           <button className="drawer-logout" onClick={handleLogout}>Wyloguj się</button>
-          <p className="drawer-version">Mój Świat · v1.0</p>
+          <p className="drawer-version">Apka · v1.0</p>
         </div>
       </aside>
     </>
@@ -228,6 +237,67 @@ function DrawerItem({ label, value, action }) {
       <span className="drawer-item-label">{label}</span>
       {value && <span className="drawer-item-value">{value}</span>}
       {action && <span className="drawer-item-arrow">›</span>}
+    </div>
+  )
+}
+
+
+/* Kolejność i widoczność aplikacji. Pierwsze widoczne moduły lądują na dolnym
+   pasku telefonu, reszta zostaje w „Więcej". Pulpit jest przypięty na górze —
+   to launcher, więc ani go nie przesuwamy, ani nie ukrywamy. */
+function ModuleLayoutPanel({ modules, layout, onChange }) {
+  const order = layout.order.filter(id => modules.some(m => m.id === id))
+  const byId = new Map(modules.map(m => [m.id, m]))
+  const movable = order.filter(id => id !== FIXED_FIRST)
+
+  const move = (id, dir) => onChange({ ...layout, order: moveModule(layout.order, id, dir) })
+  const hide = (id) => onChange(toggleHidden(layout, id))
+
+  // Ile pozycji z góry trafia na dolny pasek (Pulpit zajmuje jeden slot).
+  const navIds = order.filter(id => !isHidden(layout, id)).slice(0, NAV_SLOTS)
+
+  return (
+    <div>
+      <p className="drawer-hint">
+        <IconReorder size={12} /> Kolejność decyduje, co masz pod ręką — pierwsze {NAV_SLOTS} widoczne
+        aplikacje siedzą na dolnym pasku. Okiem chowasz te, których nie używasz: znikają z paska,
+        z „Więcej" i z Pulpitu.
+      </p>
+
+      <div className="mod-layout-list">
+        {order.map((id, i) => {
+          const m = byId.get(id)
+          if (!m) return null
+          const pinned = id === FIXED_FIRST
+          const hidden = isHidden(layout, id)
+          const onBar = navIds.includes(id)
+          const idx = movable.indexOf(id)
+          return (
+            <div key={id} className={`mod-layout-row${hidden ? ' hidden' : ''}`}>
+              <span className="mod-layout-num">{i + 1}</span>
+              <span className="mod-layout-icon"><m.Icon size={17} /></span>
+              <span className="mod-layout-label">
+                {m.label}
+                {pinned && <span className="mod-layout-badge">zawsze</span>}
+                {!pinned && onBar && <span className="mod-layout-badge">na pasku</span>}
+              </span>
+              <button type="button" className="icon-btn mod-layout-btn" title="W górę"
+                disabled={pinned || idx <= 0} onClick={() => move(id, -1)}>
+                <IconArrowUp size={13} />
+              </button>
+              <button type="button" className="icon-btn mod-layout-btn" title="W dół"
+                disabled={pinned || idx === -1 || idx >= movable.length - 1} onClick={() => move(id, 1)}>
+                <IconArrowDown size={13} />
+              </button>
+              <button type="button" className={`icon-btn mod-layout-btn${hidden ? '' : ' on'}`}
+                title={pinned ? 'Pulpitu nie da się ukryć' : hidden ? 'Pokaż' : 'Ukryj'}
+                disabled={pinned} onClick={() => hide(id)}>
+                {hidden ? <IconEyeOff size={13} /> : <IconEye size={13} />}
+              </button>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
