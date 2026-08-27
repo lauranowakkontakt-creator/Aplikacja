@@ -6,11 +6,14 @@ import { pl } from 'date-fns/locale'
 import {
   IconBudget, IconHabits, IconMood, IconTodo, IconPrayer, IconBook,
   IconFlame, IconChevronRight, IconCheck, IconClock, IconBills,
+  IcSun, IcCamera,
 } from './Icons'
 import { Ring } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 import { isInvestment, sumByCurrency } from '../utils/investmentMath'
 import { BIBLE_BOOKS, TOTAL_CHAPTERS, chapterKey } from '../utils/bibleData'
+import { gratitudeStats } from '../utils/gratitudeLogic'
+import { onThisDay } from '../utils/memoryLogic'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
 
@@ -43,6 +46,8 @@ export default function Pulpit({ user, onNavigate }) {
   const [people, setPeople]         = useState([])
   const [payments, setPayments]     = useState([])
   const [bible, setBible]           = useState({ counts: {} })
+  const [gratitude, setGratitude]   = useState([])
+  const [memories, setMemories]     = useState([])
 
   useEffect(() => {
     const subs = [
@@ -70,6 +75,10 @@ export default function Pulpit({ user, onNavigate }) {
         s => setPeople(s.docs.map(d => ({ id: d.id, ...d.data() })))),
       onSnapshot(query(collection(db, 'users', user.uid, 'regularPayments'), orderBy('createdAt', 'asc')),
         s => setPayments(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, 'users', user.uid, 'gratitude'), orderBy('date', 'desc'), limit(400)),
+        s => setGratitude(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+      onSnapshot(query(collection(db, 'users', user.uid, 'memories'), orderBy('date', 'desc'), limit(400)),
+        s => setMemories(s.docs.map(d => ({ id: d.id, ...d.data() })))),
     ]
     return () => subs.forEach(u => u())
   }, [user.uid])
@@ -152,6 +161,19 @@ export default function Pulpit({ user, onNavigate }) {
         if (counts[chapterKey(b.id, c)] > 0) read++
     return { read, pct: Math.round((read / TOTAL_CHAPTERS) * 100) }
   }, [bible])
+
+  /* ── WDZIĘCZNIK ── */
+  const gratStat = useMemo(() => {
+    const stats = gratitudeStats(gratitude, today)
+    return { ...stats, todayCount: gratitude.filter(e => e.date === today).length }
+  }, [gratitude, today])
+
+  /* ── WSPOMNIK ── */
+  const memStat = useMemo(() => ({
+    total: memories.length,
+    flashback: onThisDay(memories, today).length,
+    last: memories.find(m => m.date && m.date <= today) || null,
+  }), [memories, today])
 
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd')
 
@@ -310,6 +332,32 @@ export default function Pulpit({ user, onNavigate }) {
             {prayerStat.streak > 0
               ? <><IconFlame size={11} style={{ color: '#C9A24A' }} /> {prayerStat.streak} dni serii</>
               : 'modlono dziś'}
+          </div>
+        </PulpitCard>
+
+        {/* WDZIĘCZNIK */}
+        <PulpitCard accent="#E8A33D" Icon={IcSun} label="Wdzięcznik" onClick={() => onNavigate('gratitude')}>
+          <div className="pulpit-value" style={{ fontSize: 26 }}>
+            {gratStat.todayCount}<span className="pulpit-value-dim"> dziś</span>
+          </div>
+          <div className="pulpit-sub" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {gratStat.streak > 0
+              ? <><IconFlame size={11} style={{ color: '#E8A33D' }} /> {gratStat.streak} dni z rzędu</>
+              : 'Za co jesteś dziś wdzięczna?'}
+          </div>
+        </PulpitCard>
+
+        {/* WSPOMNIK */}
+        <PulpitCard accent="#B05FA8" Icon={IcCamera} label="Wspomnik" onClick={() => onNavigate('memories')}>
+          <div className="pulpit-value" style={{ fontSize: 26 }}>
+            {memStat.total}<span className="pulpit-value-dim"> {memStat.total === 1 ? 'wspomnienie' : 'zapisanych'}</span>
+          </div>
+          <div className="pulpit-sub">
+            {memStat.flashback > 0
+              ? `${memStat.flashback} sprzed lat — tego dnia`
+              : memStat.last
+                ? `Ostatnio: ${memStat.last.title || 'bez tytułu'}`
+                : 'Zapisz, co się dziś wydarzyło'}
           </div>
         </PulpitCard>
 

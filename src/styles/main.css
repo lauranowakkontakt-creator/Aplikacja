@@ -400,7 +400,8 @@ button { touch-action: manipulation; }
    Każdy dashboard = kolumna z tym samym odstępem sekcji. */
 .habits-dashboard, .mood-dashboard, .todo-dashboard, .calendar-dashboard,
 .prayer-dashboard, .dream-dashboard, .bible-dashboard, .people-hub,
-.notes-dashboard, .accounts-view, .regular-payments {
+.notes-dashboard, .gratitude-dashboard, .memories-dashboard,
+.accounts-view, .regular-payments {
   display: flex; flex-direction: column; gap: 14px;
 }
 
@@ -1953,6 +1954,138 @@ body { overscroll-behavior-y: none; }
   color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 90px; flex-shrink: 0;
 }
+
+/* ===== WDZIĘCZNIK ===== */
+.grat-today {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.grat-today-head { display: flex; align-items: center; justify-content: space-between; }
+.grat-today-kicker {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--accent);
+}
+.grat-today-date { font-size: 11px; color: var(--text-muted); }
+
+.grat-list { display: flex; flex-direction: column; gap: 6px; }
+
+.grat-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 10px; border-radius: 10px;
+  background: var(--surface2); border: 1px solid transparent;
+  transition: border-color .16s;
+}
+.grat-item:hover { border-color: var(--border); }
+.grat-item.editing { gap: 6px; background: transparent; padding: 0; }
+.grat-item.editing .form-input { flex: 1; }
+
+.grat-item-num {
+  width: 20px; height: 20px; border-radius: 99px; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 10px; font-weight: 700;
+  background: color-mix(in oklab, var(--accent) 16%, transparent); color: var(--accent);
+}
+.grat-item-text { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.45; }
+.grat-item .t-btn { opacity: 0; transition: opacity .15s; }
+.grat-item:hover .t-btn, .grat-item:focus-within .t-btn { opacity: 1; }
+@media (pointer: coarse) { .grat-item .t-btn { opacity: .6; } }
+
+.grat-add { display: flex; gap: 8px; align-items: center; }
+.grat-add .form-input { flex: 1; }
+.grat-add-btn {
+  width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px; border: none;
+  display: grid; place-items: center; cursor: pointer;
+  background: var(--accent); color: #fff; transition: opacity .15s, transform .12s;
+}
+.grat-add-btn:disabled { opacity: .35; cursor: default; }
+.grat-add-btn:not(:disabled):active { transform: scale(.93); }
+
+.grat-day { display: flex; flex-direction: column; gap: 6px; }
+.grat-day-head { display: flex; align-items: baseline; gap: 8px; padding: 0 2px; }
+.grat-day-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-sub);
+}
+.grat-day-count { font-size: 10.5px; color: var(--text-muted); }
+
+/* ===== WSPOMNIK ===== */
+.mem-flashback {
+  background: color-mix(in oklab, var(--accent) 8%, var(--surface));
+  border: 1px solid color-mix(in oklab, var(--accent) 22%, transparent);
+  border-radius: var(--r); padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.mem-flashback-head {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--accent);
+}
+.mem-flashback-row {
+  display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none;
+  margin: 0 -14px; padding: 0 14px;
+}
+.mem-flashback-row::-webkit-scrollbar { display: none; }
+.mem-flashback-card {
+  flex: 0 0 auto; width: 210px; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 3px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 12px; font-family: inherit; color: inherit;
+  transition: border-color .16s, transform .14s;
+}
+.mem-flashback-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+.mem-flashback-card:active { transform: scale(.985); }
+.mem-flashback-when {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent);
+}
+.mem-flashback-title { font-size: 13.5px; font-weight: 700; letter-spacing: -.01em; }
+.mem-flashback-text { font-size: 11.5px; color: var(--text-sub); line-height: 1.45; }
+
+.mem-group { display: flex; flex-direction: column; gap: 8px; }
+.mem-group-head { display: flex; align-items: baseline; gap: 8px; padding: 0 2px; }
+.mem-group-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-sub);
+}
+.mem-group-count { font-size: 10.5px; color: var(--text-muted); }
+
+.mem-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-items: stretch; }
+@media (max-width: 1080px) { .mem-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px)  { .mem-grid { grid-template-columns: 1fr; } }
+
+.mem-card {
+  display: flex; flex-direction: column; min-width: 0; min-height: 104px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 13px 14px; cursor: pointer;
+  transition: border-color .18s, transform .16s, box-shadow .2s;
+}
+.mem-card:hover {
+  border-color: var(--border-strong); transform: translateY(-1px);
+  box-shadow: 0 10px 28px -18px rgba(0,0,0,.8);
+}
+.mem-card:active { transform: scale(.985); }
+.mem-card-top { display: flex; align-items: center; gap: 8px; }
+.mem-card-date {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--accent);
+}
+.mem-card-title {
+  margin-top: 4px; font-size: 14.5px; font-weight: 700; line-height: 1.3; letter-spacing: -.01em;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.mem-card-text { margin: 5px 0 0; font-size: 12.5px; color: var(--text-sub); line-height: 1.5; }
+.mem-card-tags { display: flex; gap: 6px; margin-top: auto; padding-top: 10px; }
+
+.mem-fav {
+  width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0; margin-left: auto;
+  display: grid; place-items: center; cursor: pointer;
+  background: transparent; border: 1px solid transparent;
+  color: var(--text-muted); opacity: .5; transition: all .16s;
+}
+.mem-card:hover .mem-fav, .mem-fav.on { opacity: 1; }
+.mem-fav:hover { background: var(--surface2); border-color: var(--border); color: var(--text); }
+.mem-fav.on { color: var(--accent); background: color-mix(in oklab, var(--accent) 14%, transparent); }
 
 /* =====================================================================
    REVOLUT-STYLE OVERVIEW (zakładka „Przegląd" w Budżecie)

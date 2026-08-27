@@ -14,10 +14,12 @@ const PrayerDashboard   = lazy(() => import('./components/prayer/PrayerDashboard
 const BibleDashboard    = lazy(() => import('./components/bible/BibleDashboard'))
 const PeopleHub         = lazy(() => import('./components/people/PeopleHub'))
 const DreamDashboard    = lazy(() => import('./components/dream/DreamDashboard'))
+const GratitudeDashboard = lazy(() => import('./components/gratitude/GratitudeDashboard'))
+const MemoriesDashboard  = lazy(() => import('./components/memories/MemoriesDashboard'))
 import SettingsDrawer from './components/SettingsDrawer'
 import MoreSheet from './components/MoreSheet'
 import ErrorBoundary from './components/ErrorBoundary'
-import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore, IconUsers, IconMoon } from './components/Icons'
+import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore, IconUsers, IconMoon, IcSun, IcCamera } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
 import { getCurrencyCode, setCurrencyCode } from './utils/currency'
 import { useRegularPaymentsProcessor } from './utils/regularPayments'
@@ -36,6 +38,8 @@ const MODULE_ACCENTS = {
   bible:    '#4F74D9',
   people:   '#D98B5F',
   dream:    '#6366F1',
+  gratitude:'#E8A33D',
+  memories: '#B05FA8',
 }
 
 // Moduły widoczne na dolnym pasku (mobile). Reszta trafia do „Więcej".
@@ -54,6 +58,8 @@ function buildModules() {
     { id: 'bible',    label: 'Biblia',    Icon: resolveIcon(prefs.bible,    IconBook) },
     { id: 'people',   label: 'Osoby',     Icon: resolveIcon(prefs.people,   IconUsers) },
     { id: 'dream',    label: 'Sen',       Icon: resolveIcon(prefs.dream,    IconMoon) },
+    { id: 'gratitude',label: 'Wdzięcznik',Icon: resolveIcon(prefs.gratitude, IcSun) },
+    { id: 'memories', label: 'Wspomnik',  Icon: resolveIcon(prefs.memories,  IcCamera) },
   ]
 }
 
@@ -234,6 +240,8 @@ export default function App() {
             {activeModule === 'bible'    && <BibleDashboard user={user} />}
             {activeModule === 'people'   && <PeopleHub user={user} onOpenDream={openDream} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'dream'    && <DreamDashboard user={user} focusId={dreamFocus} onFocusConsumed={() => setDreamFocus(null)} setHeaderExtras={setHeaderExtras} />}
+            {activeModule === 'gratitude'&& <GratitudeDashboard user={user} setHeaderExtras={setHeaderExtras} />}
+            {activeModule === 'memories' && <MemoriesDashboard user={user} setHeaderExtras={setHeaderExtras} />}
             </Suspense>
             </ErrorBoundary>
           </div>
