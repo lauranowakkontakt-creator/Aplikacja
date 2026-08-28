@@ -180,6 +180,24 @@ test('Zgłaszanie błędów: zapis zawsze, mail opcjonalnie', () => {
   assert.match(panel, /isEmailConfigured\(\)/)
 })
 
+test('Biblia: reset naprawdę kasuje rozdziały (nie merge pustą mapą)', () => {
+  // setDoc({ counts: {} }, { merge: true }) SCALA mapy — nie skasowałoby
+  // odhaczonych rozdziałów, a reset i tak pokazałby sukces.
+  const bible = read('src/components/bible/BibleDashboard.jsx')
+  const reset = bible.slice(bible.indexOf('const resetProgress'), bible.indexOf('// Górna belka'))
+  assert.match(reset, /updateDoc\(ref, \{ counts: \{\}/, 'reset musi używać updateDoc')
+  assert.ok(!/setDoc\(ref, \{ counts: \{\}[^)]*merge: true/.test(reset),
+    'reset nadal kasuje rozdziały przez merge — to nic nie robi')
+})
+
+test('Dziesięcina: niedopłata nie znika razem z pulą', () => {
+  const tithe = read('src/components/budget/TitheView.jsx')
+  assert.match(tithe, /nextCarryOver\(due, paid\)/, 'brak przeniesienia reszty na następne rozliczenie')
+  assert.match(tithe, /titheTotalDue\(/, 'kwota do oddania musi uwzględniać zaległość')
+  // Rozliczone przychody muszą wypaść z zapytania, inaczej rośnie ono bez końca.
+  assert.match(tithe, /tithe: false, titheSettledAt/)
+})
+
 function walk(dir) {
   const out = []
   for (const name of readdirSync(dir)) {

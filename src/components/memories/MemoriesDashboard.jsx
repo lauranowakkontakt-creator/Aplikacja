@@ -230,6 +230,9 @@ export default function MemoriesDashboard({ user, setHeaderExtras }) {
 function MemoryReader({ all, id, onGo, onClose, onEdit, onDelete, onToggleFavorite }) {
   const { index, total, prev, next } = neighbors(all, id)
   const memory = all[index]
+  // Wspomnienie mogło zniknąć (usunięte w tle) — zamykamy okno zamiast
+  // zostawiać zablokowany, niewidoczny stan.
+  useEffect(() => { if (!memory) onClose() }, [memory, onClose])
   if (!memory) return null
   const dateText = memory.date
     ? format(parseISO(memory.date), 'EEEE, d MMMM yyyy', { locale: pl })

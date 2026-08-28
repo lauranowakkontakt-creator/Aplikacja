@@ -2,13 +2,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   normalizeTitheSettings, countsToTithe, tithePool, titheDue,
+  titheTotalDue, nextCarryOver,
   sumPaid, titheProgress, ensureTitheCategory,
   DEFAULT_PERCENT, TITHE_CATEGORY_ID,
 } from '../src/utils/titheLogic.js'
 
 test('normalizeTitheSettings — domyślnie wyłączona, 10%', () => {
-  assert.deepEqual(normalizeTitheSettings(null), { enabled: false, percent: DEFAULT_PERCENT })
-  assert.deepEqual(normalizeTitheSettings({}), { enabled: false, percent: 10 })
+  assert.deepEqual(normalizeTitheSettings(null), { enabled: false, percent: DEFAULT_PERCENT, carryOver: 0 })
+  assert.deepEqual(normalizeTitheSettings({}), { enabled: false, percent: 10, carryOver: 0 })
 })
 
 test('normalizeTitheSettings — własny procent, odrzucone bzdury', () => {
@@ -75,4 +76,28 @@ test('ensureTitheCategory — dopisuje kategorię tylko raz', () => {
   assert.equal(out[1].label, 'Dziesięcina')
   assert.equal(ensureTitheCategory(out).length, 2)
   assert.equal(ensureTitheCategory([]).length, 1)
+})
+
+// ── Reszta między rozliczeniami (niedopłata / nadpłata) ──────────────────────
+
+test('normalizeTitheSettings — reszta z poprzedniego rozliczenia', () => {
+  assert.equal(normalizeTitheSettings(null).carryOver, 0)
+  assert.equal(normalizeTitheSettings({ carryOver: 12.345 }).carryOver, 12.35)
+  assert.equal(normalizeTitheSettings({ carryOver: -30 }).carryOver, -30)
+  assert.equal(normalizeTitheSettings({ carryOver: 'abc' }).carryOver, 0)
+})
+
+test('titheTotalDue — pula plus reszta, nigdy poniżej zera', () => {
+  assert.equal(titheTotalDue(1000, 10, 0), 100)
+  assert.equal(titheTotalDue(1000, 10, 25), 125)      // niedopłata do nadrobienia
+  assert.equal(titheTotalDue(1000, 10, -40), 60)      // nadpłata pomniejsza
+  assert.equal(titheTotalDue(1000, 10, -500), 0)      // duża nadpłata → zero, nie minus
+  assert.equal(titheTotalDue(0, 10, 0), 0)
+})
+
+test('nextCarryOver — niedopłata zostaje, nadpłata idzie na plus', () => {
+  assert.equal(nextCarryOver(100, 100), 0)
+  assert.equal(nextCarryOver(100, 60), 40)    // brakuje 40 — nie znika
+  assert.equal(nextCarryOver(100, 150), -50)  // nadpłacone 50 — wraca przy kolejnym
+  assert.equal(nextCarryOver(150.06, 150.06), 0)
 })

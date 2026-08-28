@@ -19,9 +19,13 @@ const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100
 // domykamy je do sensownego zakresu, żeby UI nigdy nie dostał NaN.
 export function normalizeTitheSettings(raw) {
   const pct = Number(raw?.percent)
+  const carry = Number(raw?.carryOver)
   return {
     enabled: raw?.enabled === true,
     percent: Number.isFinite(pct) && pct > 0 && pct <= 100 ? pct : DEFAULT_PERCENT,
+    // Reszta z poprzedniego rozliczenia: dodatnia = niedopłata do nadrobienia,
+    // ujemna = nadpłata, która pomniejszy następną dziesięcinę.
+    carryOver: Number.isFinite(carry) ? round2(carry) : 0,
   }
 }
 
@@ -42,6 +46,18 @@ export function tithePool(transactions = []) {
 // Kwota do oddania przy danym procencie.
 export const titheDue = (base, percent) =>
   round2((Number(base) || 0) * ((Number(percent) || 0) / 100))
+
+// Do oddania łącznie: dziesięcina z puli plus reszta z poprzedniego razu.
+// Nigdy poniżej zera — nadpłata nie zamienia się w „dług" aplikacji wobec Ciebie,
+// tylko czeka w carryOver na kolejne rozliczenie.
+export const titheTotalDue = (base, percent, carryOver = 0) =>
+  Math.max(0, round2(titheDue(base, percent) + (Number(carryOver) || 0)))
+
+// Reszta po wpłacie. Zapłacone mniej → dopłata zostaje na później;
+// zapłacone więcej → ujemna reszta pomniejszy następną dziesięcinę.
+// Dzięki temu niedopłata nie znika po cichu razem z wyczyszczoną pulą.
+export const nextCarryOver = (due, paid) =>
+  round2((Number(due) || 0) - (Number(paid) || 0))
 
 // Ile już oddano z bieżącej puli (wpłaty po ostatnim rozliczeniu). Podajemy
 // jawnie listę wydatków w kategorii dziesięcina — widok filtruje je po dacie.

@@ -161,7 +161,9 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
         </div>
       )}
 
-      {/* DZIŚ — dopisywanie */}
+      {/* DZIŚ — dopisywanie. Przy aktywnym szukaniu chowamy tę sekcję: wyniki
+          obejmują też dzisiejsze wpisy, więc inaczej widać je dwa razy. */}
+      {!search && (
       <div className="grat-today">
         <div className="grat-today-head">
           <span className="grat-today-kicker"><IcSun size={13} /> Dziś</span>
@@ -197,6 +199,7 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
           </button>
         </form>
       </div>
+      )}
 
       {/* HISTORIA */}
       {history.length === 0 ? (
@@ -248,6 +251,9 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
 function GratitudeReader({ all, id, onGo, onClose }) {
   const { index, total, prev, next } = neighbors(all, id)
   const entry = all[index]
+  // Wpis mógł zniknąć (usunięty w tle albo z innego urządzenia) — zamykamy
+  // okno, zamiast zostawiać niewidoczny, zablokowany stan.
+  useEffect(() => { if (!entry) onClose() }, [entry, onClose])
   if (!entry) return null
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>

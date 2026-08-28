@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { differenceInDays, parseISO, format } from 'date-fns'
 import { pl } from 'date-fns/locale'
@@ -104,7 +104,13 @@ export default function BibleDashboard({ user, setHeaderExtras }) {
       confirmLabel: 'Wyzeruj',
     })
     if (!ok) return
-    await setDoc(ref, { counts: {}, startDate: null, finishedAt: null, updatedAt: serverTimestamp() }, { merge: true })
+    // UWAGA: tu musi być updateDoc, nie setDoc({...}, { merge: true }).
+    // Merge scala mapy, więc `counts: {}` NIE skasowałoby odhaczonych rozdziałów —
+    // reset pokazywałby sukces i nie robił nic (a wyczyszczona data startu
+    // wracałaby od razu, bo licznik rusza sam przy pierwszym rozdziale).
+    // updateDoc podmienia całe pole `counts` na puste. Notatki zostają nietknięte.
+    await updateDoc(ref, { counts: {}, startDate: null, finishedAt: null, updatedAt: serverTimestamp() })
+      .catch(() => setDoc(ref, { counts: {}, startDate: null, finishedAt: null, updatedAt: serverTimestamp() }))
     toast.success('Postępy wyzerowane')
   }
 

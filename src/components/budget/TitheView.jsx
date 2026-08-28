@@ -10,7 +10,7 @@ import { fmt, parseAmount, getCurrencyCode } from '../../utils/currency'
 import { byAccountOrder } from '../../utils/accountOrder'
 import { DEFAULT_EXPENSE_CATEGORIES } from '../../utils/categories'
 import {
-  normalizeTitheSettings, tithePool, titheDue, ensureTitheCategory,
+  normalizeTitheSettings, tithePool, titheTotalDue, nextCarryOver, ensureTitheCategory,
   DEFAULT_PERCENT, TITHE_CATEGORY, TITHE_CATEGORY_ID,
 } from '../../utils/titheLogic'
 import { CatIcon, IconPrayer, IconSettings, IconClose, IconCheck, IconChevronLeft } from '../Icons'
@@ -59,7 +59,10 @@ export default function TitheView({ user, onClose }) {
   }, [user.uid])
 
   const pool = useMemo(() => tithePool(incomes), [incomes])
-  const due  = useMemo(() => titheDue(pool.base, settings?.percent || DEFAULT_PERCENT), [pool.base, settings])
+  const due  = useMemo(
+    () => titheTotalDue(pool.base, settings?.percent || DEFAULT_PERCENT, settings?.carryOver || 0),
+    [pool.base, settings]
+  )
 
   const saveSettings = async (next) => {
     setSettings(next)
@@ -78,7 +81,7 @@ export default function TitheView({ user, onClose }) {
     if (withTithe !== current) {
       await setDoc(ref, { expense: withTithe }, { merge: true }).catch(() => {})
     }
-    await saveSettings({ enabled: true, percent })
+    await saveSettings({ enabled: true, percent, carryOver: 0 })
     toast.success('Dziesięcina włączona')
     setView('main')
   }
@@ -127,7 +130,12 @@ export default function TitheView({ user, onClose }) {
       <Shell onClose={onClose} onBack={() => setView('main')} title="Oddaj dziesięcinę">
         <TithePayment
           user={user} accounts={accounts} due={due} items={pool.items}
-          onDone={() => setView('main')}
+          onDone={async (paid) => {
+            // Niedopłata nie może zniknąć razem z wyczyszczoną pulą — reszta
+            // przechodzi na następne rozliczenie (nadpłata analogicznie, na minus).
+            await saveSettings({ ...settings, carryOver: nextCarryOver(due, paid) })
+            setView('main')
+          }}
         />
       </Shell>
     )
@@ -142,16 +150,23 @@ export default function TitheView({ user, onClose }) {
           <div className="tithe-hero-sub">
             z {fmt(pool.base)} · {pool.count} {pool.count === 1 ? 'przychód' : 'przychodów'} w puli
           </div>
+          {!!settings.carryOver && (
+            <div className="tithe-carry">
+              {settings.carryOver > 0
+                ? `w tym ${fmt(settings.carryOver)} zaległości z poprzedniego razu`
+                : `z uwzględnieniem nadpłaty ${fmt(-settings.carryOver)}`}
+            </div>
+          )}
         </div>
 
-        {pool.count === 0 ? (
+        {pool.count === 0 && !(due > 0) ? (
           <p className="tithe-note">
             Pula jest pusta. Przy dodawaniu przychodu zaznacz „Wlicz do dziesięciny",
             a kwota pojawi się tutaj.
           </p>
         ) : (
           <>
-            <div className="tithe-pool-label">W puli</div>
+            {pool.count > 0 && <div className="tithe-pool-label">W puli</div>}
             <div className="tithe-pool-list">
               {pool.items.map(t => (
                 <div key={t.id} className="tithe-pool-item">
@@ -306,13 +321,17 @@ function TithePayment({ user, accounts, due, items, onDone }) {
       batch.update(doc(db, 'users', user.uid, 'accounts', accountId), { balance: increment(-value) })
       const settledAt = Timestamp.now()
       items.forEach(t => {
+        // `tithe: false` gasi flagę, po której filtruje zapytanie o pulę —
+        // bez tego rozliczone przychody wracałyby w wynikach już zawsze
+        // i transfer rósłby z każdym miesiącem. Fakt rozliczenia zostaje
+        // zapisany w titheSettledAt.
         batch.update(doc(db, 'users', user.uid, 'transactions', t.id), {
-          titheSettledAt: settledAt, titheSettledTxId: txRef.id,
+          tithe: false, titheSettledAt: settledAt, titheSettledTxId: txRef.id,
         })
       })
       await batch.commit()
       toast.success('Dziesięcina zapisana')
-      onDone()
+      onDone(value)
     } catch {
       setError('Nie udało się zapisać')
       setBusy(false)
@@ -354,6 +373,8 @@ function TithePayment({ user, accounts, due, items, onDone }) {
       </button>
       <p className="tithe-note">
         Rozliczy {items.length} {items.length === 1 ? 'przychód' : 'przychodów'} z puli.
+        {value > 0 && value < due && ` Brakujące ${fmt(due - value)} zostanie doliczone następnym razem.`}
+        {value > due && ` Nadpłata ${fmt(value - due)} pomniejszy następną dziesięcinę.`}
       </p>
     </div>
   )
