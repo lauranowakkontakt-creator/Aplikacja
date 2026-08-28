@@ -394,12 +394,19 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
   })
   const ended = mine.filter(i => i.status === 'ended')
 
+  // Nieudany zapis musi być widoczny. Bez tego odbicie kciukiem w aucie kończyło
+  // się ciszą: kafelek zostawał szary i nie było wiadomo, czy to nie zadziałało,
+  // czy to my nie trafiłyśmy w przycisk.
   const togglePrayed = async (item, date) => {
     const d = date || TODAY()
     const prayed = item.prayedDates?.includes(d)
-    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
-      prayedDates: prayed ? arrayRemove(d) : arrayUnion(d)
-    })
+    try {
+      await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
+        prayedDates: prayed ? arrayRemove(d) : arrayUnion(d)
+      })
+    } catch {
+      toast.error('Nie udało się zapisać modlitwy')
+    }
   }
 
   const addNote = async (itemId, text) => {
@@ -543,8 +550,10 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
     setEditingNoteId(null)
   }
 
-  // Tryb auto — duży, czytelny wiersz „jak w nawykach": odhaczanie jedną ikoną z boku,
-  // duża osoba i treść prośby, a edycja tylko małym przyciskiem w rogu.
+  // Tryb auto — duża osoba i treść prośby, a pod nimi szeroki przycisk
+  // „Pomodlono" na całą kartę. Sama ikona w kółku była za mało oczywista i za
+  // mała jak na odhaczanie kciukiem zza kierownicy; napis mówi wprost, co się
+  // zaznacza, a pełna szerokość daje w co trafić bez patrzenia.
   if (carMode) {
     return (
       <div style={{
@@ -552,40 +561,44 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
         border: `1px solid ${prayedToday ? '#27AE60' : 'var(--border)'}`,
         borderLeft: `5px solid ${prio.color}`,
         borderRadius: 16, padding: '16px 14px',
-        display: 'flex', alignItems: 'center', gap: 14,
+        display: 'flex', flexDirection: 'column', gap: 12,
       }}>
-        <button type="button" onClick={() => onTogglePrayed(item, viewDate)} style={{
-          width: 62, height: 62, borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
-          display: 'grid', placeItems: 'center',
-          border: `2px solid ${prayedToday ? '#27AE60' : 'var(--border-strong)'}`,
-          background: prayedToday ? 'rgba(39,174,96,0.22)' : 'transparent',
-          color: prayedToday ? '#27AE60' : 'var(--text-muted)',
-        }} title={prayedToday ? 'Modlono' : 'Odhacz modlitwę'}>
-          {prayedToday ? <IconCheck size={32} /> : <IconPrayer size={30} />}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {showPerson && person && (
+              <div style={{ fontSize: 21, fontWeight: 800, color: '#8b5cf6', marginBottom: 3, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={24} style={{ flexShrink: 0, marginTop: 2 }} />
+                <span style={{ minWidth: 0, wordBreak: 'break-word', lineHeight: 1.15 }}>{person.name}</span>
+              </div>
+            )}
+            <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.2, wordBreak: 'break-word' }}>{item.title}</div>
+            {item.prayedDates?.length > 0 && (
+              <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <IconPrayer size={13} /> ×{item.prayedDates.length}
+                {days === 0 && ' · dziś'}
+                {days !== null && days > 0 && ` · ${days} dni temu`}
+              </div>
+            )}
+          </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {showPerson && person && (
-            <div style={{ fontSize: 21, fontWeight: 800, color: '#8b5cf6', marginBottom: 3, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={24} style={{ flexShrink: 0, marginTop: 2 }} />
-              <span style={{ minWidth: 0, wordBreak: 'break-word', lineHeight: 1.15 }}>{person.name}</span>
-            </div>
-          )}
-          <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.2, wordBreak: 'break-word' }}>{item.title}</div>
-          {item.prayedDates?.length > 0 && (
-            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <IconPrayer size={13} /> ×{item.prayedDates.length}
-              {days === 0 && ' · dziś'}
-              {days !== null && days > 0 && ` · ${days} dni temu`}
-            </div>
-          )}
+          <button type="button" onClick={onEdit} style={{
+            width: 44, height: 44, borderRadius: 12, flexShrink: 0, cursor: 'pointer',
+            display: 'grid', placeItems: 'center',
+            border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text-muted)',
+          }} title="Edytuj"><IconEdit size={20} /></button>
         </div>
 
-        <button type="button" onClick={onEdit} style={{
-          width: 44, height: 44, borderRadius: 12, flexShrink: 0, cursor: 'pointer',
-          display: 'grid', placeItems: 'center',
-          border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text-muted)',
-        }} title="Edytuj"><IconEdit size={20} /></button>
+        <button type="button" onClick={() => onTogglePrayed(item, viewDate)} style={{
+          width: '100%', minHeight: 60, borderRadius: 14, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          fontFamily: 'inherit', fontSize: 20, fontWeight: 800, letterSpacing: '.01em',
+          border: `2px solid ${prayedToday ? '#27AE60' : 'var(--border-strong)'}`,
+          background: prayedToday ? 'rgba(39,174,96,0.22)' : 'transparent',
+          color: prayedToday ? '#27AE60' : 'var(--text)',
+        }} title={prayedToday ? 'Odznacz modlitwę' : 'Zaznacz, że się pomodliłaś'}>
+          {prayedToday ? <IconCheck size={26} /> : <IconPrayer size={24} />}
+          Pomodlono
+        </button>
       </div>
     )
   }
@@ -757,9 +770,13 @@ function TodayView({ user, intentions, people, carMode }) {
   const togglePrayed = async (item, date) => {
     const d = date || viewDate
     const prayed = item.prayedDates?.includes(d)
-    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
-      prayedDates: prayed ? arrayRemove(d) : arrayUnion(d)
-    })
+    try {
+      await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
+        prayedDates: prayed ? arrayRemove(d) : arrayUnion(d)
+      })
+    } catch {
+      toast.error('Nie udało się zapisać modlitwy')
+    }
   }
 
   const addNote = async (itemId, text) => {
