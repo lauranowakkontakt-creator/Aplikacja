@@ -255,10 +255,24 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   // UWAGA: hook musi być przed early-returnem (zasady hooków).
   useEffect(() => {
     setHeaderExtras?.(
-      <><HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} />{addBtn}</>
+      <>
+        {/* Nastrój — sama twarz, bez podpisu. Świeci kolorem dzisiejszego
+            wpisu, więc jednym spojrzeniem widać, czy dzień jest zapisany. */}
+        <button
+          className="hdr-mood"
+          title={todayMood ? `Nastrój: ${todayMood.moodLabel || 'zapisany'}` : 'Zapisz nastrój'}
+          aria-label={todayMood ? `Nastrój: ${todayMood.moodLabel || 'zapisany'}` : 'Zapisz nastrój'}
+          style={todayMood?.moodColor ? { '--mood-color': todayMood.moodColor } : undefined}
+          onClick={() => setMoodOpen(true)}
+        >
+          <IconMood size={17} />
+        </button>
+        <HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} />
+        {addBtn}
+      </>
     )
     return () => setHeaderExtras?.(null)
-  }, [activeHabits.length])
+  }, [activeHabits.length, todayMood])
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -333,23 +347,6 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
     </div>
   )
 
-  // Kafelek nastroju — jedyne wejście do Nastroju (nie jest już osobną apką).
-  // Twarz świeci kolorem dzisiejszego wpisu, więc widać na pierwszy rzut oka,
-  // czy dzień jest już zapisany.
-  const moodTile = (
-    <button className={`mood-tile${todayMood ? ' logged' : ''}`} onClick={() => setMoodOpen(true)}
-      style={todayMood?.moodColor ? { '--mood-color': todayMood.moodColor } : undefined}>
-      <span className="mood-tile-face"><IconMood size={20} /></span>
-      <span className="mood-tile-text">
-        <span className="mood-tile-label">Nastrój</span>
-        <span className="mood-tile-value">
-          {todayMood ? (todayMood.moodLabel || 'zapisany') : 'jak się dziś masz?'}
-        </span>
-      </span>
-      <IconChevronRight size={15} className="mood-tile-chev" />
-    </button>
-  )
-
   return (
     <div className="habits-dashboard">
       {/* ===== EKRAN GŁÓWNY (Dziś): hero (akcje są w górnej belce) ===== */}
@@ -401,8 +398,6 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
               {intensityLegend}
             </div>
           </div>
-
-          {moodTile}
         </>
       )}
 

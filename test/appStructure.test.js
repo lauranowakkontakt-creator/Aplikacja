@@ -124,7 +124,10 @@ test('Nastrój nie jest osobną apką — mieszka w Nawykach', () => {
   assert.ok(!APP.includes('MoodDashboard'), 'App nadal renderuje Nastrój jako moduł')
   const habits = read('src/components/habits/HabitsDashboard.jsx')
   assert.match(habits, /import\('\.\.\/mood\/MoodDashboard'\)/, 'Nawyki nie ładują Nastroju')
-  assert.match(habits, /mood-tile/, 'brak kafelka nastroju w Nawykach')
+  // Wejście do Nastroju to mała twarz w belce — bez podpisu i bez kafelka.
+  assert.match(habits, /hdr-mood/, 'brak ikonki nastroju w belce Nawyków')
+  assert.ok(!/mood-tile/.test(habits), 'kafelek nastroju powinien zniknąć')
+  assert.ok(!/jak się dziś masz/.test(habits), 'ikonka nastroju nie ma mieć podpisu')
   // Akcje Nastroju idą do paska arkusza, nie do górnej belki apki — inaczej
   // biłyby się o nią z Nawykami.
   assert.match(habits, /setHeaderExtras=\{setMoodExtras\}/)
