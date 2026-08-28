@@ -9,6 +9,8 @@ import { Ring } from '../ChartPrimitives'
 import SegTabs from '../SegTabs'
 import { toast } from '../Toast'
 import BibleNotes from './BibleNotes'
+import BibleMenu from './BibleMenu'
+import { confirmDialog } from '../ConfirmModal'
 
 const todayISO = () => format(new Date(), 'yyyy-MM-dd')
 const fmtDate  = (iso) => format(parseISO(iso), 'd MMM yyyy', { locale: pl })
@@ -29,13 +31,14 @@ function boxBackground(count) {
   return `color-mix(in oklab, var(--accent) ${pct}%, var(--surface))`
 }
 
-export default function BibleDashboard({ user }) {
+export default function BibleDashboard({ user, setHeaderExtras }) {
   const [progress, setProgress] = useState(null)   // { counts: {}, notes: {} }
   const [filter, setFilter]     = useState('ALL')  // ALL | ST | NT
   const [openKey, setOpenKey]   = useState(null)   // { book, chapter }
   const [collapsed, setCollapsed] = useState({})
   const [view, setView]         = useState('plan') // plan | notes
   const [search, setSearch]     = useState('')     // filtr ksiąg po nazwie
+  const [showJourney, setShowJourney] = useState(false) // „Czytanie i licznik" z menu ⋮
 
   const ref = doc(db, 'users', user.uid, 'bible', 'progress')
 
@@ -92,6 +95,31 @@ export default function BibleDashboard({ user }) {
     if (stats.read > 0 && !progress.startDate) saveJourney({ startDate: todayISO() })
     else if (stats.read >= TOTAL_CHAPTERS && progress.startDate && !progress.finishedAt) saveJourney({ finishedAt: todayISO() })
   }, [stats.read, progress?.startDate, progress?.finishedAt])
+  // Wyzerowanie całego postępu: rozdziały, daty startu i ukończenia.
+  // Notatki zostają — to osobna, cenniejsza treść.
+  const resetProgress = async () => {
+    const ok = await confirmDialog({
+      title: 'Wyzerować postępy Biblii?',
+      message: 'Znikną odhaczone rozdziały oraz data rozpoczęcia. Notatki zostają.',
+      confirmLabel: 'Wyzeruj',
+    })
+    if (!ok) return
+    await setDoc(ref, { counts: {}, startDate: null, finishedAt: null, updatedAt: serverTimestamp() }, { merge: true })
+    toast.success('Postępy wyzerowane')
+  }
+
+  // Górna belka: [⋮ Czytanie i licznik / Wyzeruj postępy].
+  // Hook przed early-returnem (zasady hooków).
+  useEffect(() => {
+    setHeaderExtras?.(
+      <BibleMenu onAction={(id) => {
+        if (id === 'journey') setShowJourney(true)
+        if (id === 'reset')   resetProgress()
+      }} />
+    )
+    return () => setHeaderExtras?.(null)
+  }, [])
+
   const q = search.trim().toLowerCase()
   const books = BIBLE_BOOKS.filter(b =>
     (filter === 'ALL' || b.testament === filter) &&
@@ -138,15 +166,6 @@ export default function BibleDashboard({ user }) {
           </div>
         </div>
       </div>
-
-      {/* Podróż przez Biblię — dyskretny pasek (start i ukończenie dzieją się automatycznie) */}
-      <BibleJourney
-        startDate={progress.startDate}
-        finishedAt={progress.finishedAt}
-        pct={pct}
-        onFinish={() => saveJourney({ finishedAt: todayISO() })}
-        onReset={() => saveJourney({ startDate: null, finishedAt: null })}
-      />
 
       {/* Statystyki */}
       <div className="bible-stats">
@@ -242,6 +261,38 @@ export default function BibleDashboard({ user }) {
         />
       )}
       </>)}
+
+      {/* Czytanie i licznik — wywoływane z ⋮, żeby nie zajmowało ekranu */}
+      {showJourney && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowJourney(false)}>
+          <div className="modal">
+            <div className="modal-header">
+              <h3 style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <IconCalendar size={17} /> Czytanie i licznik
+              </h3>
+              <button className="modal-close" onClick={() => setShowJourney(false)}><IconClose size={16} /></button>
+            </div>
+            <div className="form">
+              {progress.startDate ? (
+                <BibleJourney
+                  startDate={progress.startDate}
+                  finishedAt={progress.finishedAt}
+                  pct={pct}
+                  onFinish={() => saveJourney({ finishedAt: todayISO() })}
+                  onReset={() => saveJourney({ startDate: null, finishedAt: null })}
+                />
+              ) : (
+                <p className="pause-info">
+                  Licznik rusza sam, gdy odhaczysz pierwszy rozdział — nie trzeba niczego włączać.
+                </p>
+              )}
+              <button type="button" className="tithe-disable" onClick={() => { setShowJourney(false); resetProgress() }}>
+                Wyzeruj postępy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -255,7 +306,8 @@ function Stat({ label, value }) {
   )
 }
 
-// Podróż przez Biblię — dyskretny pasek. Start ustawia się automatycznie przy
+// Podróż przez Biblię — teraz pod „trzema kropkami", nie na głównym ekranie.
+// Start ustawia się automatycznie przy
 // pierwszym rozdziale, ukończenie — po przeczytaniu całości (lub ręcznie „Ukończona").
 function BibleJourney({ startDate, finishedAt, pct, onFinish, onReset }) {
   if (!startDate) return null // przed pierwszym rozdziałem nic nie pokazujemy

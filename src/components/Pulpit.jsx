@@ -4,7 +4,7 @@ import { db } from '../firebase/config'
 import { format, subDays, addDays, parseISO, differenceInDays, isPast, isToday } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import {
-  IconBudget, IconHabits, IconMood, IconTodo, IconPrayer, IconBook,
+  IconBudget, IconHabits, IconTodo, IconPrayer, IconBook,
   IconFlame, IconChevronRight, IconCheck, IconClock, IconBills,
   IcSun, IcCamera,
 } from './Icons'
@@ -299,6 +299,16 @@ export default function Pulpit({ user, onNavigate, visibleIds }) {
                 {habitsStat.done}<span className="pulpit-value-dim">/{habitsStat.due}</span>
               </div>
               <div className="pulpit-sub">{habitsStat.due > 0 ? 'zrobione dziś' : 'brak na dziś'}</div>
+              {/* Nastrój mieszka teraz w Nawykach — pokazujemy go tu, zamiast
+                  osobnej karty, żeby informacja nie zniknęła z Pulpitu. */}
+              <div className="pulpit-sub" style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                <span style={{
+                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                  background: moodStat.loggedToday ? (moodStat.lastColor || '#9B7CF0') : 'var(--text-muted)',
+                  opacity: moodStat.loggedToday ? 1 : .4,
+                }} />
+                {moodStat.loggedToday ? moodStat.lastLabel : 'nastrój niezapisany'}
+              </div>
             </div>
           </div>
         </PulpitCard>
@@ -314,23 +324,6 @@ export default function Pulpit({ user, onNavigate, visibleIds }) {
             {todoStat.overdue > 0
               ? `${todoStat.overdue} przeterminowane`
               : todoStat.dueToday > 0 ? `${todoStat.dueToday} na dziś` : 'na bieżąco'}
-          </div>
-        </PulpitCard>
-        )}
-
-        {/* NASTRÓJ */}
-        {shows('mood') && (
-        <PulpitCard accent="#9B7CF0" Icon={IconMood} label="Nastrój" onClick={() => onNavigate('mood')}>
-          {moodStat.loggedToday ? (
-            <div className="pulpit-row" style={{ gap: 8 }}>
-              <span style={{ width: 12, height: 12, borderRadius: '50%', background: moodStat.lastColor || '#9B7CF0', flexShrink: 0 }} />
-              <div className="pulpit-value" style={{ fontSize: 18 }}>{moodStat.lastLabel}</div>
-            </div>
-          ) : (
-            <div className="pulpit-value" style={{ fontSize: 18 }}>Brak wpisu</div>
-          )}
-          <div className="pulpit-sub">
-            {moodStat.avg > 0 ? `Śr. ${moodStat.avg.toFixed(1).replace('.', ',')}/10 · 30 dni` : 'Zapisz jak się masz'}
           </div>
         </PulpitCard>
         )}
@@ -355,9 +348,10 @@ export default function Pulpit({ user, onNavigate, visibleIds }) {
           <div className="pulpit-value" style={{ fontSize: 26 }}>
             {gratStat.todayCount}<span className="pulpit-value-dim"> dziś</span>
           </div>
-          <div className="pulpit-sub" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {gratStat.streak > 0
-              ? <><IconFlame size={11} style={{ color: '#E8A33D', flexShrink: 0 }} /> {gratStat.streak} dni serii</>
+          {/* Bez serii i rekordów — wdzięczność nie jest wyścigiem. */}
+          <div className="pulpit-sub">
+            {gratStat.todayCount > 0
+              ? `${gratStat.month} w tym miesiącu`
               : 'Za co dziękujesz?'}
           </div>
         </PulpitCard>

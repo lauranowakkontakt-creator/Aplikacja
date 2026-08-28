@@ -4,9 +4,11 @@ import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, parseISO, isToday, isYesterday } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { groupByDay, filterEntries, gratitudeStats } from '../../utils/gratitudeLogic'
+import { groupByDay, filterEntries, gratitudeStats, flatEntries } from '../../utils/gratitudeLogic'
+import { pickBySeed, daySeed, neighbors } from '../../utils/browsing'
 import StatTiles from '../StatTiles'
-import { IconPlus, IconTrash, IconSearch, IconFlame, IconCheck, IconClose, IconEdit, IcSun } from '../Icons'
+import { IconPlus, IconTrash, IconSearch, IconCheck, IconClose, IconEdit,
+  IconChevronLeft, IconChevronRight, IconRepeat, IcSun } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 
@@ -38,6 +40,8 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
   const [search, setSearch]   = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const [editing, setEditing] = useState(null) // { id, text }
+  const [shuffle, setShuffle] = useState(0)    // ile razy dolosowano przypominajkę
+  const [reading, setReading] = useState(null) // id oglądanego wpisu
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -64,6 +68,17 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
   // Podpowiedź zmienia się wraz z liczbą dzisiejszych wpisów — bez losowania,
   // żeby nie skakała przy każdym renderze.
   const promptText = PROMPTS[todayItems.length % PROMPTS.length]
+
+  // Wszystkie wpisy po kolei — do przeglądania strzałkami.
+  const all = useMemo(() => flatEntries(entries), [entries])
+
+  // Przypominajka: losowy wpis sprzed dziś. Jedna na dzień, chyba że sama
+  // dolosujesz — dlatego seed to numer dnia plus licznik kliknięć.
+  const older = useMemo(() => all.filter(e => e.date !== today), [all, today])
+  const reminder = useMemo(
+    () => pickBySeed(older, daySeed(today) + shuffle),
+    [older, today, shuffle]
+  )
 
   const add = async () => {
     const text = draft.trim()
@@ -111,11 +126,29 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
     <div className="gratitude-dashboard">
 
       <StatTiles tiles={[
-        { label: 'Seria', value: stats.streak, Icon: IconFlame, color: 'var(--accent)' },
         { label: 'W tym miesiącu', value: stats.month },
         { label: 'Łącznie', value: stats.total },
-        { label: 'Rekord serii', value: stats.best },
+        { label: 'Dni z wpisem', value: stats.days },
       ]} />
+
+      {/* Przypominajka — po to się to pisze: żeby potem wrócić */}
+      {reminder && (
+        <div className="recall-card">
+          <div className="recall-head">
+            <span className="recall-kicker"><IcSun size={12} /> Przypomnij sobie</span>
+            <div className="recall-actions">
+              {older.length > 1 && (
+                <button className="recall-btn" title="Wylosuj inny"
+                  onClick={() => setShuffle(n => n + 1)}><IconRepeat size={13} /></button>
+              )}
+            </div>
+          </div>
+          <button className="recall-body" onClick={() => setReading(reminder.id)}>
+            <span className="recall-text">{reminder.text}</span>
+            <span className="recall-date">{dayLabel(reminder.date)}</span>
+          </button>
+        </div>
+      )}
 
       {showSearch && (
         <div style={{ position: 'relative' }}>
@@ -147,6 +180,7 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
                 onEditCancel={() => setEditing(null)}
                 onEditSave={saveEdit}
                 onDelete={() => remove(e)}
+                onOpen={() => setReading(e.id)}
               />
             ))}
           </div>
@@ -189,17 +223,60 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
                   onEditCancel={() => setEditing(null)}
                   onEditSave={saveEdit}
                   onDelete={() => remove(e)}
+                  onOpen={() => setReading(e.id)}
                 />
               ))}
             </div>
           </div>
         ))
       )}
+
+      {reading && (
+        <GratitudeReader
+          all={all}
+          id={reading}
+          onGo={setReading}
+          onClose={() => setReading(null)}
+        />
+      )}
     </div>
   )
 }
 
-function GratitudeRow({ entry, index, editing, editValue, onEditChange, onEditStart, onEditCancel, onEditSave, onDelete }) {
+/* Podgląd jednego wpisu ze strzałkami — da się przejść przez całą historię
+   bez zamykania okna i szukania wzrokiem następnego dnia. */
+function GratitudeReader({ all, id, onGo, onClose }) {
+  const { index, total, prev, next } = neighbors(all, id)
+  const entry = all[index]
+  if (!entry) return null
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal reader-modal">
+        <div className="modal-header">
+          <h3 style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <IcSun size={17} /> Wdzięczność
+          </h3>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
+        </div>
+        <div className="reader-body">
+          <div className="reader-date">{dayLabel(entry.date)}</div>
+          <p className="reader-text">{entry.text}</p>
+        </div>
+        <div className="reader-nav">
+          <button className="reader-nav-btn" disabled={!prev} onClick={() => prev && onGo(prev.id)}>
+            <IconChevronLeft size={16} /> Nowszy
+          </button>
+          <span className="reader-count">{index + 1} z {total}</span>
+          <button className="reader-nav-btn" disabled={!next} onClick={() => next && onGo(next.id)}>
+            Starszy <IconChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GratitudeRow({ entry, index, editing, editValue, onEditChange, onEditStart, onEditCancel, onEditSave, onDelete, onOpen }) {
   if (editing) {
     return (
       <div className="grat-item editing">
@@ -219,7 +296,7 @@ function GratitudeRow({ entry, index, editing, editValue, onEditChange, onEditSt
   return (
     <div className="grat-item">
       <span className="grat-item-num">{index}</span>
-      <span className="grat-item-text">{entry.text}</span>
+      <button className="grat-item-text" onClick={onOpen} title="Zobacz i przeglądaj">{entry.text}</button>
       <button className="t-btn" title="Edytuj" onClick={onEditStart}><IconEdit size={13} /></button>
       <button className="t-btn delete" title="Usuń" onClick={onDelete}><IconTrash size={13} /></button>
     </div>

@@ -9,10 +9,11 @@ import {
   memoryStats, collectTags, preview,
 } from '../../utils/memoryLogic'
 import { parseTags } from '../../utils/notesLogic'
+import { pickBySeed, daySeed, neighbors } from '../../utils/browsing'
 import StatTiles from '../StatTiles'
 import {
   IconPlus, IconTrash, IconSearch, IconClose, IconTag, IconStar, IconEdit,
-  IconChevronLeft, IcCamera, IcClockWall,
+  IconChevronLeft, IconChevronRight, IconRepeat, IcCamera, IcClockWall,
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
@@ -33,7 +34,8 @@ export default function MemoriesDashboard({ user, setHeaderExtras }) {
   const [tag, setTag]           = useState(null)
   const [favoritesOnly, setFavoritesOnly] = useState(false)
   const [editor, setEditor]     = useState(null) // null | 'new' | wspomnienie
-  const [reading, setReading]   = useState(null) // otwarte wspomnienie (podgląd)
+  const [reading, setReading]   = useState(null) // id otwartego wspomnienia
+  const [shuffle, setShuffle]   = useState(0)    // ile razy dolosowano przypominajkę
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'memories'), orderBy('date', 'desc'), limit(500))
@@ -47,10 +49,17 @@ export default function MemoriesDashboard({ user, setHeaderExtras }) {
   const stats    = useMemo(() => memoryStats(memories, today), [memories, today])
   const allTags  = useMemo(() => collectTags(memories), [memories])
   const flashback = useMemo(() => onThisDay(memories, today), [memories, today])
-  const groups   = useMemo(
-    () => groupByMonth(sortMemories(filterMemories(memories, { search, tag, favoritesOnly }))),
+  // Widoczna lista w kolejności osi czasu — po niej chodzą strzałki w podglądzie.
+  const visible  = useMemo(
+    () => sortMemories(filterMemories(memories, { search, tag, favoritesOnly })),
     [memories, search, tag, favoritesOnly]
   )
+  const groups   = useMemo(() => groupByMonth(visible), [visible])
+
+  // Przypominajka: losowe wspomnienie na dziś (nie z dzisiaj). Jedno na dzień,
+  // chyba że sama dolosujesz — stąd seed z numeru dnia plus licznik kliknięć.
+  const older    = useMemo(() => memories.filter(m => m.date !== today), [memories, today])
+  const reminder = useMemo(() => pickBySeed(older, daySeed(today) + shuffle), [older, today, shuffle])
 
   const toggleFavorite = (m) =>
     updateDoc(doc(db, 'users', user.uid, 'memories', m.id), { favorite: !m.favorite }).catch(() => {})
@@ -85,6 +94,27 @@ export default function MemoriesDashboard({ user, setHeaderExtras }) {
         { label: 'Lata', value: stats.years },
       ]} />
 
+      {/* Przypominajka — losowe wspomnienie, po to się je zapisuje */}
+      {reminder && !filtering && (
+        <div className="recall-card">
+          <div className="recall-head">
+            <span className="recall-kicker"><IcCamera size={12} /> Przypomnij sobie</span>
+            <div className="recall-actions">
+              {older.length > 1 && (
+                <button className="recall-btn" title="Wylosuj inne"
+                  onClick={() => setShuffle(n => n + 1)}><IconRepeat size={13} /></button>
+              )}
+            </div>
+          </div>
+          <button className="recall-body" onClick={() => setReading(reminder.id)}>
+            <span className="recall-text">{reminder.title || preview(reminder.text, 80) || 'Bez tytułu'}</span>
+            <span className="recall-date">
+              {reminder.date ? format(parseISO(reminder.date), 'd MMMM yyyy', { locale: pl }) : 'bez daty'}
+            </span>
+          </button>
+        </div>
+      )}
+
       {/* TEGO DNIA — powrót do wspomnień sprzed lat */}
       {flashback.length > 0 && !filtering && (
         <div className="mem-flashback">
@@ -93,7 +123,7 @@ export default function MemoriesDashboard({ user, setHeaderExtras }) {
           </div>
           <div className="mem-flashback-row">
             {flashback.map(m => (
-              <button key={m.id} className="mem-flashback-card" onClick={() => setReading(m)}>
+              <button key={m.id} className="mem-flashback-card" onClick={() => setReading(m.id)}>
                 <span className="mem-flashback-when">{yearsAgoLabel(m.yearsAgo)}</span>
                 <span className="mem-flashback-title">{m.title || 'Bez tytułu'}</span>
                 {m.text && <span className="mem-flashback-text">{preview(m.text, 90)}</span>}
@@ -145,7 +175,7 @@ export default function MemoriesDashboard({ user, setHeaderExtras }) {
             </div>
             <div className="mem-grid">
               {g.items.map(m => (
-                <div key={m.id} className="mem-card" onClick={() => setReading(m)}>
+                <div key={m.id} className="mem-card" onClick={() => setReading(m.id)}>
                   <div className="mem-card-top">
                     <span className="mem-card-date">
                       {m.date ? format(parseISO(m.date), 'd MMM', { locale: pl }) : '—'}
@@ -174,11 +204,13 @@ export default function MemoriesDashboard({ user, setHeaderExtras }) {
 
       {reading && (
         <MemoryReader
-          memory={reading}
+          all={visible.length ? visible : memories}
+          id={reading}
+          onGo={setReading}
           onClose={() => setReading(null)}
-          onEdit={() => { const m = reading; setReading(null); setEditor(m) }}
-          onDelete={() => { const m = reading; setReading(null); handleDelete(m) }}
-          onToggleFavorite={() => { toggleFavorite(reading); setReading(r => ({ ...r, favorite: !r.favorite })) }}
+          onEdit={(m) => { setReading(null); setEditor(m) }}
+          onDelete={(m) => { setReading(null); handleDelete(m) }}
+          onToggleFavorite={toggleFavorite}
         />
       )}
 
@@ -194,7 +226,11 @@ export default function MemoriesDashboard({ user, setHeaderExtras }) {
   )
 }
 
-function MemoryReader({ memory, onClose, onEdit, onDelete, onToggleFavorite }) {
+/* Podgląd wspomnienia ze strzałkami — przez całą oś czasu bez zamykania okna. */
+function MemoryReader({ all, id, onGo, onClose, onEdit, onDelete, onToggleFavorite }) {
+  const { index, total, prev, next } = neighbors(all, id)
+  const memory = all[index]
+  if (!memory) return null
   const dateText = memory.date
     ? format(parseISO(memory.date), 'EEEE, d MMMM yyyy', { locale: pl })
     : 'Bez daty'
@@ -207,11 +243,11 @@ function MemoryReader({ memory, onClose, onEdit, onDelete, onToggleFavorite }) {
           </h3>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <button className={`mem-fav ${memory.favorite ? 'on' : ''}`} style={{ width: 30, height: 30 }}
-              title="Ulubione" onClick={onToggleFavorite}><IconStar size={15} /></button>
-            <button className="t-btn" style={{ width: 30, height: 30 }} title="Edytuj" onClick={onEdit}>
+              title="Ulubione" onClick={() => onToggleFavorite(memory)}><IconStar size={15} /></button>
+            <button className="t-btn" style={{ width: 30, height: 30 }} title="Edytuj" onClick={() => onEdit(memory)}>
               <IconEdit size={14} />
             </button>
-            <button className="t-btn delete" style={{ width: 30, height: 30 }} title="Usuń" onClick={onDelete}>
+            <button className="t-btn delete" style={{ width: 30, height: 30 }} title="Usuń" onClick={() => onDelete(memory)}>
               <IconTrash size={14} />
             </button>
             <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
@@ -234,6 +270,15 @@ function MemoryReader({ memory, onClose, onEdit, onDelete, onToggleFavorite }) {
               {memory.tags.map(t => <span key={t} className="note-tag">{t}</span>)}
             </div>
           )}
+        </div>
+        <div className="reader-nav">
+          <button className="reader-nav-btn" disabled={!prev} onClick={() => prev && onGo(prev.id)}>
+            <IconChevronLeft size={16} /> Nowsze
+          </button>
+          <span className="reader-count">{index + 1} z {total}</span>
+          <button className="reader-nav-btn" disabled={!next} onClick={() => next && onGo(next.id)}>
+            Starsze <IconChevronRight size={16} />
+          </button>
         </div>
       </div>
     </div>

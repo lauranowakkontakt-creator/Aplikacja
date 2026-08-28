@@ -6,6 +6,7 @@ import { saveModuleIcon } from '../utils/iconPrefs'
 import { moveModule, toggleHidden, isHidden, FIXED_FIRST, NAV_SLOTS } from '../utils/moduleLayout'
 import { CURRENCIES, getCurrencyCode, setCurrencyCode } from '../utils/currency'
 import { exportAllJSON, exportTransactionsCSV } from '../utils/dataExport'
+import FeedbackPanel from './FeedbackPanel'
 import { toast } from './Toast'
 
 export default function SettingsDrawer({ open, onClose, activeModule, modules, onModuleChange, onIconChange, onCurrencyChange, user, layout, onLayoutChange }) {
@@ -97,6 +98,12 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
             </div>
           </div>
         )}
+
+        {/* Zgłoś błąd lub pomysł */}
+        <div className="drawer-section">
+          <p className="drawer-section-title">Zgłoś błąd lub pomysł</p>
+          <FeedbackPanel user={user} activeModuleId={activeModule?.id} />
+        </div>
 
         {/* Kopia danych */}
         <div className="drawer-section">

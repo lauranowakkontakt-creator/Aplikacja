@@ -38,30 +38,6 @@ export function groupByDay(entries) {
     }))
 }
 
-// Seria: ile dni z rzędu (do dziś) ma choć jeden wpis. Jeśli dzisiaj jeszcze
-// nic nie zapisano, seria liczy się od wczoraj — dzień jeszcze trwa, więc
-// nie zerujemy jej przedwcześnie.
-export function currentStreak(entries, today) {
-  const days = new Set(entries.map(e => e?.date).filter(Boolean))
-  if (days.size === 0) return 0
-  let cur = days.has(today) ? today : shiftDay(today, -1)
-  let n = 0
-  while (days.has(cur)) { n++; cur = shiftDay(cur, -1) }
-  return n
-}
-
-// Najdłuższa seria w całej historii.
-export function longestStreak(entries) {
-  const days = [...new Set(entries.map(e => e?.date).filter(Boolean))].sort()
-  let best = 0, run = 0, prev = null
-  for (const d of days) {
-    run = prev && shiftDay(prev, 1) === d ? run + 1 : 1
-    if (run > best) best = run
-    prev = d
-  }
-  return best
-}
-
 // Liczba wpisów w miesiącu podanym jako 'yyyy-MM'.
 export function countInMonth(entries, month) {
   return entries.filter(e => String(e?.date || '').startsWith(month)).length
@@ -75,13 +51,18 @@ export function filterEntries(entries, search = '') {
   return entries.filter(e => normalize(e?.text || '').includes(q))
 }
 
-// Statystyki do kafelków: wpisy łącznie, dni z wpisem, seria, ten miesiąc.
+// Statystyki do kafelków. Świadomie BEZ serii i rekordu — wdzięczność nie jest
+// wyścigiem, a licznik dni z rzędu robi z niej obowiązek.
 export function gratitudeStats(entries, today) {
   return {
     total: entries.length,
     days: new Set(entries.map(e => e?.date).filter(Boolean)).size,
-    streak: currentStreak(entries, today),
-    best: longestStreak(entries),
     month: countInMonth(entries, String(today).slice(0, 7)),
   }
+}
+
+// Wszystkie wpisy jako płaska lista, od najnowszych — do przeglądania
+// i skakania między nimi strzałkami.
+export function flatEntries(entries) {
+  return groupByDay(entries).flatMap(g => [...g.items].reverse())
 }

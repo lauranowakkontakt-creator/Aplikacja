@@ -60,7 +60,7 @@ test('Pulpit: pokazuje tylko moduły zostawione przez użytkownika', () => {
   const cards = (PULPIT.match(/<PulpitCard/g) || []).length
   const guards = (PULPIT.match(/\{shows\('/g) || []).length
   assert.equal(guards, cards, 'każda karta Pulpitu musi być pod warunkiem shows()')
-  assert.ok(cards >= 8, `spodziewano się co najmniej 8 kart, jest ${cards}`)
+  assert.ok(cards >= 6, `spodziewano się co najmniej 6 kart, jest ${cards}`)
 })
 
 test('Pulpit: agenda pomija pozycje z ukrytych modułów', () => {
@@ -119,11 +119,65 @@ test('Nawyki: dzień zrobiony mimo wyjazdu ma własne oznaczenie', () => {
   }
 })
 
+test('Nastrój nie jest osobną apką — mieszka w Nawykach', () => {
+  assert.ok(!moduleIds.includes('mood'), 'Nastrój nadal jest osobnym modułem')
+  assert.ok(!APP.includes('MoodDashboard'), 'App nadal renderuje Nastrój jako moduł')
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  assert.match(habits, /import\('\.\.\/mood\/MoodDashboard'\)/, 'Nawyki nie ładują Nastroju')
+  assert.match(habits, /mood-tile/, 'brak kafelka nastroju w Nawykach')
+  // Akcje Nastroju idą do paska arkusza, nie do górnej belki apki — inaczej
+  // biłyby się o nią z Nawykami.
+  assert.match(habits, /setHeaderExtras=\{setMoodExtras\}/)
+})
+
 test('Nowe kolekcje wchodzą do kopii danych', () => {
   const exp = read('src/utils/dataExport.js')
   for (const col of ['gratitude', 'memories']) {
     assert.match(exp, new RegExp(`'${col}'`), `kolekcja ${col} nie jest eksportowana`)
   }
+})
+
+test('Wdzięczność i wspomnienia bez serii i rekordów — to nie wyścig', () => {
+  const logic  = read('src/utils/gratitudeLogic.js')
+  const grat   = read('src/components/gratitude/GratitudeDashboard.jsx')
+  const mem    = read('src/components/memories/MemoriesDashboard.jsx')
+  assert.ok(!/streak/i.test(logic), 'logika wdzięczności nadal liczy serie')
+  for (const [name, src] of [['Wdzięcznik', grat], ['Wspomnik', mem]]) {
+    assert.ok(!/Seria|Rekord/.test(src), `${name} nadal pokazuje serię lub rekord`)
+  }
+  assert.ok(!/gratStat\.streak/.test(PULPIT), 'Pulpit nadal pokazuje serię wdzięczności')
+})
+
+test('Wdzięcznik i Wspomnik: przypominajka i przeglądanie wpisów', () => {
+  for (const f of ['src/components/gratitude/GratitudeDashboard.jsx',
+                   'src/components/memories/MemoriesDashboard.jsx']) {
+    const src = read(f)
+    assert.match(src, /pickBySeed/, `${f}: brak losowej przypominajki`)
+    assert.match(src, /recall-card/, `${f}: brak karty przypominajki`)
+    assert.match(src, /neighbors\(/, `${f}: brak skakania między wpisami`)
+    assert.match(src, /reader-nav/, `${f}: brak strzałek w podglądzie`)
+  }
+})
+
+test('Biblia: reset i licznik pod trzema kropkami, start sam się włącza', () => {
+  const bible = read('src/components/bible/BibleDashboard.jsx')
+  assert.match(bible, /<BibleMenu/, 'brak menu ⋮ w Biblii')
+  assert.match(bible, /resetProgress/, 'brak resetu postępów')
+  // Licznik nie może już siedzieć na głównym ekranie — tylko w oknie z menu.
+  assert.match(bible, /showJourney/)
+  // Start ustawia się po odhaczeniu pierwszego rozdziału, bez żadnego przycisku.
+  assert.match(bible, /stats\.read > 0 && !progress\.startDate/)
+  assert.match(APP, /activeModule === 'bible'.*setHeaderExtras/)
+})
+
+test('Zgłaszanie błędów: zapis zawsze, mail opcjonalnie', () => {
+  const panel = read('src/components/FeedbackPanel.jsx')
+  const drawer = read('src/components/SettingsDrawer.jsx')
+  assert.match(drawer, /<FeedbackPanel/, 'brak formularza w Ustawieniach')
+  // Zapis do własnej gałęzi użytkownika — reguły Firestore na pewno pozwalają.
+  assert.match(panel, /collection\(db, 'users', user\.uid, 'feedback'\)/)
+  // Nieudany mail nie może wyglądać jak nieudane zgłoszenie.
+  assert.match(panel, /isEmailConfigured\(\)/)
 })
 
 function walk(dir) {

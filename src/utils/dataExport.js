@@ -8,7 +8,7 @@ const COLLECTIONS = [
   'moodLogs', 'todos', 'todoLists',
   'calendarEvents', 'calendarPeople', 'calendarCategories',
   'prayerIntentions', 'prayerPeople', 'bibleNotes',
-  'notes', 'gratitude', 'memories',
+  'notes', 'gratitude', 'memories', 'feedback',
 ]
 // Pojedyncze dokumenty
 const SINGLE_DOCS = [

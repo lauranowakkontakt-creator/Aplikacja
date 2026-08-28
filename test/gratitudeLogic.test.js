@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  shiftDay, groupByDay, currentStreak, longestStreak,
-  countInMonth, filterEntries, gratitudeStats,
+  shiftDay, groupByDay, countInMonth, filterEntries,
+  gratitudeStats, flatEntries,
 } from '../src/utils/gratitudeLogic.js'
 
 test('shiftDay — przesuwa dni, także przez granice miesiąca i roku', () => {
@@ -34,31 +34,7 @@ test('groupByDay — dni od najnowszego, w dniu kolejność dodania', () => {
   assert.deepEqual(g[1].items.map(i => i.id), ['c'])
 })
 
-test('currentStreak — liczy dni z rzędu do dziś', () => {
-  const e = (date) => ({ date })
-  assert.equal(currentStreak([e('2026-08-27'), e('2026-08-26'), e('2026-08-25')], '2026-08-27'), 3)
-  // dwa wpisy tego samego dnia to nadal jeden dzień serii
-  assert.equal(currentStreak([e('2026-08-27'), e('2026-08-27')], '2026-08-27'), 1)
-  assert.equal(currentStreak([], '2026-08-27'), 0)
-})
 
-test('currentStreak — brak wpisu dziś nie zeruje serii, brak wczoraj tak', () => {
-  const e = (date) => ({ date })
-  assert.equal(currentStreak([e('2026-08-26'), e('2026-08-25')], '2026-08-27'), 2)
-  assert.equal(currentStreak([e('2026-08-24'), e('2026-08-23')], '2026-08-27'), 0)
-})
-
-test('longestStreak — najdłuższy ciąg w historii', () => {
-  const e = (date) => ({ date })
-  const entries = [
-    e('2026-08-01'), e('2026-08-02'), e('2026-08-03'), // 3
-    e('2026-08-10'),                                    // 1
-    e('2026-08-20'), e('2026-08-21'),                   // 2
-  ]
-  assert.equal(longestStreak(entries), 3)
-  assert.equal(longestStreak([]), 0)
-  assert.equal(longestStreak([e('2026-08-05')]), 1)
-})
 
 test('countInMonth — tylko wpisy z danego miesiąca', () => {
   const e = (date) => ({ date })
@@ -77,10 +53,22 @@ test('filterEntries — szuka bez polskich znaków', () => {
   assert.equal(filterEntries(entries, '  ').length, 2)
 })
 
-test('gratitudeStats — komplet liczb do kafelków', () => {
+test('gratitudeStats — liczby bez serii i rekordu (to nie wyścig)', () => {
   const e = (date) => ({ date })
   const entries = [e('2026-08-27'), e('2026-08-27'), e('2026-08-26'), e('2026-07-01')]
-  assert.deepEqual(gratitudeStats(entries, '2026-08-27'), {
-    total: 4, days: 3, streak: 2, best: 2, month: 3,
-  })
+  const stats = gratitudeStats(entries, '2026-08-27')
+  assert.deepEqual(stats, { total: 4, days: 3, month: 3 })
+  assert.ok(!('streak' in stats), 'seria nie powinna wracać do statystyk')
+  assert.ok(!('best' in stats), 'rekord nie powinien wracać do statystyk')
+})
+
+test('flatEntries — wszystkie wpisy po kolei, od najnowszego', () => {
+  const d = (ms) => ({ toMillis: () => ms })
+  const entries = [
+    { id: 'stary',  date: '2026-08-25', createdAt: d(10) },
+    { id: 'nowy2',  date: '2026-08-27', createdAt: d(200) },
+    { id: 'nowy1',  date: '2026-08-27', createdAt: d(100) },
+  ]
+  assert.deepEqual(flatEntries(entries).map(e => e.id), ['nowy2', 'nowy1', 'stary'])
+  assert.deepEqual(flatEntries([]), [])
 })

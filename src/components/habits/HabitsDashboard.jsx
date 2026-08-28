@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { collection, onSnapshot, orderBy, query, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
+import { useState, useEffect, lazy, Suspense } from 'react'
+import { collection, onSnapshot, orderBy, query, where, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { format, startOfWeek, addDays, subDays, startOfMonth, endOfMonth, getDaysInMonth, addMonths, subMonths } from 'date-fns'
@@ -10,7 +10,10 @@ import HabitReorderModal from './HabitReorderModal'
 import HabitDayGrid from './HabitDayGrid'
 import HabitMenu from './HabitMenu'
 import RoutineManager from './RoutineManager'
-import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronLeft, IconChevronRight, IconPlus } from '../Icons'
+// Nastrój nie jest już osobną apką — mieszka w Nawykach, otwierany z kafelka.
+// Leniwie, żeby wejście w Nawyki nie ciągnęło kodu wykresów nastroju.
+const MoodDashboard = lazy(() => import('../mood/MoodDashboard'))
+import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronLeft, IconChevronRight, IconPlus, IconMood, IconClose } from '../Icons'
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
@@ -124,7 +127,7 @@ function MonthCalendar({ month, renderCell, cellH = 20, gap = 3, font = 8.5, max
   )
 }
 
-export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) {
+export default function HabitsDashboard({ user, setHeaderExtras }) {
   const [habits, setHabits]         = useState([])
   const [pauses, setPauses]         = useState([])
   const [customCats, setCustomCats] = useState([])
@@ -146,8 +149,22 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
   const [weekAnchor, setWeekAnchor]   = useState(new Date())     // nawigacja tygodnia w statystykach
   const [monthAnchor, setMonthAnchor] = useState(new Date())     // nawigacja miesiąca w statystykach
   const [statYear, setStatYear]       = useState(new Date().getFullYear()) // nawigacja roku w statystykach
+  const [moodOpen, setMoodOpen]       = useState(false)  // arkusz z modułem Nastrój
+  const [moodExtras, setMoodExtras]   = useState(null)   // akcje Nastroju — do paska arkusza, nie do belki apki
+  const [todayMood, setTodayMood]     = useState(null)
 
   const TODAY = format(new Date(), 'yyyy-MM-dd')
+
+  // Nastrój z dziś — tylko do kafelka. Jeden filtr równościowy, więc Firestore
+  // radzi sobie bez zakładania złożonego indeksu.
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'moodLogs'), where('date', '==', TODAY))
+    return onSnapshot(q, snap => {
+      const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+      setTodayMood(logs[0] || null)
+    }, () => setTodayMood(null))
+  }, [user.uid, TODAY])
 
 
   useEffect(() => {
@@ -316,6 +333,23 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
     </div>
   )
 
+  // Kafelek nastroju — jedyne wejście do Nastroju (nie jest już osobną apką).
+  // Twarz świeci kolorem dzisiejszego wpisu, więc widać na pierwszy rzut oka,
+  // czy dzień jest już zapisany.
+  const moodTile = (
+    <button className={`mood-tile${todayMood ? ' logged' : ''}`} onClick={() => setMoodOpen(true)}
+      style={todayMood?.moodColor ? { '--mood-color': todayMood.moodColor } : undefined}>
+      <span className="mood-tile-face"><IconMood size={20} /></span>
+      <span className="mood-tile-text">
+        <span className="mood-tile-label">Nastrój</span>
+        <span className="mood-tile-value">
+          {todayMood ? (todayMood.moodLabel || 'zapisany') : 'jak się dziś masz?'}
+        </span>
+      </span>
+      <IconChevronRight size={15} className="mood-tile-chev" />
+    </button>
+  )
+
   return (
     <div className="habits-dashboard">
       {/* ===== EKRAN GŁÓWNY (Dziś): hero (akcje są w górnej belce) ===== */}
@@ -367,6 +401,8 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
               {intensityLegend}
             </div>
           </div>
+
+          {moodTile}
         </>
       )}
 
@@ -814,6 +850,27 @@ export default function HabitsDashboard({ user, onMoodClick, setHeaderExtras }) 
       {showReorder && <HabitReorderModal user={user} habits={activeHabits} onClose={() => setShowReorder(false)} />}
       {showForm && (
         <HabitForm user={user} onClose={() => { setShowForm(false); setEditHabit(null) }} editData={editHabit} />
+      )}
+
+      {/* Nastrój — pełnoekranowy arkusz wewnątrz Nawyków. Moduł wstrzykuje
+          swoje przyciski (analiza, „+") do paska arkusza, a nie do górnej belki
+          apki — inaczej biłby się o nią z Nawykami. */}
+      {moodOpen && (
+        <div className="mood-sheet" role="dialog" aria-label="Nastrój">
+          <div className="mood-sheet-bar">
+            <button className="hdr-btn" title="Wróć do nawyków"
+              onClick={() => { setMoodOpen(false); setMoodExtras(null) }}>
+              <IconClose size={16} />
+            </button>
+            <span className="mood-sheet-title">Nastrój</span>
+            <div className="mood-sheet-actions">{moodExtras}</div>
+          </div>
+          <div className="mood-sheet-body">
+            <Suspense fallback={<div className="list-loading">Ładowanie...</div>}>
+              <MoodDashboard user={user} setHeaderExtras={setMoodExtras} />
+            </Suspense>
+          </div>
+        </div>
       )}
     </div>
   )

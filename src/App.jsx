@@ -7,7 +7,6 @@ import Pulpit from './components/Pulpit'
 // aplikacji (zwłaszcza na telefonie) nie ciągnie kodu wszystkich modułów naraz.
 const Dashboard         = lazy(() => import('./components/Dashboard'))
 const HabitsDashboard   = lazy(() => import('./components/habits/HabitsDashboard'))
-const MoodDashboard     = lazy(() => import('./components/mood/MoodDashboard'))
 const TodoDashboard     = lazy(() => import('./components/todo/TodoDashboard'))
 const CalendarDashboard = lazy(() => import('./components/calendar/CalendarDashboard'))
 const PrayerDashboard   = lazy(() => import('./components/prayer/PrayerDashboard'))
@@ -19,7 +18,7 @@ const MemoriesDashboard  = lazy(() => import('./components/memories/MemoriesDash
 import SettingsDrawer from './components/SettingsDrawer'
 import MoreSheet from './components/MoreSheet'
 import ErrorBoundary from './components/ErrorBoundary'
-import { IconBudget, IconHabits, IconMood, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore, IconUsers, IconMoon, IcSun, IcCamera } from './components/Icons'
+import { IconBudget, IconHabits, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore, IconUsers, IconMoon, IcSun, IcCamera } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
 import { getLayout, saveLayout, applyLayout, visibleModules, navModules } from './utils/moduleLayout'
 import { getCurrencyCode, setCurrencyCode } from './utils/currency'
@@ -32,7 +31,6 @@ const MODULE_ACCENTS = {
   home:     '#7C8AF0',
   budget:   '#33C3A6',
   habits:   '#E0B15A',
-  mood:     '#9B7CF0',
   todo:     '#5BB6D9',
   calendar: '#5FBF98',
   prayer:   '#C9A24A',
@@ -51,7 +49,6 @@ function buildModules() {
     { id: 'home',     label: 'Pulpit',    Icon: IconHome },
     { id: 'budget',   label: 'Budżet',    Icon: resolveIcon(prefs.budget,   IconBudget) },
     { id: 'habits',   label: 'Nawyki',    Icon: resolveIcon(prefs.habits,   IconHabits) },
-    { id: 'mood',     label: 'Nastrój',   Icon: resolveIcon(prefs.mood,     IconMood) },
     { id: 'todo',     label: 'To-do',     Icon: resolveIcon(prefs.todo,     IconTodo) },
     { id: 'calendar', label: 'Kalendarz', Icon: resolveIcon(prefs.calendar, IconCalendar) },
     { id: 'prayer',   label: 'Modlitwa',  Icon: resolveIcon(prefs.prayer,   IconPrayer) },
@@ -246,12 +243,11 @@ export default function App() {
             <Suspense fallback={<div className="loading-screen" style={{ minHeight: '40vh' }}><div className="spinner" /></div>}>
             {activeModule === 'home'     && <Pulpit user={user} onNavigate={goTo} visibleIds={shown.map(m => m.id)} />}
             {activeModule === 'budget'   && <Dashboard user={user} onCurrencyChange={handleCurrencyChange} setHeaderExtras={setHeaderExtras} />}
-            {activeModule === 'habits'   && <HabitsDashboard user={user} onMoodClick={() => setActiveModule('mood')} setHeaderExtras={setHeaderExtras} />}
-            {activeModule === 'mood'     && <MoodDashboard user={user} setHeaderExtras={setHeaderExtras} />}
+            {activeModule === 'habits'   && <HabitsDashboard user={user} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'todo'     && <TodoDashboard user={user} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'calendar' && <CalendarDashboard user={user} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'prayer'   && <PrayerDashboard user={user} setHeaderExtras={setHeaderExtras} />}
-            {activeModule === 'bible'    && <BibleDashboard user={user} />}
+            {activeModule === 'bible'    && <BibleDashboard user={user} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'people'   && <PeopleHub user={user} onOpenDream={openDream} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'dream'    && <DreamDashboard user={user} focusId={dreamFocus} onFocusConsumed={() => setDreamFocus(null)} setHeaderExtras={setHeaderExtras} />}
             {activeModule === 'gratitude'&& <GratitudeDashboard user={user} setHeaderExtras={setHeaderExtras} />}
