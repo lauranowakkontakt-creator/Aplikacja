@@ -2031,40 +2031,6 @@ body { overscroll-behavior-y: none; }
 }
 .grat-item-text:hover { color: var(--accent); }
 
-/* ===== ZGŁOSZENIA (błąd / pomysł) ===== */
-.feedback-form { display: flex; flex-direction: column; gap: 8px; }
-
-.feedback-types { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
-.feedback-type {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 10px 6px; border-radius: 10px; cursor: pointer; font-family: inherit;
-  font-size: 11.5px; font-weight: 600;
-  background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted);
-  transition: all .15s;
-}
-.feedback-type:hover { color: var(--text); border-color: var(--border-strong); }
-.feedback-type.active {
-  color: var(--accent); border-color: var(--accent);
-  background: color-mix(in oklab, var(--accent) 12%, var(--surface2));
-}
-
-.feedback-note { font-size: 10.5px; color: var(--text-muted); line-height: 1.45; margin: 2px 2px 0; }
-
-.feedback-done {
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  padding: 18px 12px; text-align: center;
-  background: var(--surface2); border-radius: var(--r);
-}
-.feedback-done-mark {
-  width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
-  background: color-mix(in oklab, var(--income) 18%, transparent); color: var(--income);
-}
-.feedback-done p { margin: 0; font-size: 13px; color: var(--text-sub); }
-.feedback-again {
-  background: none; border: none; cursor: pointer; font-family: inherit;
-  font-size: 12px; font-weight: 600; color: var(--accent); padding: 4px 8px;
-}
-
 /* ===== NASTRÓJ W NAWYKACH (kafelek + arkusz) ===== */
 .mood-tile {
   --mood-color: var(--text-muted);

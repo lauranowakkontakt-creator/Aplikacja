@@ -170,16 +170,6 @@ test('Biblia: reset i licznik pod trzema kropkami, start sam się włącza', () 
   assert.match(APP, /activeModule === 'bible'.*setHeaderExtras/)
 })
 
-test('Zgłaszanie błędów: zapis zawsze, mail opcjonalnie', () => {
-  const panel = read('src/components/FeedbackPanel.jsx')
-  const drawer = read('src/components/SettingsDrawer.jsx')
-  assert.match(drawer, /<FeedbackPanel/, 'brak formularza w Ustawieniach')
-  // Zapis do własnej gałęzi użytkownika — reguły Firestore na pewno pozwalają.
-  assert.match(panel, /collection\(db, 'users', user\.uid, 'feedback'\)/)
-  // Nieudany mail nie może wyglądać jak nieudane zgłoszenie.
-  assert.match(panel, /isEmailConfigured\(\)/)
-})
-
 test('Biblia: reset naprawdę kasuje rozdziały (nie merge pustą mapą)', () => {
   // setDoc({ counts: {} }, { merge: true }) SCALA mapy — nie skasowałoby
   // odhaczonych rozdziałów, a reset i tak pokazałby sukces.

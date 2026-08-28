@@ -301,13 +301,20 @@ export default function Pulpit({ user, onNavigate, visibleIds }) {
               <div className="pulpit-sub">{habitsStat.due > 0 ? 'zrobione dziś' : 'brak na dziś'}</div>
               {/* Nastrój mieszka teraz w Nawykach — pokazujemy go tu, zamiast
                   osobnej karty, żeby informacja nie zniknęła z Pulpitu. */}
-              <div className="pulpit-sub" style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+              {/* Kropka + krótka etykieta. Kafelek ma na telefonie ~110 px na
+                  tekst, więc dłuższy opis zawijał się i rozpychał kartę. */}
+              <div className="pulpit-sub" style={{
+                display: 'flex', alignItems: 'center', gap: 5, marginTop: 2,
+                minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
                 <span style={{
-                  width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                  width: 7, height: 7, borderRadius: '50%', flexShrink: 0,
                   background: moodStat.loggedToday ? (moodStat.lastColor || '#9B7CF0') : 'var(--text-muted)',
                   opacity: moodStat.loggedToday ? 1 : .4,
                 }} />
-                {moodStat.loggedToday ? moodStat.lastLabel : 'nastrój niezapisany'}
+                <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {moodStat.loggedToday ? moodStat.lastLabel : 'bez wpisu'}
+                </span>
               </div>
             </div>
           </div>
