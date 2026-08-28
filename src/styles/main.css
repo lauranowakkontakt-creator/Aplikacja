@@ -2037,7 +2037,7 @@ body { overscroll-behavior-y: none; }
 /* UWAGA: nazwa `hdr-mood`, a nie `mood-btn` — ta druga jest już zajęta przez
    przyciski wyboru nastroju wewnątrz modułu i rozciągałaby ikonkę w belce. */
 .hdr-mood {
-  --mood-color: var(--text-muted);
+  --mood-color: var(--accent);
   width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
   display: grid; place-items: center; cursor: pointer;
   background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14);
@@ -2052,41 +2052,17 @@ body { overscroll-behavior-y: none; }
   border-color: color-mix(in oklab, var(--mood-color) 50%, transparent);
   background: color-mix(in oklab, var(--mood-color) 18%, transparent);
 }
+/* Świeci = jesteś w Nastroju; klik wraca do Nawyków. Pełne wypełnienie,
+   żeby „gdzie jestem" czytało się jednym spojrzeniem. */
+.hdr-mood.active,
+.hdr-mood.active[style*="--mood-color"] {
+  background: var(--mood-color);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--mood-color) 22%, transparent);
+}
+.hdr-mood.active:hover { background: color-mix(in oklab, var(--mood-color) 85%, black); }
 
-
-/* Arkusz przykrywa treść Nawyków, ale zostaje pod dolną nawigacją,
-   żeby dało się wyjść do innej apki bez zamykania go. */
-.mood-sheet {
-  position: fixed; inset: 0; z-index: 28;
-  display: flex; flex-direction: column;
-  background: var(--bg);
-  animation: moodSheetIn .22s var(--spring);
-}
-@keyframes moodSheetIn {
-  from { opacity: 0; transform: translateY(14px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@media (prefers-reduced-motion: reduce) { .mood-sheet { animation: none; } }
-
-.mood-sheet-bar {
-  display: flex; align-items: center; gap: 10px; flex-shrink: 0;
-  padding: 10px 16px;
-  padding-top: calc(10px + env(safe-area-inset-top, 0px));
-  border-bottom: 1px solid var(--border);
-  background: rgba(12,14,20,0.6);
-  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
-}
-.mood-sheet-title { flex: 1; min-width: 0; font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
-.mood-sheet-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-
-.mood-sheet-body {
-  flex: 1; min-height: 0; overflow-y: auto;
-  overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-  padding: 16px 16px calc(110px + env(safe-area-inset-bottom, 0px));
-}
-@media (min-width: 881px) {
-  .mood-sheet-body { padding-bottom: 32px; }
-}
 
 /* ===== DZIESIĘCINA ===== */
 .tithe-hero {

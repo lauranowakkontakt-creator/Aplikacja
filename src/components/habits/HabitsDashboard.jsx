@@ -149,8 +149,8 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   const [weekAnchor, setWeekAnchor]   = useState(new Date())     // nawigacja tygodnia w statystykach
   const [monthAnchor, setMonthAnchor] = useState(new Date())     // nawigacja miesiąca w statystykach
   const [statYear, setStatYear]       = useState(new Date().getFullYear()) // nawigacja roku w statystykach
-  const [moodOpen, setMoodOpen]       = useState(false)  // arkusz z modułem Nastrój
-  const [moodExtras, setMoodExtras]   = useState(null)   // akcje Nastroju — do paska arkusza, nie do belki apki
+  const [moodOpen, setMoodOpen]       = useState(false)  // czy pokazujemy Nastrój zamiast Nawyków
+  const [moodExtras, setMoodExtras]   = useState(null)   // akcje Nastroju wstrzyknięte do wspólnej belki
   const [todayMood, setTodayMood]     = useState(null)
 
   const TODAY = format(new Date(), 'yyyy-MM-dd')
@@ -251,28 +251,35 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
     </button>
   )
 
-  // Akcje modułu w górnej belce („Apka"): [＋ Dodaj][⋮ Więcej — z Analizą].
+  // Twarz nastroju — jednocześnie przełącznik widoku i informacja, gdzie jesteś.
+  // Świeci → jesteś w Nastroju, klik wraca do Nawyków. Szara → jesteś w Nawykach,
+  // klik wchodzi w Nastrój. Kolor bierze się z dzisiejszego wpisu.
+  const moodBtn = (
+    <button
+      className={`hdr-mood${moodOpen ? ' active' : ''}`}
+      title={moodOpen ? 'Wróć do nawyków' : todayMood ? `Nastrój: ${todayMood.moodLabel || 'zapisany'}` : 'Zapisz nastrój'}
+      aria-label={moodOpen ? 'Wróć do nawyków' : 'Nastrój'}
+      aria-pressed={moodOpen}
+      style={todayMood?.moodColor ? { '--mood-color': todayMood.moodColor } : undefined}
+      onClick={() => setMoodOpen(o => !o)}
+    >
+      <IconMood size={17} />
+    </button>
+  )
+
+  // Akcje modułu w górnej belce („Apka"). JEDNA belka na oba widoki: w Nastroju
+  // pokazujemy jego własne akcje (wstrzyknięte przez moduł do `moodExtras`),
+  // w Nawykach — menu i „+". Wcześniej Nastrój otwierał się w osobnym arkuszu
+  // z drugim paskiem, który belka Nawyków zasłaniała — nie dało się wyjść.
   // UWAGA: hook musi być przed early-returnem (zasady hooków).
   useEffect(() => {
     setHeaderExtras?.(
-      <>
-        {/* Nastrój — sama twarz, bez podpisu. Świeci kolorem dzisiejszego
-            wpisu, więc jednym spojrzeniem widać, czy dzień jest zapisany. */}
-        <button
-          className="hdr-mood"
-          title={todayMood ? `Nastrój: ${todayMood.moodLabel || 'zapisany'}` : 'Zapisz nastrój'}
-          aria-label={todayMood ? `Nastrój: ${todayMood.moodLabel || 'zapisany'}` : 'Zapisz nastrój'}
-          style={todayMood?.moodColor ? { '--mood-color': todayMood.moodColor } : undefined}
-          onClick={() => setMoodOpen(true)}
-        >
-          <IconMood size={17} />
-        </button>
-        <HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} />
-        {addBtn}
-      </>
+      moodOpen
+        ? <>{moodBtn}{moodExtras}</>
+        : <>{moodBtn}<HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} />{addBtn}</>
     )
     return () => setHeaderExtras?.(null)
-  }, [activeHabits.length, todayMood])
+  }, [activeHabits.length, todayMood, moodOpen, moodExtras])
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -346,6 +353,19 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
       <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>więcej</span>
     </div>
   )
+
+  // Nastrój renderujemy W MIEJSCU treści Nawyków, nie jako nakładkę. Nakładka
+  // musiałaby przebić się przez kontekst nakładania kontenera treści, a to
+  // właśnie chowało jej pasek pod belką aplikacji.
+  if (moodOpen) {
+    return (
+      <div className="habits-dashboard">
+        <Suspense fallback={<div className="list-loading">Ładowanie...</div>}>
+          <MoodDashboard user={user} setHeaderExtras={setMoodExtras} />
+        </Suspense>
+      </div>
+    )
+  }
 
   return (
     <div className="habits-dashboard">
@@ -847,26 +867,6 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
         <HabitForm user={user} onClose={() => { setShowForm(false); setEditHabit(null) }} editData={editHabit} />
       )}
 
-      {/* Nastrój — pełnoekranowy arkusz wewnątrz Nawyków. Moduł wstrzykuje
-          swoje przyciski (analiza, „+") do paska arkusza, a nie do górnej belki
-          apki — inaczej biłby się o nią z Nawykami. */}
-      {moodOpen && (
-        <div className="mood-sheet" role="dialog" aria-label="Nastrój">
-          <div className="mood-sheet-bar">
-            <button className="hdr-btn" title="Wróć do nawyków"
-              onClick={() => { setMoodOpen(false); setMoodExtras(null) }}>
-              <IconClose size={16} />
-            </button>
-            <span className="mood-sheet-title">Nastrój</span>
-            <div className="mood-sheet-actions">{moodExtras}</div>
-          </div>
-          <div className="mood-sheet-body">
-            <Suspense fallback={<div className="list-loading">Ładowanie...</div>}>
-              <MoodDashboard user={user} setHeaderExtras={setMoodExtras} />
-            </Suspense>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

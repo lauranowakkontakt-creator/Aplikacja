@@ -128,9 +128,13 @@ test('Nastrój nie jest osobną apką — mieszka w Nawykach', () => {
   assert.match(habits, /hdr-mood/, 'brak ikonki nastroju w belce Nawyków')
   assert.ok(!/mood-tile/.test(habits), 'kafelek nastroju powinien zniknąć')
   assert.ok(!/jak się dziś masz/.test(habits), 'ikonka nastroju nie ma mieć podpisu')
-  // Akcje Nastroju idą do paska arkusza, nie do górnej belki apki — inaczej
-  // biłyby się o nią z Nawykami.
+  // Jedna belka na oba widoki: Nastrój wstrzyka swoje akcje do tej samej
+  // belki co Nawyki. Osobny pasek arkusza chowal sie pod belka aplikacji
+  // i nie dalo sie wyjsc z Nastroju.
   assert.match(habits, /setHeaderExtras=\{setMoodExtras\}/)
+  assert.ok(!/mood-sheet/.test(habits), 'Nastrój nie może wracać jako osobny arkusz')
+  assert.match(habits, /if \(moodOpen\) \{/, 'Nastrój ma się renderować w miejscu treści Nawyków')
+  assert.match(habits, /setMoodOpen\(o => !o\)/, 'twarz musi przełączać w obie strony')
 })
 
 test('Nowe kolekcje wchodzą do kopii danych', () => {
