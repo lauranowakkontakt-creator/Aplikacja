@@ -104,3 +104,30 @@ test('Poziome wychodzenie poza ekran: siatki mają min-width: 0', () => {
   const body = cssCode.match(/\.pulpit-card-body\s*\{[^}]*\}/)?.[0] || ''
   assert.match(body, /min-width:\s*0/)
 })
+
+test('Elementy o stałym rozmiarze nie kurczą się we flexie', () => {
+  // Realny błąd: Ring (56 px) w kafelku Pulpitu ściskał się do 52 px, a SVG
+  // wychodziło poza pudełko na sąsiedni napis. Te atomy mają zadany rozmiar
+  // i stoją w rzędach obok tekstu — muszą mieć blokadę kurczenia.
+  const net = cssCode.match(/\.icon-btn,[\s\S]*?flex-shrink:\s*0;[\s\S]*?\}/)?.[0] || ''
+  assert.ok(net, 'brak wspólnej reguły flex-shrink dla atomów o stałym rozmiarze')
+  for (const cls of ['.icon-btn', '.t-btn', '.hdr-btn', '.avatar', '.habit-check',
+                     '.pulpit-card-icon', '.stat-tile-icon', '.pray-list-box']) {
+    assert.ok(net.includes(cls), `${cls} poza blokadą kurczenia`)
+  }
+})
+
+test('Pierścienie postępu mają blokadę kurczenia', () => {
+  const chart = readFileSync(join(ROOT, 'src/components/ChartPrimitives.jsx'), 'utf8')
+  const ring = chart.slice(chart.indexOf('export function Ring'))
+  const open = ring.indexOf('<div style={{ position:')
+  assert.ok(open !== -1, 'nie znaleziono korzenia Ring')
+  assert.match(ring.slice(open, open + 160), /flexShrink: 0/,
+    'Ring bez flexShrink — będzie nachodzić na tekst w kafelkach')
+})
+
+test('Etykiety kafelków Pulpitu przycinają się zamiast wychodzić poza kartę', () => {
+  const label = cssCode.match(/\.pulpit-card-label\s*\{[^}]*\}/)?.[0] || ''
+  assert.match(label, /text-overflow:\s*ellipsis/)
+  assert.match(label, /min-width:\s*0/)
+})

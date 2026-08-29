@@ -1855,6 +1855,12 @@ body { overscroll-behavior-y: none; }
 .pulpit-card-label {
   font-size: 10px; font-weight: 700; letter-spacing: .12em;
   text-transform: uppercase; color: var(--text-muted);
+  /* Na 320 px kolumna kafelka ma ~105 px, a „WDZIĘCZNIK" z rozstrzeleniem
+     jest szersze — bez tego etykieta wychodziła poza główkę kafelka. */
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 360px) {
+  .pulpit-card-label { letter-spacing: .06em; }
 }
 .pulpit-card-body { display: flex; flex-direction: column; gap: 4px; min-height: 52px; justify-content: center; min-width: 0; }
 
@@ -1960,6 +1966,21 @@ body { overscroll-behavior-y: none; }
   background: color-mix(in oklab, var(--accent) 12%, transparent);
   color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   max-width: 90px; flex-shrink: 0;
+}
+
+/* ===== BLOKADA KURCZENIA DLA OKRĄGŁYCH/KWADRATOWYCH ATOMÓW =====
+   Wszystkie te elementy mają stały rozmiar i stoją w rzędach flex obok tekstu.
+   Bez `flex-shrink: 0` wąska kolumna ściska im pudełko poniżej zadanej
+   szerokości, a zawartość (ikona, SVG, cyfra) wychodzi na sąsiedni napis —
+   dokładnie ten błąd wyszedł na kafelku Biblii na Pulpicie.
+   W kontekstach nie-flex (grid, blok) reguła jest po prostu ignorowana. */
+.icon-btn, .t-btn, .hdr-btn, .hdr-mood, .modal-close, .month-btn, .settings-btn,
+.budget-menu-btn, .mod-header-add, .avatar, .avatar-placeholder, .drawer-avatar,
+.drawer-avatar-placeholder, .drawer-icon-preview, .habit-check, .habit-dot,
+.habit-card-icon, .cat-circle, .cal-cat-icon, .todo-count, .color-dot, .emoji-btn,
+.freq-day-btn, .note-pin, .mem-fav, .grat-item-num, .grat-add-btn, .pray-list-box,
+.stat-tile-icon, .pulpit-card-icon, .more-item-icon, .mod-layout-icon, .tithe-pool-icon {
+  flex-shrink: 0;
 }
 
 /* ===== MODLITWA — lista rzeczy do odhaczania przy prośbie ===== */
@@ -2454,8 +2475,23 @@ body { overscroll-behavior-y: none; }
 .rev-hero-chip { font-size: 12px; font-weight: 600; color: var(--text-sub); background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 4px 11px; }
 
 /* --- Szybkie akcje: okrągłe przyciski jak w Revolut --- */
-.rev-actions { display: flex; justify-content: center; gap: 18px; }
-.rev-action { display: flex; flex-direction: column; align-items: center; gap: 8px; background: none; border: none; cursor: pointer; font-family: inherit; }
+/* Cztery skróty w jednym rzędzie: na wąskich telefonach zmniejszamy odstęp
+   i pozwalamy im się zwężać, zamiast wypychać ostatni poza kartę. */
+.rev-actions { display: flex; justify-content: center; gap: 18px; max-width: 100%; }
+.rev-action { min-width: 0; }
+.rev-action-label { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* O szerokość rzędu walczą PODPISY, nie kółka („Transakcje" jest szersze niż
+   kółko). Dlatego cztery skróty dzielą wiersz po równo i to podpis się
+   przycina — zawijanie do drugiego rzędu wyglądało gorzej niż skrót. */
+.rev-action { flex: 1 1 0; }
+@media (max-width: 360px) {
+  .rev-actions { gap: 8px; }
+  .rev-action-circle,
+  .rev-action .budget-menu-btn { width: 46px; height: 46px; }
+  .rev-action-circle svg, .rev-action .budget-menu-btn svg { width: 19px; height: 19px; }
+  .rev-action-label { font-size: 10px; letter-spacing: -.01em; }
+}
+.rev-action { display: flex; flex-direction: column; align-items: center; gap: 8px; background: none; border: none; cursor: pointer; font-family: inherit; min-width: 0; }
 .rev-action-circle {
   width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center;
   background: var(--surface2); border: 1px solid var(--border); color: var(--text);

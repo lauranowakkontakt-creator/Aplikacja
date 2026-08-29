@@ -62,9 +62,6 @@ export function Donut({ data, size = 200, thickness = 22, gap = 0.018, centerTop
     acc += frac; return seg
   })
   return (
-    // flexShrink: 0 — w kafelkach Pulpitu Ring stoi w kontenerze flex obok
-    // tekstu; bez tego zapadał się poniżej swojego rozmiaru, a SVG o stałej
-    // szerokości wychodziło poza pudełko i nachodziło na napisy.
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface3)" strokeWidth={thickness} opacity={.5}/>
@@ -449,7 +446,10 @@ export function Ring({ value, size = 72, thickness = 7, color = 'var(--accent)',
   const r = (size - thickness) / 2
   const C = 2 * Math.PI * r
   return (
-    <div style={{ position: 'relative', width: size, height: size }}>
+    // flexShrink: 0 — pierścień stoi w kontenerze flex obok tekstu (kafelki
+    // Pulpitu, hero Nawyków). Bez tego kurczy się poniżej swojego rozmiaru,
+    // a SVG o stałej szerokości wychodzi poza pudełko i nachodzi na napisy.
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface3)" strokeWidth={thickness}/>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={thickness} strokeLinecap="round"
