@@ -19,7 +19,7 @@ import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
-  habitDayKind } from '../../utils/habitLogic'
+  habitDayKind, dayScore, isRequiredHabit } from '../../utils/habitLogic'
 
 function getPauseIcon(pauses, dateStr) {
   const p = pauseForDay(dateStr, pauses)
@@ -84,14 +84,15 @@ function statBuckets(habits, pauses, period, ctx, dataYears, now = new Date()) {
 //  done — ile z nich zrobione
 //  paused — czy to dzień wyjazdu/choroby
 function dayAggregate(habits, pauses, dateStr) {
-  let due = 0, done = 0
-  habits.forEach(h => {
-    const st = isHabitDue(h, dateStr, pauses)
-    const isDone = h.completedDates?.includes(dateStr)
-    if (st === 'due') { due++; if (isDone) done++ }
-    else if (st === 'paused' && isDone) { due++; done++ }
-  })
-  return { due, done, pct: due ? done / due : 0, paused: isPausedDay(dateStr, pauses) }
+  // Ta sama zasada co w hero i na Pulpicie: cel z nawyków wymaganych,
+  // zrobione ze wszystkich. Intensywność kratki ucinamy na 1.
+  const s = dayScore(habits, dateStr, pauses)
+  return {
+    due: s.required,
+    done: s.doneTotal,
+    pct: s.pct / 100,
+    paused: isPausedDay(dateStr, pauses),
+  }
 }
 
 const WD = ['P', 'W', 'Ś', 'C', 'P', 'S', 'N']
@@ -229,7 +230,10 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   })()
 
   const todayDue  = filtered.filter(h => isHabitDue(h, TODAY, pauses) === 'due')
-  const doneToday = todayDue.filter(h => h.completedDates?.includes(TODAY)).length
+  // Cel dnia liczymy z nawyków WYMAGANYCH, a zrobione — ze wszystkich, więc
+  // nadprogramowa robota potrafi przebić cel (np. 11 z 8).
+  const score     = dayScore(filtered, TODAY, pauses)
+  const doneToday = score.doneTotal
 
   const todayIsPaused = isPausedDay(TODAY, pauses)
 
@@ -386,7 +390,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
               background: 'linear-gradient(140deg, var(--surface) 45%, color-mix(in oklab, var(--accent) 7%, var(--surface)) 100%)',
             }}>
               <Ring
-                value={todayDue.length > 0 ? Math.round((doneToday / todayDue.length) * 100) : 0}
+                value={score.pct}
                 size={88} thickness={8} color="var(--warn)" label="dziś"
               />
               <div style={{ minWidth: 0 }}>
@@ -394,7 +398,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                 {kicker('Postęp dnia')}
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, margin: '2px 0 8px', whiteSpace: 'nowrap' }}>
                   <span className="serif" style={{ fontSize: 40 }}>{doneToday}</span>
-                  <span className="mono" style={{ fontSize: 17, color: 'var(--text-muted)' }}>/ {todayDue.length}</span>
+                  <span className="mono" style={{ fontSize: 17, color: 'var(--text-muted)' }}>/ {score.required}</span>
                 </div>
                 {maxStreak > 0 && (
                   <div style={{ color: 'var(--warn)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>

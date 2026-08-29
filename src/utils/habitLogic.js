@@ -23,6 +23,32 @@ export function isPausedDay(dateStr, pauses = []) {
   return pauses.some(p => dateStr >= p.from && dateStr <= p.to)
 }
 
+// Nawyk „wymagany" to podstawa dnia — tylko takie wchodzą do mianownika
+// („zrobione 5 z 8"). Nawyki oznaczone jako dodatkowe nie podbijają celu:
+// jak je zrobisz, liczą się na plus, jak nie — nic się nie dzieje.
+// Brak pola = wymagany, żeby istniejące nawyki zachowały się jak dotąd.
+export const isRequiredHabit = (habit) => habit?.optional !== true
+
+// Rozliczenie dnia: ile trzeba, ile z tego zrobione i ile zrobione w ogóle.
+// `doneTotal` liczy WSZYSTKO odhaczone tego dnia — także nawyki dodatkowe,
+// poza harmonogramem i zrobione w trakcie przerwy. Dlatego wynik potrafi
+// przebić cel (11 z 8) i o to chodzi: nadprogramowa robota ma być widoczna.
+export function dayScore(habits = [], dateStr, pauses = []) {
+  let required = 0, doneRequired = 0, doneTotal = 0
+  for (const h of habits) {
+    const done = (h.completedDates || []).includes(dateStr)
+    if (done) doneTotal++
+    if (isRequiredHabit(h) && isHabitDue(h, dateStr, pauses) === 'due') {
+      required++
+      if (done) doneRequired++
+    }
+  }
+  // Procent liczymy z wymaganych i ucinamy na 100 — pasek postępu nie ma
+  // sensu powyżej pełna, a sama nadwyżka widać w liczbach.
+  const pct = required > 0 ? Math.min(100, Math.round((doneTotal / required) * 100)) : (doneTotal > 0 ? 100 : 0)
+  return { required, doneRequired, doneTotal, extra: Math.max(0, doneTotal - doneRequired), pct }
+}
+
 // Jak pokazać dany dzień nawyku. Jeden wspólny słownik stanów dla siatki dni,
 // siatki tygodnia i statystyk — żeby te same sytuacje wyglądały wszędzie tak samo.
 //

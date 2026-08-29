@@ -12,20 +12,11 @@ import { Ring } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 import { isInvestment, sumByCurrency } from '../utils/investmentMath'
 import { BIBLE_BOOKS, TOTAL_CHAPTERS, chapterKey } from '../utils/bibleData'
+import { dayScore } from '../utils/habitLogic'
 import { gratitudeStats } from '../utils/gratitudeLogic'
 import { onThisDay } from '../utils/memoryLogic'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
-
-/* mała wersja isHabitDue — bez serii, tylko czy nawyk wypada dziś */
-function isDueOn(habit, dateStr, pauses) {
-  if (habit.archived) return false
-  if (habit.startDate && dateStr < habit.startDate) return false
-  if (habit.endDate && dateStr > habit.endDate) return false
-  if (pauses.some(p => dateStr >= p.from && dateStr <= p.to)) return false
-  const days = habit.frequencyDays || [0, 1, 2, 3, 4, 5, 6]
-  return days.includes(new Date(dateStr + 'T12:00:00').getDay())
-}
 
 function greeting() {
   const h = new Date().getHours()
@@ -105,10 +96,10 @@ export default function Pulpit({ user, onNavigate, visibleIds }) {
 
   /* ── NAWYKI ── */
   const habitsStat = useMemo(() => {
-    const due = habits.filter(h => isDueOn(h, today, pauses))
-    const done = due.filter(h => h.completedDates?.includes(today)).length
-    const pct = due.length > 0 ? Math.round((done / due.length) * 100) : 0
-    return { due: due.length, done, pct }
+    // Cel dnia to nawyki WYMAGANE; licznik obejmuje też te zrobione ponad plan,
+    // więc może przebić cel — dokładnie jak w module Nawyki.
+    const s = dayScore(habits, today, pauses)
+    return { due: s.required, done: s.doneTotal, pct: s.pct, extra: s.extra }
   }, [habits, pauses, today])
 
   /* ── NASTRÓJ ── */
@@ -298,7 +289,11 @@ export default function Pulpit({ user, onNavigate, visibleIds }) {
               <div className="pulpit-value" style={{ fontSize: 26 }}>
                 {habitsStat.done}<span className="pulpit-value-dim">/{habitsStat.due}</span>
               </div>
-              <div className="pulpit-sub">{habitsStat.due > 0 ? 'zrobione dziś' : 'brak na dziś'}</div>
+              <div className="pulpit-sub">
+                {habitsStat.due > 0
+                  ? (habitsStat.done > habitsStat.due ? 'ponad plan' : 'zrobione dziś')
+                  : habitsStat.done > 0 ? 'ponad plan' : 'brak na dziś'}
+              </div>
               {/* Nastrój mieszka teraz w Nawykach — pokazujemy go tu, zamiast
                   osobnej karty, żeby informacja nie zniknęła z Pulpitu. */}
               {/* Kropka + krótka etykieta. Kafelek ma na telefonie ~110 px na
@@ -385,11 +380,12 @@ export default function Pulpit({ user, onNavigate, visibleIds }) {
         <PulpitCard accent="#4F74D9" Icon={IconBook} label="Biblia" onClick={() => onNavigate('bible')}>
           <div className="pulpit-row">
             <Ring value={bibleStat.pct} size={56} thickness={6} color="#4F74D9" />
-            <div>
-              <div className="pulpit-value" style={{ fontSize: 22 }}>
+            <div style={{ minWidth: 0 }}>
+              {/* „1189/1189" to dużo znaków jak na pół kafelka — stąd mniejszy stopień */}
+              <div className="pulpit-value" style={{ fontSize: 19 }}>
                 {bibleStat.read}<span className="pulpit-value-dim">/{TOTAL_CHAPTERS}</span>
               </div>
-              <div className="pulpit-sub">przeczytane rozdziały</div>
+              <div className="pulpit-sub">rozdziały</div>
             </div>
           </div>
         </PulpitCard>

@@ -62,7 +62,10 @@ export function Donut({ data, size = 200, thickness = 22, gap = 0.018, centerTop
     acc += frac; return seg
   })
   return (
-    <div style={{ position: 'relative', width: size, height: size }}>
+    // flexShrink: 0 — w kafelkach Pulpitu Ring stoi w kontenerze flex obok
+    // tekstu; bez tego zapadał się poniżej swojego rozmiaru, a SVG o stałej
+    // szerokości wychodziło poza pudełko i nachodziło na napisy.
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--surface3)" strokeWidth={thickness} opacity={.5}/>
         {segs.map(s => (

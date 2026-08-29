@@ -195,6 +195,33 @@ test('Dziesięcina: niedopłata nie znika razem z pulą', () => {
   assert.match(tithe, /tithe: false, titheSettledAt/)
 })
 
+test('Modlitwa: opis albo lista do odhaczania', () => {
+  const pray = read('src/components/prayer/PrayerDashboard.jsx')
+  assert.match(pray, /note-mode-btn/, 'brak przełącznika Opis / Lista')
+  assert.match(pray, /function PrayerChecklist\(/, 'brak listy przy prośbie')
+  // Odhaczanie punkt po punkcie zapisuje sie od razu.
+  assert.match(pray, /checklistDone: toggleChecked/)
+})
+
+test('Nawyki: cel z wymaganych, licznik ze wszystkiego zrobionego', () => {
+  const logic  = read('src/utils/habitLogic.js')
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  const form   = read('src/components/habits/HabitForm.jsx')
+  assert.match(logic, /export function dayScore/)
+  assert.match(form, /setOptional/, 'brak wyboru wymagany / dodatkowy')
+  // Pulpit i modul licza tak samo — jedna funkcja, nie dwie kopie.
+  assert.match(habits, /dayScore\(filtered, TODAY, pauses\)/)
+  assert.match(PULPIT, /dayScore\(habits, today, pauses\)/)
+  assert.ok(!/function isDueOn/.test(PULPIT), 'Pulpit nie moze miec wlasnej kopii logiki nawykow')
+})
+
+test('Pulpit: pierscienie nie najezdzaja na tekst', () => {
+  // Ring stoi w kontenerze flex obok napisow — bez flexShrink zapadal sie
+  // ponizej swojego rozmiaru, a SVG wychodzilo poza pudelko.
+  const chart = read('src/components/ChartPrimitives.jsx')
+  assert.match(chart, /width: size, height: size, flexShrink: 0/)
+})
+
 function walk(dir) {
   const out = []
   for (const name of readdirSync(dir)) {

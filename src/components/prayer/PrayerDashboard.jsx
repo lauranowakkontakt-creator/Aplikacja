@@ -9,6 +9,8 @@ import PrayerMenu from './PrayerMenu'
 import StatSummary from '../StatSummary'
 import SegTabs from '../SegTabs'
 import { confirmDialog } from '../ConfirmModal'
+import { NOTE_MODES, normalizeNoteMode, parseChecklist, checklistToText,
+  toggleChecked, pruneDone, checklistProgress, hasChecklist } from '../../utils/prayerList'
 import { toast } from '../Toast'
 import { setPersonHidden, purgePerson } from '../../utils/people'
 
@@ -415,6 +417,13 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
     })
   }
 
+  // Odhaczenie pojedynczego punktu listy przy prośbie.
+  const toggleChecklistItem = async (item, id) => {
+    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
+      checklistDone: toggleChecked(item.checklistDone || [], id),
+    }).catch(() => {})
+  }
+
   const editNote = async (item, note, newText) => {
     await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
       notes: arrayRemove(note)
@@ -471,6 +480,7 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
           carMode={carMode}
           onTogglePrayed={togglePrayed}
           onAddNote={addNote}
+          onToggleChecklistItem={toggleChecklistItem}
           onEditNote={editNote}
           onDeleteNote={deleteNote}
           onArchive={archiveItem}
@@ -522,7 +532,37 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
 }
 
 /* ─── RequestCard ────────────────────────────────────────────────────────── */
-function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNote, onDeleteNote, onArchive, onEdit, onDelete, showPerson, person, viewDate }) {
+/* Lista rzeczy do modlitwy przy jednej prośbie. Każdy punkt odhacza się
+   osobno; licznik u góry pokazuje, ile już przeszło. */
+function PrayerChecklist({ item, fs, onToggle }) {
+  const items = item.checklist || []
+  const done = item.checklistDone || []
+  const { done: n, total, pct } = checklistProgress(items, done)
+  return (
+    <div className="pray-list">
+      <div className="pray-list-head">
+        <span className="pray-list-count">{n} z {total}</span>
+        <span className="pray-list-track"><span className="pray-list-fill" style={{ width: `${pct}%` }} /></span>
+      </div>
+      <div className="pray-list-items">
+        {items.map(it => {
+          const checked = done.includes(it.id)
+          return (
+            <button key={it.id} type="button"
+              className={`pray-list-item${checked ? ' done' : ''}`}
+              aria-pressed={checked}
+              onClick={() => onToggle(it.id)}>
+              <span className="pray-list-box">{checked && <IconCheck size={11} />}</span>
+              <span className="pray-list-text" style={{ fontSize: fs?.sub || 12 }}>{it.text}</span>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNote, onDeleteNote, onToggleChecklistItem, onArchive, onEdit, onDelete, showPerson, person, viewDate }) {
   const [showNotes, setShowNotes]     = useState(false)
   const [addingNote, setAddingNote]   = useState(false)
   const [noteText, setNoteText]       = useState('')
@@ -629,7 +669,11 @@ function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNot
               <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={fs.sub} /> {person.name}
             </p>
           )}
-          {item.note && <p style={{ margin: '3px 0 0', fontSize: fs.sub, color: 'var(--text-muted)' }}>{item.note}</p>}
+          {hasChecklist(item) ? (
+            <PrayerChecklist item={item} fs={fs} onToggle={(id) => onToggleChecklistItem?.(item, id)} />
+          ) : (
+            item.note && <p style={{ margin: '3px 0 0', fontSize: fs.sub, color: 'var(--text-muted)' }}>{item.note}</p>
+          )}
           {item.eventId ? (
             <p style={{ margin: '2px 0 0', fontSize: fs.badge, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: 3 }}>
               <IconCalendar size={10} /> z kalendarza{item.eventDate ? ` · ${item.eventDate}` : ''}
@@ -838,6 +882,7 @@ function TodayView({ user, intentions, people, carMode }) {
             viewDate={viewDate}
             onTogglePrayed={togglePrayed}
             onAddNote={addNote}
+            onToggleChecklistItem={toggleChecklistItem}
             onEditNote={editNote}
             onDeleteNote={deleteNote}
             onArchive={async (item) => updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { status: 'ended', endedAt: Timestamp.now() })}
@@ -1211,6 +1256,9 @@ function ArchiveView({ user, intentions, people }) {
 function IntentionForm({ user, editData, personId, onClose }) {
   const [title, setTitle]       = useState(editData?.title || '')
   const [note, setNote]         = useState(editData?.note || '')
+  // Opis może być zwykłym tekstem albo listą do odhaczania.
+  const [noteMode, setNoteMode] = useState(normalizeNoteMode(editData?.noteMode))
+  const [listText, setListText] = useState(checklistToText(editData?.checklist || []))
   const [priority, setPriority] = useState(editData?.priority || 3)
   const [dateTo, setDateTo]     = useState(editData?.dateTo || '')
   const [saving, setSaving]     = useState(false)
@@ -1220,8 +1268,15 @@ function IntentionForm({ user, editData, personId, onClose }) {
     e.preventDefault()
     if (!title.trim()) { setError('Wpisz treść prośby'); return }
     setSaving(true)
+    // Przy edycji dopasowujemy punkty po treści, żeby zmiana jednej pozycji
+    // nie zdjęła ptaszków z pozostałych.
+    const checklist = noteMode === 'list' ? parseChecklist(listText, editData?.checklist || []) : []
     const data = {
-      title: title.trim(), note: note.trim(),
+      title: title.trim(),
+      noteMode,
+      note: noteMode === 'text' ? note.trim() : '',
+      checklist,
+      checklistDone: pruneDone(checklist, editData?.checklistDone || []),
       personId: personId || editData?.personId || null,
       priority, dateTo: dateTo || null,
       updatedAt: Timestamp.now()
@@ -1269,9 +1324,30 @@ function IntentionForm({ user, editData, personId, onClose }) {
       </div>
 
       <div className="form-group" style={{ margin: 0 }}>
-        <label>Opis (opcjonalnie)</label>
-        <input type="text" className="form-input" value={note} onChange={e => setNote(e.target.value)}
-          maxLength={300} placeholder="Szczegóły..." />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+          <label style={{ margin: 0 }}>Szczegóły (opcjonalnie)</label>
+          <div className="note-mode">
+            {NOTE_MODES.map(m => (
+              <button key={m.id} type="button"
+                className={`note-mode-btn${noteMode === m.id ? ' active' : ''}`}
+                onClick={() => setNoteMode(m.id)}>{m.label}</button>
+            ))}
+          </div>
+        </div>
+        {noteMode === 'text' ? (
+          <input type="text" className="form-input" value={note} onChange={e => setNote(e.target.value)}
+            maxLength={300} placeholder="Szczegóły..." />
+        ) : (
+          <>
+            <textarea className="form-input" rows={5} value={listText}
+              onChange={e => setListText(e.target.value)}
+              placeholder={'zdrowie mamy\npraca taty\nspokój w domu'}
+              style={{ resize: 'vertical', minHeight: 108, fontFamily: 'inherit', lineHeight: 1.6 }} />
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
+              Jedna rzecz w linii. Każdą odhaczysz osobno przy prośbie.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="form-group" style={{ margin: 0 }}>

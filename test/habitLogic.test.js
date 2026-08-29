@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats,
-  byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind } from '../src/utils/habitLogic.js'
+  byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind, isRequiredHabit, dayScore } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -284,4 +284,71 @@ test('isDoneKind — wszystkie warianty zrobionego', () => {
   assert.ok(isDoneKind('done-bonus'))
   assert.ok(!isDoneKind('paused'))
   assert.ok(!isDoneKind('missed'))
+})
+
+// ── Wymagane vs dodatkowe: podstawa dnia i nadprogramowa robota ──────────────
+
+test('isRequiredHabit — brak pola znaczy wymagany', () => {
+  assert.ok(isRequiredHabit({}))
+  assert.ok(isRequiredHabit({ optional: false }))
+  assert.ok(!isRequiredHabit({ optional: true }))
+})
+
+test('dayScore — mianownik to tylko wymagane na dziś', () => {
+  const every = [0,1,2,3,4,5,6]
+  const habits = [
+    { name: 'a', frequencyDays: every },                    // wymagany, niezrobiony
+    { name: 'b', frequencyDays: every, completedDates: ['2026-08-29'] },
+    { name: 'c', frequencyDays: every, optional: true },    // dodatkowy — poza celem
+    { name: 'd', frequencyDays: [3] },                      // nie wypada dziś (sobota)
+  ]
+  const s = dayScore(habits, '2026-08-29', [])
+  assert.equal(s.required, 2, 'tylko wymagane wypadające dziś')
+  assert.equal(s.doneRequired, 1)
+  assert.equal(s.doneTotal, 1)
+})
+
+test('dayScore — nadprogramowe podbijają licznik ponad cel (11 z 8)', () => {
+  const every = [0,1,2,3,4,5,6]
+  const day = '2026-08-29'
+  const habits = []
+  for (let i = 0; i < 8; i++) habits.push({ frequencyDays: every, completedDates: [day] })
+  // trzy dodatkowe, poza celem, też zrobione
+  for (let i = 0; i < 3; i++) habits.push({ frequencyDays: every, optional: true, completedDates: [day] })
+  const s = dayScore(habits, day, [])
+  assert.equal(s.required, 8)
+  assert.equal(s.doneTotal, 11, 'licznik ma pokazać 11 przy celu 8')
+  assert.equal(s.extra, 3)
+  assert.equal(s.pct, 100, 'pasek nie przekracza pełna')
+})
+
+test('dayScore — nawyk zrobiony poza harmonogramem liczy się na plus', () => {
+  const habits = [
+    { frequencyDays: [1], completedDates: ['2026-08-29'] }, // sobota, plan na poniedziałek
+    { frequencyDays: [0,1,2,3,4,5,6] },                     // wymagany, niezrobiony
+  ]
+  const s = dayScore(habits, '2026-08-29', [])
+  assert.equal(s.required, 1)
+  assert.equal(s.doneRequired, 0)
+  assert.equal(s.doneTotal, 1)
+  assert.equal(s.extra, 1)
+})
+
+test('dayScore — dzień bez wymaganych', () => {
+  assert.deepEqual(dayScore([], '2026-08-29', []), { required: 0, doneRequired: 0, doneTotal: 0, extra: 0, pct: 0 })
+  // nic nie było wymagane, ale coś zrobione → pełny pasek, nie dzielenie przez zero
+  const s = dayScore([{ frequencyDays: [1], completedDates: ['2026-08-29'] }], '2026-08-29', [])
+  assert.equal(s.pct, 100)
+})
+
+test('dayScore — przerwa zdejmuje wymagania, ale robota nadal się liczy', () => {
+  const every = [0,1,2,3,4,5,6]
+  const pauses = [{ from: '2026-08-28', to: '2026-08-30', reason: 'vacation' }]
+  const habits = [
+    { frequencyDays: every, completedDates: ['2026-08-29'] },
+    { frequencyDays: every },
+  ]
+  const s = dayScore(habits, '2026-08-29', pauses)
+  assert.equal(s.required, 0, 'w przerwie nic nie jest wymagane')
+  assert.equal(s.doneTotal, 1, 'ale zrobione nadal widać')
 })
