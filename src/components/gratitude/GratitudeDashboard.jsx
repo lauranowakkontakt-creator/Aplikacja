@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { collection, query, onSnapshot, orderBy, addDoc, updateDoc, deleteDoc, doc, Timestamp, limit } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
-import { format, parseISO, isToday, isYesterday } from 'date-fns'
+import { format, parseISO, isToday, isYesterday, subDays, addDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { groupByDay, filterEntries, gratitudeStats, flatEntries } from '../../utils/gratitudeLogic'
 import { pickBySeed, daySeed, neighbors } from '../../utils/browsing'
@@ -20,6 +20,15 @@ function dayLabel(dateStr) {
   if (isToday(d)) return 'Dziś'
   if (isYesterday(d)) return 'Wczoraj'
   return format(d, 'EEEE, d MMMM yyyy', { locale: pl })
+}
+
+// Krótka etykieta do belki dnia: „Dziś", „Wczoraj", inaczej sam dzień
+// tygodnia — pełna data stoi i tak wierszem niżej, więc nie dublujemy jej.
+function shortDayLabel(dateStr) {
+  const d = parseISO(dateStr)
+  if (isToday(d)) return 'Dziś'
+  if (isYesterday(d)) return 'Wczoraj'
+  return format(d, 'EEEE', { locale: pl })
 }
 
 // Podpowiedzi, gdy pole jest puste — żeby nie patrzeć w pustkę.
@@ -42,6 +51,9 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
   const [editing, setEditing] = useState(null) // { id, text }
   const [shuffle, setShuffle] = useState(0)    // ile razy dolosowano przypominajkę
   const [reading, setReading] = useState(null) // id oglądanego wpisu
+  // Dzień, który dopisujemy i oglądamy. Wstecz bez ograniczeń, w przód tylko
+  // do dziś — wdzięczności nie da się zapisać na zapas.
+  const [viewDate, setViewDate] = useState(TODAY())
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -56,18 +68,28 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
 
   const today = TODAY()
   const stats = useMemo(() => gratitudeStats(entries, today), [entries, today])
-  const todayItems = useMemo(
-    () => groupByDay(entries.filter(e => e.date === today))[0]?.items || [],
-    [entries, today]
+  const isTodayView = viewDate === today
+  const dayItems = useMemo(
+    () => groupByDay(entries.filter(e => e.date === viewDate))[0]?.items || [],
+    [entries, viewDate]
   )
+  // Oglądany dzień ma własną sekcję u góry, więc w historii go nie powtarzamy.
   const history = useMemo(
-    () => groupByDay(filterEntries(entries, search)).filter(g => search ? true : g.date !== today),
-    [entries, search, today]
+    () => groupByDay(filterEntries(entries, search)).filter(g => search ? true : g.date !== viewDate),
+    [entries, search, viewDate]
   )
+
+  const goBack = () => setViewDate(d => format(subDays(parseISO(d), 1), 'yyyy-MM-dd'))
+  const goForward = () => setViewDate(d => {
+    const next = format(addDays(parseISO(d), 1), 'yyyy-MM-dd')
+    return next > TODAY() ? d : next
+  })
 
   // Podpowiedź zmienia się wraz z liczbą dzisiejszych wpisów — bez losowania,
   // żeby nie skakała przy każdym renderze.
-  const promptText = PROMPTS[todayItems.length % PROMPTS.length]
+  const promptText = isTodayView
+    ? PROMPTS[dayItems.length % PROMPTS.length]
+    : 'Za co byłaś wdzięczna tego dnia?'
 
   // Wszystkie wpisy po kolei — do przeglądania strzałkami.
   const all = useMemo(() => flatEntries(entries), [entries])
@@ -86,7 +108,7 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
     setSaving(true)
     try {
       await addDoc(collection(db, 'users', user.uid, 'gratitude'), {
-        date: today, text, createdAt: Timestamp.now(),
+        date: viewDate, text, createdAt: Timestamp.now(),
       })
       setDraft('')
       inputRef.current?.focus()
@@ -166,13 +188,30 @@ export default function GratitudeDashboard({ user, setHeaderExtras }) {
       {!search && (
       <div className="grat-today">
         <div className="grat-today-head">
-          <span className="grat-today-kicker"><IcSun size={13} /> Dziś</span>
-          <span className="grat-today-date">{format(new Date(), 'd MMMM', { locale: pl })}</span>
+          <button className="icon-btn" onClick={goBack} title="Poprzedni dzień">
+            <IconChevronLeft size={16} />
+          </button>
+          <div style={{ textAlign: 'center', minWidth: 0 }}>
+            <span className="grat-today-kicker"><IcSun size={13} /> {shortDayLabel(viewDate)}</span>
+            <div className="grat-today-date">{format(parseISO(viewDate), 'd MMMM yyyy', { locale: pl })}</div>
+            {!isTodayView && (
+              <button onClick={() => setViewDate(today)}
+                style={{ fontSize: 10, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                wróć do dziś
+              </button>
+            )}
+          </div>
+          {/* W przód tylko do dziś — dalej nie ma czego zapisywać */}
+          <button className="icon-btn" onClick={goForward} disabled={isTodayView}
+            title={isTodayView ? 'To już dziś' : 'Następny dzień'}
+            style={isTodayView ? { opacity: 0.35, cursor: 'default' } : undefined}>
+            <IconChevronRight size={16} />
+          </button>
         </div>
 
-        {todayItems.length > 0 && (
+        {dayItems.length > 0 && (
           <div className="grat-list">
-            {todayItems.map((e, i) => (
+            {dayItems.map((e, i) => (
               <GratitudeRow
                 key={e.id} entry={e} index={i + 1}
                 editing={editing?.id === e.id}
