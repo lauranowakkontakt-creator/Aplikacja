@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import {
   DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS,
   getEmotion, getCategory, parseMentions, parseSymbols, dreamPeopleIds, nameStem, personForms,
-  detectTrigger, tokenizeDreamText,
+  detectTrigger, tokenizeDreamText, mergeDreamCategories, findDreamCategory,
 } from '../src/utils/dreamLogic.js'
 
 test('tokenizeDreamText: #symbol podświetlony bez prefiksu, z id i kolorem', () => {
@@ -218,4 +218,43 @@ test('kategorie i emocje snów nie zawierają emotek', () => {
   for (const item of [...DREAM_EMOTIONS, ...DREAM_CATEGORIES]) {
     assert.ok(!EMOJI.test(item.label + item.id), `emotka w: ${item.label}`)
   }
+})
+
+/* ─── Własne kategorie snów ─────────────────────────────────────────────── */
+
+test('mergeDreamCategories — własne dopisane na końcu, wbudowane nietknięte', () => {
+  const merged = mergeDreamCategories([{ id: 'x1', label: 'Lotne', color: '#123456' }])
+  assert.equal(merged.length, DREAM_CATEGORIES.length + 1)
+  assert.deepEqual(merged.slice(0, DREAM_CATEGORIES.length), DREAM_CATEGORIES)
+  assert.deepEqual(merged.at(-1), { id: 'x1', label: 'Lotne', color: '#123456', custom: true })
+})
+
+test('mergeDreamCategories — pusto/nic nie psuje wbudowanych', () => {
+  assert.deepEqual(mergeDreamCategories(), DREAM_CATEGORIES)
+  assert.deepEqual(mergeDreamCategories([]), DREAM_CATEGORIES)
+  assert.deepEqual(mergeDreamCategories(null), DREAM_CATEGORIES)
+})
+
+test('mergeDreamCategories — odsiewa śmieci i kolizje id z wbudowanymi', () => {
+  const merged = mergeDreamCategories([
+    null, {}, { label: 'bez id' },
+    { id: 'koszmar', label: 'Podszywka' },
+  ])
+  assert.deepEqual(merged, DREAM_CATEGORIES)
+})
+
+test('mergeDreamCategories — bierze `name`, gdy nie ma `label`, i domyka braki', () => {
+  const [extra] = mergeDreamCategories([{ id: 'x2', name: 'Z bazy' }]).slice(-1)
+  assert.equal(extra.label, 'Z bazy')
+  assert.equal(extra.color, '#9E9E9E')
+  const [pusty] = mergeDreamCategories([{ id: 'x3', label: '   ' }]).slice(-1)
+  assert.equal(pusty.label, 'Bez nazwy')
+})
+
+test('findDreamCategory — szuka w podanej liście, bez listy we wbudowanych', () => {
+  const cats = mergeDreamCategories([{ id: 'x1', label: 'Lotne' }])
+  assert.equal(findDreamCategory(cats, 'x1').label, 'Lotne')
+  assert.equal(findDreamCategory(cats, 'koszmar').label, 'Koszmar')
+  assert.equal(findDreamCategory([], 'koszmar').label, 'Koszmar')
+  assert.equal(findDreamCategory(cats, 'nie-ma'), undefined)
 })

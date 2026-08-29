@@ -10,9 +10,10 @@ import {
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import DreamMenu from './DreamMenu'
+import DreamCategoryManager from './DreamCategoryManager'
 import { toast } from '../Toast'
 import {
-  DREAM_EMOTIONS, DREAM_CATEGORIES, SYMBOL_COLORS, getEmotion, getCategory,
+  DREAM_EMOTIONS, SYMBOL_COLORS, getEmotion, mergeDreamCategories, findDreamCategory,
   parseMentions, dreamPeopleIds, scrubSymbolFromDreams, personForms, nameStem, detectTrigger, tokenizeDreamText,
 } from '../../utils/dreams'
 
@@ -92,6 +93,7 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed, setHead
   const [selectedSymbolId, setSelectedSymbolId] = useState(null)
   const [showForm, setShowForm]     = useState(false)
   const [editDream, setEditDream]   = useState(null)
+  const [customCats, setCustomCats] = useState([])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'dreams'), orderBy('date', 'desc'))
@@ -106,12 +108,18 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed, setHead
     const q = query(collection(db, 'users', user.uid, 'dreamSymbols'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => setSymbols(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [user.uid])
+  useEffect(() => {
+    const q = query(collection(db, 'users', user.uid, 'dreamCategories'), orderBy('createdAt', 'asc'))
+    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+  }, [user.uid])
 
   // Wejście z innego modułu (np. z karty osoby w „Osoby")
   useEffect(() => {
     if (focusId) { setSelectedId(focusId); setTab('dreams'); onFocusConsumed?.() }
   }, [focusId])
 
+  // Wbudowane kategorie + własne — jedna lista dla kafelków, szczegółów i formularza.
+  const categories  = useMemo(() => mergeDreamCategories(customCats), [customCats])
   const peopleById  = useMemo(() => Object.fromEntries(people.map(p => [p.id, p])), [people])
   const symbolsById = useMemo(() => Object.fromEntries(symbols.map(s => [s.id, s])), [symbols])
 
@@ -159,16 +167,19 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed, setHead
   return (
     <div className="dream-dashboard">
       {/* Podstrona Symbole / Statystyki — pasek ze strzałką wstecz do dziennika */}
-      {!selected && (tab === 'symbols' || tab === 'stats') && (
+      {!selected && (tab === 'symbols' || tab === 'stats' || tab === 'categories') && (
         <div className="rev-subhead">
           <button className="rev-back" onClick={() => { setTab('dreams'); setSelectedSymbolId(null) }} title="Wróć"><IconChevronLeft size={18} /></button>
-          <div className="rev-subhead-title">{tab === 'symbols' ? 'Symbole' : 'Statystyki'}</div>
+          <div className="rev-subhead-title">
+            {tab === 'symbols' ? 'Symbole' : tab === 'categories' ? 'Kategorie snów' : 'Statystyki'}
+          </div>
         </div>
       )}
 
       {selected ? (
         <DreamDetail
           dream={selected}
+          categories={categories}
           peopleById={peopleById}
           symbolsById={symbolsById}
           onBack={() => setSelectedId(null)}
@@ -178,12 +189,15 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed, setHead
         />
       ) : tab === 'stats' ? (
         <DreamStats dreams={dreams} />
+      ) : tab === 'categories' ? (
+        <DreamCategoryManager user={user} />
       ) : tab === 'symbols' ? (
         <SymbolsView
           user={user}
           symbols={symbols}
           dreams={dreams}
           counts={symbolCounts}
+          categories={categories}
           peopleById={peopleById}
           symbolsById={symbolsById}
           selectedSymbolId={selectedSymbolId}
@@ -199,7 +213,7 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed, setHead
               <p className="list-empty-hint">Zapisz, co Ci się śniło — emocje, kategorię, osoby (@) i symbole (#)</p>
             </div>
           ) : dreams.map(d => (
-            <DreamCard key={d.id} dream={d} peopleById={peopleById} symbolsById={symbolsById} onClick={() => setSelectedId(d.id)} />
+            <DreamCard key={d.id} dream={d} categories={categories} peopleById={peopleById} symbolsById={symbolsById} onClick={() => setSelectedId(d.id)} />
           ))}
         </div>
       )}
@@ -207,6 +221,7 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed, setHead
       {showForm && (
         <DreamForm
           user={user}
+          categories={categories}
           people={people}
           symbols={symbols}
           onCreateSymbol={createSymbol}
@@ -219,8 +234,8 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed, setHead
 }
 
 /* ─── Kafelek snu na liście ──────────────────────────────────────────────── */
-function DreamCard({ dream: d, peopleById, symbolsById, onClick }) {
-  const cat = getCategory(d.category)
+function DreamCard({ dream: d, categories, peopleById, symbolsById, onClick }) {
+  const cat = findDreamCategory(categories, d.category)
   const linked = dreamPeopleIds(d).map(id => peopleById[id]).filter(Boolean)
   const syms = (d.symbolIds || []).map(id => symbolsById[id]).filter(Boolean)
   return (
@@ -274,7 +289,7 @@ function DreamCard({ dream: d, peopleById, symbolsById, onClick }) {
 }
 
 /* ─── Widok Symbole (katalog + sny danego symbolu) ───────────────────────── */
-function SymbolsView({ user, symbols, dreams, counts, peopleById, symbolsById, selectedSymbolId, onSelectSymbol, onOpenDream, onCreateSymbol }) {
+function SymbolsView({ user, symbols, dreams, counts, categories, peopleById, symbolsById, selectedSymbolId, onSelectSymbol, onOpenDream, onCreateSymbol }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
 
@@ -324,7 +339,7 @@ function SymbolsView({ user, symbols, dreams, counts, peopleById, symbolsById, s
         {its.length === 0 ? (
           <div className="list-empty"><p>Brak snów z tym symbolem</p></div>
         ) : its.map(d => (
-          <DreamCard key={d.id} dream={d} peopleById={peopleById} symbolsById={symbolsById} onClick={() => onOpenDream(d.id)} />
+          <DreamCard key={d.id} dream={d} categories={categories} peopleById={peopleById} symbolsById={symbolsById} onClick={() => onOpenDream(d.id)} />
         ))}
       </div>
     )
@@ -384,8 +399,8 @@ function SymbolsView({ user, symbols, dreams, counts, peopleById, symbolsById, s
 }
 
 /* ─── Szczegóły snu ───────────────────────────────────────────────────────── */
-function DreamDetail({ dream, peopleById, symbolsById, onBack, onOpenSymbol, onEdit, onDelete }) {
-  const cat = getCategory(dream.category)
+function DreamDetail({ dream, categories, peopleById, symbolsById, onBack, onOpenSymbol, onEdit, onDelete }) {
+  const cat = findDreamCategory(categories, dream.category)
   const participants = (dream.peopleIds || []).map(id => peopleById[id]).filter(Boolean)
   const mentioned = (dream.mentionIds || []).filter(id => !(dream.peopleIds || []).includes(id))
     .map(id => peopleById[id]).filter(Boolean)
@@ -471,7 +486,7 @@ function DreamDetail({ dream, peopleById, symbolsById, onBack, onOpenSymbol, onE
 }
 
 /* ─── Formularz snu ───────────────────────────────────────────────────────── */
-function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose }) {
+function DreamForm({ user, categories, people, symbols, onCreateSymbol, editData, onClose }) {
   const [title, setTitle]       = useState(editData?.title || '')
   const [date, setDate]         = useState(editData?.date || TODAY())
   const [text, setText]         = useState(editData?.text || '')
@@ -705,7 +720,7 @@ function DreamForm({ user, people, symbols, onCreateSymbol, editData, onClose })
           <div className="form-group">
             <label>Kategoria snu</label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {DREAM_CATEGORIES.map(c => (
+              {categories.map(c => (
                 <Chip key={c.id} color={c.color} active={category === c.id}
                   onClick={() => setCategory(category === c.id ? '' : c.id)}>
                   {c.label}

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { IconMoreVert, IconTag, IconChart } from '../Icons'
 
-// Menu „trzy kropki" dla Snu — Symbole / Statystyki.
+// Menu „trzy kropki" dla Snu — Symbole / Kategorie / Statystyki.
 export default function DreamMenu({ onAction }) {
   const [open, setOpen] = useState(false)
   const ref = useRef()
@@ -13,8 +13,9 @@ export default function DreamMenu({ onAction }) {
   }, [])
 
   const items = [
-    { id: 'symbols', Icon: IconTag,   label: 'Symbole' },
-    { id: 'stats',   Icon: IconChart, label: 'Statystyki' },
+    { id: 'symbols',    Icon: IconTag,   label: 'Symbole' },
+    { id: 'categories', Icon: IconTag,   label: 'Kategorie snów' },
+    { id: 'stats',      Icon: IconChart, label: 'Statystyki' },
   ]
 
   const handle = (id) => { onAction(id); setOpen(false) }

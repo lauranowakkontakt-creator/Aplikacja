@@ -42,6 +42,29 @@ export const SYMBOL_COLORS = [
 export const getEmotion  = (id) => DREAM_EMOTIONS.find(e => e.id === id)
 export const getCategory = (id) => DREAM_CATEGORIES.find(c => c.id === id)
 
+// Wbudowane kategorie snów + własne, dopisane przez użytkowniczkę. Własne idą
+// na koniec i normalizujemy im kształt (w bazie leżą jako `label`/`name`), żeby
+// reszta kodu nie musiała wiedzieć, skąd kategoria pochodzi. Id kolidujące
+// z wbudowanym odsiewamy — inaczej wyszukiwanie trafiałoby zawsze we wbudowaną
+// i własna nazwa nigdy by się nie pokazała.
+export function mergeDreamCategories(custom = []) {
+  const builtin = new Set(DREAM_CATEGORIES.map(c => c.id))
+  const extra = (custom || [])
+    .filter(c => c && c.id && !builtin.has(c.id))
+    .map(c => ({
+      id: c.id,
+      label: (c.label || c.name || '').trim() || 'Bez nazwy',
+      color: c.color || '#9E9E9E',
+      custom: true,
+    }))
+  return [...DREAM_CATEGORIES, ...extra]
+}
+
+// Szukanie w podanej liście; bez listy spada do wbudowanych, żeby stare
+// wywołania nie wybuchały.
+export const findDreamCategory = (cats, id) =>
+  (Array.isArray(cats) && cats.length ? cats : DREAM_CATEGORIES).find(c => c.id === id)
+
 // Formy osoby, którymi można ją oznaczyć w śnie: pełne imię, samo imię (pierwszy człon)
 // oraz dowolne ksywki zapisane w polu `aliases`. Bez pustych i duplikatów.
 export function personForms(person) {

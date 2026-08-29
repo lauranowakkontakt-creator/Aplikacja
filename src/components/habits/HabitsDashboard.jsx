@@ -127,6 +127,11 @@ function MonthCalendar({ month, renderCell, cellH = 20, gap = 3, font = 8.5, max
   )
 }
 
+// „Dzisiejszy rytm" — ścieżka dnia nad listą nawyków. Wyłączona, bo w praktyce
+// mało używana; kod i komponent DayPath zostają nietknięte, żeby dało się do
+// niej wrócić. Aby przywrócić: ustaw na true — nic więcej nie trzeba.
+const SHOW_DAY_RHYTHM = false
+
 export default function HabitsDashboard({ user, setHeaderExtras }) {
   const [habits, setHabits]         = useState([])
   const [pauses, setPauses]         = useState([])
@@ -233,7 +238,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
     ? Math.max(...filtered.map(h => getStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)))
     : 0
 
-  // Rekord — najlepsza seria historycznie (do „Dzisiejszego rytmu")
+  // Rekord — najlepsza seria historycznie (kafelek „Postęp dnia")
   const recordStreak = filtered.length > 0
     ? Math.max(...filtered.map(h => getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)))
     : 0
@@ -542,15 +547,16 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
           </div>
         )
 
-        const rytmSteps = mandatory.map(({ h }) => ({
+        const rytmSteps = SHOW_DAY_RHYTHM ? mandatory.map(({ h }) => ({
           key: h.id, emoji: h.emoji, color: h.color || 'var(--accent)',
           done: h.completedDates?.includes(selectedDay), title: h.name,
-        }))
+        })) : []
 
         return (
           <>
-            {/* Dzisiejszy rytm — ścieżka dnia (wspólny język z To-do) */}
-            {rytmSteps.length > 0 && (
+            {/* Dzisiejszy rytm — ścieżka dnia (wspólny język z To-do).
+                Uśpiony za SHOW_DAY_RHYTHM, patrz flaga na górze pliku. */}
+            {SHOW_DAY_RHYTHM && rytmSteps.length > 0 && (
               <div className="card card-hover-glow" style={{ padding: 18, marginBottom: 14 }}>
                 {kicker(isToday ? 'Dzisiejszy rytm' : 'Rytm dnia')}
                 <DayPath steps={rytmSteps} accent="var(--warn)" />
