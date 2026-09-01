@@ -215,6 +215,24 @@ test('Nawyki: cel z wymaganych, licznik ze wszystkiego zrobionego', () => {
   assert.ok(!/function isDueOn/.test(PULPIT), 'Pulpit nie moze miec wlasnej kopii logiki nawykow')
 })
 
+test('Nawyki: edycja wszystkich nawykow siedzi w menu, nie w liscie dnia', () => {
+  const menu    = read('src/components/habits/HabitMenu.jsx')
+  const manager = read('src/components/habits/HabitManager.jsx')
+  const habits  = read('src/components/habits/HabitsDashboard.jsx')
+  // Wejscie z menu „trzy kropki"
+  assert.match(menu, /id: 'manage'/, 'brak pozycji „Edytuj nawyki" w menu Nawykow')
+  assert.match(habits, /id === 'manage'.*setShowManager\(true\)/, 'menu nie otwiera listy nawykow')
+  assert.match(habits, /<HabitManager[\s\S]*habits=\{habits\}/, 'lista musi dostac WSZYSTKIE nawyki, nie tylko aktywne')
+  // Nawyk, ktory jeszcze nie wystartowal, ma byc na liscie do edycji —
+  // wczesniej dalo sie go otworzyc dopiero od dnia startu.
+  assert.match(manager, /habitLifecycle/, 'lista nie rozroznia zaplanowanych / zakonczonych')
+  assert.match(manager, /'planned'/)
+  assert.match(manager, /<HabitForm/, 'z listy musi dac sie otworzyc formularz')
+  // Klik w nawyk na liscie dnia nie moze juz otwierac formularza.
+  const day = habits.slice(habits.indexOf('const renderCard'), habits.indexOf('const grid ='))
+  assert.ok(!/setEditHabit/.test(day), 'karta dnia nadal otwiera edycje po kliknieciu')
+})
+
 test('Pulpit: pierscienie nie najezdzaja na tekst', () => {
   // Ring stoi w kontenerze flex obok napisow — bez flexShrink zapadal sie
   // ponizej swojego rozmiaru, a SVG wychodzilo poza pudelko.

@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats,
-  byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind, isRequiredHabit, dayScore } from '../src/utils/habitLogic.js'
+  byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind, isRequiredHabit, dayScore,
+  habitLifecycle } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -351,4 +352,21 @@ test('dayScore — przerwa zdejmuje wymagania, ale robota nadal się liczy', () 
   const s = dayScore(habits, '2026-08-29', pauses)
   assert.equal(s.required, 0, 'w przerwie nic nie jest wymagane')
   assert.equal(s.doneTotal, 1, 'ale zrobione nadal widać')
+})
+
+test('habitLifecycle: nawyk ze startem w przyszłości jest „zaplanowany"', () => {
+  const today = '2026-09-01'
+  assert.equal(habitLifecycle({ startDate: '2026-09-08' }, today), 'planned')
+  assert.equal(habitLifecycle({ startDate: '2026-09-01' }, today), 'active')
+  assert.equal(habitLifecycle({ startDate: '2026-08-01' }, today), 'active')
+  assert.equal(habitLifecycle({}, today), 'active')
+})
+
+test('habitLifecycle: koniec i archiwum', () => {
+  const today = '2026-09-01'
+  assert.equal(habitLifecycle({ endDate: '2026-08-31' }, today), 'ended')
+  assert.equal(habitLifecycle({ endDate: '2026-09-01' }, today), 'active')
+  // Archiwum wygrywa z datami — inaczej zarchiwizowany nawyk gubiłby się w „zakończonych".
+  assert.equal(habitLifecycle({ archived: true, startDate: '2026-09-08' }, today), 'archived')
+  assert.equal(habitLifecycle({ archived: true, endDate: '2026-08-31' }, today), 'archived')
 })
