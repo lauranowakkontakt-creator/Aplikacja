@@ -11,6 +11,14 @@ import { fileURLToPath } from 'node:url'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (p) => readFileSync(join(ROOT, p), 'utf8')
 
+// Skleja wszystkie pliki modułu w jeden tekst. Testy strukturalne mają pilnować
+// tego, CZY coś w module jest — nie tego, w którym dokładnie pliku, bo inaczej
+// każdy podział dużego komponentu wywala je bez żadnej realnej regresji.
+const readModule = (katalog) => readdirSync(join(ROOT, katalog))
+  .filter(f => f.endsWith('.jsx') || f.endsWith('.js'))
+  .map(f => read(join(katalog, f)))
+  .join('\n')
+
 const APP    = read('src/App.jsx')
 const PULPIT = read('src/components/Pulpit.jsx')
 const HTML   = read('index.html')
@@ -196,11 +204,31 @@ test('Dziesięcina: niedopłata nie znika razem z pulą', () => {
 })
 
 test('Modlitwa: opis albo lista do odhaczania', () => {
-  const pray = read('src/components/prayer/PrayerDashboard.jsx')
+  // Czytamy CAŁY moduł, nie pojedynczy plik: widoki Modlitwy siedzą w osobnych
+  // plikach obok PrayerDashboard.jsx i przy kolejnym podziale test nie ma
+  // padać tylko dlatego, że kod przeniósł się o plik dalej. Sprawdzamy, że
+  // funkcja jest w module — nie gdzie dokładnie.
+  const pray = readModule('src/components/prayer')
   assert.match(pray, /note-mode-btn/, 'brak przełącznika Opis / Lista')
   assert.match(pray, /function PrayerChecklist\(/, 'brak listy przy prośbie')
   // Odhaczanie punkt po punkcie zapisuje sie od razu.
   assert.match(pray, /checklistDone: toggleChecked/)
+})
+
+test('Modlitwa: odhaczanie dostępne w obu widokach, które go używają', () => {
+  // Regresja: toggleChecklistItem było zamknięte w PersonDetailView, a widok
+  // „Dziś" i tak podawał tę nazwę do RequestCard — czyli sięgał po zmienną
+  // spoza swojego zakresu i wywalał się ReferenceError-em przy każdej liście
+  // próśb. Funkcja musi być wspólna, nie lokalna dla jednego widoku.
+  const wspolne = read('src/components/prayer/wspolne.jsx')
+  assert.match(wspolne, /export async function toggleChecklistItem\(uid,/,
+    'toggleChecklistItem musi być wspólne i brać uid, nie domykać się nad jednym widokiem')
+
+  for (const plik of ['TodayView.jsx', 'PersonDetailView.jsx']) {
+    const kod = read(`src/components/prayer/${plik}`)
+    assert.match(kod, /toggleChecklistItem/, `${plik} nie podaje odhaczania do karty prośby`)
+    assert.match(kod, /from '\.\/wspolne'/, `${plik} musi importować je z wspolne.jsx`)
+  }
 })
 
 test('Nawyki: cel z wymaganych, licznik ze wszystkiego zrobionego', () => {
