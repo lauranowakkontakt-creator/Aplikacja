@@ -23,9 +23,10 @@ nie trzeba klikać przez Google przy każdym odświeżeniu.
 | Polecenie | Co robi |
 |---|---|
 | `npm run dev` | serwer deweloperski z hot reload |
+| `npm run lint` | ESLint — łapie użycie nieistniejących nazw |
 | `npm test` | testy jednostkowe (`node --test`, bez dodatkowych bibliotek) |
 | `npm run build` | build produkcyjny do `dist/` |
-| `npm run check` | **testy + build.** To jest bramka przed pushem |
+| `npm run check` | **lint + testy + build.** To jest bramka przed pushem |
 | `npm run preview` | podgląd zbudowanej wersji lokalnie |
 | `npm run deploy` | `check` + publikacja na GitHub Pages |
 
@@ -61,11 +62,25 @@ src/
   components/
     Pulpit.jsx         ekran startowy — podsumowanie ze wszystkich modułów
     <modul>/           jeden katalog na moduł (budget, habits, prayer, …)
+      <Modul>Dashboard.jsx   spinacz: dane z Firestore + nawigacja
+      <Widok>.jsx            jeden widok = jeden plik
+      wspolne.jsx            drobiazgi używane przez kilka widoków modułu
     …                  komponenty wspólne (Toast, ErrorBoundary, Icons…)
   utils/               CZYSTA LOGIKA — bez Reacta, bez Firebase
   styles/main.css      całość stylów
 test/                  testy jednostkowe, jeden plik na moduł logiki
 ```
+
+**Układ modułu.** `<Modul>Dashboard.jsx` tylko spina: subskrybuje Firestore
+i trzyma stan nawigacji. Każdy widok mieszka we własnym pliku obok.
+`wspolne.jsx` jest na to, czego używa kilka widoków naraz — importy „w bok"
+między widokami szybko robią cykl. Jeśli w `wspolne.jsx` zostanie coś
+z jednym konsumentem, to nie jest wspólne: wraca do tego pliku, który tego
+używa.
+
+Wyjątek: [`Icons.jsx`](src/components/Icons.jsx) ma ~1000 linii i tak
+zostaje. To płaska biblioteka 219 komponentów SVG bez cienia stanu — dzielenie
+jej dałoby 219 plików albo sztuczne grupy, a szuka się w niej po nazwie.
 
 **Kluczowa zasada podziału:** w `src/utils/` mieszka logika, którą da się
 przetestować bez przeglądarki i bez bazy — liczenie sald, serie nawyków,
@@ -168,8 +183,17 @@ które pilnują całości aplikacji:
 Do tego [lista testów ręcznych](docs/testy-reczne.md) — rzeczy, których nie da
 się sprawdzić bez telefonu w ręku.
 
+Osobno pilnowane są rzeczy, które kopiują się same z siebie: bąbelek osoby
+(był w czterech kopiach) i paleta jej kolorów (w trzech). Osoba jest wspólna
+dla modułów, więc ma jedną reprezentację i jedno źródło kolorów.
+
 **Zasada:** każda nowa lub zmieniona logika dostaje test, a `npm run check`
-przechodzi przed pushem. To samo sprawdza [CI](.github/workflows/ci.yml) przy
+przechodzi przed pushem.
+
+`check` uruchamia trzy bramki i każda łapie co innego — dlatego są trzy:
+lint widzi użycie nieistniejącej nazwy, ale nie import z nieistniejącego pliku;
+build widzi jedno i drugie, ale nie widzi błędnych wyników; testy widzą wyniki,
+ale nie to, czy apka się w ogóle zbuduje. To samo sprawdza [CI](.github/workflows/ci.yml) przy
 każdym pushu.
 
 ## Zależności
