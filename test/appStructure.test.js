@@ -111,7 +111,7 @@ test('Dziesięcina: procent od użytkownika, podstawa z zaznaczonych przychodów
 })
 
 test('Kalendarz: klik w dzień pokazuje, co się dzieje', () => {
-  const cal = read('src/components/calendar/CalendarDashboard.jsx')
+  const cal = readModule('src/components/calendar')
   assert.match(cal, /<DayDetail/)
   assert.match(cal, /function DayDetail\(/)
   // Pusty dzień podpowiada najbliższe wydarzenia zamiast pokazywać nic.

@@ -11,16 +11,12 @@ import {
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { setPersonHidden, purgePerson } from '../../utils/people'
+import { PERSON_COLORS } from '../../utils/personColors'
 import { getCategory, dreamPeopleIds } from '../../utils/dreams'
 import { debtsForPerson, debtSummary, todosForPerson, linkCountsByPerson } from '../../utils/personLinks'
 import { fmt } from '../../utils/currency'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
-const PERSON_COLORS = [
-  '#E74C3C','#E91E63','#9C27B0','#8B5CF6','#3F51B5','#2196F3',
-  '#00BCD4','#009688','#4CAF50','#F59E0B','#FF9800','#FF5722',
-  '#EC4899','#14B8A6','#84CC16','#6366F1',
-]
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
 const initials = (name) => (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 

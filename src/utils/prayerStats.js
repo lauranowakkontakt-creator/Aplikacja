@@ -1,4 +1,6 @@
 import { differenceInDays, parseISO } from 'date-fns'
+// Paleta osób jest wspólna dla modułów — jedno źródło w utils/people.js.
+export { PERSON_COLORS } from './personColors.js'
 
 // Czysta logika modułu Modlitwa: konfiguracja i liczenie statystyk.
 //
@@ -24,14 +26,6 @@ export const NEGLECT_LEVELS = [
   { min: 7,  max: 13,   level: 3, label: 'kilka dni',    color: '#f59e0b' },
   { min: 14, max: 29,   level: 4, label: 'dawno',        color: '#f97316' },
   { min: 30, max: 9999, level: 5, label: 'zapomniana',   color: '#ef4444' },
-]
-
-// Wspólna paleta kolorów osób (ta sama co w Kalendarzu) — osoba jest
-// współdzielona między modułami i musi wyglądać wszędzie tak samo.
-export const PERSON_COLORS = [
-  '#E74C3C', '#E91E63', '#9C27B0', '#8B5CF6', '#3F51B5', '#2196F3',
-  '#00BCD4', '#009688', '#4CAF50', '#F59E0B', '#FF9800', '#FF5722',
-  '#EC4899', '#14B8A6', '#84CC16', '#6366F1',
 ]
 
 export const findPrio = (v) => PRIORITY_CFG.find(p => p.v === v) || PRIORITY_CFG[2]
