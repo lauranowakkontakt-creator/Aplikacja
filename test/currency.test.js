@@ -9,7 +9,7 @@ globalThis.localStorage = {
   removeItem: (k) => store.delete(k),
 }
 
-const { CURRENCIES, getCurrencyCode, setCurrencyCode, fmt, parseAmount, splitAmount } = await import('../src/utils/currency.js')
+const { CURRENCIES, getCurrencyCode, setCurrencyCode, fmt, parseAmount, splitAmount, MAX_AMOUNT } = await import('../src/utils/currency.js')
 
 beforeEach(() => store.clear())
 
@@ -89,4 +89,59 @@ test('splitAmount — wartości nieliczbowe traktuje jak 0', () => {
   assert.deepEqual(splitAmount(NaN), { int: '0', dec: '00' })
   assert.deepEqual(splitAmount(undefined), { int: '0', dec: '00' })
   assert.deepEqual(splitAmount(null), { int: '0', dec: '00' })
+})
+
+// --- Walidacja wejścia: kwoty wpisywane ręcznie ---
+// Regresja: parseAmount robił replace(',', '.') bez flagi g i opierał się na
+// parseFloat, więc "1,200,50" dawało po cichu 1.2, a "12zł" → 12. Cicho przyjęta
+// zła kwota rozjeżdża saldo konta, więc każdy z tych przypadków musi dać albo
+// poprawną liczbę, albo NaN — nigdy zgadywanie.
+
+test('parseAmount — przecinek dziesiętny i spacje', () => {
+  assert.equal(parseAmount('12,50'), 12.5)
+  assert.equal(parseAmount('1 200'), 1200)
+  assert.equal(parseAmount('1 200,25'), 1200.25)
+  assert.equal(parseAmount('1\u00A0200,25'), 1200.25)  // spacja nierozdzielająca
+})
+
+test('parseAmount — separator tysięcy w obu konwencjach', () => {
+  assert.equal(parseAmount('1.200,50'), 1200.5)
+  assert.equal(parseAmount('1,200.50'), 1200.5)
+  assert.equal(parseAmount('1.200.300,50'), 1200300.5)
+  // Niejednoznaczne: ostatnia grupa ma 2 cyfry, nie 3. Odrzucamy zamiast zgadywać.
+  assert.ok(Number.isNaN(parseAmount('1,200,50')))
+})
+
+test('parseAmount — odrzuca tekst doklejony do liczby zamiast go obcinać', () => {
+  assert.ok(Number.isNaN(parseAmount('12zł')))
+  assert.ok(Number.isNaN(parseAmount('abc')))
+  assert.ok(Number.isNaN(parseAmount('1.2.3')))
+  assert.ok(Number.isNaN(parseAmount('--5')))
+  assert.ok(Number.isNaN(parseAmount('5-')))
+})
+
+test('parseAmount — puste wejście daje NaN', () => {
+  assert.ok(Number.isNaN(parseAmount('')))
+  assert.ok(Number.isNaN(parseAmount('   ')))
+  assert.ok(Number.isNaN(parseAmount(null)))
+  assert.ok(Number.isNaN(parseAmount(undefined)))
+})
+
+test('parseAmount — odrzuca nieskończoność i kwoty poza bezpiecznym zakresem', () => {
+  assert.ok(Number.isNaN(parseAmount('1e999')))
+  assert.ok(Number.isNaN(parseAmount(Infinity)))
+  assert.ok(Number.isNaN(parseAmount(NaN)))
+  assert.ok(Number.isNaN(parseAmount(MAX_AMOUNT * 10)))
+  assert.equal(parseAmount(MAX_AMOUNT), MAX_AMOUNT)
+})
+
+test('parseAmount — liczby przechodzą bez zmian', () => {
+  assert.equal(parseAmount(42.5), 42.5)
+  assert.equal(parseAmount(-7), -7)
+  assert.equal(parseAmount(0), 0)
+})
+
+test('parseAmount — zapis bez zera wiodącego', () => {
+  assert.equal(parseAmount(',50'), 0.5)
+  assert.equal(parseAmount('.5'), 0.5)
 })

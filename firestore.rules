@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// Reguły dostępu do Firestore.
+//
+// To jest JEDYNA realna ochrona danych tej aplikacji. Klucze z
+// src/firebase/config.js są publiczne (siedzą w bundlu), więc każdy może
+// wysłać zapytanie do bazy — o tym, czy je dostanie, decyduje wyłącznie ten
+// plik. Bez niego (albo w trybie testowym „allow read, write: if true")
+// dowolna osoba w internecie czyta i kasuje cudze dane.
+//
+// Cała aplikacja trzyma dane pod users/{uid}/… — sprawdzenie w jednym
+// miejscu, że {uid} to zalogowany użytkownik, pokrywa wszystkie moduły
+// (budżet, nawyki, modlitwa, sen, wspomnik…), także te dopisane w przyszłości.
+//
+// Wgrywanie:  firebase deploy --only firestore:rules
+// Test lokalny: firebase emulators:start --only firestore
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function jestWlascicielem(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Dokument użytkownika i CAŁE poddrzewo (=**) — wszystkie kolekcje modułów.
+    match /users/{uid} {
+      allow read, write: if jestWlascicielem(uid);
+
+      match /{dokument=**} {
+        allow read, write: if jestWlascicielem(uid);
+      }
+    }
+
+    // Wszystko poza users/{uid} jest zamknięte. Domyślna odmowa oznacza, że
+    // nowa kolekcja dodana obok struktury użytkownika nie wycieknie przez
+    // przeoczenie — trzeba ją tu świadomie dopisać.
+    match /{sciezka=**} {
+      allow read, write: if false;
+    }
+  }
+}

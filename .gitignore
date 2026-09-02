@@ -5,3 +5,10 @@ dist
 .DS_Store
 
 .claude/settings.local.json
+
+# Klucze deployu (SSH) — nigdy do repo
+.deploy_key
+.deploy_key.pub
+
+# Lokalne nadpisania konfiguracji środowisk
+.env.*.local
