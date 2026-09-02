@@ -63,6 +63,12 @@ export default [
       sourceType: 'module',
       globals: { ...globals.node },
     },
-    rules: { 'no-unused-vars': 'warn' },
+    rules: {
+      'no-unused-vars': 'warn',
+      // Testy wykrywające emotki celowo trzymają w klasie znaków selektor
+      // wariantu (U+FE0F) i inne znaki łączące — o to właśnie chodzi, żeby je
+      // wyłapać. Reguła zakłada, że to pomyłka; tutaj nie jest.
+      'no-misleading-character-class': 'off',
+    },
   },
 ]
