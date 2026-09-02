@@ -40,6 +40,26 @@ const PERSON_COLORS = [
 const TODAY     = () => format(new Date(), 'yyyy-MM-dd')
 const findPrio  = (v) => PRIORITY_CFG.find(p => p.v === v) || PRIORITY_CFG[2]
 
+// Odhaczenie pojedynczego punktu listy przy prośbie.
+//
+// Na poziomie modułu, bo potrzebują tego DWA widoki: „Dziś" i szczegóły osoby.
+// Wcześniej funkcja była zamknięta wewnątrz PersonDetailView, a widok „Dziś"
+// mimo to podawał ją dalej do RequestCard — czyli sięgał po nazwę, której
+// w swoim zakresie nie miał. Każde renderowanie listy próśb w „Dziś" leciało
+// więc ReferenceError-em prosto do ErrorBoundary.
+async function toggleChecklistItem(uid, item, id) {
+  try {
+    await updateDoc(doc(db, 'users', uid, 'prayerIntentions', item.id), {
+      checklistDone: toggleChecked(item.checklistDone || [], id),
+    })
+  } catch {
+    // Odhaczenie punktu to drobna akcja — nie wywracamy przez nią widoku.
+    // Ale i nie połykamy jej bez słowa: wcześniej `.catch(() => {})` sprawiał,
+    // że nieudany zapis wyglądał identycznie jak udany.
+    toast.error('Nie udało się zapisać odhaczenia')
+  }
+}
+
 function getNeglect(days) {
   if (days === null) return { level: 5, label: 'nigdy',     color: '#ef4444' }
   return NEGLECT_LEVELS.find(l => days >= l.min && days <= l.max) || NEGLECT_LEVELS[4]
@@ -417,13 +437,6 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
     })
   }
 
-  // Odhaczenie pojedynczego punktu listy przy prośbie.
-  const toggleChecklistItem = async (item, id) => {
-    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
-      checklistDone: toggleChecked(item.checklistDone || [], id),
-    }).catch(() => {})
-  }
-
   const editNote = async (item, note, newText) => {
     await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
       notes: arrayRemove(note)
@@ -480,7 +493,7 @@ function PersonDetailView({ user, person, intentions, carMode, onBack }) {
           carMode={carMode}
           onTogglePrayed={togglePrayed}
           onAddNote={addNote}
-          onToggleChecklistItem={toggleChecklistItem}
+          onToggleChecklistItem={(it, id) => toggleChecklistItem(user.uid, it, id)}
           onEditNote={editNote}
           onDeleteNote={deleteNote}
           onArchive={archiveItem}
@@ -882,7 +895,7 @@ function TodayView({ user, intentions, people, carMode }) {
             viewDate={viewDate}
             onTogglePrayed={togglePrayed}
             onAddNote={addNote}
-            onToggleChecklistItem={toggleChecklistItem}
+            onToggleChecklistItem={(it, id) => toggleChecklistItem(user.uid, it, id)}
             onEditNote={editNote}
             onDeleteNote={deleteNote}
             onArchive={async (item) => updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { status: 'ended', endedAt: Timestamp.now() })}
