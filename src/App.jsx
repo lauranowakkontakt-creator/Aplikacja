@@ -18,6 +18,7 @@ const MemoriesDashboard  = lazy(() => import('./components/memories/MemoriesDash
 import SettingsDrawer from './components/SettingsDrawer'
 import MoreSheet from './components/MoreSheet'
 import ErrorBoundary from './components/ErrorBoundary'
+import PasekPolaczenia from './components/PasekPolaczenia'
 import { IconBudget, IconHabits, IconTodo, IconCalendar, IconPrayer, IconBook, IconSettings, IconHome, IconMore, IconUsers, IconMoon, IcSun, IcCamera } from './components/Icons'
 import { getModuleIcons, resolveIcon } from './utils/iconPrefs'
 import { getLayout, saveLayout, applyLayout, visibleModules, navModules } from './utils/moduleLayout'
@@ -239,6 +240,10 @@ export default function App() {
         {/* Content */}
         <div className="content" key={activeModule}>
           <div className="content-inner">
+            {/* Nad treścią każdego modułu — brak sieci i padnięte subskrypcje
+                dotyczą wszystkich tak samo, więc jedno miejsce zamiast banera
+                w każdym module z osobna. */}
+            <PasekPolaczenia />
             <ErrorBoundary moduleId={activeModule}>
             <Suspense fallback={<div className="loading-screen" style={{ minHeight: '40vh' }}><div className="spinner" /></div>}>
             {activeModule === 'home'     && <Pulpit user={user} onNavigate={goTo} visibleIds={shown.map(m => m.id)} />}

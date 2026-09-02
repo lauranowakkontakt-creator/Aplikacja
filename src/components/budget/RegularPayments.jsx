@@ -10,6 +10,7 @@ import RegularPaymentForm from './RegularPaymentForm'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import { periodKey, isPaymentActive, addTransactionForPayment, removeTransactionForPayment } from '../../utils/regularPayments'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const FREQ_LABELS = { monthly: 'miesięcznie', weekly: 'tygodniowo', yearly: 'rocznie' }
 
@@ -27,12 +28,12 @@ export default function RegularPayments({ user }) {
       const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
       setPayments(list)
       setLoading(false)
-    })
+    }, bladSubskrypcji('regularPayments'))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('accounts'))
   }, [user.uid])
 
   // Auto-księgowanie działa w tle (useRegularPaymentsProcessor w App.jsx),

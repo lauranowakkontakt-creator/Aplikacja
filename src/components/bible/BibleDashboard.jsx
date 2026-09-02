@@ -11,6 +11,7 @@ import { toast } from '../Toast'
 import BibleNotes from './BibleNotes'
 import BibleMenu from './BibleMenu'
 import { confirmDialog } from '../ConfirmModal'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const todayISO = () => format(new Date(), 'yyyy-MM-dd')
 const fmtDate  = (iso) => format(parseISO(iso), 'd MMM yyyy', { locale: pl })
@@ -46,7 +47,11 @@ export default function BibleDashboard({ user, setHeaderExtras }) {
     return onSnapshot(ref, snap => {
       const d = snap.data() || {}
       setProgress({ counts: d.counts || {}, notes: d.notes || {}, startDate: d.startDate || null, finishedAt: d.finishedAt || null })
-    }, () => setProgress({ counts: {}, notes: {}, startDate: null, finishedAt: null }))
+    }, bladSubskrypcji('bible/progress', {
+      // Pusty postęp zamiast wiecznego spinnera — Biblia ma się otworzyć nawet,
+      // gdy dokumentu nie da się pobrać.
+      przyBledzie: () => setProgress({ counts: {}, notes: {}, startDate: null, finishedAt: null }),
+    }))
   }, [user.uid])
 
   const counts = progress?.counts || {}

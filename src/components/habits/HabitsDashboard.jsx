@@ -20,6 +20,7 @@ import SegTabs from '../SegTabs'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
   habitDayKind, dayScore, isRequiredHabit } from '../../utils/habitLogic'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 function getPauseIcon(pauses, dateStr) {
   const p = pauseForDay(dateStr, pauses)
@@ -169,29 +170,29 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
       const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }))
         .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
       setTodayMood(logs[0] || null)
-    }, () => setTodayMood(null))
+    }, bladSubskrypcji('moodLogs', { przyBledzie: () => setTodayMood(null) }))
   }, [user.uid, TODAY])
 
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habits'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => { setHabits(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
-      err => { console.error('habits subscription error:', err); setLoading(false) })
+      bladSubskrypcji('habits', { przyBledzie: () => setLoading(false) }))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitPauses'), orderBy('from', 'desc'))
-    return onSnapshot(q, snap => setPauses(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setPauses(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('habitPauses'))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitCategories'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, label: d.data().name, icon: d.data().icon || 'IcTag', color: d.data().color }))))
+    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, label: d.data().name, icon: d.data().icon || 'IcTag', color: d.data().color }))), bladSubskrypcji('habitCategories'))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitRoutines'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byRoutineOrder)))
+    return onSnapshot(q, snap => setRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byRoutineOrder)), bladSubskrypcji('habitRoutines'))
   }, [user.uid])
 
   // Zmiana dnia — czyścimy ręczne rozwinięcia (każdy dzień startuje „domyślnie":

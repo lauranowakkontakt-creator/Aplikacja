@@ -10,6 +10,7 @@ import { IconTrash, IconChevronLeft, IconChevronRight, IconPlus, IconClose, Icon
 import { confirmDialog } from '../ConfirmModal'
 import { ALL_EMOTIONS } from './EmotionWheel'
 import SegTabs from '../SegTabs'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 // Skala pomocnicza: wewnętrznie nastrój to 1–5, ale średnią pokazujemy 1–10
 const to10 = (v) => (v > 0 ? ((v - 1) / 4) * 9 + 1 : 0)
@@ -143,7 +144,7 @@ export default function MoodDashboard({ user, setHeaderExtras }) {
     return onSnapshot(q, snap => {
       setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
-    })
+    }, bladSubskrypcji('moodLogs'))
   }, [user.uid])
 
   // Górna belka („Apka"): [analiza][＋ Dodaj] — spójnie z innymi modułami.

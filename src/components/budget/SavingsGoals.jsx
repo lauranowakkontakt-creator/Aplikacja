@@ -6,6 +6,7 @@ import { fmt, parseAmount } from '../../utils/currency'
 import { IconEdit, IconTrash, IconClose, IconSavings } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const GOAL_COLORS = [
   '#EF4444','#F97316','#F59E0B','#EAB308','#84CC16','#22C55E',
@@ -25,7 +26,7 @@ export default function SavingsGoals({ user, onClose }) {
     return onSnapshot(q, snap => {
       setGoals(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
-    })
+    }, bladSubskrypcji('savingsGoals'))
   }, [user.uid])
 
   const handleDelete = async (id) => {

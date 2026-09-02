@@ -7,6 +7,7 @@ import { getBounds, shiftPivot, buildPeriodTimeline } from '../utils/budgetMath'
 import { byAccountOrder } from '../utils/accountOrder'
 import { fmt } from '../utils/currency'
 import { getSubcategoryColor, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, isTransfer } from '../utils/categories'
+import { bladSubskrypcji } from '../utils/polaczenie'
 
 const FALLBACK_COLORS = [
   '#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6',
@@ -35,13 +36,13 @@ export default function Charts({ user, privateMode = false }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('accounts'))
   }, [user.uid])
 
   useEffect(() => {
     return onSnapshot(doc(db, 'users', user.uid, 'settings', 'categories'),
       d => setCustomCats(d.exists() ? d.data() : {}),
-      () => setCustomCats({}))
+      bladSubskrypcji('settings/categories', { przyBledzie: () => setCustomCats({}) }))
   }, [user.uid])
 
   const catColorMap = useMemo(() => {
@@ -62,7 +63,7 @@ export default function Charts({ user, privateMode = false }) {
     )
     return onSnapshot(q, snap =>
       setTx(snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) })))
-    )
+    , bladSubskrypcji('transactions'))
   }, [user.uid, period, pivot])
 
   // Filtr kont w ustawionej ręcznie kolejności (spójnie z zakładką Konta)

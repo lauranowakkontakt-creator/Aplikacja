@@ -14,6 +14,7 @@ import { setPersonHidden, purgePerson } from '../../utils/people'
 import { getCategory, dreamPeopleIds } from '../../utils/dreams'
 import { debtsForPerson, debtSummary, todosForPerson, linkCountsByPerson } from '../../utils/personLinks'
 import { fmt } from '../../utils/currency'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const PERSON_COLORS = [
   '#E74C3C','#E91E63','#9C27B0','#8B5CF6','#3F51B5','#2196F3',
@@ -53,27 +54,27 @@ export default function PeopleHub({ user, onOpenDream, setHeaderExtras }) {
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
     return onSnapshot(q, snap => { setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
-      err => { console.error('people subscription error:', err); setLoading(false) })
+      bladSubskrypcji('calendarPeople', { przyBledzie: () => setLoading(false) }))
   }, [user.uid])
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarEvents'), orderBy('date', 'asc'))
-    return onSnapshot(q, snap => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('calendarEvents'))
   }, [user.uid])
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'prayerIntentions'), orderBy('createdAt', 'desc'))
-    return onSnapshot(q, snap => setIntentions(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setIntentions(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('prayerIntentions'))
   }, [user.uid])
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'dreams'), orderBy('date', 'desc'))
-    return onSnapshot(q, snap => setDreams(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setDreams(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('dreams'))
   }, [user.uid])
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'debtors'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setDebts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setDebts(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('debtors'))
   }, [user.uid])
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc'))
-    return onSnapshot(q, snap => setTodos(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setTodos(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('todos'))
   }, [user.uid])
 
   const stats = useMemo(() => {

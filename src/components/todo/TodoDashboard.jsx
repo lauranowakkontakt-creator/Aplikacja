@@ -17,6 +17,7 @@ import TodoMenu from './TodoMenu'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import PersonBubble from '../PersonBubble'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const PRIORITY = [
   { id: 'high',   label: 'Wysoki',  color: '#E53935' },
@@ -69,17 +70,17 @@ export default function TodoDashboard({ user, setHeaderExtras }) {
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc'))
     return onSnapshot(q, snap => { setTodos(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
-      err => { console.error('todos subscription error:', err); setLoading(false) })
+      bladSubskrypcji('todos', { przyBledzie: () => setLoading(false) }))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'todoLists'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setLists(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setLists(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('todoLists'))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('calendarPeople'))
   }, [user.uid])
 
   const peopleById = Object.fromEntries(people.map(p => [p.id, p]))

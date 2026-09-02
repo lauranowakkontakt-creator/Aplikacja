@@ -6,6 +6,7 @@ import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, CAT_COLORS, getS
 import { CatIcon, IconClose, IconTrash, IconTag, IconEdit, IconSearch, IconChevronDown, IconArrowUp, IconArrowDown, ICON_CATALOG } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 export default function CategoriesView({ user, onClose }) {
   const [tab, setTab]               = useState('expense')
@@ -26,7 +27,7 @@ export default function CategoriesView({ user, onClose }) {
         if (d.data().income?.length)  setIncCats(d.data().income)
       }
       setLoading(false)
-    })
+    }, bladSubskrypcji('settings/categories'))
   }, [user.uid])
 
   const save = async (type, cats) => {

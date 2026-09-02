@@ -3,6 +3,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, d
 import { db } from '../../firebase/config'
 import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconEdit, IconTag, IconSearch, IconChevronDown } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const CAT_COLORS = [
   '#C94B28', '#E05A2B', '#F59E0B', '#84CC16', '#22C55E', '#10B981',
@@ -17,7 +18,7 @@ export default function HabitCategoryManager({ user, onClose }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitCategories'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setCats(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setCats(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('habitCategories'))
   }, [user.uid])
 
   const remove = async (c) => {

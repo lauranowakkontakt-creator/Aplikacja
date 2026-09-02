@@ -17,6 +17,7 @@ import {
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
 
@@ -42,7 +43,7 @@ export default function MemoriesDashboard({ user, setHeaderExtras }) {
     return onSnapshot(q, snap => {
       setMemories(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
-    }, () => setLoading(false))
+    }, bladSubskrypcji('memories', { przyBledzie: () => setLoading(false) }))
   }, [user.uid])
 
   const today = TODAY()

@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { periodKey, isPaymentDue } from './paymentLogic'
+import { bladSubskrypcji } from './polaczenie'
 
 export { periodKey, isPaymentActive, isPaymentDue } from './paymentLogic'
 
@@ -115,6 +116,6 @@ export function useRegularPaymentsProcessor(uid) {
         processed.current.add(key)
         bookPaymentOnce(uid, p, period).catch(() => processed.current.delete(key))
       })
-    })
+    }, bladSubskrypcji('regularPayments'))
   }, [uid])
 }

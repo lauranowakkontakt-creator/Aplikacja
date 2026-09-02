@@ -8,6 +8,7 @@ import { filterNotes, sortNotes, collectTags, parseTags, preview } from '../../u
 import { IconNote, IcPin, IconClose, IconTrash, IconPlus, IconSearch, IconTag } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const noteDate = (n) => {
   const t = n.updatedAt?.toDate?.() || n.createdAt?.toDate?.()
@@ -27,7 +28,7 @@ export default function NotesDashboard({ user }) {
     return onSnapshot(q, snap => {
       setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
-    }, () => setLoading(false))
+    }, bladSubskrypcji('notes', { przyBledzie: () => setLoading(false) }))
   }, [user.uid])
 
   const allTags = useMemo(() => collectTags(notes), [notes])

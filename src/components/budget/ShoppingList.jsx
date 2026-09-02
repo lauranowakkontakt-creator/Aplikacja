@@ -11,6 +11,7 @@ import { ICON_CATALOG, CatIcon, IconTrash, IconClose, IconTag, IconShopping, Ico
 import { CAT_COLORS } from '../../utils/categories'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const COLORS = ['#C94B28','#6366f1','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#14b8a6']
 
@@ -29,7 +30,7 @@ export default function ShoppingList({ user }) {
     return onSnapshot(q, snap => {
       setItems(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
-    })
+    }, bladSubskrypcji('shoppingItems'))
   }, [user.uid])
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function ShoppingList({ user }) {
       } else {
         setShopCats(EXPENSE_CATEGORIES)
       }
-    })
+    }, bladSubskrypcji('settings/shopCategories'))
   }, [user.uid])
 
   const planned = items.filter(i => i.status !== 'bought')
@@ -402,7 +403,7 @@ function BuyModal({ item, user, categories, onBuy, onClose }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('accounts'))
   }, [user.uid])
 
   const handleConfirm = async () => {

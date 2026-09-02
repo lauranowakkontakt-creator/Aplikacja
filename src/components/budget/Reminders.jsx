@@ -6,6 +6,7 @@ import { format, getDaysInMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { CatIcon, IconBell, IconClose } from '../Icons'
 import { fmt } from '../../utils/currency'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 export default function Reminders({ user, onClose }) {
   const [payments, setPayments] = useState([])
@@ -17,7 +18,7 @@ export default function Reminders({ user, onClose }) {
     return onSnapshot(q, snap => {
       setPayments(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
-    })
+    }, bladSubskrypcji('regularPayments'))
   }, [user.uid])
 
   const today  = new Date()
