@@ -1,0 +1,317 @@
+import PersonBubble from '../PersonBubble'
+import { db } from '../../firebase/config'
+import { DREAM_EMOTIONS, detectTrigger, nameStem, parseMentions, personForms } from '../../utils/dreams'
+import { IconCheck, IconClose, IconPlus, IconTag } from '../Icons'
+import { toast } from '../Toast'
+import { Chip, TODAY } from './wspolne'
+import { Timestamp, addDoc, arrayUnion, collection, doc, updateDoc } from 'firebase/firestore'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+
+// Formularz snu: pisanie i edycja, razem z oznaczaniem osób (@) i symboli (#).
+
+export default function DreamForm({ user, categories, people, symbols, onCreateSymbol, editData, onClose }) {
+  const [title, setTitle]       = useState(editData?.title || '')
+  const [date, setDate]         = useState(editData?.date || TODAY())
+  const [text, setText]         = useState(editData?.text || '')
+  const [category, setCategory] = useState(editData?.category || '')
+  const [emotions, setEmotions] = useState(editData?.emotions || [])
+  const [interpretation, setInterpretation] = useState(editData?.interpretation || '')
+  const [peopleIds, setPeopleIds] = useState(editData?.peopleIds || [])
+  const [symbolIds, setSymbolIds] = useState(editData?.symbolIds || [])
+  const [localSymbols, setLocalSymbols] = useState([]) // symbole utworzone w tej sesji
+  const [saving, setSaving]     = useState(false)
+
+  const textRef = useRef(null)
+  const [trigger, setTrigger]   = useState(null) // { type:'person'|'symbol', query, start }
+  const [caretPos, setCaretPos] = useState(null)
+
+  // Pełny katalog symboli widoczny w formularzu (z bazy + utworzone teraz)
+  const allSymbols = useMemo(() => {
+    const m = {}
+    ;[...symbols, ...localSymbols].forEach(s => { m[s.id] = s })
+    return Object.values(m)
+  }, [symbols, localSymbols])
+
+  const toggle = (arr, setArr, id) =>
+    setArr(arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id])
+
+  const onTextChange = (e) => {
+    const val = e.target.value
+    setText(val)
+    const caret = e.target.selectionStart
+    // Symbol (#) może mieć kilka słów (np. „#stary dom"); osoba (@) — jedno.
+    setTrigger(detectTrigger(val.slice(0, caret)))
+  }
+
+  const personMatches = useMemo(() => {
+    if (trigger?.type !== 'person') return []
+    const q = trigger.query.toLowerCase()
+    // Dopasuj też odmiany: „@Manueli" trafia w osobę „Manuela" (przez rdzeń imienia).
+    return people.filter(p => personForms(p).some(f => {
+      const fl = f.toLowerCase()
+      if (!q) return true
+      return fl.startsWith(q) || q.startsWith(fl) || q.startsWith(nameStem(fl).toLowerCase()) || fl.includes(q)
+    })).slice(0, 6)
+  }, [trigger, people])
+
+  const symbolMatches = useMemo(() => {
+    if (trigger?.type !== 'symbol') return []
+    const q = trigger.query.toLowerCase()
+    return allSymbols.filter(s => s.name?.toLowerCase().includes(q)).slice(0, 6)
+  }, [trigger, allSymbols])
+
+  const canCreateSymbol = trigger?.type === 'symbol' && trigger.query.trim() &&
+    !allSymbols.some(s => s.name.toLowerCase() === trigger.query.trim().toLowerCase())
+
+  const insertToken = (prefix, name) => {
+    const ta = textRef.current
+    const caret = ta ? ta.selectionStart : text.length
+    const insert = prefix + name + ' '
+    const next = text.slice(0, trigger.start) + insert + text.slice(caret)
+    setText(next)
+    setTrigger(null)
+    setCaretPos(trigger.start + insert.length)
+  }
+
+  // Klik osoby: użyj formy dokładnie tak, jak ją wpisano (np. odmienioną „Manueli").
+  // Jeśli to nowa forma — zapisz ją na stałe jako ksywkę osoby, by następnym razem od razu pasowała.
+  const pickPerson = (p) => {
+    const typed = (trigger?.query || '').trim()
+    const form = typed || (p.name || '').trim().split(/\s+/)[0] || p.name
+    if (!peopleIds.includes(p.id)) setPeopleIds([...peopleIds, p.id])
+    if (typed && !personForms(p).some(f => f.toLowerCase() === typed.toLowerCase())) {
+      updateDoc(doc(db, 'users', user.uid, 'calendarPeople', p.id), { aliases: arrayUnion(typed) }).catch(() => {})
+    }
+    insertToken('@', form)
+  }
+  // Wybór symbolu: wstawiamy #nazwa (prefiks widać przy edycji, znika po zapisie),
+  // a powiązanie trzyma lista symbolIds.
+  const pickSymbol = (s) => { if (!symbolIds.includes(s.id)) setSymbolIds([...symbolIds, s.id]); insertToken('#', s.name) }
+  const createAndPick = async () => {
+    const n = trigger.query.trim()
+    const sym = await onCreateSymbol(n)
+    setLocalSymbols(prev => [...prev, sym])
+    setSymbolIds(prev => prev.includes(sym.id) ? prev : [...prev, sym.id])
+    insertToken('#', sym.name)
+  }
+
+  // Przywróć kursor po wstawieniu
+  useLayoutEffect(() => {
+    if (caretPos != null && textRef.current) {
+      textRef.current.focus()
+      textRef.current.setSelectionRange(caretPos, caretPos)
+      setCaretPos(null)
+    }
+  }, [caretPos, text])
+
+  // Symbole przypięte do snu (jawnie, niezależnie od treści) — klik usuwa
+  const usedSymbols = useMemo(
+    () => symbolIds.map(id => allSymbols.find(s => s.id === id)).filter(Boolean),
+    [symbolIds, allSymbols]
+  )
+
+  const showDrop = trigger && (
+    (trigger.type === 'person' && personMatches.length > 0) ||
+    (trigger.type === 'symbol' && (symbolMatches.length > 0 || canCreateSymbol))
+  )
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!title.trim() && !text.trim()) return
+    setSaving(true)
+    const mentionIds = parseMentions(text, people)
+    const data = {
+      title: title.trim(), date, text: text.trim(),
+      interpretation: interpretation.trim(),
+      category: category || null, emotions, peopleIds, mentionIds, symbolIds,
+      updatedAt: Timestamp.now(),
+    }
+    try {
+      if (editData) {
+        // Zapamiętaj poprzednią wersję, żeby dać „Cofnij" po zapisie edycji.
+        const ref = doc(db, 'users', user.uid, 'dreams', editData.id)
+        const prev = {
+          title: editData.title ?? '', date: editData.date ?? date, text: editData.text ?? '',
+          interpretation: editData.interpretation ?? '',
+          category: editData.category ?? null, emotions: editData.emotions ?? [],
+          peopleIds: editData.peopleIds ?? [], mentionIds: editData.mentionIds ?? [],
+          symbolIds: editData.symbolIds ?? [],
+        }
+        await updateDoc(ref, data)
+        onClose()
+        toast.success('Zapisano zmiany', {
+          duration: 6000,
+          action: {
+            label: 'Cofnij',
+            onClick: async () => {
+              try {
+                await updateDoc(ref, { ...prev, updatedAt: Timestamp.now() })
+                toast.info('Przywrócono poprzednią wersję')
+              } catch { toast.error('Nie udało się cofnąć') }
+            },
+          },
+        })
+      } else {
+        await addDoc(collection(db, 'users', user.uid, 'dreams'), { ...data, createdAt: Timestamp.now() })
+        onClose()
+      }
+    } catch { setSaving(false) }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <h3>{editData ? 'Edytuj sen' : 'Nowy sen'}</h3>
+          <button className="modal-close" onClick={onClose}><IconClose size={16} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="form">
+          <div className="form-group">
+            <label>Tytuł snu</label>
+            <input type="text" className="form-input" value={title} onChange={e => setTitle(e.target.value)}
+              maxLength={120} placeholder="np. Lot nad miastem, Spotkanie z babcią..." autoFocus />
+          </div>
+
+          <div className="form-group">
+            <label>Data</label>
+            <input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} max={TODAY()} />
+          </div>
+
+          <div className="form-group" style={{ position: 'relative' }}>
+            <label>Treść snu <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— @ osoba, # symbol</span></label>
+            <textarea ref={textRef} className="form-input" value={text} onChange={onTextChange}
+              rows={6} placeholder={'Opisz, co Ci się śniło... Wpisz @ aby oznaczyć osobę (np. @Kasia), # aby oznaczyć symbol (np. #drzewo).'}
+              style={{ resize: 'vertical', minHeight: 130, lineHeight: 1.6 }} />
+
+            {showDrop && (
+              <div style={{
+                position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 20, marginTop: -6,
+                background: 'var(--popover-bg)', border: '1px solid var(--border-strong)', borderRadius: 10,
+                boxShadow: '0 8px 24px rgba(0,0,0,0.18)', overflow: 'hidden',
+              }}>
+                {trigger.type === 'person' && personMatches.map(p => {
+                  const typed = (trigger.query || '').trim()
+                  const known = !typed || personForms(p).some(f => f.toLowerCase() === typed.toLowerCase())
+                  return (
+                    <button type="button" key={p.id} onClick={() => pickPerson(p)} style={dropItemStyle}>
+                      <PersonBubble title person={p} size={26} />
+                      <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{p.name}</span>
+                      {!known && (
+                        <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                          <IconPlus size={10} /> zapisz „{typed}"
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+                {trigger.type === 'symbol' && symbolMatches.map(s => (
+                  <button type="button" key={s.id} onClick={() => pickSymbol(s)} style={dropItemStyle}>
+                    <span style={{ width: 26, height: 26, borderRadius: 7, display: 'grid', placeItems: 'center', background: (s.color || '#5BB6D9') + '22', color: s.color || '#5BB6D9', flexShrink: 0 }}>
+                      <IconTag size={14} />
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>#{s.name}</span>
+                  </button>
+                ))}
+                {trigger.type === 'symbol' && canCreateSymbol && (
+                  <button type="button" onClick={createAndPick} style={{ ...dropItemStyle, color: 'var(--accent)' }}>
+                    <span style={{ width: 26, height: 26, borderRadius: 7, display: 'grid', placeItems: 'center', background: 'var(--accent-soft)', color: 'var(--accent)', flexShrink: 0 }}>
+                      <IconPlus size={14} />
+                    </span>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>Utwórz symbol „{trigger.query.trim()}"</span>
+                  </button>
+                )}
+              </div>
+            )}
+            {trigger?.type === 'person' && personMatches.length === 0 && people.length === 0 && (
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
+                Brak osób w bazie — dodaj je w module „Osoby".
+              </div>
+            )}
+
+            {usedSymbols.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 8, alignItems: 'center' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Symbole:</span>
+                {usedSymbols.map(s => (
+                  <Chip key={s.id} color={s.color || '#5BB6D9'} onClick={() => setSymbolIds(symbolIds.filter(id => id !== s.id))}>
+                    {s.name} <IconClose size={11} />
+                  </Chip>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label>Kategoria snu</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {categories.map(c => (
+                <Chip key={c.id} color={c.color} active={category === c.id}
+                  onClick={() => setCategory(category === c.id ? '' : c.id)}>
+                  {c.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Emocje po obudzeniu <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— można wybrać kilka</span></label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {DREAM_EMOTIONS.map(em => (
+                <Chip key={em.id} color={em.color} active={emotions.includes(em.id)}
+                  onClick={() => toggle(emotions, setEmotions, em.id)}>
+                  {em.label}
+                </Chip>
+              ))}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Osoby, które brały udział w śnie</label>
+            {people.length === 0 ? (
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
+                Brak osób — dodaj je w module „Osoby", a pojawią się tutaj i po wpisaniu @.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {people.map(p => {
+                  const on = peopleIds.includes(p.id)
+                  return (
+                    <button type="button" key={p.id} onClick={() => toggle(peopleIds, setPeopleIds, p.id)} style={{
+                      display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px 5px 5px', borderRadius: 999,
+                      cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
+                      border: `1px solid ${on ? (p.color || 'var(--accent)') : 'var(--border)'}`,
+                      background: on ? (p.color || 'var(--accent)') + '1e' : 'var(--surface2)',
+                      color: on ? (p.color || 'var(--accent)') : 'var(--text-sub)',
+                    }}>
+                      <PersonBubble title person={p} size={24} />
+                      {p.name}
+                      {on && <IconCheck size={13} />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label>Interpretacja <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>— opcjonalnie</span></label>
+            <textarea className="form-input" value={interpretation} onChange={e => setInterpretation(e.target.value)}
+              rows={4} placeholder="Co ten sen może oznaczać? Twoje przemyślenia, skojarzenia..."
+              style={{ resize: 'vertical', minHeight: 90, lineHeight: 1.6 }} />
+          </div>
+
+          <button type="submit" className="btn-save" disabled={saving || (!title.trim() && !text.trim())}>
+            {saving ? 'Zapisywanie...' : editData ? 'Zapisz zmiany' : 'Zapisz sen'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+const dropItemStyle = {
+  display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '9px 12px',
+  background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)',
+  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+}
+
+/* ─── DreamStats — kalendarz-heatmapa dni ze snami (ciemniej = więcej snów) ─── */

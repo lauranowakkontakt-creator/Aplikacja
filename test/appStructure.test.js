@@ -11,6 +11,18 @@ import { fileURLToPath } from 'node:url'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const read = (p) => readFileSync(join(ROOT, p), 'utf8')
 
+// Wszystkie pliki źródłowe — do testów pilnujących, że czegoś NIE MA nigdzie
+// w kodzie (np. drugiej kopii wspólnego komponentu).
+function zrodlaSrc(katalog = join(ROOT, 'src')) {
+  const wynik = []
+  for (const nazwa of readdirSync(katalog)) {
+    const p = join(katalog, nazwa)
+    if (statSync(p).isDirectory()) wynik.push(...zrodlaSrc(p))
+    else if (/\.jsx?$/.test(nazwa)) wynik.push(p)
+  }
+  return wynik
+}
+
 // Skleja wszystkie pliki modułu w jeden tekst. Testy strukturalne mają pilnować
 // tego, CZY coś w module jest — nie tego, w którym dokładnie pliku, bo inaczej
 // każdy podział dużego komponentu wywala je bez żadnej realnej regresji.
@@ -259,3 +271,32 @@ function walk(dir) {
   }
   return out
 }
+
+test('Osoba wygląda tak samo we wszystkich modułach', () => {
+  // „Bąbelek" osoby był skopiowany CZTERY razy — w Kalendarzu, Śnie, Osobach
+  // i jako wspólny komponent — a kopie zdążyły się rozjechać: część nie
+  // pokazywała ikony osoby, część miała inny rozmiar czcionki. Osoba jest
+  // współdzielona między modułami (jedna kolekcja `calendarPeople`), więc
+  // ma jedną reprezentację.
+  const wlasneKopie = []
+  for (const plik of zrodlaSrc()) {
+    if (plik.endsWith('components/PersonBubble.jsx')) continue
+    const kod = readFileSync(plik, 'utf8')
+    if (/function (Bubble|PersonBubble)\s*\(/.test(kod)) {
+      wlasneKopie.push(plik.replace(ROOT + '/', ''))
+    }
+  }
+  assert.deepEqual(wlasneKopie, [], 'własne kopie bąbelka osoby zamiast components/PersonBubble')
+})
+
+test('Paleta kolorów osób ma jedno źródło', () => {
+  // Ta sama lista siedziała w trzech plikach; dorzucenie koloru w jednym
+  // dawało osobę wyglądającą inaczej w innym module.
+  const wlasneKopie = []
+  for (const plik of zrodlaSrc()) {
+    if (plik.endsWith('utils/personColors.js')) continue
+    const kod = readFileSync(plik, 'utf8')
+    if (/const PERSON_COLORS\s*=\s*\[/.test(kod)) wlasneKopie.push(plik.replace(ROOT + '/', ''))
+  }
+  assert.deepEqual(wlasneKopie, [], 'własne kopie palety zamiast utils/personColors.js')
+})

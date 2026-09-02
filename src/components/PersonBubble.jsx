@@ -5,10 +5,12 @@ import { CatIcon } from './Icons'
 export const initials = (name) =>
   (name || '?').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase()
 
-export default function PersonBubble({ person, size = 32 }) {
+// `title` — podpowiedź z imieniem po najechaniu. Opcjonalna, bo tam gdzie imię
+// stoi tuż obok bąbelka, byłaby tylko szumem.
+export default function PersonBubble({ person, size = 32, title = false }) {
   const color = person?.color || '#8b5cf6'
   return (
-    <div style={{
+    <div title={title ? person?.name : undefined} style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
       background: color + '28', border: `2px solid ${color}`,
       display: 'flex', alignItems: 'center', justifyContent: 'center', color,
