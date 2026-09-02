@@ -1,0 +1,88 @@
+name: CI
+
+# Przy każdym pushu i każdym pull requeście: testy + build produkcyjny.
+# Build jest częścią CI celowo — kilka błędów, które przechodzą przez testy
+# jednostkowe (zła ścieżka importu, literówka w JSX), wychodzi dopiero przy
+# bundlowaniu, a wykryte tutaj nie trafiają na telefon.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+# Nowy push na tę samą gałąź anuluje poprzedni przebieg — bez sensu czekać
+# na wynik dla commita, który już jest nieaktualny.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testy-i-build:
+    name: Testy i build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Wersja zgodna z lokalną (node --test bez dodatkowych bibliotek).
+          node-version: '22'
+          cache: npm
+
+      # `npm ci` zamiast `npm install`: instaluje dokładnie to, co jest
+      # w package-lock.json, więc CI testuje te same wersje co maszyna lokalna.
+      - name: Instalacja zależności
+        run: npm ci
+
+      - name: Testy jednostkowe
+        run: npm test
+
+      - name: Build produkcyjny
+        run: npm run build
+
+      # Rozmiar bundla widoczny w logu każdego przebiegu — łatwo zauważyć,
+      # że jakaś zmiana nagle dokłada pół megabajta.
+      - name: Rozmiar bundla
+        run: |
+          echo "### Rozmiar bundla" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          du -sh dist >> $GITHUB_STEP_SUMMARY
+          find dist/assets -name '*.js' -exec ls -lh {} + \
+            | awk '{print $5, $9}' | sort -rh | head -10 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  bezpieczenstwo:
+    name: Audyt zależności
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Bramka blokująca: TYLKO zależności produkcyjne, próg high.
+      # To kod, który naprawdę ląduje w przeglądarce użytkownika.
+      - name: Luki w kodzie trafiającym do przeglądarki
+        run: npm audit --omit=dev --audit-level=high
+
+      # Bramka informacyjna: pełny audyt razem z narzędziami deweloperskimi.
+      # Nie blokuje świadomie — dziś zgłasza lukę w serwerze deweloperskim
+      # esbuilda, której nie da się naprawić bez trzech wersji major naraz
+      # (szczegóły i decyzja: docs/zaleznosci.md). Gdyby to wywalało build,
+      # CI byłby czerwony od dnia zero, a czerwone CI, które zawsze jest
+      # czerwone, przestaje cokolwiek znaczyć — i przepuszcza tę jedną lukę,
+      # na której naprawdę zależy.
+      - name: Pelny audyt (informacyjnie, nie blokuje)
+        continue-on-error: true
+        run: |
+          echo "### npm audit — wszystkie zależności" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          npm audit 2>&1 | tail -40 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

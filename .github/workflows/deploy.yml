@@ -1,0 +1,55 @@
+name: Deploy na GitHub Pages
+
+# URUCHAMIANY RĘCZNIE (zakładka Actions → Deploy → Run workflow).
+#
+# Celowo nie na każdy push do main: wtedy każdy commit szedłby od razu na
+# telefon, także taki w połowie roboty. Lokalne `npm run deploy` dalej działa
+# bez zmian — ten workflow jest alternatywą na wypadek, gdyby wygasł klucz
+# deployu albo trzeba było wdrożyć bez dostępu do swojego laptopa.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Jeden deploy naraz. Bez tego dwa równoległe przebiegi mogą nadpisać się
+# nawzajem i na Pages ląduje starsza wersja.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # Te same bramki co w CI — wdrożenie nie omija testów.
+      - name: Testy przed wdrożeniem
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
