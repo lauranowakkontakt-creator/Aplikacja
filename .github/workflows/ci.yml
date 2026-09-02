@@ -36,6 +36,13 @@ jobs:
       - name: Instalacja zależności
         run: npm ci
 
+      # Lint PRZED testami: import nieistniejącej nazwy unieważnia ich wynik,
+      # więc nie ma sensu ich uruchamiać. ESLint łapie tu przede wszystkim
+      # no-undef — użycie zmiennej, której nie ma. Vite zbudowałby taki kod bez
+      # słowa, a błąd wyszedłby dopiero w przeglądarce.
+      - name: Lint
+        run: npm run lint
+
       - name: Testy jednostkowe
         run: npm test
 
