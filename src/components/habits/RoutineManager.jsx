@@ -4,6 +4,7 @@ import { db } from '../../firebase/config'
 import { IconClose, IconTrash, IconEdit, IconCheck } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { byRoutineOrder } from '../../utils/habitLogic'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 // Zarządzanie rutynami (częściami dnia / dowolnymi grupami nawyków).
 // Rutyna to prosty dokument { name, order, createdAt } w users/{uid}/habitRoutines.
@@ -17,7 +18,7 @@ export default function RoutineManager({ user, onClose }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitRoutines'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byRoutineOrder)))
+    return onSnapshot(q, snap => setRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byRoutineOrder)), bladSubskrypcji('habitRoutines'))
   }, [user.uid])
 
   const add = async () => {

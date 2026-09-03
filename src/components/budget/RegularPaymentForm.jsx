@@ -4,6 +4,7 @@ import { db } from '../../firebase/config'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, getSubcategoryColor } from '../../utils/categories'
 import { getCurrencyCode, parseAmount } from '../../utils/currency'
 import { CatIcon, IconClose } from '../Icons'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const FREQUENCIES = [
   { id: 'monthly', label: 'Co miesiąc' },
@@ -33,7 +34,7 @@ export default function RegularPaymentForm({ user, onClose, editData }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('accounts'))
   }, [user.uid])
 
   // Reset podkategorii gdy zmienia się kategoria lub typ

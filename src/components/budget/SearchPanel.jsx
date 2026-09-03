@@ -7,6 +7,7 @@ import { pl } from 'date-fns/locale'
 import { fmt } from '../../utils/currency'
 import { CatIcon, IconClose, IconSearch } from '../Icons'
 import { sortTransactionsByDate } from '../../utils/txSort'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 export default function SearchPanel({ user, onClose }) {
   const [all, setAll]           = useState([])
@@ -18,7 +19,7 @@ export default function SearchPanel({ user, onClose }) {
     const q = query(collection(db, 'users', user.uid, 'transactions'), orderBy('date', 'desc'))
     return onSnapshot(q, snap => {
       setAll(sortTransactionsByDate(snap.docs.map(d => ({ id: d.id, ...d.data(), date: d.data().date?.toDate() }))))
-    })
+    }, bladSubskrypcji('transactions'))
   }, [user.uid])
 
   const results = all.filter(t => {

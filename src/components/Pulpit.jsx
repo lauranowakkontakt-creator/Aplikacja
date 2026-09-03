@@ -15,6 +15,7 @@ import { BIBLE_BOOKS, TOTAL_CHAPTERS, chapterKey } from '../utils/bibleData'
 import { dayScore } from '../utils/habitLogic'
 import { gratitudeStats } from '../utils/gratitudeLogic'
 import { onThisDay } from '../utils/memoryLogic'
+import { bladSubskrypcji } from '../utils/polaczenie'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
 
@@ -47,32 +48,32 @@ export default function Pulpit({ user, onNavigate, visibleIds }) {
     const subs = [
       onSnapshot(doc(db, 'users', user.uid, 'bible', 'progress'),
         s => setBible({ counts: s.data()?.counts || {} }),
-        () => setBible({ counts: {} })),
+        bladSubskrypcji('bible/progress', { przyBledzie: () => setBible({ counts: {} }) })),
       onSnapshot(query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc')),
-        s => setAccounts(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setAccounts(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('accounts')),
       onSnapshot(query(collection(db, 'users', user.uid, 'habits'), orderBy('createdAt', 'asc')),
-        s => setHabits(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setHabits(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('habits')),
       onSnapshot(query(collection(db, 'users', user.uid, 'habitPauses'), orderBy('from', 'desc')),
-        s => setPauses(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setPauses(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('habitPauses')),
       // Rosnące kolekcje z limitem — Pulpit potrzebuje tylko świeżych wpisów
       // (nastrój: 30 dni, zadania/prośby: aktywne), a bez limitu każda wizyta
       // ściągałaby całą wieloletnią historię.
       onSnapshot(query(collection(db, 'users', user.uid, 'moodLogs'), orderBy('createdAt', 'desc'), limit(400)),
-        s => setMoodLogs(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setMoodLogs(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('moodLogs')),
       onSnapshot(query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc'), limit(400)),
-        s => setTodos(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setTodos(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('todos')),
       onSnapshot(query(collection(db, 'users', user.uid, 'calendarEvents'), orderBy('date', 'asc')),
-        s => setEvents(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setEvents(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('calendarEvents')),
       onSnapshot(query(collection(db, 'users', user.uid, 'prayerIntentions'), orderBy('createdAt', 'desc'), limit(300)),
-        s => setIntentions(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setIntentions(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('prayerIntentions')),
       onSnapshot(query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc')),
-        s => setPeople(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setPeople(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('calendarPeople')),
       onSnapshot(query(collection(db, 'users', user.uid, 'regularPayments'), orderBy('createdAt', 'asc')),
-        s => setPayments(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setPayments(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('regularPayments')),
       onSnapshot(query(collection(db, 'users', user.uid, 'gratitude'), orderBy('date', 'desc'), limit(400)),
-        s => setGratitude(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setGratitude(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('gratitude')),
       onSnapshot(query(collection(db, 'users', user.uid, 'memories'), orderBy('date', 'desc'), limit(400)),
-        s => setMemories(s.docs.map(d => ({ id: d.id, ...d.data() })))),
+        s => setMemories(s.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('memories')),
     ]
     return () => subs.forEach(u => u())
   }, [user.uid])

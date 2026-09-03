@@ -5,6 +5,7 @@ import { DREAM_CATEGORIES } from '../../utils/dreams'
 import { IconTrash, IconEdit } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 // Ta sama paleta co przy symbolach snów — kategorie mają siedzieć w jednym
 // świecie kolorystycznym z resztą modułu.
@@ -20,7 +21,7 @@ export default function DreamCategoryManager({ user }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'dreamCategories'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setCats(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setCats(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('dreamCategories'))
   }, [user.uid])
 
   const remove = async (c) => {

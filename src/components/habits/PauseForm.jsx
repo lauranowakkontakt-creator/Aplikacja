@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { CatIcon, IconClose, IconTrash, IconPause } from '../Icons'
 import { PAUSE_REASONS as REASONS, pauseReasonMeta } from '../../utils/habitLogic'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 export default function PauseForm({ user, onClose }) {
   const [pauses, setPauses] = useState([])
@@ -15,7 +16,7 @@ export default function PauseForm({ user, onClose }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitPauses'), orderBy('from', 'desc'))
-    return onSnapshot(q, snap => setPauses(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setPauses(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('habitPauses'))
   }, [user.uid])
 
   const handleAdd = async () => {

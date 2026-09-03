@@ -8,6 +8,7 @@ import { toast } from '../Toast'
 import HabitCategoryManager from './HabitCategoryManager'
 import RoutineManager from './RoutineManager'
 import { byRoutineOrder } from '../../utils/habitLogic'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 export const HABIT_CATEGORIES = [
   { id: 'health',  label: 'Zdrowie',   icon: 'IcDrop' },
@@ -57,12 +58,12 @@ export default function HabitForm({ user, onClose, editData }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitCategories'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, label: d.data().name, icon: d.data().icon || 'IcTag', color: d.data().color }))))
+    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, label: d.data().name, icon: d.data().icon || 'IcTag', color: d.data().color }))), bladSubskrypcji('habitCategories'))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'habitRoutines'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byRoutineOrder)))
+    return onSnapshot(q, snap => setRoutines(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byRoutineOrder)), bladSubskrypcji('habitRoutines'))
   }, [user.uid])
 
   const categories = [...HABIT_CATEGORIES, ...customCats]

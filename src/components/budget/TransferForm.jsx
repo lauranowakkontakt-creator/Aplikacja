@@ -6,6 +6,7 @@ import { fmt, getCurrencyCode, parseAmount } from '../../utils/currency'
 import { byAccountOrder } from '../../utils/accountOrder'
 import { rateFromAmounts, receivedFromRate, formatRateInput, formatRateLine } from '../../utils/exchange'
 import { IconClose, IconTransfer, IconArrowDown } from '../Icons'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 export default function TransferForm({ user, onClose }) {
   const [accounts, setAccounts] = useState([])
@@ -27,7 +28,7 @@ export default function TransferForm({ user, onClose }) {
       setAccounts(list)
       if (list.length >= 1) setFromId(list[0].id)
       if (list.length >= 2) setToId(list[1].id)
-    })
+    }, bladSubskrypcji('accounts'))
   }, [user.uid])
 
   const fromAcc = accounts.find(a => a.id === fromId)

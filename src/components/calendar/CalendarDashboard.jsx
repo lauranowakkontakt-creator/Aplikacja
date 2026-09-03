@@ -14,6 +14,7 @@ import { confirmDialog } from '../ConfirmModal'
 import { eventsOnDate, todosOnDate, paymentsOnDate, sortDayItems, spanInfo, upcomingEvents, daysBetween } from '../../utils/calendarDay'
 import { toast } from '../Toast'
 import { setPersonHidden, purgePerson } from '../../utils/people'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 // `icon` holds an SVG icon-catalog key (see Icons.jsx) — never an emoji.
 const DEFAULT_CATEGORIES = [
@@ -191,28 +192,28 @@ export default function CalendarDashboard({ user, setHeaderExtras }) {
   // Live subskrypcja kategorii (bez zasiewu — usunięcia są trwałe)
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarCategories'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setCategories(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setCategories(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('calendarCategories'))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setCalPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setCalPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('calendarPeople'))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarEvents'), orderBy('date', 'asc'))
     return onSnapshot(q, snap => { setEvents(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
-      err => { console.error('calendar subscription error:', err); setLoading(false) })
+      bladSubskrypcji('calendarEvents', { przyBledzie: () => setLoading(false) }))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'todos'), orderBy('createdAt', 'desc'))
-    return onSnapshot(q, snap => setTodos(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => !t.done && t.dueDate)))
+    return onSnapshot(q, snap => setTodos(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(t => !t.done && t.dueDate)), bladSubskrypcji('todos'))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'regularPayments'), orderBy('dayOfMonth', 'asc'))
-    return onSnapshot(q, snap => setPayments(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.frequency === 'monthly')))
+    return onSnapshot(q, snap => setPayments(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.frequency === 'monthly')), bladSubskrypcji('regularPayments'))
   }, [user.uid])
 
   const handleDayClick = (day) => {

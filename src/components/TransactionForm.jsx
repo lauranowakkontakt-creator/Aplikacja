@@ -8,6 +8,7 @@ import useFallbackTimeout from '../utils/useFallbackTimeout'
 import { byAccountOrder } from '../utils/accountOrder'
 import { CatIcon, IconClose, IconCheck } from './Icons'
 import { normalizeTitheSettings } from '../utils/titheLogic'
+import { bladSubskrypcji } from '../utils/polaczenie'
 
 export const EXPENSE_CATEGORIES = DEFAULT_EXPENSE_CATEGORIES
 export const INCOME_CATEGORIES  = DEFAULT_INCOME_CATEGORIES
@@ -47,7 +48,7 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('accounts'))
   }, [user.uid])
 
   // Użycie kont z ostatnich transakcji, osobno dla przychodów i wydatków.
@@ -95,7 +96,7 @@ export default function TransactionForm({ user, onClose, editData, defaultType, 
         if (d.data().income?.length)  setIncCats(d.data().income)
       }
       setCatsLoaded(true)
-    })
+    }, bladSubskrypcji('settings/categories'))
   }, [user.uid])
 
   // Reset kategorii/podkategorii TYLKO przy realnej zmianie przez użytkownika.

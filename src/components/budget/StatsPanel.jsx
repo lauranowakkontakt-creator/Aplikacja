@@ -5,6 +5,7 @@ import { fmt } from '../../utils/currency'
 import { IconClose, IconChart, IconChevronLeft, IconChevronRight } from '../Icons'
 import { GroupedBars } from '../ChartPrimitives'
 import { isTransfer } from '../../utils/categories'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const MONTH_NAMES = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru']
 
@@ -19,7 +20,7 @@ export default function StatsPanel({ user, privateMode = false, onClose }) {
     return onSnapshot(q, snap => {
       setAll(snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) })))
       setLoading(false)
-    })
+    }, bladSubskrypcji('transactions'))
   }, [user.uid])
 
   const tx = useMemo(() => all.filter(t => !isTransfer(t) && (t.type === 'income' || t.type === 'expense')), [all])

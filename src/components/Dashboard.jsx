@@ -27,6 +27,7 @@ import { Donut, useNarrow } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES, splitAmount } from '../utils/currency'
 import { isTransfer } from '../utils/categories'
 import { isInvestment, sumByCurrency } from '../utils/investmentMath'
+import { bladSubskrypcji } from '../utils/polaczenie'
 
 // Tytuły podstron pokazywane na pasku „wstecz" (nawigacja bez zakładek)
 const SUB_LABELS = {
@@ -58,7 +59,7 @@ export default function Dashboard({ user, onCurrencyChange, setHeaderExtras }) {
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('accounts'))
   }, [user.uid])
 
   useEffect(() => {
@@ -72,7 +73,7 @@ export default function Dashboard({ user, onCurrencyChange, setHeaderExtras }) {
       const txs = snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) }))
       setTransactions(sortTransactionsByDate(txs))
       setLoading(false)
-    }, err => { console.error('transactions subscription error:', err); setLoading(false) })
+    }, bladSubskrypcji('transactions', { przyBledzie: () => setLoading(false) }))
   }, [user.uid, currentMonth])
 
   const income   = transactions.filter(t => t.type === 'income' && !isTransfer(t)).reduce((s, t) => s + t.amount, 0)

@@ -17,6 +17,7 @@ import { sortTransactionsByDate } from '../../utils/txSort'
 import { byAccountOrder } from '../../utils/accountOrder'
 import { isInvestment, investmentStats, sumByCurrency, mergeTotals, historyWithDeltas, investmentChartData } from '../../utils/investmentMath'
 import { LineAreaSVG } from '../ChartPrimitives'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const fmtAcc = (n, currency = 'PLN') =>
   new Intl.NumberFormat('pl-PL', { style: 'currency', currency }).format(n)
@@ -44,7 +45,7 @@ export default function AccountsView({ user, privateMode }) {
     return onSnapshot(q, snap => {
       setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
-    })
+    }, bladSubskrypcji('accounts'))
   }, [user.uid])
 
   // Rozdzielamy zwykłe konta od inwestycji (krypto, surowce itp.) — inwestycje
@@ -438,7 +439,7 @@ function AccountHistory({ user, account, accounts = [], privateMode, onBack, onE
     return onSnapshot(q, snap => {
       setTx(sortTransactionsByDate(snap.docs.map(d => ({ id: d.id, ...d.data(), date: (d.data().date?.toDate?.() ?? d.data().createdAt?.toDate?.() ?? new Date()) }))))
       setLoading(false)
-    })
+    }, bladSubskrypcji('accounts'))
   }, [user.uid, account.id, months])
 
   const totalIn  = transactions.filter(t => t.type === 'income').reduce((s,t) => s+t.amount, 0)

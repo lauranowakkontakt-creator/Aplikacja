@@ -16,6 +16,7 @@ import {
 import { CatIcon, IconPrayer, IconSettings, IconClose, IconCheck, IconChevronLeft } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 /* Dziesięcina — pula z zaznaczonych przychodów.
    Przychody oznaczone „do dziesięciny" zbierają się aż do oddania; po wpłacie
@@ -50,12 +51,12 @@ export default function TitheView({ user, onClose }) {
           .map(d => ({ id: d.id, ...d.data() }))
           .sort((a, b) => (b.date?.seconds || 0) - (a.date?.seconds || 0))
       ),
-      () => setIncomes([]))
+      bladSubskrypcji('titheIncomes', { przyBledzie: () => setIncomes([]) }))
   }, [user.uid])
 
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'accounts'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('accounts'))
   }, [user.uid])
 
   const pool = useMemo(() => tithePool(incomes), [incomes])

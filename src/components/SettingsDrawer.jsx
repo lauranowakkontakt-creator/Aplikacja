@@ -7,6 +7,7 @@ import { moveModule, toggleHidden, isHidden, FIXED_FIRST, NAV_SLOTS } from '../u
 import { CURRENCIES, getCurrencyCode, setCurrencyCode } from '../utils/currency'
 import { exportAllJSON, exportTransactionsCSV } from '../utils/dataExport'
 import { toast } from './Toast'
+import Diagnostyka from './Diagnostyka'
 
 export default function SettingsDrawer({ open, onClose, activeModule, modules, onModuleChange, onIconChange, onCurrencyChange, user, layout, onLayoutChange }) {
   const handleLogout = () => { signOut(auth); onClose() }
@@ -102,6 +103,12 @@ export default function SettingsDrawer({ open, onClose, activeModule, modules, o
         <div className="drawer-section">
           <p className="drawer-section-title">Kopia danych</p>
           <DataBackup uid={user.uid} />
+        </div>
+
+        {/* Diagnostyka */}
+        <div className="drawer-section">
+          <p className="drawer-section-title">Gdy coś nie działa</p>
+          <Diagnostyka />
         </div>
 
         {/* Footer */}

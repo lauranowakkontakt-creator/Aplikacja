@@ -13,6 +13,7 @@ import { NOTE_MODES, normalizeNoteMode, parseChecklist, checklistToText,
   toggleChecked, pruneDone, checklistProgress, hasChecklist } from '../../utils/prayerList'
 import { toast } from '../Toast'
 import { setPersonHidden, purgePerson } from '../../utils/people'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const PRIORITY_CFG = [
   { v: 5, label: 'Pilna',   color: '#ef4444' },
@@ -74,13 +75,13 @@ export default function PrayerDashboard({ user, setHeaderExtras }) {
     return onSnapshot(q, snap => {
       setIntentions(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
-    })
+    }, bladSubskrypcji('prayerIntentions'))
   }, [user.uid])
 
   useEffect(() => {
     // Wspólna baza osób z Kalendarzem — ta sama kolekcja `calendarPeople`.
     const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('calendarPeople'))
   }, [user.uid])
 
   // Auto-archive intentions past their dateTo

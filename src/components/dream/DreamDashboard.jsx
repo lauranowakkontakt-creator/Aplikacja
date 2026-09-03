@@ -16,6 +16,7 @@ import {
   DREAM_EMOTIONS, SYMBOL_COLORS, getEmotion, mergeDreamCategories, findDreamCategory,
   parseMentions, dreamPeopleIds, scrubSymbolFromDreams, personForms, nameStem, detectTrigger, tokenizeDreamText,
 } from '../../utils/dreams'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
 const initials = (name) => (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -98,19 +99,19 @@ export default function DreamDashboard({ user, focusId, onFocusConsumed, setHead
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'dreams'), orderBy('date', 'desc'))
     return onSnapshot(q, snap => { setDreams(snap.docs.map(d => ({ id: d.id, ...d.data() }))); setLoading(false) },
-      err => { console.error('dreams subscription error:', err); setLoading(false) })
+      bladSubskrypcji('dreams', { przyBledzie: () => setLoading(false) }))
   }, [user.uid])
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'calendarPeople'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setPeople(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('calendarPeople'))
   }, [user.uid])
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'dreamSymbols'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setSymbols(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setSymbols(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('dreamSymbols'))
   }, [user.uid])
   useEffect(() => {
     const q = query(collection(db, 'users', user.uid, 'dreamCategories'), orderBy('createdAt', 'asc'))
-    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
+    return onSnapshot(q, snap => setCustomCats(snap.docs.map(d => ({ id: d.id, ...d.data() }))), bladSubskrypcji('dreamCategories'))
   }, [user.uid])
 
   // Wejście z innego modułu (np. z karty osoby w „Osoby")

@@ -5,6 +5,7 @@ import { BIBLE_BOOKS } from '../../utils/bibleData'
 import { IconBook, IconClose, IconEdit, IconTrash, IconPlus } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
+import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const bookName = (id) => BIBLE_BOOKS.find(b => b.id === id)?.name || '?'
 const verseRef = (n) => {
@@ -24,7 +25,7 @@ export default function BibleNotes({ user }) {
     return onSnapshot(q, snap => {
       setNotes(snap.docs.map(d => ({ id: d.id, ...d.data() })))
       setLoading(false)
-    }, () => setLoading(false))
+    }, bladSubskrypcji('bibleNotes', { przyBledzie: () => setLoading(false) }))
   }, [user.uid])
 
   const nextNumber = notes.reduce((max, n) => Math.max(max, n.number || 0), 0) + 1
