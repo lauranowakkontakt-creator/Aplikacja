@@ -118,6 +118,7 @@ export default function PersonDetailView({ user, person, intentions, carMode, on
           user={user}
           editData={editItem}
           personId={person.id}
+          allIntentions={intentions}
           onClose={() => { setShowAddForm(false); setEditItem(null) }}
         />
       ) : (

@@ -1,3 +1,4 @@
+import { normalizeTags } from '../../utils/prayerFilters'
 import { checklistProgress, hasChecklist } from '../../utils/prayerList'
 import { daysSince, findPrio, getNeglect } from '../../utils/prayerStats'
 import { CatIcon, IconCalendar, IconCheck, IconEdit, IconPrayer, IconTrash } from '../Icons'
@@ -37,13 +38,16 @@ export function PrayerChecklist({ item, fs, onToggle }) {
 }
 
 export default function RequestCard({ item, user, carMode, onTogglePrayed, onAddNote, onEditNote, onDeleteNote, onToggleChecklistItem, onArchive, onEdit, onDelete, showPerson, person, viewDate }) {
-  const [showNotes, setShowNotes]     = useState(false)
+  // Notatki są rozwinięte od razu: pisze się je po to, żeby przy kolejnej
+  // modlitwie mieć je przed oczami, a nie żeby ich szukać za guzikiem.
+  const [showNotes, setShowNotes]     = useState(true)
   const [addingNote, setAddingNote]   = useState(false)
   const [noteText, setNoteText]       = useState('')
   const [editingNoteId, setEditingNoteId] = useState(null)
   const [editNoteText, setEditNoteText]   = useState('')
 
   const prio       = findPrio(item.priority || 3)
+  const tags       = normalizeTags(item.tags || [])
   const date       = viewDate || TODAY()
   const prayedToday = item.prayedDates?.includes(date)
   const days       = daysSince(item.prayedDates)
@@ -143,6 +147,13 @@ export default function RequestCard({ item, user, carMode, onTogglePrayed, onAdd
               <CatIcon categoryId={null} emoji={person.icon || 'IcUsers'} size={fs.sub} /> {person.name}
             </p>
           )}
+          {tags.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+              {tags.map(t => (
+                <span key={t} style={{ fontSize: fs.badge, padding: '1px 6px', borderRadius: 99, background: 'var(--surface2)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>{t}</span>
+              ))}
+            </div>
+          )}
           {hasChecklist(item) ? (
             <PrayerChecklist item={item} fs={fs} onToggle={(id) => onToggleChecklistItem?.(item, id)} />
           ) : (
@@ -168,7 +179,7 @@ export default function RequestCard({ item, user, carMode, onTogglePrayed, onAdd
             )}
             {item.notes?.length > 0 && (
               <button type="button" onClick={() => setShowNotes(v => !v)} style={{ fontSize: fs.badge, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                <IconEdit size={10} /> {item.notes.length} {item.notes.length === 1 ? 'notatka' : 'notatki'}
+                <IconEdit size={10} /> {item.notes.length} {item.notes.length === 1 ? 'notatka' : 'notatki'}{showNotes ? ' · ukryj' : ' · pokaż'}
               </button>
             )}
           </div>

@@ -1,4 +1,5 @@
 import { db } from '../../firebase/config'
+import { collectTags, normalizeTags, parseTags, tagsToText, toggleTag } from '../../utils/prayerFilters'
 import { NOTE_MODES, checklistToText, normalizeNoteMode, parseChecklist, pruneDone } from '../../utils/prayerList'
 import { PRIORITY_CFG, findPrio } from '../../utils/prayerStats'
 import { IconClose } from '../Icons'
@@ -7,7 +8,7 @@ import { useState } from 'react'
 
 // Formularz prośby: dodawanie i edycja.
 
-export default function IntentionForm({ user, editData, personId, onClose }) {
+export default function IntentionForm({ user, editData, personId, onClose, allIntentions = [] }) {
   const [title, setTitle]       = useState(editData?.title || '')
   const [note, setNote]         = useState(editData?.note || '')
   // Opis może być zwykłym tekstem albo listą do odhaczania.
@@ -15,6 +16,10 @@ export default function IntentionForm({ user, editData, personId, onClose }) {
   const [listText, setListText] = useState(checklistToText(editData?.checklist || []))
   const [priority, setPriority] = useState(editData?.priority || 3)
   const [dateTo, setDateTo]     = useState(editData?.dateTo || '')
+  // Tagi trzymamy jako listę, a pole tekstowe jest tylko wygodnym wejściem —
+  // klikanie w podpowiedzi i dopisywanie ręczne muszą dawać ten sam wynik.
+  const [tags, setTags]         = useState(normalizeTags(editData?.tags || []))
+  const [tagText, setTagText]   = useState(tagsToText(normalizeTags(editData?.tags || [])))
   const [saving, setSaving]     = useState(false)
   const [error, setError]       = useState('')
 
@@ -33,6 +38,7 @@ export default function IntentionForm({ user, editData, personId, onClose }) {
       checklistDone: pruneDone(checklist, editData?.checklistDone || []),
       personId: personId || editData?.personId || null,
       priority, dateTo: dateTo || null,
+      tags: normalizeTags([...tags, ...parseTags(tagText)]),
       updatedAt: Timestamp.now()
     }
     try {
@@ -46,6 +52,10 @@ export default function IntentionForm({ user, editData, personId, onClose }) {
       onClose()
     } catch { setError('Błąd zapisu'); setSaving(false) }
   }
+
+  // Podpowiadamy tagi już używane w innych prośbach — inaczej po miesiącu
+  // powstaje „Zdrowie", „zdrowie mamy" i „ZDROWIE" jako trzy osobne tematy.
+  const podpowiedzi = collectTags(allIntentions).filter(t => t.tag)
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -102,6 +112,29 @@ export default function IntentionForm({ user, editData, personId, onClose }) {
             </p>
           </>
         )}
+      </div>
+
+      <div className="form-group" style={{ margin: 0 }}>
+        <label>Tematy (opcjonalnie)</label>
+        <input type="text" className="form-input" value={tagText}
+          onChange={e => { setTagText(e.target.value); setTags(parseTags(e.target.value)) }}
+          maxLength={120} placeholder="Zdrowie, Praca" />
+        {podpowiedzi.length > 0 && (
+          <div className="pray-filters-chips" style={{ marginTop: 6 }}>
+            {podpowiedzi.map(({ tag }) => {
+              const wybrany = tags.some(t => t.toLowerCase() === tag.toLowerCase())
+              return (
+                <button key={tag} type="button" className={`chip${wybrany ? ' active' : ''}`}
+                  onClick={() => { const next = toggleTag(tags, tag); setTags(next); setTagText(tagsToText(next)) }}>
+                  {tag}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-muted)' }}>
+          Po przecinku. W widoku „Dziś" filtrujesz prośby po temacie.
+        </p>
       </div>
 
       <div className="form-group" style={{ margin: 0 }}>

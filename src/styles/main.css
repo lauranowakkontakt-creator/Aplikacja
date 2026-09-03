@@ -2942,3 +2942,58 @@ body { overscroll-behavior-y: none; }
 .diagnostyka-czas   { color: var(--text-muted); flex-shrink: 0; }
 .diagnostyka-zrodlo { color: var(--text-muted); flex-shrink: 0; }
 .diagnostyka-tresc  { min-width: 0; }
+
+/* ===== MODLITWA: FILTRY I GRUPOWANIE PO OSOBACH ===== */
+.pray-filters {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden;
+}
+.pray-filters-head {
+  display: flex; align-items: center; gap: 7px; width: 100%; text-align: left;
+  padding: 9px 12px; background: transparent; border: none; cursor: pointer;
+  font-family: inherit; color: var(--text-muted);
+}
+.pray-filters-head:hover { color: var(--text); }
+.pray-filters-summary {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--text-sub); font-weight: 600;
+}
+.pray-filters-dot {
+  width: 6px; height: 6px; border-radius: 99px; background: var(--accent); flex-shrink: 0;
+}
+.pray-filters-body {
+  border-top: 1px solid var(--border); padding: 10px 12px 12px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.pray-filters-group { display: flex; flex-direction: column; gap: 6px; }
+.pray-filters-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.pray-filters-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pray-filters-chips .chip { padding: 5px 10px; font-size: 11.5px; }
+.pray-filters-count { opacity: .55; font-variant-numeric: tabular-nums; }
+.pray-filters-hint { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+.pray-filters-reset {
+  align-self: flex-start; background: none; border: none; padding: 0; cursor: pointer;
+  font-family: inherit; font-size: 11px; color: var(--accent);
+}
+
+/* Nagłówek osoby w trybie „Po osobach" — jedna osoba i komplet jej próśb. */
+.pray-person-head {
+  display: flex; align-items: center; gap: 8px;
+  margin: 8px 0 2px; padding: 7px 10px; border-radius: 10px;
+  background: color-mix(in oklab, #8b5cf6 10%, var(--surface));
+  border: 1px solid color-mix(in oklab, #8b5cf6 26%, transparent);
+}
+.pray-person-head.done { opacity: .55; }
+.pray-person-name {
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 13px; font-weight: 700; color: #8b5cf6;
+}
+.pray-person-meta {
+  font-size: 10px; color: var(--text-muted); flex-shrink: 0; font-variant-numeric: tabular-nums;
+}
+.car-mode .pray-person-name { font-size: 19px; }
+.car-mode .pray-person-meta { font-size: 13px; }
