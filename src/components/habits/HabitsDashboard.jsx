@@ -18,121 +18,13 @@ import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, Ic
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
+import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor } from '../../utils/habitStats'
+import MonthCalendar from './MonthCalendar'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
   habitDayKind, dayScore, isRequiredHabit } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
-function getPauseIcon(pauses, dateStr) {
-  const p = pauseForDay(dateStr, pauses)
-  return p?.reasonIcon || null
-}
-
-function getPauseColor(pauses, dateStr) {
-  const p = pauseForDay(dateStr, pauses)
-  return p ? pauseReasonMeta(p.reason).color : null
-}
-
-const ymd = (d) => format(d, 'yyyy-MM-dd')
-
-// Zakres dat dla wybranego okresu statystyk.
-//  ctx = { weekAnchor, monthAnchor: Date, year: number }
-//  - week  → wybrany tydzień (pon–nd)
-//  - month → wybrany miesiąc
-//  - year  → cały wybrany rok
-function statRange(period, ctx) {
-  if (period === 'week') {
-    const s = startOfWeek(ctx.weekAnchor, { weekStartsOn: 1 })
-    return { start: ymd(s), end: ymd(addDays(s, 6)) }
-  }
-  if (period === 'month') {
-    return { start: ymd(startOfMonth(ctx.monthAnchor)), end: ymd(endOfMonth(ctx.monthAnchor)) }
-  }
-  return { start: `${ctx.year}-01-01`, end: `${ctx.year}-12-31` }
-}
-
-// Kubełki trendu realizacji (%) do wykresu słupkowego:
-//  - week  → 7 dni tygodnia
-//  - month → tygodnie wybranego miesiąca (T1..T5)
-//  - year  → po jednym słupku na każdy rok z danymi (dataYears)
-function statBuckets(habits, pauses, period, ctx, dataYears, now = new Date()) {
-  const todayStr = ymd(now)
-  const clampEnd = (e) => (e > todayStr ? todayStr : e)
-  const pct = (start, end) => (start > todayStr ? 0 : rangeStats(habits, pauses, start, clampEnd(end)).pct)
-  if (period === 'week') {
-    const s = startOfWeek(ctx.weekAnchor, { weekStartsOn: 1 })
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = ymd(addDays(s, i))
-      return { label: format(addDays(s, i), 'EEEEEE', { locale: pl }), value: pct(d, d), active: d === todayStr }
-    })
-  }
-  if (period === 'month') {
-    const ms = startOfMonth(ctx.monthAnchor)
-    const total = getDaysInMonth(ctx.monthAnchor)
-    const buckets = []
-    for (let i = 0, wk = 1; i < total; i += 7, wk++) {
-      const start = ymd(addDays(ms, i))
-      const end = ymd(addDays(ms, Math.min(i + 6, total - 1)))
-      buckets.push({ label: `T${wk}`, value: pct(start, end), active: todayStr >= start && todayStr <= end })
-    }
-    return buckets
-  }
-  // year — po słupku na rok
-  return dataYears.map(y => ({ label: String(y), value: pct(`${y}-01-01`, `${y}-12-31`), active: y === ctx.year }))
-}
-
-// Zbiorczy stan dnia dla wszystkich nawyków (do mini-kalendarza na dashboardzie):
-//  due  — ile było obowiązkowych (+ wykonane w pauzie)
-//  done — ile z nich zrobione
-//  paused — czy to dzień wyjazdu/choroby
-function dayAggregate(habits, pauses, dateStr) {
-  // Ta sama zasada co w hero i na Pulpicie: cel z nawyków wymaganych,
-  // zrobione ze wszystkich. Intensywność kratki ucinamy na 1.
-  const s = dayScore(habits, dateStr, pauses)
-  return {
-    due: s.required,
-    done: s.doneTotal,
-    pct: s.pct / 100,
-    paused: isPausedDay(dateStr, pauses),
-  }
-}
-
-const WD = ['P', 'W', 'Ś', 'C', 'P', 'S', 'N']
-
-// Kalendarz miesiąca wyrównany do poniedziałku (puste pola przed 1. dniem).
-// renderCell(dateStr) → { bg, border, color, ring, title }. Rozmiar sterowany
-// przez cellH/font/gap; maxWidth ogranicza szerokość (np. na dashboardzie).
-function MonthCalendar({ month, renderCell, cellH = 20, gap = 3, font = 8.5, maxWidth, showNums = true }) {
-  const mStart = startOfMonth(month)
-  const lead = (mStart.getDay() + 6) % 7
-  const count = getDaysInMonth(month)
-  const cells = [...Array.from({ length: lead }, () => null), ...Array.from({ length: count }, (_, i) => ymd(addDays(mStart, i)))]
-  const wrap = maxWidth ? { maxWidth } : {}
-  return (
-    <div>
-      <div style={{ ...wrap, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap, marginBottom: gap }}>
-        {WD.map((l, i) => <div key={i} style={{ textAlign: 'center', fontSize: Math.max(7, font - 0.5), color: 'var(--text-muted)', fontWeight: 700 }}>{l}</div>)}
-      </div>
-      <div style={{ ...wrap, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap }}>
-        {cells.map((d, idx) => {
-          if (!d) return <div key={`b${idx}`} />
-          const c = renderCell(d)
-          return (
-            <div key={d} title={c.title} style={{
-              height: cellH, borderRadius: cellH >= 26 ? 6 : 4, background: c.bg, border: c.border,
-              boxShadow: c.ring ? '0 0 0 1.5px var(--warn)' : 'none',
-              display: 'grid', placeItems: 'center', fontSize: font, color: c.color || 'var(--text-muted)', fontWeight: 600,
-            }}>{showNums ? format(new Date(d + 'T12:00:00'), 'd') : ''}</div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// „Dzisiejszy rytm" — ścieżka dnia nad listą nawyków. Wyłączona, bo w praktyce
-// mało używana; kod i komponent DayPath zostają nietknięte, żeby dało się do
-// niej wrócić. Aby przywrócić: ustaw na true — nic więcej nie trzeba.
 const SHOW_DAY_RHYTHM = false
 
 export default function HabitsDashboard({ user, setHeaderExtras }) {

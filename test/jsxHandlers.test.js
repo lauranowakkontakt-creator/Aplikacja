@@ -115,10 +115,25 @@ test('JSX: handlery podawane w propsach istnieją w zasięgu komponentu', () => 
   assert.deepEqual(problems, [], `handlery bez deklaracji:\n${problems.join('\n')}`)
 })
 
-test('Modlitwa: widok „Dziś" ma własne odhaczanie punktów listy', () => {
-  const src = readFileSync(join(SRC, 'components/prayer/PrayerDashboard.jsx'), 'utf8')
-  const today = topLevelBlocks(src).find(b => b.name === 'TodayView')
-  assert.ok(today, 'brak komponentu TodayView')
-  assert.match(today.body, /const toggleChecklistItem = async/)
-  assert.match(today.body, /checklistDone: toggleChecked\(/)
+test('Modlitwa: widok „Dziś" potrafi odhaczać punkty listy', () => {
+  // Pierwotnie ten test szukał LOKALNEJ kopii toggleChecklistItem wewnątrz
+  // TodayView w PrayerDashboard.jsx. Po rozbiciu modułu na pliki TodayView
+  // mieszka osobno i bierze jedną wspólną implementację z wspolne.jsx —
+  // czyli intencja jest spełniona, tylko bez duplikatu.
+  //
+  // Sprawdzamy więc to, o co naprawdę chodziło: że „Dziś" ma tę funkcję
+  // W ZASIĘGU i faktycznie podaje ją karcie prośby. Gdzie jest zadeklarowana
+  // i czy jest jedna czy dwie — to już decyzja o strukturze, nie o poprawności.
+  const today = jsxFiles(SRC).find(f => f.endsWith('prayer/TodayView.jsx'))
+    || join(SRC, 'components/prayer/PrayerDashboard.jsx')
+  const src = readFileSync(today, 'utf8')
+
+  assert.match(src, /toggleChecklistItem/, 'widok „Dziś" nie zna odhaczania punktów')
+  assert.match(src, /onToggleChecklistItem=/, 'widok „Dziś" nie podaje odhaczania karcie prośby')
+
+  // Sama implementacja — gdziekolwiek jest — musi zapisywać stan punktów.
+  const gdzie = src.includes('const toggleChecklistItem = async')
+    ? src
+    : readFileSync(join(SRC, 'components/prayer/wspolne.jsx'), 'utf8')
+  assert.match(gdzie, /checklistDone: toggleChecked\(/)
 })

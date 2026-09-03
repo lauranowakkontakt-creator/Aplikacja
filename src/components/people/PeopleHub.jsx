@@ -1,3 +1,4 @@
+import PersonBubble from '../PersonBubble'
 import { useState, useEffect, useMemo } from 'react'
 import { collection, query, onSnapshot, addDoc, updateDoc, doc, Timestamp, orderBy } from 'firebase/firestore'
 import { db } from '../../firebase/config'
@@ -11,32 +12,14 @@ import {
 } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { setPersonHidden, purgePerson } from '../../utils/people'
+import { PERSON_COLORS } from '../../utils/personColors'
 import { getCategory, dreamPeopleIds } from '../../utils/dreams'
 import { debtsForPerson, debtSummary, todosForPerson, linkCountsByPerson } from '../../utils/personLinks'
 import { fmt } from '../../utils/currency'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
-const PERSON_COLORS = [
-  '#E74C3C','#E91E63','#9C27B0','#8B5CF6','#3F51B5','#2196F3',
-  '#00BCD4','#009688','#4CAF50','#F59E0B','#FF9800','#FF5722',
-  '#EC4899','#14B8A6','#84CC16','#6366F1',
-]
 const TODAY = () => format(new Date(), 'yyyy-MM-dd')
 const initials = (name) => (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-
-function Bubble({ person, size = 44 }) {
-  const color = person.color || '#8b5cf6'
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%', flexShrink: 0,
-      background: color + '28', border: `2px solid ${color}`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', color,
-      fontSize: size * 0.36, fontWeight: 700, letterSpacing: '-0.02em',
-    }}>
-      {person.icon ? <CatIcon categoryId={null} emoji={person.icon} size={size * 0.5} /> : initials(person.name)}
-    </div>
-  )
-}
 
 export default function PeopleHub({ user, onOpenDream, setHeaderExtras }) {
   const [people, setPeople]         = useState([])
@@ -149,7 +132,7 @@ export default function PeopleHub({ user, onOpenDream, setHeaderExtras }) {
                 background: 'var(--surface)', border: '1px solid var(--border)', borderLeft: `3px solid ${p.color || '#8b5cf6'}`,
                 borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer'
               }}>
-                <Bubble person={p} size={44} />
+                <PersonBubble person={p} size={44} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>{p.name}</p>
                   <p style={{ margin: '3px 0 0', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -213,7 +196,7 @@ function PersonDetail({ uid, person, events, intentions, dreams = [], debts = []
       {/* Nagłówek osoby */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <button className="t-btn" onClick={onBack} style={{ padding: '4px 8px' }}><IconChevronLeft size={18} /></button>
-        <Bubble person={person} size={48} />
+        <PersonBubble person={person} size={48} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{person.name}</p>
           {person.note && <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>{person.note}</p>}
@@ -555,7 +538,7 @@ function PersonForm({ user, editData, onClose }) {
           <div className="form-group">
             <label>Ikona</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <Bubble person={{ name, color, icon }} size={42} />
+              <PersonBubble person={{ name, color, icon }} size={42} />
               <input type="text" className="form-input" value={iconSearch} onChange={e => setIconSearch(e.target.value)}
                 placeholder="Szukaj ikony..." style={{ margin: 0, flex: 1 }} />
             </div>
