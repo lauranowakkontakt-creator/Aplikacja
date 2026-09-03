@@ -9,6 +9,7 @@ import PauseForm from './PauseForm'
 import HabitReorderModal from './HabitReorderModal'
 import HabitDayGrid from './HabitDayGrid'
 import HabitMenu from './HabitMenu'
+import HabitManager from './HabitManager'
 import RoutineManager from './RoutineManager'
 // Nastrój nie jest już osobną apką — mieszka w Nawykach, otwierany z kafelka.
 // Leniwie, żeby wejście w Nawyki nie ciągnęło kodu wykresów nastroju.
@@ -148,6 +149,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   const [showArchived, setShowArchived] = useState(false)
   const [showReorder, setShowReorder] = useState(false)
   const [showRoutineMgr, setShowRoutineMgr] = useState(false)
+  const [showManager, setShowManager] = useState(false)  // lista wszystkich nawyków do edycji
   const [routines, setRoutines]       = useState([])
   const [collapsedRoutines, setCollapsedRoutines] = useState({}) // ręczne nadpisania zwinięcia (per dzień)
   const [statPeriod, setStatPeriod]   = useState('month')
@@ -249,7 +251,8 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
 
   // Akcje z menu „⋮": Analiza / Pauza / Kolejność
   const handleMenu = (id) => {
-    if (id === 'stats') setView('stats')
+    if (id === 'manage') setShowManager(true)
+    else if (id === 'stats') setView('stats')
     else if (id === 'pause') setShowPause(true)
     else if (id === 'reorder') setShowReorder(true)
     else if (id === 'routines') setShowRoutineMgr(true)
@@ -470,16 +473,18 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
             }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
               {/* Icon tile */}
-              <div onClick={() => { setEditHabit(habit); setShowForm(true) }} style={{
+              <div style={{
                 width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                display: 'grid', placeItems: 'center', cursor: 'pointer',
+                display: 'grid', placeItems: 'center',
                 background: color + '1c', border: `1px solid ${color + '40'}`, color,
               }}>
                 <CatIcon categoryId={null} emoji={habit.emoji} size={17} />
               </div>
 
               {/* Body */}
-              <div onClick={() => { setEditHabit(habit); setShowForm(true) }} style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}>
+              {/* Sam opis nawyku nic nie otwiera — edycja siedzi w menu „Edytuj nawyki",
+                  żeby klik na liście dnia nie wpadał przypadkiem w formularz. */}
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontSize: 13.5, fontWeight: 600,
                   textDecoration: done ? 'line-through' : 'none',
@@ -873,6 +878,9 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
       {showPause && <PauseForm user={user} onClose={() => setShowPause(false)} />}
       {showRoutineMgr && <RoutineManager user={user} onClose={() => setShowRoutineMgr(false)} />}
       {showReorder && <HabitReorderModal user={user} habits={activeHabits} onClose={() => setShowReorder(false)} />}
+      {showManager && (
+        <HabitManager user={user} habits={habits} categories={allCategories} onClose={() => setShowManager(false)} />
+      )}
       {showForm && (
         <HabitForm user={user} onClose={() => { setShowForm(false); setEditHabit(null) }} editData={editHabit} />
       )}
