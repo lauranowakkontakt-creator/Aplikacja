@@ -12,3 +12,14 @@ dist
 
 # Lokalne nadpisania konfiguracji środowisk
 .env.*.local
+
+# Pliki-duplikaty z sufiksem " 2" (" 3"…). Tworzy je macOS przy kolizji nazw —
+# Finder, dostawca plików w chmurze albo przywracanie z kopii. W katalogu tej
+# apki pojawiło się ich naraz 48, dokładnie po jednej na każdy świeżo dodany
+# plik. Żadna nie trafiła do repo, ale wystarczyłby jeden `git add -A`
+# w złym momencie. Przyczyna nierozpoznana, więc blokujemy skutek.
+* [0-9].js
+* [0-9].jsx
+* [0-9].json
+* [0-9].md
+* [0-9].css
