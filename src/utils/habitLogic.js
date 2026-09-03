@@ -125,6 +125,20 @@ export function isHabitDue(habit, dateStr, pauses = []) {
   return days.includes(new Date(dateStr + 'T12:00:00').getDay()) ? 'due' : 'off'
 }
 
+// Etap życia nawyku — potrzebny liście „Edytuj nawyki", gdzie muszą być widoczne
+// także nawyki, które jeszcze nie wystartowały (dotąd dało się je otworzyć dopiero
+// od dnia startu, bo listy dnia w ogóle ich nie pokazywały).
+//   'archived' — w archiwum
+//   'planned'  — data startu jeszcze przed nami
+//   'ended'    — po dacie zakończenia
+//   'active'   — trwa
+export function habitLifecycle(habit, today = format(new Date(), 'yyyy-MM-dd')) {
+  if (habit?.archived) return 'archived'
+  if (habit?.startDate && today < habit.startDate) return 'planned'
+  if (habit?.endDate && today > habit.endDate) return 'ended'
+  return 'active'
+}
+
 // Aktualna seria (streak).
 //  - każdy odhaczony dzień liczy się (także bonusy: dni poza harmonogramem i w pauzie)
 //  - pominięty dzień OBOWIĄZKOWY przerywa serię

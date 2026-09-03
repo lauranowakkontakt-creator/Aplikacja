@@ -839,6 +839,14 @@ function TodayView({ user, intentions, people, carMode }) {
     await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), { notes: arrayRemove(note) })
   }
 
+  // Odhaczenie punktu listy — „Dziś" pokazuje te same prośby co widok osoby,
+  // więc musi mieć własną obsługę; wcześniej sięgało po nazwę z innego widoku.
+  const toggleChecklistItem = async (item, id) => {
+    await updateDoc(doc(db, 'users', user.uid, 'prayerIntentions', item.id), {
+      checklistDone: toggleChecked(item.checklistDone || [], id),
+    }).catch(() => {})
+  }
+
   const sorted = [...visibleIntentions].sort((a, b) => {
     if ((a.priority || 3) === 5 && (b.priority || 3) !== 5) return -1
     if ((a.priority || 3) !== 5 && (b.priority || 3) === 5) return 1
