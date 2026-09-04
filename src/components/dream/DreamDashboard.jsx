@@ -11,7 +11,8 @@ import DreamForm from './DreamForm'
 import DreamMenu from './DreamMenu'
 import DreamStats from './DreamStats'
 import SymbolsView from './SymbolsView'
-import { Timestamp, addDoc, collection, deleteDoc, doc, onSnapshot, orderBy, query } from 'firebase/firestore'
+import { Timestamp, addDoc, collection, deleteDoc, doc, orderBy, query } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { useEffect, useMemo, useState } from 'react'
 
 // Moduł Sen — spinacz. Dane z Firestore, wybór widoku i nawigacja;

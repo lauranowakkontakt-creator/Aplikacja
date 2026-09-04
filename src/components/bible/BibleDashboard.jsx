@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { doc, onSnapshot, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { db } from '../../firebase/config'
 import { differenceInDays, parseISO, format } from 'date-fns'
 import { pl } from 'date-fns/locale'

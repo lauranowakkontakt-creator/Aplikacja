@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { collection, query, where, orderBy, onSnapshot, Timestamp, getDocs } from 'firebase/firestore'
+import { collection, query, where, orderBy, Timestamp, getDocs } from 'firebase/firestore'
+import { onSnapshot } from '../utils/subskrypcje'
 import { db } from '../firebase/config'
 import useFallbackTimeout from '../utils/useFallbackTimeout'
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns'

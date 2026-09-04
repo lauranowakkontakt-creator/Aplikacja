@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore'
+import { collection, query, orderBy, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { db } from '../../firebase/config'
 import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconEdit, IconTag, IconSearch, IconChevronDown } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'

@@ -14,7 +14,8 @@ Object.defineProperty(globalThis, 'navigator', {
   value: { onLine: true }, configurable: true, writable: true,
 })
 
-const { bladSubskrypcji, awariaMinela, usunWszystkieAwarie, _rejestrAwarii } =
+const { bladSubskrypcji, awariaMinela, usunWszystkieAwarie, _rejestrAwarii,
+  jestKodemSieciowym, zrodloHandlera } =
   await import('../src/utils/polaczenie.js')
 
 // Nazwy źródeł, które aktualnie są w stanie awarii — to samo, co widzi baner
@@ -128,4 +129,26 @@ test('powrót sieci kasuje awarie sieciowe, ale zostawia te realne', () => {
   sluchaczeOkna.online()
 
   assert.deepEqual(zrodlaAwarii(), ['habits'])
+})
+
+
+test('handler błędu niesie nazwę źródła', () => {
+  // Na tym znaczniku stoi całe kasowanie awarii w ponawianie.js: opakowany
+  // onSnapshot nie dostaje nazwy modułu osobno, tylko odczytuje ją z handlera.
+  const handler = bladSubskrypcji('accounts')
+  assert.equal(zrodloHandlera(handler), 'accounts')
+})
+
+test('zrodloHandlera znosi to, co nie jest oznaczonym handlerem', () => {
+  assert.equal(zrodloHandlera(() => {}), undefined)
+  assert.equal(zrodloHandlera(undefined), undefined)
+  assert.equal(zrodloHandlera(null), undefined)
+})
+
+test('kody sieciowe są odróżniane od trwałych', () => {
+  // Rozstrzyga o tym, czy w ogóle ponawiamy subskrypcję.
+  assert.equal(jestKodemSieciowym('unavailable'), true)
+  assert.equal(jestKodemSieciowym('deadline-exceeded'), true)
+  assert.equal(jestKodemSieciowym('permission-denied'), false)
+  assert.equal(jestKodemSieciowym(undefined), false)
 })

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { doc, onSnapshot, setDoc } from 'firebase/firestore'
+import { doc, setDoc } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, CAT_COLORS, getSubcategoryColor } from '../../utils/categories'

@@ -62,7 +62,15 @@ function argumentyWywolania(kod, indeksNawiasu) {
   return null // niedomknięty nawias — traktujemy jako brak wyniku
 }
 
+// Moduły, które onSnapshot IMPLEMENTUJĄ, a nie wołają: tam „trzeci argument"
+// to parametr przekazywany dalej, więc reguły dla miejsc wywołania ich nie
+// dotyczą. Wpisujemy je z nazwy, żeby wyjątek nie rozlał się na resztę apki.
+const MODULY_OPAKOWUJACE = ['src/utils/subskrypcje.js', 'src/utils/ponawianie.js']
+
+const sciezkaWzgledna = (plik) => plik.replace(ROOT + '/', '')
+
 const zrodla = plikiZrodlowe(join(ROOT, 'src'))
+  .filter(p => !MODULY_OPAKOWUJACE.includes(sciezkaWzgledna(p)))
 
 test('każde onSnapshot ma callback błędu', () => {
   const braki = []
@@ -107,4 +115,24 @@ test('callback błędu to zawsze wspólne bladSubskrypcji, nie własny wariant',
   }
 
   assert.deepEqual(wlasne, [], `własne callbacki błędu zamiast bladSubskrypcji:\n  ${wlasne.join('\n  ')}`)
+})
+
+
+test('onSnapshot importujemy z opakowania, nie prosto z firebase', () => {
+  // Opakowanie z utils/subskrypcje kasuje wpis o awarii po udanym snapshocie
+  // i ponawia subskrypcję zerwaną przez sieć. Import prosto z SDK omija jedno
+  // i drugie: dane nie wracają same, a baner „Nie udało się pobrać części
+  // danych" wisi do przeładowania strony.
+  const zSdk = []
+
+  for (const plik of zrodla) {
+    const kod = readFileSync(plik, 'utf8')
+    for (const m of kod.matchAll(/import\s*\{([^}]*)\}\s*from\s*'firebase\/firestore'/g)) {
+      if (!/\bonSnapshot\b/.test(m[1])) continue
+      const linia = kod.slice(0, m.index).split('\n').length
+      zSdk.push(`${sciezkaWzgledna(plik)}:${linia}`)
+    }
+  }
+
+  assert.deepEqual(zSdk, [], `onSnapshot prosto z SDK zamiast z utils/subskrypcje:\n  ${zSdk.join('\n  ')}`)
 })

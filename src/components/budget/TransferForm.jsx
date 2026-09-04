@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, orderBy, query, Timestamp, doc, increment, writeBatch } from 'firebase/firestore'
+import { collection, orderBy, query, Timestamp, doc, increment, writeBatch } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { fmt, getCurrencyCode, parseAmount } from '../../utils/currency'
