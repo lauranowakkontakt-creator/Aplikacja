@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { collection, query, where, orderBy, onSnapshot, Timestamp, getDoc, doc } from 'firebase/firestore'
+import { collection, query, where, orderBy, Timestamp, getDoc, doc } from 'firebase/firestore'
+import { onSnapshot } from '../utils/subskrypcje'
 import { db } from '../firebase/config'
 import { CatIcon, IconChevronLeft, IconChevronRight, IconChart } from './Icons'
 import { useMounted, GroupedBars } from './ChartPrimitives'

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, query, getDoc } from 'firebase/firestore'
+import { collection, addDoc, updateDoc, doc, Timestamp, orderBy, query, getDoc } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { db } from '../../firebase/config'
 import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, getSubcategoryColor } from '../../utils/categories'
 import { getCurrencyCode, parseAmount } from '../../utils/currency'

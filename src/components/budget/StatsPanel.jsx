@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore'
+import { collection, query, orderBy } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { db } from '../../firebase/config'
 import { fmt } from '../../utils/currency'
 import { IconClose, IconChart, IconChevronLeft, IconChevronRight } from '../Icons'

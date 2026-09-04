@@ -17,7 +17,8 @@ import WeekView from './WeekView'
 import { DEFAULT_CATEGORIES, getEventColor, whoOf } from './wspolne'
 import { addDays, addMonths, endOfMonth, format, getDate, isSameMonth, startOfMonth, startOfWeek, subMonths } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { Timestamp, addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, orderBy, query, setDoc, updateDoc } from 'firebase/firestore'
+import { Timestamp, addDoc, collection, deleteDoc, doc, getDoc, getDocs, orderBy, query, setDoc, updateDoc } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { useEffect, useMemo, useState } from 'react'
 
 // Moduł Kalendarz — spinacz. Dane z Firestore, wybór widoku i stan

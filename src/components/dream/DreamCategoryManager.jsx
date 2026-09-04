@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore'
+import { collection, query, orderBy, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { db } from '../../firebase/config'
 import { DREAM_CATEGORIES } from '../../utils/dreams'
 import { IconTrash, IconEdit } from '../Icons'

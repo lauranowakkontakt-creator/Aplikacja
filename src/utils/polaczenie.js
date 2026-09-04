@@ -66,9 +66,25 @@ if (typeof window !== 'undefined') {
 }
 
 // Kody, które oznaczają „nie ma sieci / transport zablokowany", a nie realny
-// błąd aplikacji. Firestore i tak ponawia próbę sam, więc nie ma sensu straszyć
-// użytkownika awarią — wystarczy informacja o trybie offline.
+// błąd aplikacji — przy wyłączonej sieci nie ma sensu straszyć nimi użytkownika,
+// bo baner offline mówi już wszystko.
+//
+// UWAGA: gdy onSnapshot zawoła onError, subskrypcja jest MARTWA — SDK nie ponawia
+// jej sam. Ponowienie robi za nas nasluchuj() z utils/subskrypcje.js i tylko dla
+// tych kodów; reszta (permission-denied, failed-precondition) to błędy trwałe,
+// których ponawianie niczego nie naprawi.
 const KODY_SIECIOWE = new Set(['unavailable', 'deadline-exceeded', 'cancelled', 'resource-exhausted'])
+
+export function jestKodemSieciowym(kod) {
+  return KODY_SIECIOWE.has(kod)
+}
+
+// Źródło doklejone do handlera przez bladSubskrypcji. Dzięki temu opakowany
+// onSnapshot wie, którą awarię skasować po udanym snapshocie, i nie trzeba
+// powtarzać nazwy modułu w 74 miejscach wywołania.
+export function zrodloHandlera(handler) {
+  return typeof handler === 'function' ? handler.zrodlo : undefined
+}
 
 /**
  * Callback błędu dla onSnapshot.
@@ -84,7 +100,7 @@ const KODY_SIECIOWE = new Set(['unavailable', 'deadline-exceeded', 'cancelled', 
  *        zamiast wisieć
  */
 export function bladSubskrypcji(zrodlo, opcje = {}) {
-  return (blad) => {
+  const obsluz = (blad) => {
     const kod = blad?.code
     const sieciowy = KODY_SIECIOWE.has(kod)
 
@@ -106,6 +122,10 @@ export function bladSubskrypcji(zrodlo, opcje = {}) {
       log.blad('polaczenie', 'przyBledzie rzuciło wyjątek', e, { zrodlo })
     }
   }
+
+  // Znacznik dla nasluchuj() — patrz zrodloHandlera().
+  obsluz.zrodlo = zrodlo
+  return obsluz
 }
 
 // Wołane, gdy subskrypcja znów dostarczy dane — kasuje wpis o awarii,

@@ -14,7 +14,8 @@ import TodoMenu from './TodoMenu'
 import TodoStats from './TodoStats'
 import { format, isToday, parseISO } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { Timestamp, collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
+import { Timestamp, collection, deleteDoc, doc, orderBy, query, updateDoc } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { useEffect, useState } from 'react'
 
 // Moduł To-do — spinacz. Dane z Firestore, filtry i wybór widoku;

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { collection, addDoc, deleteDoc, doc, onSnapshot, Timestamp, orderBy, query } from 'firebase/firestore'
+import { collection, addDoc, deleteDoc, doc, Timestamp, orderBy, query } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'

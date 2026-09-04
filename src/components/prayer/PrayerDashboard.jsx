@@ -12,7 +12,8 @@ import StatsView from './StatsView'
 import TodayView from './TodayView'
 import { TODAY } from './wspolne'
 import { format, subDays } from 'date-fns'
-import { Timestamp, collection, doc, onSnapshot, orderBy, query, updateDoc } from 'firebase/firestore'
+import { Timestamp, collection, doc, orderBy, query, updateDoc } from 'firebase/firestore'
+import { onSnapshot } from '../../utils/subskrypcje'
 import { useEffect, useMemo, useState } from 'react'
 
 // Moduł Modlitwa — spinacz. Trzyma dane z Firestore i stan nawigacji,
