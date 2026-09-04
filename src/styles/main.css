@@ -2014,6 +2014,9 @@ body { overscroll-behavior-y: none; }
   transition: background .15s;
 }
 .pray-list-item:hover { background: var(--surface2); }
+/* Lista w archiwum jest tylko do czytania — nie udaje klikalnej. */
+.pray-list-item.readonly { cursor: default; }
+.pray-list-item.readonly:hover { background: transparent; }
 .pray-list-box {
   width: 17px; height: 17px; flex-shrink: 0; margin-top: 1px; border-radius: 5px;
   display: grid; place-items: center;
