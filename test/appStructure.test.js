@@ -243,6 +243,27 @@ test('Modlitwa: odhaczanie dostępne w obu widokach, które go używają', () =>
   }
 })
 
+test('Modlitwa: filtry „Dziś" spięte z logiką, a tagi zapisują się przy prośbie', () => {
+  // Filtrowanie i porządek listy mają zostać w utils/prayerFilters.js — tam da
+  // się je przetestować bez przeglądarki. Widok ma je tylko wywołać; gdyby
+  // kolejność wróciła do inline'owego sort() w JSX, żaden test jej nie pilnuje.
+  const pray = readModule('src/components/prayer')
+  assert.match(pray, /from '\.\.\/\.\.\/utils\/prayerFilters'/, 'moduł nie sięga po logikę filtrów')
+  for (const fn of ['filterIntentions', 'sortIntentions', 'groupByPerson']) {
+    assert.match(pray, new RegExp(fn), `widok nie używa ${fn}`)
+  }
+  // Tag bez zapisu na dokumencie prośby nie ma jak przeżyć odświeżenia.
+  const form = read('src/components/prayer/IntentionForm.jsx')
+  assert.match(form, /tags: normalizeTags\(/, 'formularz nie zapisuje tagów prośby')
+})
+
+test('Modlitwa: notatki widoczne pod prośbą bez klikania', () => {
+  // Notatki pisze się po to, żeby mieć je przed oczami przy kolejnej modlitwie.
+  // Domyślnie schowane za guzikiem były w praktyce niewidoczne.
+  const card = read('src/components/prayer/RequestCard.jsx')
+  assert.match(card, /showNotes, setShowNotes\]\s*=\s*useState\(true\)/, 'notatki muszą startować rozwinięte')
+})
+
 test('Nawyki: cel z wymaganych, licznik ze wszystkiego zrobionego', () => {
   const logic  = read('src/utils/habitLogic.js')
   const habits = read('src/components/habits/HabitsDashboard.jsx')
