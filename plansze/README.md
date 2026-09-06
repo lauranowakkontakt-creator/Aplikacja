@@ -13,8 +13,8 @@ komplet. Nie ma pięciu osobnych projektów do ręcznego pilnowania.
 | | |
 |---|---|
 | Rozdzielczość | 3840 × 2160 (4K UHD) |
-| Długość | 10 s |
-| Klatki | 25 fps — **zmień w `src/theme.ts`, jeśli timeline ma inne** |
+| Długość | 10 s = 300 klatek |
+| Klatki | 30 fps (`FPS` w `src/theme.ts`) |
 | Tło | przezroczyste (kanał alfa) |
 | Format dostawy | QuickTime ProRes 4444 |
 | Czcionka | Fraunces (zmienna, wgrana lokalnie w `public/fonts`) |
@@ -90,12 +90,33 @@ Wszystkie decyzje projektowe siedzą w `src/theme.ts`:
 - `TYPE.channelSize`, `TYPE.channelTop` — nazwa kanału i jej odległość od góry
 - `ATMO.dustCount` — gęstość kurzu
 - `ATMO.scratchCount` — liczba rys
-- `ATMO.grain` — ziarno (0 wyłącza)
+- `ATMO.grain` — ziarno pełnoklatkowe, domyślnie **0**. Podnosi wagę pliku
+  kilkukrotnie (szum nie daje się skompresować) i kładzie welon na całym kadrze,
+  bo alfa przestaje być zerowa poza napisem. Jeśli chcesz je z powrotem, 0.02 to
+  rozsądny sufit
 - `ATMO.flickerA` / `flickerB` — amplituda migotania
 
 Tempo animacji: `src/Plansza.tsx`, sekcja „Obwiednie". Wejście tytułu, wejście
 nazwy kanału i wygaszenie na końcu to trzy `interpolate` z czytelnymi czasami
 w sekundach.
+
+## Wydajność renderu
+
+Domyślnie ~0,5 s na klatkę, czyli około 3 minuty na jedną planszę w H.264
+i około 6 minut w ProRes 4444.
+
+**Nie ustawiaj `--gl=swangle`.** Bez karty graficznej ta emulacja liczy rozmycia
+kilkanaście razy wolniej niż zwykły rasteryzator — zmierzone 18 s na klatkę wobec
+0,5 s. Zmienna `REMOTION_GL` jest w konfiguracji tylko po to, żeby dało się to
+porównać; normalnie zostaw ją nieustawioną.
+
+Z tego samego powodu rozmycia siedzą na pojedynczych pyłkach i rysach, a nie na
+warstwach zbiorczych: rozmycie pełnej klatki 4K jest o rząd wielkości droższe niż
+rozmycie stu małych kwadratów. Szeroką poświatę pod tytułem robi gradient, nie
+`text-shadow` o dużym promieniu.
+
+Rozmiar pliku dostawczego: ProRes 4444 w 4K/30 to około **3,5 GB na 10 sekund**.
+To normalne dla tego formatu — jest bezstratny w praktyce i niesie alfę.
 
 ## Uwagi projektowe
 

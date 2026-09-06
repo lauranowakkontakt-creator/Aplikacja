@@ -10,8 +10,8 @@ export const Grain: React.FC<{opacity: number}> = ({opacity}) => {
   const {width, height} = useVideoConfig();
   if (opacity <= 0) return null;
 
-  const w = Math.round(width / 4);
-  const h = Math.round(height / 4);
+  const w = Math.round(width / 6);
+  const h = Math.round(height / 6);
 
   return (
     <svg
@@ -21,7 +21,7 @@ export const Grain: React.FC<{opacity: number}> = ({opacity}) => {
         position: 'absolute',
         top: 0,
         left: 0,
-        transform: 'scale(4)',
+        transform: 'scale(6)',
         transformOrigin: 'top left',
         opacity,
         filter: 'blur(0.6px)',
@@ -32,7 +32,7 @@ export const Grain: React.FC<{opacity: number}> = ({opacity}) => {
         <feTurbulence
           type="fractalNoise"
           baseFrequency="0.82"
-          numOctaves={2}
+          numOctaves={1}
           seed={frame % 211}
           stitchTiles="stitch"
         />

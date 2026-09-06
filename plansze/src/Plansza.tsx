@@ -68,18 +68,22 @@ export const Plansza: React.FC<PlanszaProps> = ({
     easing: ease,
   });
 
+  // Czas w sekundach. Wszystkie okresy niżej podaję w sekundach, nie w
+  // klatkach — dzięki temu zmiana fps nie przestraja ruchu ani migotania.
+  const t = frame / fps;
+
   // ---- Migotanie projektora ---------------------------------------------
   // Suma dwóch wolnych szumów. Spokojne, bez stroboskopu, bez skoków.
   const flicker =
     1 +
-    ATMO.flickerA * noise1('migot-a', frame / 8.5) +
-    ATMO.flickerB * noise1('migot-b', frame / 21);
+    ATMO.flickerA * noise1('migot-a', t / 0.34) +
+    ATMO.flickerB * noise1('migot-b', t / 0.84);
 
   // ---- Ruch tytułu -------------------------------------------------------
   // MOCNI W DUCHU stoi nieruchomo — dryf dotyczy wyłącznie tytułu.
-  const dx = (9 * noise2('dryf-x', frame / 115) + 3 * noise1('dryf-x2', frame / 49)) * k;
-  const dy = (7 * noise2('dryf-y', frame / 132) + 2.4 * noise1('dryf-y2', frame / 57)) * k;
-  const rot = 0.11 * noise2('dryf-rot', frame / 160);
+  const dx = (9 * noise2('dryf-x', t / 4.6) + 3 * noise1('dryf-x2', t / 1.96)) * k;
+  const dy = (7 * noise2('dryf-y', t / 5.28) + 2.4 * noise1('dryf-y2', t / 2.28)) * k;
+  const rot = 0.11 * noise2('dryf-rot', t / 6.4);
 
   // Delikatne osiadanie na wejściu — część „wyłaniania się".
   const settle = interpolate(frame, [0, fps * 4.6], [1.014, 1], {
@@ -87,7 +91,7 @@ export const Plansza: React.FC<PlanszaProps> = ({
     extrapolateRight: 'clamp',
     easing: Easing.out(Easing.cubic),
   });
-  const breathe = 1 + 0.0022 * noise1('oddech', frame / 175);
+  const breathe = 1 + 0.0022 * noise1('oddech', t / 7.0);
   const scale = settle * breathe;
 
   const titleOpacity = titleIn * outEnv * flicker;
@@ -111,8 +115,8 @@ export const Plansza: React.FC<PlanszaProps> = ({
       <AbsoluteFill
         style={{
           background: `radial-gradient(46% 30% at 50% 52%, rgba(${COLORS.halo}, ${
-            0.115 * titleIn
-          }) 0%, rgba(${COLORS.halo}, ${0.045 * titleIn}) 42%, rgba(${
+            0.150 * titleIn
+          }) 0%, rgba(${COLORS.halo}, ${0.060 * titleIn}) 42%, rgba(${
             COLORS.halo
           }, 0) 100%)`,
           transform: `scale(${haloSpread})`,
@@ -140,9 +144,9 @@ export const Plansza: React.FC<PlanszaProps> = ({
             color: COLORS.channel,
             textTransform: 'uppercase',
             whiteSpace: 'nowrap',
-            textShadow: `0 0 ${34 * k}px rgba(226, 81, 44, 0.42), 0 ${
+            textShadow: `0 0 ${20 * k}px rgba(226, 81, 44, 0.40), 0 ${
               3 * k
-            }px ${18 * k}px rgba(0, 0, 0, 0.30)`,
+            }px ${14 * k}px rgba(0, 0, 0, 0.30)`,
           }}
         >
           {channel}
@@ -171,9 +175,12 @@ export const Plansza: React.FC<PlanszaProps> = ({
             textAlign: 'center',
             whiteSpace: 'nowrap',
             padding: `0 ${180 * k}px`,
-            textShadow: `0 0 ${70 * k}px rgba(${COLORS.halo}, 0.34), 0 0 ${
-              190 * k
-            }px rgba(226, 120, 60, 0.18), 0 ${4 * k}px ${26 * k}px rgba(0, 0, 0, 0.28)`,
+            // Szeroką poświatę robi gradient warstwy wyżej — jest darmowy.
+            // Cień tekstu zostaje wąski, bo każdy jego piksel promienia to
+            // osobne rozmycie maski glifów na każdej klatce.
+            textShadow: `0 0 ${34 * k}px rgba(${COLORS.halo}, 0.30), 0 ${
+              4 * k
+            }px ${20 * k}px rgba(0, 0, 0, 0.30)`,
           }}
         >
           {title}

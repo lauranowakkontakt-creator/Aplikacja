@@ -3,7 +3,7 @@
  * Zmiana tutaj przechodzi na wszystkie pięć plansz.
  */
 
-export const FPS = 25;              // <- dopasuj do fps timeline'u w DaVinci
+export const FPS = 30;              // <- dopasuj do fps timeline'u w DaVinci
 export const DURATION_S = 10;
 export const WIDTH = 3840;
 export const HEIGHT = 2160;
@@ -42,7 +42,7 @@ export const TYPE = {
 export const ATMO = {
   dustCount: 155,
   scratchCount: 9,
-  grain: 0.03,
+  grain: 0,        // ziarno pełnoklatkowe: 0 = wyłączone (patrz README)
   /** Amplituda migotania (ułamek jasności). Spokojne, nie stroboskop. */
   flickerA: 0.028,
   flickerB: 0.016,
