@@ -29,9 +29,15 @@ komplet. Nie ma pięciu osobnych projektów do ręcznego pilnowania.
 | `Plansza4` | `4_Uwielbiam_Cie` | Uwielbiam Cię |
 | `Plansza5` | `5_W_obecnosci_chwaly_twej` | W obecności chwały Twej |
 
-Każda ma bliźniaczkę z sufiksem `Proba` (np. `Plansza4Proba`) — to ta sama
-animacja na ciemnym, ciepłym podkładzie. Służy wyłącznie do oceny czytelności
-na ekranie; **do montażu bierzesz wersję bez `Proba`**, bo tylko ona ma alfę.
+**Do montażu bierzesz `Plansza1`–`Plansza5`. Te kompozycje nie mają żadnego tła.**
+
+Obok nich stoją dwa rodzaje podglądu, które istnieją tylko po to, żeby dało się
+cokolwiek zobaczyć w odtwarzaczu — nie wrzucaj ich do montażu:
+
+| Kompozycja | Podkład | Do czego |
+|---|---|---|
+| `Plansza4Proba` | ciepły, ciemny gradient | ocena wyglądu, tak mniej więcej wygląda to na ujęciu |
+| `TestAlfy` | krata przezroczystości | sprawdzenie, że tło naprawdę jest puste |
 
 ## Jak wyrenderować
 
@@ -94,7 +100,9 @@ Wszystkie decyzje projektowe siedzą w `src/theme.ts`:
   kilkukrotnie (szum nie daje się skompresować) i kładzie welon na całym kadrze,
   bo alfa przestaje być zerowa poza napisem. Jeśli chcesz je z powrotem, 0.02 to
   rozsądny sufit
-- `ATMO.flickerA` / `flickerB` — amplituda migotania
+- `ATMO.flickerA` / `flickerB` — amplituda ciągłego migotania projektora
+- `ATMO.blinkDepth` — głębokość rzadkiego mrygnięcia świetlówki na tytule
+- `ATMO.glitch` — siła glitchu na pojedynczych literach (0 wyłącza)
 
 Tempo animacji: `src/Plansza.tsx`, sekcja „Obwiednie". Wejście tytułu, wejście
 nazwy kanału i wygaszenie na końcu to trzy `interpolate` z czytelnymi czasami
@@ -120,8 +128,13 @@ To normalne dla tego formatu — jest bezstratny w praktyce i niesie alfę.
 
 ## Uwagi projektowe
 
-- **Litery nie pulsują przezroczystością.** Tytuł wchodzi jako jedna bryła.
-  Migotanie jest globalne i spokojne — to projektor, nie stroboskop.
+- **Ruch tytułu ma trzy warstwy.** Ciągłe migotanie projektora (±4%), rzadkie
+  mrygnięcie świetlówki z progowanego szumu, i glitch na pojedynczych literach.
+- **Glitch jest w pozycji i w widmie, nie w alfie.** Każda litera ma własny zegar
+  o okresie 7–18 s i losowej fazie, więc zdarzenia się nie schodzą — w dziesięciu
+  sekundach wypada ich około jedenastu, po 3–5 klatek, zawsze na innej literze.
+  Litera przeskakuje o kilka pikseli i dostaje ślad rozjazdu barw jak w źle
+  spasowanym druku. Przezroczystość liter zostaje nietknięta.
 - **MOCNI W DUCHU stoi nieruchomo.** Dryfuje wyłącznie tytuł, o kilkanaście
   pikseli w skali 4K, po gładkim szumie — bez schodków i bez poklatkowania.
 - **Kurz i rysy są proceduralne, nie wektorowe.** Każdy pyłek to miękki gradient

@@ -8,7 +8,7 @@ const CHANNEL = 'Mocni w Duchu';
 
 const base: Omit<PlanszaProps, 'title'> = {
   channel: CHANNEL,
-  backdrop: false,
+  backdrop: 'brak',
   dustCount: ATMO.dustCount,
   scratchCount: ATMO.scratchCount,
   grain: ATMO.grain,
@@ -29,7 +29,7 @@ export const RemotionRoot: React.FC = () => (
       />
     ))}
 
-    {/* Wersje próbne z podkładem — tylko do oceny czytelności, nie do montażu. */}
+    {/* Wersje próbne z podkładem — tylko do oceny wyglądu, nie do montażu. */}
     {SONGS.map((song) => (
       <Composition
         key={`${song.id}-Proba`}
@@ -39,8 +39,19 @@ export const RemotionRoot: React.FC = () => (
         fps={FPS}
         width={WIDTH}
         height={HEIGHT}
-        defaultProps={{...base, title: song.title, backdrop: true}}
+        defaultProps={{...base, title: song.title, backdrop: 'ciemne'}}
       />
     ))}
+
+    {/* Dowód przezroczystości: ta sama plansza na kracie alfy. */}
+    <Composition
+      id="TestAlfy"
+      component={Plansza}
+      durationInFrames={DURATION_S * FPS}
+      fps={FPS}
+      width={WIDTH}
+      height={HEIGHT}
+      defaultProps={{...base, title: SONGS[3].title, backdrop: 'szachownica'}}
+    />
   </>
 );

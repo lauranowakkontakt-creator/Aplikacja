@@ -12,14 +12,21 @@ import {loadFraunces} from './fonts';
 import {Dust} from './Dust';
 import {Scratches} from './Scratches';
 import {Grain} from './Grain';
+import {GlitchText} from './GlitchText';
 
 loadFraunces();
+
+/**
+ * `brak` — tło przezroczyste. TO JEST WERSJA DO MONTAŻU.
+ * `ciemne` — ciepły podkład imitujący ujęcie, do oceny wyglądu.
+ * `szachownica` — standardowa krata przezroczystości, do sprawdzenia alfy.
+ */
+export type Podklad = 'brak' | 'ciemne' | 'szachownica';
 
 export type PlanszaProps = {
   title: string;
   channel: string;
-  /** Podkład tylko do prób — finał renderuje się na przezroczystym tle. */
-  backdrop: boolean;
+  backdrop: Podklad;
   dustCount: number;
   scratchCount: number;
   grain: number;
@@ -94,19 +101,44 @@ export const Plansza: React.FC<PlanszaProps> = ({
   const breathe = 1 + 0.0022 * noise1('oddech', t / 7.0);
   const scale = settle * breathe;
 
-  const titleOpacity = titleIn * outEnv * flicker;
-  const channelOpacity = channelIn * outEnv * flicker;
+  // ---- Mrygnięcie ---------------------------------------------------------
+  // Rzadkie, krótkie przygaśnięcie jak u zmęczonej świetlówki. Bierze się z
+  // progowanego szumu, więc trafia nieregularnie, a że szum jest gładki —
+  // przygasa i wraca przez kilka klatek, nie przeskakuje.
+  const bn = noise1('mrygniecie', t / 0.55);
+  const dip = bn > 0.72 ? (bn - 0.72) / 0.28 : 0;
+  const blink = 1 - ATMO.blinkDepth * dip;
+
+  const titleOpacity = titleIn * outEnv * flicker * blink;
+  // Nazwa kanału łapie mrygnięcie słabiej — to jedna lampa, ale tytuł ją niesie.
+  const channelOpacity = channelIn * outEnv * flicker * (1 - (1 - blink) * 0.4);
   const atmoOpacity = atmoIn * outEnv * flicker;
 
   const haloSpread = 1 - 0.35 * (1 - titleIn);
 
   return (
-    <AbsoluteFill style={{backgroundColor: backdrop ? '#140c07' : undefined}}>
-      {backdrop ? (
+    <AbsoluteFill>
+      {backdrop === 'ciemne' ? (
         <AbsoluteFill
           style={{
             background:
               'radial-gradient(120% 90% at 50% 42%, #4a2f1c 0%, #2a1a10 45%, #120b06 100%)',
+          }}
+        />
+      ) : null}
+      {backdrop === 'szachownica' ? (
+        <AbsoluteFill
+          style={{
+            backgroundColor: '#b4b4b4',
+            backgroundImage:
+              'linear-gradient(45deg, #7e7e7e 25%, transparent 25%), ' +
+              'linear-gradient(-45deg, #7e7e7e 25%, transparent 25%), ' +
+              'linear-gradient(45deg, transparent 75%, #7e7e7e 75%), ' +
+              'linear-gradient(-45deg, transparent 75%, #7e7e7e 75%)',
+            backgroundSize: `${160 * k}px ${160 * k}px`,
+            backgroundPosition: `0 0, 0 ${80 * k}px, ${80 * k}px -${80 * k}px, -${
+              80 * k
+            }px 0`,
           }}
         />
       ) : null}
@@ -183,7 +215,7 @@ export const Plansza: React.FC<PlanszaProps> = ({
             }px ${20 * k}px rgba(0, 0, 0, 0.30)`,
           }}
         >
-          {title}
+          <GlitchText text={title} scale={k} strength={ATMO.glitch} />
         </div>
       </AbsoluteFill>
 

@@ -22,15 +22,15 @@ export const COLORS = {
 
 export const TYPE = {
   /** Tytuł: Fraunces, jedna czcionka / jeden kolor / jeden rozmiar. */
-  titleSize: 300,
-  titleWeight: 500,
+  titleSize: 330,
+  titleWeight: 560,
   titleOpsz: 144,
   titleSoft: 40,
   titleWonk: 1,
   titleTracking: '-0.012em',
 
   /** MOCNI W DUCHU: ta sama rodzina, pogrubiona, rozstrzelona. */
-  channelSize: 100,
+  channelSize: 86,
   channelWeight: 900,
   channelOpsz: 40,
   channelTracking: '0.40em',
@@ -46,4 +46,8 @@ export const ATMO = {
   /** Amplituda migotania (ułamek jasności). Spokojne, nie stroboskop. */
   flickerA: 0.028,
   flickerB: 0.016,
+  /** Głębokość rzadkiego „mrygnięcia" świetlówki na tytule. */
+  blinkDepth: 0.17,
+  /** Siła glitchu na pojedynczych literach (0 wyłącza). */
+  glitch: 1,
 };
