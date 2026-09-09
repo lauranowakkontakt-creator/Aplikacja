@@ -1,6 +1,6 @@
 import { db } from '../../firebase/config'
 import { bladSubskrypcji } from '../../utils/polaczenie'
-import { nextOccurrence, pOrder } from '../../utils/todoLogic'
+import { nextOccurrence, pOrder, zadaniaUkonczone } from '../../utils/todoLogic'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
 import { confirmDialog } from '../ConfirmModal'
 import { CatIcon, IconChevronDown, IconChevronLeft, IconChevronRight, IconEdit, IconPlus } from '../Icons'
@@ -27,7 +27,7 @@ export default function TodoDashboard({ user, setHeaderExtras }) {
   const [people, setPeople]         = useState([])
   const [loading, setLoading]       = useState(true)
   useFallbackTimeout(() => setLoading(false))
-  const [view, setView]             = useState('main') // main | stats (analiza w ⋮)
+  const [view, setView]             = useState('main') // main | stats | done (z menu ⋮)
   const [activeList, setActiveList] = useState(null)
   const [showForm, setShowForm]     = useState(false)
   const [editTodo, setEditTodo]     = useState(null)
@@ -100,13 +100,18 @@ export default function TodoDashboard({ user, setHeaderExtras }) {
   const filtered = bySearch
   const active   = sortActive(filtered.filter(t => !t.done))
   const done     = filtered.filter(t => t.done)
+  // Osobny ekran ukończonych pokazuje wszystko, bo nie ma tam wyboru listy
+  // ani szukajki — filtry z widoku głównego nie miałyby czym sterować.
+  const ukonczone = zadaniaUkonczone(todos)
 
   // Górna belka („Apka"): [⋮ Więcej — z Analizą][＋ Nowe zadanie].
   // Hook przed early-returnem (zasady hooków).
   const handleMenu = (id) => {
     if (id === 'stats')   setView('stats')
     if (id === 'search')  { setShowSearch(s => !s); setSearchQuery('') }
-    if (id === 'done')    setShowDone(v => !v)
+    // Osobny ekran, a nie przełącznik sekcji „Zrobione" na dole listy:
+    // przy zwiniętej sekcji i długiej liście kliknięcie nie dawało nic widocznego.
+    if (id === 'done')    setView('done')
     if (id === 'newlist') setShowListForm(true)
   }
   useEffect(() => {
@@ -146,6 +151,31 @@ export default function TodoDashboard({ user, setHeaderExtras }) {
             <div className="rev-subhead-title">Analiza i statystyki</div>
           </div>
           <TodoStats todos={todos} lists={lists} />
+        </>
+      ) : view === 'done' ? (
+        <>
+          <div className="rev-subhead">
+            <button className="rev-back" onClick={() => setView('main')} title="Wróć"><IconChevronLeft size={18} /></button>
+            <div className="rev-subhead-title">Ukończone zadania</div>
+          </div>
+          {ukonczone.length === 0 ? (
+            <div className="list-empty">
+              <p>Brak ukończonych zadań</p>
+              <p className="list-empty-hint">Odhaczone zadania pojawią się tutaj</p>
+            </div>
+          ) : (
+            <div style={{ marginBottom: 80 }}>
+              <div className="kicker" style={{ marginBottom: 10 }}>Zrobione · {ukonczone.length}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {ukonczone.map(todo => (
+                  <TodoItem key={todo.id} todo={todo} lists={lists} peopleById={peopleById}
+                    onToggle={toggleDone} onToggleSubtask={toggleSubtask}
+                    onEdit={() => { setEditTodo(todo); setShowForm(true) }}
+                    onDelete={handleDelete} />
+                ))}
+              </div>
+            </div>
+          )}
         </>
       ) : (
         <>

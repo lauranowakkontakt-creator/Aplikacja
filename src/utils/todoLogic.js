@@ -51,6 +51,12 @@ export function naDate(wartosc) {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
+// Ukończone zadania od najświeżej odhaczonych. Wpisy bez `doneAt` — starsze
+// zadania i te z importu kopii — lądują na końcu, zamiast wypływać na górę.
+export const zadaniaUkonczone = (todos) =>
+  todos.filter(t => t.done)
+    .sort((a, b) => (naDate(b.doneAt)?.getTime() ?? 0) - (naDate(a.doneAt)?.getTime() ?? 0))
+
 /**
  * Podsumowanie zadań w zakresie czasu.
  *

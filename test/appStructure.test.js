@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -40,7 +40,7 @@ const VITE   = read('vite.config.js')
 const moduleIds = [...APP.matchAll(/\{\s*id:\s*'([a-z]+)'\s*,\s*label:/g)].map(m => m[1])
 
 test('App: buildModules zwiera komplet modułów, w tym nowe', () => {
-  for (const id of ['home', 'budget', 'habits', 'calendar', 'gratitude', 'memories']) {
+  for (const id of ['home', 'budget', 'habits', 'calendar', 'gratitude']) {
     assert.ok(moduleIds.includes(id), `brak modułu ${id} w buildModules`)
   }
   assert.equal(new Set(moduleIds).size, moduleIds.length, 'zdublowane id modułu')
@@ -60,7 +60,6 @@ test('App: każdy moduł poza Pulpitem ma leniwy import i jest renderowany', () 
   }
   // Nowe moduły dokładamy jako osobne chunki — inaczej rosłoby wejście na telefonie.
   assert.match(APP, /lazy\(\(\) => import\('\.\/components\/gratitude\/GratitudeDashboard'\)\)/)
-  assert.match(APP, /lazy\(\(\) => import\('\.\/components\/memories\/MemoriesDashboard'\)\)/)
 })
 
 test('App: kolejność i ukrywanie modułów idzie przez moduleLayout', () => {
@@ -97,12 +96,10 @@ test('Nazwa aplikacji to Apka — wszędzie', () => {
   assert.deepEqual(stale, [], 'gdzieś została stara nazwa')
 })
 
-test('Wdzięcznik i Wspomnik nie mają czarnej belki .mod-header', () => {
-  // .mod-header ma nieprzezroczyste tło i psuł szklany nagłówek w tych modułach.
-  for (const f of ['src/components/gratitude/GratitudeDashboard.jsx',
-                   'src/components/memories/MemoriesDashboard.jsx']) {
-    assert.ok(!read(f).includes('mod-header'), `${f} nadal używa .mod-header`)
-  }
+test('Wdzięcznik nie ma czarnej belki .mod-header', () => {
+  // .mod-header ma nieprzezroczyste tło i psuł szklany nagłówek w tym module.
+  const f = 'src/components/gratitude/GratitudeDashboard.jsx'
+  assert.ok(!read(f).includes('mod-header'), `${f} nadal używa .mod-header`)
 })
 
 test('Dziesięcina: nie ma już osobnej ofiary', () => {
@@ -164,26 +161,41 @@ test('Nowe kolekcje wchodzą do kopii danych', () => {
   }
 })
 
-test('Wdzięczność i wspomnienia bez serii i rekordów — to nie wyścig', () => {
+test('Wdzięczność bez serii i rekordów — to nie wyścig', () => {
   const logic  = read('src/utils/gratitudeLogic.js')
   const grat   = read('src/components/gratitude/GratitudeDashboard.jsx')
-  const mem    = read('src/components/memories/MemoriesDashboard.jsx')
   assert.ok(!/streak/i.test(logic), 'logika wdzięczności nadal liczy serie')
-  for (const [name, src] of [['Wdzięcznik', grat], ['Wspomnik', mem]]) {
-    assert.ok(!/Seria|Rekord/.test(src), `${name} nadal pokazuje serię lub rekord`)
-  }
+  assert.ok(!/Seria|Rekord/.test(grat), 'Wdzięcznik nadal pokazuje serię lub rekord')
   assert.ok(!/gratStat\.streak/.test(PULPIT), 'Pulpit nadal pokazuje serię wdzięczności')
 })
 
-test('Wdzięcznik i Wspomnik: przypominajka i przeglądanie wpisów', () => {
-  for (const f of ['src/components/gratitude/GratitudeDashboard.jsx',
-                   'src/components/memories/MemoriesDashboard.jsx']) {
-    const src = read(f)
-    assert.match(src, /pickBySeed/, `${f}: brak losowej przypominajki`)
-    assert.match(src, /recall-card/, `${f}: brak karty przypominajki`)
-    assert.match(src, /neighbors\(/, `${f}: brak skakania między wpisami`)
-    assert.match(src, /reader-nav/, `${f}: brak strzałek w podglądzie`)
+test('Wdzięcznik: przypominajka i przeglądanie wpisów', () => {
+  const f = 'src/components/gratitude/GratitudeDashboard.jsx'
+  const src = read(f)
+  assert.match(src, /pickBySeed/, `${f}: brak losowej przypominajki`)
+  assert.match(src, /recall-card/, `${f}: brak karty przypominajki`)
+  assert.match(src, /neighbors\(/, `${f}: brak skakania między wpisami`)
+  assert.match(src, /reader-nav/, `${f}: brak strzałek w podglądzie`)
+})
+
+test('Wspomnik zniknął z aplikacji — bez sierot po module', () => {
+  // Moduł usunięty na życzenie. Kolekcja 'memories' zostaje w kopii danych
+  // (dataExport), żeby stare wpisy nie wyparowały z backupu.
+  assert.ok(!existsSync(join(ROOT, 'src/components/memories')), 'katalog modułu nadal istnieje')
+  assert.ok(!existsSync(join(ROOT, 'src/utils/memoryLogic.js')), 'logika Wspomnika nadal istnieje')
+  for (const [name, src] of [['App.jsx', APP], ['Pulpit.jsx', PULPIT]]) {
+    assert.ok(!/memories|Wspomnik/i.test(src), `${name} nadal odwołuje się do Wspomnika`)
   }
+})
+
+test('To-do: „Ukończone zadania" z menu otwierają osobny ekran', () => {
+  // Wcześniej ta pozycja tylko przełączała zwiniętą sekcję na dole listy,
+  // więc przy długiej liście kliknięcie nie dawało nic widocznego.
+  const todo = read('src/components/todo/TodoDashboard.jsx')
+  assert.match(todo, /id === 'done'\)\s*setView\('done'\)/, 'menu nadal nie przełącza widoku')
+  assert.match(todo, /view === 'done'/, 'brak osobnego widoku ukończonych')
+  assert.match(todo, /Brak ukończonych zadań/, 'brak pustego stanu na ekranie ukończonych')
+  assert.match(read('src/components/todo/TodoMenu.jsx'), /'Ukończone zadania'/)
 })
 
 test('Biblia: reset i licznik pod trzema kropkami, start sam się włącza', () => {
