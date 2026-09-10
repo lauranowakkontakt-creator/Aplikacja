@@ -292,27 +292,39 @@ export function BarChartSVG({ data, height = 150, accent = 'var(--accent)', fmt 
   const max = Math.max(...data.map(d => d.value)) * 1.12 || 1
   const [hover, setHover] = useState(null)
   const tooltipH = fmt ? 26 : 0
+  // Etykiety osi X przerzedzamy, gdy kubełków jest dużo (np. dni miesiąca).
+  // Przy 31 słupkach kolumna ma ~7 px, więc dwucyfrowy dzień i tak by się nie
+  // zmieścił — obcięty wyglądał jak zupełnie inna liczba. Zostawiamy co n-tą
+  // etykietę (~8 podpisów) i pozwalamy jej wyjść poza szerokość kolumny.
+  const labelStep = data.length > 12 ? Math.ceil(data.length / 8) : 1
+  // Odstęp między słupkami liczony w procentach zjadał przy 31 dniach niemal
+  // całą szerokość (29 przerw po 3%) i z kolumn zostawały włoski niepasujące
+  // do podpisów. Przy wielu kubełkach przechodzimy na stałe kilka pikseli.
+  const gap = data.length > 12 ? 3 : 'min(3%,8px)'
+  // Gdy kolumna ma kilka pikseli, 70% szerokości daje włosek zamiast słupka.
+  const barW = data.length > 12 ? 'min(85%,28px)' : 'min(70%,28px)'
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'min(3%,8px)', height, padding: '0 2px', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap, height, padding: '0 2px', overflow: 'hidden' }}>
       {data.map((d, i) => {
         const h = (d.value / max) * (100 - (tooltipH / height) * 100)
         const active = d.active || hover === i
         return (
           <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, height: '100%', justifyContent: 'flex-end', minWidth: 0 }}
-            onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+            onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}
+            onPointerDown={() => setHover(i)}>
             <div style={{ position: 'relative', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', flex: 1, minHeight: tooltipH }}>
               {active && fmt && d.value > 0 && (
                 <div style={{ fontSize: 9, color: 'var(--text)', whiteSpace: 'nowrap', background: 'var(--surface2)', padding: '2px 5px', borderRadius: 5, border: '1px solid var(--border-strong)', zIndex: 2, marginBottom: 3, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fmt(d.value)}</div>
               )}
               <div style={{
-                width: 'min(70%,28px)', borderRadius: '6px 6px 3px 3px', transformOrigin: 'bottom', flexShrink: 0,
+                width: barW, borderRadius: '6px 6px 3px 3px', transformOrigin: 'bottom', flexShrink: 0,
                 height: on ? `${h}%` : '0%',
                 background: active ? accent : `color-mix(in oklab, ${accent} 30%, var(--surface3))`,
                 boxShadow: active ? `0 4px 14px -6px ${accent}` : 'none',
                 transition: `height .8s cubic-bezier(.34,1.4,.64,1) ${i * .04}s, background .2s`,
               }}/>
             </div>
-            <span style={{ fontSize: 8, color: active ? 'var(--text)' : 'var(--text-muted)', letterSpacing: '.02em', flexShrink: 0, whiteSpace: 'nowrap', overflow: 'hidden', maxWidth: '100%', textAlign: 'center' }}>{d.label}</span>
+            <span style={{ fontSize: 8, color: active ? 'var(--text)' : 'var(--text-muted)', letterSpacing: '.02em', flexShrink: 0, whiteSpace: 'nowrap', textAlign: 'center' }}>{i % labelStep === 0 ? d.label : ''}</span>
           </div>
         )
       })}

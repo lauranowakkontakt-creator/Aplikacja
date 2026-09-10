@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 const {
   PRIORITY, RECURRENCE, pOrder, priorytetDoSortu, nextOccurrence,
   zadaniaAktywne, zadaniaPoTerminie, zadaniaNaDzis, naDate, statystykiOkresu,
+  zadaniaUkonczone,
 } = await import('../src/utils/todoLogic.js')
 
 const dzis = new Date()
@@ -115,4 +116,31 @@ test('statystykiOkresu — pusta lista nie dzieli przez zero', () => {
   const s = statystykiOkresu([], zakres)
   assert.equal(s.procentUkonczenia, 0)
   assert.equal(s.wszystkieWOkresie, 0)
+})
+
+test('zadaniaUkonczone — tylko odhaczone, od najświeższych', () => {
+  const todos = [
+    { id: 'stare',  done: true, doneAt: '2026-09-01T10:00:00' },
+    { id: 'nowe',   done: true, doneAt: '2026-09-05T10:00:00' },
+    { id: 'aktywne' },
+  ]
+  assert.deepEqual(zadaniaUkonczone(todos).map(t => t.id), ['nowe', 'stare'])
+})
+
+test('zadaniaUkonczone — wpis bez doneAt ląduje na końcu, nie na górze', () => {
+  // Zadania sprzed dopisania doneAt i te z importu kopii nie mają tej daty.
+  const todos = [
+    { id: 'bezDaty', done: true },
+    { id: 'zDatą',   done: true, doneAt: { toDate: () => new Date('2026-09-05T10:00:00') } },
+  ]
+  assert.deepEqual(zadaniaUkonczone(todos).map(t => t.id), ['zDatą', 'bezDaty'])
+})
+
+test('zadaniaUkonczone nie rusza tablicy wejściowej', () => {
+  const todos = [
+    { id: 'a', done: true, doneAt: '2026-09-01T10:00:00' },
+    { id: 'b', done: true, doneAt: '2026-09-05T10:00:00' },
+  ]
+  zadaniaUkonczone(todos)
+  assert.deepEqual(todos.map(t => t.id), ['a', 'b'])
 })

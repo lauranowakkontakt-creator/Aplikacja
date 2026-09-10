@@ -89,15 +89,13 @@ export default function TodoStats({ todos, lists }) {
       {chartData.length > 0 && chartData.some(d => d.count > 0) && (
         <div className="chart-section">
           <h3 className="chart-title">Ukończone zadania</h3>
+          {/* Przerzedzaniem etykiet zajmuje się sam wykres — przy 31 dniach
+              robił to wcześniej stąd co drugi dzień, a i tak się nie mieściły. */}
           <BarChartSVG
             height={160}
             accent="var(--income)"
             fmt={(v) => `${v} ukończ.`}
-            data={chartData.map((d, i) => ({
-              // przy 31 dniach miesiąca pokazuj co drugą etykietę, żeby się nie zlewały
-              label: chartData.length > 14 && i % 2 === 1 ? '' : d.label,
-              value: d.count,
-            }))}
+            data={chartData.map(d => ({ label: d.label, value: d.count }))}
           />
         </div>
       )}

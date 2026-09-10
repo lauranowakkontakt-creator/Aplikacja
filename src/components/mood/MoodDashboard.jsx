@@ -11,6 +11,7 @@ import { IconTrash, IconChevronLeft, IconChevronRight, IconPlus, IconClose, Icon
 import { confirmDialog } from '../ConfirmModal'
 import { ALL_EMOTIONS } from './EmotionWheel'
 import SegTabs from '../SegTabs'
+import { wpisyOkresu, statystykiNastroju, podsumowanieLat } from '../../utils/moodStats'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
 // Skala pomocnicza: wewnętrznie nastrój to 1–5, ale średnią pokazujemy 1–10
@@ -173,21 +174,7 @@ export default function MoodDashboard({ user, setHeaderExtras }) {
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
-  const moodCount = logs.length
-  const rawAvg = moodCount ? logs.reduce((s, l) => s + (l.moodValue || 0), 0) / moodCount : 0
-  const moodAvg = rawAvg ? fmt10(rawAvg) : '—'
-  const avgColor = rawAvg ? MOODS.reduce((p, c) => Math.abs(c.value - rawAvg) < Math.abs(p.value - rawAvg) ? c : p).color : undefined
-  const moodMonth = logs.filter(l => (l.date || '').startsWith(format(new Date(), 'yyyy-MM'))).length
-
   const entryLabel = entryDate ? format(new Date(entryDate + 'T12:00:00'), 'd MMMM', { locale: pl }) : ''
-
-  const statTiles = (
-    <StatTiles tiles={[
-      { label: 'Wpisy', value: moodCount },
-      { label: 'Średni nastrój', value: moodAvg, color: avgColor },
-      { label: 'W tym miesiącu', value: moodMonth },
-    ]} />
-  )
 
   return (
     <div className="mood-dashboard">
@@ -197,7 +184,6 @@ export default function MoodDashboard({ user, setHeaderExtras }) {
           <div className="rev-subhead-title">Analiza i statystyki</div>
         </div>
       )}
-      {statTiles}
       <MoodPage user={user} logs={logs} onDelete={handleDelete} selDate={selDate} setSelDate={setSelDate}
         view={view} onAddEntry={(d) => setEntryDate(d <= TODAY() ? d : TODAY())} />
 
@@ -389,7 +375,7 @@ function MoodEntryForm({ user, date, onSaved }) {
    JEDEN WIDOK — wykres + średnia + emocje + wpis + kalendarz
    ============================================================ */
 function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry, view = 'main' }) {
-  const [viewMode, setViewMode] = useState('month') // month | year
+  const [viewMode, setViewMode] = useState('month') // month | year | all
   const [month, setMonth]     = useState(new Date())
   const today = TODAY()
 
@@ -416,8 +402,25 @@ function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry, view 
     return { day: String(i + 1), value: a }
   }).filter(d => d.value !== null), [logs, monthStr]) // eslint-disable-line
 
-  // Najczęstsze emocje (miesiąc lub cały rok wg trybu)
-  const emoSource = viewMode === 'year' ? logs.filter(l => (l.date || '').startsWith(String(year))) : monthLogs
+  // Kafelki liczą się z tego, co widać na ekranie: w kalendarzu z przeglądanego
+  // miesiąca, w analizie z wybranego trybu. Wcześniej niezależnie od wszystkiego
+  // pokazywały sumę wszystkich wpisów i średnią z całej historii.
+  const tileMode  = view === 'main' ? 'month' : viewMode
+  const tileLogs  = wpisyOkresu(logs, tileMode, tileMode === 'year' ? String(year) : monthStr)
+  const tileStats = statystykiNastroju(tileLogs)
+  const tileColor = tileStats.srednia
+    ? MOODS.reduce((p, c) => Math.abs(c.value - tileStats.srednia) < Math.abs(p.value - tileStats.srednia) ? c : p).color
+    : undefined
+  const tiles = (
+    <StatTiles tiles={[
+      { label: 'Wpisy', value: tileStats.wpisy },
+      { label: 'Średni nastrój', value: tileStats.srednia ? fmt10(tileStats.srednia) : '—', color: tileColor },
+      { label: 'Dni z wpisem', value: tileStats.dni },
+    ]} />
+  )
+
+  // Najczęstsze emocje — z tego samego okresu co reszta analizy
+  const emoSource = wpisyOkresu(logs, viewMode, viewMode === 'year' ? String(year) : monthStr)
   const topEms = useMemo(() => {
     const c = {}
     emoSource.forEach(l => (l.emotions || []).forEach(id => { c[id] = (c[id] || 0) + 1 }))
@@ -452,6 +455,8 @@ function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry, view 
 
   const nav = (dir) => setMonth(m => addMonths(m, viewMode === 'year' ? dir * 12 : dir))
   const navLabel = viewMode === 'year' ? String(year) : `${monthLbl} ${year}`
+  // „Łącznie" nie ma czego przewijać — zamiast strzałek podsumowanie rok po roku.
+  const lata = podsumowanieLat(logs)
   // Emocje jako wykres kołowy (donut) — czytelniejszy podział niż same słupki
   const emoDonut = (list) => (
     <DonutStat
@@ -472,6 +477,8 @@ function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry, view 
           <span style={{ fontSize: 15, fontWeight: 700, textTransform: 'capitalize' }}>{monthLbl} {year}</span>
           <button className="month-btn" style={{ width: 32, height: 32 }} onClick={() => setMonth(m => addMonths(m, 1))}><IconChevronRight size={15} /></button>
         </div>
+
+        {tiles}
 
         {/* Kalendarz miesiąca (kolor = nastrój dnia; klik wybiera dzień) */}
         <div className="card card-hover-glow" style={{ padding: 16 }}>
@@ -524,13 +531,17 @@ function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry, view 
 
       {/* Tryb (Miesiąc / Rok) + wspólna nawigacja obu wykresów */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <SegTabs items={[{ id: 'month', label: 'Miesiąc' }, { id: 'year', label: 'Rok' }]} active={viewMode} onChange={setViewMode} style={{ maxWidth: 220, flex: 1, minWidth: 0 }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          <button className="month-btn" style={{ width: 30, height: 30 }} onClick={() => nav(-1)}><IconChevronLeft size={14} /></button>
-          <span style={{ minWidth: 92, textAlign: 'center', fontSize: 13, fontWeight: 700, textTransform: 'capitalize' }}>{navLabel}</span>
-          <button className="month-btn" style={{ width: 30, height: 30 }} onClick={() => nav(1)}><IconChevronRight size={14} /></button>
-        </div>
+        <SegTabs items={[{ id: 'month', label: 'Miesiąc' }, { id: 'year', label: 'Rok' }, { id: 'all', label: 'Łącznie' }]} active={viewMode} onChange={setViewMode} style={{ maxWidth: 300, flex: 1, minWidth: 0 }} />
+        {viewMode !== 'all' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+            <button className="month-btn" style={{ width: 30, height: 30 }} onClick={() => nav(-1)}><IconChevronLeft size={14} /></button>
+            <span style={{ minWidth: 92, textAlign: 'center', fontSize: 13, fontWeight: 700, textTransform: 'capitalize' }}>{navLabel}</span>
+            <button className="month-btn" style={{ width: 30, height: 30 }} onClick={() => nav(1)}><IconChevronRight size={14} /></button>
+          </div>
+        )}
       </div>
+
+      {tiles}
 
       {viewMode === 'month' ? (
         <>
@@ -559,7 +570,7 @@ function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry, view 
             </div>
           )}
         </>
-      ) : (
+      ) : viewMode === 'year' ? (
         <>
           {/* ROK: średnia nastroju miesiąc po miesiącu (1–10) — wizualny wykres słupkowy */}
           {yearValid.length > 0 && (
@@ -594,6 +605,45 @@ function MoodPage({ user, logs, onDelete, selDate, setSelDate, onAddEntry, view 
           {topEms.length > 0 && (
             <div className="card card-hover-glow" style={{ padding: 16 }}>
               {kicker('Najczęstsze emocje roku', { marginBottom: 12 })}
+              {emoDonut(topEms)}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* ŁĄCZNIE: cała historia — średnia rok po roku zamiast przewijania miesięcy */}
+          {lata.length > 0 ? (
+            <div className="card card-hover-glow" style={{ padding: 16 }}>
+              {kicker('Nastrój rok po roku', { marginBottom: 12 })}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 8 }}>
+                {lata.map(r => {
+                  const color = r.srednia
+                    ? MOODS.reduce((p, c) => Math.abs(c.value - r.srednia) < Math.abs(p.value - r.srednia) ? c : p).color
+                    : null
+                  return (
+                    <button key={r.rok} onClick={() => { setMonth(new Date(Number(r.rok), 0, 1)); setViewMode('year') }} style={{
+                      padding: '10px 6px', borderRadius: 12, cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit',
+                      background: color ? color + '22' : 'var(--surface2)',
+                      border: `1px solid ${color ? color + '55' : 'var(--border)'}`, transition: 'all .15s',
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 600, color: color || 'var(--text-muted)' }}>{r.rok}</div>
+                      <div className="serif" style={{ fontSize: 20, marginTop: 4, color: color || 'var(--text-muted)' }}>{r.srednia ? fmt10(r.srednia) : '—'}</div>
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>{r.dni} {r.dni === 1 ? 'dzień' : 'dni'}</div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="card card-hover-glow" style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+              Brak wpisów — zapisz pierwszy nastrój, a pojawi się tu podsumowanie.
+            </div>
+          )}
+
+          {/* Najczęstsze emocje z całej historii */}
+          {topEms.length > 0 && (
+            <div className="card card-hover-glow" style={{ padding: 16 }}>
+              {kicker('Najczęstsze emocje łącznie', { marginBottom: 12 })}
               {emoDonut(topEms)}
             </div>
           )}
