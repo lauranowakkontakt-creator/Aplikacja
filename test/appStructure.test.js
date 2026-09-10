@@ -288,6 +288,36 @@ test('Nawyki: cel z wymaganych, licznik ze wszystkiego zrobionego', () => {
   assert.ok(!/function isDueOn/.test(PULPIT), 'Pulpit nie moze miec wlasnej kopii logiki nawykow')
 })
 
+test('Nawyki: archiwum siedzi w menu ⋮, nie na dole ekranu', () => {
+  // Wczesniej trzeba bylo przewinac cala liste dnia, zeby je w ogole zobaczyc.
+  const menu   = read('src/components/habits/HabitMenu.jsx')
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  const arch   = read('src/components/habits/HabitArchive.jsx')
+  assert.match(menu, /id: 'archive'/, 'brak pozycji „Archiwum" w menu Nawykow')
+  assert.match(menu, /hasArchive/, 'pozycja ma sie chowac, gdy archiwum jest puste')
+  assert.match(habits, /id === 'archive'\) setShowArchive\(true\)/, 'menu nie otwiera archiwum')
+  assert.ok(!habits.includes('btn-show-archived'), 'przycisk archiwum nadal wisi pod lista dnia')
+  assert.match(arch, /archived: false/, 'z archiwum musi dac sie przywrocic nawyk')
+})
+
+test('Nastroj: kafelki licza sie z wybranego okresu, nie z calej historii', () => {
+  const mood = read('src/components/mood/MoodDashboard.jsx')
+  assert.match(mood, /from '\.\.\/\.\.\/utils\/moodStats'/, 'statystyki nastroju bez wydzielonej logiki')
+  assert.match(mood, /tileMode/, 'kafelki nie wiedza, jaki okres jest na ekranie')
+  assert.match(mood, /id: 'all', label: 'Łącznie'/, 'brak trybu „Łącznie" w analizie nastroju')
+  // Suma wszystkiego liczona obok przelacznika okresu byla wlasnie tym bledem.
+  assert.ok(!/const moodCount = logs\.length/.test(mood), 'kafelki znow licza z calej historii')
+})
+
+test('Wykres slupkowy sam przerzedza etykiety osi X', () => {
+  // Przy 31 dniach kolumna ma ~7 px: dwucyfrowy dzien byl obcinany i wygladal
+  // jak inna liczba. TodoStats robil to wczesniej po swojemu, co drugi dzien.
+  const chart = read('src/components/ChartPrimitives.jsx')
+  const stats = read('src/components/todo/TodoStats.jsx')
+  assert.match(chart, /labelStep/, 'BarChartSVG nie przerzedza etykiet')
+  assert.ok(!/i % 2 === 1/.test(stats), 'TodoStats znow chowa co druga etykiete')
+})
+
 test('Nawyki: edycja wszystkich nawykow siedzi w menu, nie w liscie dnia', () => {
   const menu    = read('src/components/habits/HabitMenu.jsx')
   const manager = read('src/components/habits/HabitManager.jsx')

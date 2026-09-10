@@ -11,6 +11,7 @@ import HabitReorderModal from './HabitReorderModal'
 import HabitDayGrid from './HabitDayGrid'
 import HabitMenu from './HabitMenu'
 import HabitManager from './HabitManager'
+import HabitArchive from './HabitArchive'
 import RoutineManager from './RoutineManager'
 // Nastrój nie jest już osobną apką — mieszka w Nawykach, otwierany z kafelka.
 // Leniwie, żeby wejście w Nawyki nie ciągnęło kodu wykresów nastroju.
@@ -40,7 +41,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   const [view, setView]             = useState('today')
   const [filterCat, setFilterCat]   = useState('all')
   const [selectedDay, setSelectedDay] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const [showArchived, setShowArchived] = useState(false)
+  const [showArchive, setShowArchive] = useState(false)  // archiwum spod ⋮, nie z dołu ekranu
   const [showReorder, setShowReorder] = useState(false)
   const [showRoutineMgr, setShowRoutineMgr] = useState(false)
   const [showManager, setShowManager] = useState(false)  // lista wszystkich nawyków do edycji
@@ -150,6 +151,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
     else if (id === 'pause') setShowPause(true)
     else if (id === 'reorder') setShowReorder(true)
     else if (id === 'routines') setShowRoutineMgr(true)
+    else if (id === 'archive') setShowArchive(true)
   }
   const addBtn = (
     <button className="hdr-btn accent" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk">
@@ -182,10 +184,10 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
     setHeaderExtras?.(
       moodOpen
         ? <>{moodBtn}{moodExtras}</>
-        : <>{moodBtn}<HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} />{addBtn}</>
+        : <>{moodBtn}<HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} hasArchive={archivedHabits.length > 0} />{addBtn}</>
     )
     return () => setHeaderExtras?.(null)
-  }, [activeHabits.length, todayMood, moodOpen, moodExtras])
+  }, [activeHabits.length, archivedHabits.length, todayMood, moodOpen, moodExtras])
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -742,36 +744,14 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
         </div>
       ) })()}
 
-      {/* Archiwum */}
-      {archivedHabits.length > 0 && (
-        <button className="btn-show-archived" onClick={() => setShowArchived(v => !v)} style={{ marginTop: 16 }}>
-          Archiwum ({archivedHabits.length}) {showArchived ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-        </button>
-      )}
-      {showArchived && (
-        <div className="habits-list" style={{ marginTop: 8 }}>
-          {archivedHabits.map(h => (
-            <div key={h.id} className="habit-row archived-row" onClick={() => { setEditHabit(h); setShowForm(true) }}>
-              <div className="habit-name-col">
-                <span className="habit-emoji" style={{
-                  background: (h.color || 'var(--accent)') + '1A',
-                  border: `1px solid ${(h.color || 'var(--accent)') + '40'}`,
-                  color: h.color || 'var(--accent)',
-                  opacity: 0.4,
-                }}>
-                  <CatIcon categoryId={null} emoji={h.emoji} size={14} />
-                </span>
-                <span className="habit-name" style={{ opacity: .4 }}>{h.name}</span>
-              </div>
-              <span style={{ fontSize: 11, color: 'var(--text-muted)', gridColumn: '2 / -1', textAlign: 'right' }}>zarchiwizowany</span>
-            </div>
-          ))}
-        </div>
-      )}
-
       {showPause && <PauseForm user={user} onClose={() => setShowPause(false)} />}
       {showRoutineMgr && <RoutineManager user={user} onClose={() => setShowRoutineMgr(false)} />}
       {showReorder && <HabitReorderModal user={user} habits={activeHabits} onClose={() => setShowReorder(false)} />}
+      {showArchive && (
+        <HabitArchive user={user} habits={archivedHabits}
+          onEdit={(h) => { setShowArchive(false); setEditHabit(h); setShowForm(true) }}
+          onClose={() => setShowArchive(false)} />
+      )}
       {showManager && (
         <HabitManager user={user} habits={habits} categories={allCategories} onClose={() => setShowManager(false)} />
       )}
