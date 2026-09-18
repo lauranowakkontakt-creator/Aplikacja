@@ -252,3 +252,22 @@ export function rangeStats(habits = [], pauses = [], start, end) {
   }
   return { expected, done, completions, perfectDays, dueDays, pct: expected ? Math.round((done / expected) * 100) : 0 }
 }
+
+// Podsumowanie ukończonego nawyku — to, co chce się zobaczyć, gdy nawyk
+// zniknął z listy dnia: ile razy się udało, jak długa była najlepsza seria
+// i w jakim okresie to trwało. Bez tego zakończony nawyk przepadał bez śladu.
+export function habitCompletionSummary(habit, pauses = []) {
+  const dates = [...(habit?.completedDates || [])].sort()
+  return {
+    total: dates.length,
+    first: dates[0] || habit?.startDate || null,
+    last: dates[dates.length - 1] || null,
+    best: getBestStreak(
+      dates,
+      habit?.frequencyDays,
+      pauses,
+      habit?.startDate || null,
+      habit?.endDate || format(new Date(), 'yyyy-MM-dd'),
+    ),
+  }
+}
