@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats,
   byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind, isRequiredHabit, dayScore,
-  habitLifecycle } from '../src/utils/habitLogic.js'
+  habitLifecycle, habitCompletionSummary } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -369,4 +369,28 @@ test('habitLifecycle: koniec i archiwum', () => {
   // Archiwum wygrywa z datami — inaczej zarchiwizowany nawyk gubiłby się w „zakończonych".
   assert.equal(habitLifecycle({ archived: true, startDate: '2026-09-08' }, today), 'archived')
   assert.equal(habitLifecycle({ archived: true, endDate: '2026-08-31' }, today), 'archived')
+})
+
+test('habitCompletionSummary: ukończony nawyk ma swój wynik do pokazania', () => {
+  const habit = {
+    frequencyDays: [0, 1, 2, 3, 4, 5, 6],
+    startDate: '2026-08-01',
+    endDate: '2026-08-05',
+    completedDates: ['2026-08-02', '2026-08-03', '2026-08-04', '2026-08-01'],
+  }
+  const s = habitCompletionSummary(habit)
+  assert.equal(s.total, 4)
+  assert.equal(s.first, '2026-08-01', 'pierwszy dzień liczymy z posortowanych dat')
+  assert.equal(s.last, '2026-08-04')
+  // Rekord liczymy do daty zakończenia, nie do dziś — inaczej dni po końcu
+  // nawyku zerowałyby serię i zakończony nawyk wyglądałby na porażkę.
+  assert.equal(s.best, 4)
+})
+
+test('habitCompletionSummary: nawyk bez odhaczeń nie wybucha', () => {
+  const s = habitCompletionSummary({ startDate: '2026-08-01', endDate: '2026-08-05' })
+  assert.equal(s.total, 0)
+  assert.equal(s.best, 0)
+  assert.equal(s.last, null)
+  assert.equal(s.first, '2026-08-01', 'bez odhaczeń zostaje data startu')
 })

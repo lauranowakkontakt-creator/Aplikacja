@@ -24,7 +24,7 @@ import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor 
 import MonthCalendar from './MonthCalendar'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
-  habitDayKind, dayScore, isRequiredHabit } from '../../utils/habitLogic'
+  habitDayKind, dayScore, isRequiredHabit, habitLifecycle } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const SHOW_DAY_RHYTHM = false
@@ -117,6 +117,9 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   const allCategories  = [...DEFAULT_HABIT_CATEGORIES, ...customCats]
   const activeHabits   = habits.filter(h => !h.archived).sort(byHabitOrder)
   const archivedHabits = habits.filter(h => h.archived)
+  // Ukończone = po dacie zakończenia. Znikają z listy dnia, więc muszą mieć
+  // swoje miejsce — inaczej nawyk po prostu przepada.
+  const endedHabits    = habits.filter(h => habitLifecycle(h, TODAY) === 'ended').sort(byHabitOrder)
   const filtered = activeHabits.filter(h => filterCat === 'all' || h.category === filterCat)
 
   // Lata z jakimikolwiek danymi (do nawigacji w statystykach) — zawsze z bieżącym
@@ -184,10 +187,10 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
     setHeaderExtras?.(
       moodOpen
         ? <>{moodBtn}{moodExtras}</>
-        : <>{moodBtn}<HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} hasArchive={archivedHabits.length > 0} />{addBtn}</>
+        : <>{moodBtn}<HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} hasArchive={archivedHabits.length + endedHabits.length > 0} />{addBtn}</>
     )
     return () => setHeaderExtras?.(null)
-  }, [activeHabits.length, archivedHabits.length, todayMood, moodOpen, moodExtras])
+  }, [activeHabits.length, archivedHabits.length, endedHabits.length, todayMood, moodOpen, moodExtras])
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -748,7 +751,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
       {showRoutineMgr && <RoutineManager user={user} onClose={() => setShowRoutineMgr(false)} />}
       {showReorder && <HabitReorderModal user={user} habits={activeHabits} onClose={() => setShowReorder(false)} />}
       {showArchive && (
-        <HabitArchive user={user} habits={archivedHabits}
+        <HabitArchive user={user} habits={archivedHabits} endedHabits={endedHabits} pauses={pauses}
           onEdit={(h) => { setShowArchive(false); setEditHabit(h); setShowForm(true) }}
           onClose={() => setShowArchive(false)} />
       )}

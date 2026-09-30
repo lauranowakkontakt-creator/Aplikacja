@@ -21,8 +21,8 @@ export default function HabitMenu({ onAction, canReorder = true, hasArchive = fa
     { id: 'routines', Icon: IconClock,   label: 'Rutyny (części dnia)' },
     { id: 'pause',    Icon: IconPause,   label: 'Pauza (wyjazd / choroba)' },
     ...(canReorder ? [{ id: 'reorder', Icon: IconReorder, label: 'Kolejność nawyków' }] : []),
-    // Archiwum tylko wtedy, gdy jest co pokazać — pusta pozycja w menu myli.
-    ...(hasArchive ? [{ id: 'archive', Icon: IconArchive, label: 'Archiwum nawyków' }] : []),
+    // Ukończone + archiwum tylko wtedy, gdy jest co pokazać — pusta pozycja w menu myli.
+    ...(hasArchive ? [{ id: 'archive', Icon: IconArchive, label: 'Ukończone i archiwum' }] : []),
   ]
 
   const handle = (id) => { onAction(id); setOpen(false) }
