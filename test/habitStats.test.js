@@ -1,8 +1,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-const { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor } =
+const { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor, habitPeriodLabel } =
   await import('../src/utils/habitStats.js')
+const { rangeStats, isRequiredHabit } = await import('../src/utils/habitLogic.js')
 
 const D = (s) => new Date(`${s}T12:00:00`)
 
@@ -95,4 +96,74 @@ test('getPauseIcon i getPauseColor — null poza pauzą', () => {
 test('getPauseIcon — pauza bez ikony daje null, nie undefined', () => {
   const pauzy = [{ from: '2026-09-10', to: '2026-09-12', reason: 'wyjazd' }]
   assert.equal(getPauseIcon(pauzy, '2026-09-11'), null)
+})
+
+// Okres w archiwum: stary nawyk bez daty końca pokazywał tylko licznik odhaczeń,
+// więc nie było widać, z jakich to w ogóle lat.
+test('habitPeriodLabel: jeden miesiąc nie powtarza się dwa razy', () => {
+  assert.equal(habitPeriodLabel('2026-08-02', '2026-08-29'), 'sie 2026')
+})
+
+test('habitPeriodLabel: ten sam rok podaje rok raz, na końcu', () => {
+  assert.equal(habitPeriodLabel('2026-03-04', '2026-07-30'), 'mar – lip 2026')
+})
+
+test('habitPeriodLabel: przez przełom roku widać oba lata', () => {
+  assert.equal(habitPeriodLabel('2025-08-11', '2026-08-03'), 'sie 2025 – sie 2026')
+  // Ten sam miesiąc, ale inny rok — skrót do „sie 2026" zgubiłby cały rok.
+  assert.notEqual(habitPeriodLabel('2025-08-11', '2026-08-03'), 'sie 2025')
+})
+
+test('habitPeriodLabel: bez granic nie ma czego pokazać', () => {
+  assert.equal(habitPeriodLabel(null, '2026-08-03'), null)
+  assert.equal(habitPeriodLabel('2026-08-03', null), null)
+  assert.equal(habitPeriodLabel(null, null), null)
+  assert.equal(habitPeriodLabel('bzdura', '2026-08-03'), null)
+})
+
+test('habitPeriodLabel: jeden dzień to po prostu jego miesiąc', () => {
+  assert.equal(habitPeriodLabel('2026-08-03', '2026-08-03'), 'sie 2026')
+})
+
+// ---------- wyzwania nie psuja glownych procentow ----------
+// Regresja: dayScore pomijal nawyki dodatkowe w mianowniku, ale statBuckets
+// podawal rangeStats WSZYSTKIE nawyki. Cel dnia pokazywal 100%, a slupek tego
+// samego dnia 50%, bo nieodhaczone wyzwanie wchodzilo do "expected".
+const every = [0, 1, 2, 3, 4, 5, 6]
+
+test('statBuckets: nieodhaczone wyzwanie nie zaniza slupka', () => {
+  const dzien = '2026-09-02'
+  const habits = [
+    { frequencyDays: every, startDate: '2026-09-01', completedDates: [dzien] },
+    { frequencyDays: every, startDate: '2026-09-01', optional: true, completedDates: [] },
+  ]
+  const ctx = { weekAnchor: D(dzien), monthAnchor: D(dzien), year: 2026 }
+  const buckets = statBuckets(habits, [], 'week', ctx, [2026], D(dzien))
+  const srodaBucket = buckets.find(b => b.active)
+  assert.equal(srodaBucket.value, 100, 'wymagany nawyk zrobiony => pelne 100%')
+})
+
+test('statBuckets: wyzwanie odhaczone tez nie rusza slupka', () => {
+  // Wyzwanie jest poza rachunkiem w obie strony — nie karze i nie nagradza.
+  const dzien = '2026-09-02'
+  const bez = [{ frequencyDays: every, startDate: '2026-09-01', completedDates: [] }]
+  const zWyzwaniem = [
+    ...bez,
+    { frequencyDays: every, startDate: '2026-09-01', optional: true, completedDates: [dzien] },
+  ]
+  const ctx = { weekAnchor: D(dzien), monthAnchor: D(dzien), year: 2026 }
+  const val = (h) => statBuckets(h, [], 'week', ctx, [2026], D(dzien)).find(b => b.active).value
+  assert.equal(val(zWyzwaniem), val(bez))
+  assert.equal(val(bez), 0)
+})
+
+test('rangeStats liczy to, co mu dano — filtrowanie nalezy do wywolujacego', () => {
+  // Swiadomy podzial odpowiedzialnosci: rangeStats sluzy tez do procentu
+  // POJEDYNCZEGO nawyku (takze wyzwania), wiec sam nie moze nic odsiewac.
+  const habits = [
+    { frequencyDays: every, startDate: '2026-09-01', completedDates: ['2026-09-01'] },
+    { frequencyDays: every, startDate: '2026-09-01', optional: true, completedDates: [] },
+  ]
+  assert.equal(rangeStats(habits, [], '2026-09-01', '2026-09-01').pct, 50)
+  assert.equal(rangeStats(habits.filter(isRequiredHabit), [], '2026-09-01', '2026-09-01').pct, 100)
 })

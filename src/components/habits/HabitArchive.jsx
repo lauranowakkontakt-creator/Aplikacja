@@ -4,6 +4,7 @@ import { pl } from 'date-fns/locale'
 import { db } from '../../firebase/config'
 import { CatIcon, IconClose, IconArchive, IconRestore, IconCheck } from '../Icons'
 import { habitCompletionSummary } from '../../utils/habitLogic'
+import { habitPeriodLabel } from '../../utils/habitStats'
 
 // Zakończone i archiwum — spod ⋮, nie z dołu ekranu.
 // Nawyk z datą zakończenia znikał z listy dnia bez śladu: nie był
@@ -61,7 +62,11 @@ export default function HabitArchive({ user, habits = [], endedHabits = [], paus
     const s = habitCompletionSummary(h, pauses)
     const parts = [`${s.total}x zrobione`]
     if (s.best > 0) parts.push(`rekord ${s.best} dni`)
-    if (h.endDate) parts.push(`do ${fmtDate(h.endDate)}`)
+    // Okres zawsze, gdy da się go wyliczyć — stary nawyk schowany do archiwum
+    // nie ma daty końca, a bez okresu nie wiadomo, z jakich to lat.
+    const okres = habitPeriodLabel(s.first, s.last)
+    if (okres) parts.push(okres)
+    else if (h.endDate) parts.push(`do ${fmtDate(h.endDate)}`)
     return parts.join(' · ')
   }
 

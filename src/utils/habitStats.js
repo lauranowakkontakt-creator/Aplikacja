@@ -1,6 +1,6 @@
 import { format, addDays, startOfWeek, startOfMonth, endOfMonth, getDaysInMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { pauseForDay, pauseReasonMeta, rangeStats, dayScore, isPausedDay } from './habitLogic.js'
+import { pauseForDay, pauseReasonMeta, rangeStats, dayScore, isPausedDay, isRequiredHabit } from './habitLogic.js'
 
 // Statystyki i zakresy dat dla modułu Nawyki.
 //
@@ -47,7 +47,12 @@ export function statRange(period, ctx) {
 export function statBuckets(habits, pauses, period, ctx, dataYears, now = new Date()) {
   const todayStr = ymd(now)
   const clampEnd = (e) => (e > todayStr ? todayStr : e)
-  const pct = (start, end) => (start > todayStr ? 0 : rangeStats(habits, pauses, start, clampEnd(end)).pct)
+  // Trend realizacji liczymy TYLKO z nawyków wymaganych — tak samo jak cel dnia
+  // w dayScore. Nawyk dodatkowy („wyzwanie") wchodził tu do mianownika i zaniżał
+  // procent za dni, w których po prostu nie było go w planie: cel dnia pokazywał
+  // 100%, a słupek tego samego dnia 60%.
+  const glowne = habits.filter(isRequiredHabit)
+  const pct = (start, end) => (start > todayStr ? 0 : rangeStats(glowne, pauses, start, clampEnd(end)).pct)
   if (period === 'week') {
     const s = startOfWeek(ctx.weekAnchor, { weekStartsOn: 1 })
     return Array.from({ length: 7 }, (_, i) => {
@@ -84,4 +89,28 @@ export function dayAggregate(habits, pauses, dateStr) {
     pct: s.pct / 100,
     paused: isPausedDay(dateStr, pauses),
   }
+}
+
+// Etykieta okresu życia nawyku — „kiedy to się działo", pokazywana przy
+// nawykach ukończonych i zarchiwizowanych. Bez niej stary nawyk w archiwum
+// mówił tylko ile razy się udało, a nie z jakich to lat.
+//
+// Granice bierzemy z odhaczeń (pierwsze i ostatnie), nie z startDate/endDate:
+// nawyk schowany do archiwum zwykle nie ma daty końca, a ostatni odhaczony
+// dzień i tak lepiej opisuje, kiedy się skończyło.
+//  - ten sam miesiąc        → „sie 2026"
+//  - ten sam rok            → „mar – lip 2026"
+//  - różne lata             → „sie 2025 – sie 2026"
+//  - jedna granica albo brak → null (nie ma czego pokazać)
+export function habitPeriodLabel(from, to) {
+  if (!from || !to) return null
+  const a = new Date(from + 'T12:00:00'), b = new Date(to + 'T12:00:00')
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null
+  const mies = (d) => format(d, 'LLL', { locale: pl })
+  const rok  = (d) => format(d, 'yyyy')
+  if (rok(a) === rok(b)) {
+    if (mies(a) === mies(b)) return `${mies(a)} ${rok(a)}`
+    return `${mies(a)} – ${mies(b)} ${rok(b)}`
+  }
+  return `${mies(a)} ${rok(a)} – ${mies(b)} ${rok(b)}`
 }

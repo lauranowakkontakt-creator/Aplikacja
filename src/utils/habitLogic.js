@@ -271,3 +271,40 @@ export function habitCompletionSummary(habit, pauses = []) {
     ),
   }
 }
+
+// Nawyk dodatkowy („wyzwanie") — przeciwieństwo wymaganego. Osobny ekran,
+// osobne liczenie: nie wchodzi do celu dnia ani do procentów okresu, a seria
+// go nie dotyczy. Liczy się tylko to, ile razy się udało.
+export const isOptionalHabit = (habit) => habit?.optional === true
+
+// Postęp nawyku dodatkowego. ŚWIADOMIE bez serii i rekordu: przy wyzwaniu
+// („ile razy w tym miesiącu") strike nie jest tym, co się chce wiedzieć, a
+// przerwa w ciągu nie jest porażką.
+//  - inRange — ile odhaczeń mieści się w [start, end]
+//  - total   — ile w całej historii nawyku
+//  - first   — pierwsze odhaczenie (null, gdy żadnego)
+//  - last    — ostatnie odhaczenie (null, gdy żadnego)
+export function optionalProgress(habit, start, end) {
+  const dates = [...(habit?.completedDates || [])].sort()
+  const inRange = (start && end)
+    ? dates.filter(d => d >= start && d <= end).length
+    : dates.length
+  return {
+    inRange,
+    total: dates.length,
+    first: dates[0] || null,
+    last: dates[dates.length - 1] || null,
+  }
+}
+
+// Zestawienie wszystkich wyzwań w okresie — nagłówek ekranu „Dodatkowe".
+// `habits` podajemy już przefiltrowane do dodatkowych.
+export function optionalSummary(habits = [], start, end) {
+  let done = 0, active = 0
+  for (const h of habits) {
+    const p = optionalProgress(h, start, end)
+    done += p.inRange
+    if (p.inRange > 0) active++
+  }
+  return { done, active, count: habits.length }
+}

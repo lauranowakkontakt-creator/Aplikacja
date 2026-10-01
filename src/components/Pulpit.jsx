@@ -13,7 +13,7 @@ import { Ring } from './ChartPrimitives'
 import { fmt, getCurrencyCode, CURRENCIES } from '../utils/currency'
 import { isInvestment, sumByCurrency } from '../utils/investmentMath'
 import { BIBLE_BOOKS, TOTAL_CHAPTERS, chapterKey } from '../utils/bibleData'
-import { dayScore } from '../utils/habitLogic'
+import { dayScore, isRequiredHabit } from '../utils/habitLogic'
 import { gratitudeStats } from '../utils/gratitudeLogic'
 import { bladSubskrypcji } from '../utils/polaczenie'
 
@@ -96,7 +96,9 @@ export default function Pulpit({ user, onNavigate, visibleIds }) {
   const habitsStat = useMemo(() => {
     // Cel dnia to nawyki WYMAGANE; licznik obejmuje też te zrobione ponad plan,
     // więc może przebić cel — dokładnie jak w module Nawyki.
-    const s = dayScore(habits, today, pauses)
+    // Wyzwania (nawyki dodatkowe) mają własny ekran i tu się nie liczą: inaczej
+    // odhaczone wyzwanie podbijało „zrobione" na kafelku, mimo że celem nie było.
+    const s = dayScore(habits.filter(isRequiredHabit), today, pauses)
     return { due: s.required, done: s.doneTotal, pct: s.pct, extra: s.extra }
   }, [habits, pauses, today])
 

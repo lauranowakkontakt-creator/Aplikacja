@@ -16,15 +16,17 @@ import RoutineManager from './RoutineManager'
 // Nastrój nie jest już osobną apką — mieszka w Nawykach, otwierany z kafelka.
 // Leniwie, żeby wejście w Nawyki nie ciągnęło kodu wykresów nastroju.
 const MoodDashboard = lazy(() => import('../mood/MoodDashboard'))
-import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronLeft, IconChevronRight, IconPlus, IconMood, IconClose } from '../Icons'
+import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronLeft, IconChevronRight, IconPlus, IconMood, IconFlag, IconClose } from '../Icons'
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
 import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor } from '../../utils/habitStats'
 import MonthCalendar from './MonthCalendar'
+import HabitExtras from './HabitExtras'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
-  habitDayKind, dayScore, isRequiredHabit, habitLifecycle } from '../../utils/habitLogic'
+  habitDayKind, dayScore, isRequiredHabit, isOptionalHabit,
+  habitLifecycle } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const SHOW_DAY_RHYTHM = false
@@ -53,6 +55,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   const [monthAnchor, setMonthAnchor] = useState(new Date())     // nawigacja miesiąca w statystykach
   const [statYear, setStatYear]       = useState(new Date().getFullYear()) // nawigacja roku w statystykach
   const [moodOpen, setMoodOpen]       = useState(false)  // czy pokazujemy Nastrój zamiast Nawyków
+  const [extrasOpen, setExtrasOpen]   = useState(false)  // czy pokazujemy Wyzwania zamiast Nawyków
   const [moodExtras, setMoodExtras]   = useState(null)   // akcje Nastroju wstrzyknięte do wspólnej belki
   const [todayMood, setTodayMood]     = useState(null)
 
@@ -120,7 +123,12 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   // Ukończone = po dacie zakończenia. Znikają z listy dnia, więc muszą mieć
   // swoje miejsce — inaczej nawyk po prostu przepada.
   const endedHabits    = habits.filter(h => habitLifecycle(h, TODAY) === 'ended').sort(byHabitOrder)
-  const filtered = activeHabits.filter(h => filterCat === 'all' || h.category === filterCat)
+  // Nawyki dodatkowe („wyzwania") mieszkają na własnym ekranie pod flagą w
+  // nagłówku — obok nastroju. Z listy dnia i ze statystyk są wyjęte: inaczej
+  // byłyby w dwóch miejscach naraz i dalej podbijałyby główne liczby.
+  const requiredActive = activeHabits.filter(isRequiredHabit)
+  const extraHabits    = activeHabits.filter(isOptionalHabit)
+  const filtered = requiredActive.filter(h => filterCat === 'all' || h.category === filterCat)
 
   // Lata z jakimikolwiek danymi (do nawigacji w statystykach) — zawsze z bieżącym
   const dataYears = (() => {
@@ -172,9 +180,23 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
       aria-label={moodOpen ? 'Wróć do nawyków' : 'Nastrój'}
       aria-pressed={moodOpen}
       style={todayMood?.moodColor ? { '--mood-color': todayMood.moodColor } : undefined}
-      onClick={() => setMoodOpen(o => !o)}
+      onClick={() => { setExtrasOpen(false); setMoodOpen(o => !o) }}
     >
       <IconMood size={17} />
+    </button>
+  )
+
+  // Flaga wyzwań — ten sam wzorzec co twarz nastroju: świeci, gdy jesteś w
+  // Wyzwaniach, klik wraca do Nawyków. Dwa widoki nie mogą być otwarte naraz.
+  const extrasBtn = (
+    <button
+      className={`hdr-btn${extrasOpen ? ' accent' : ''}`}
+      title={extrasOpen ? 'Wróć do nawyków' : `Wyzwania (dodatkowe)${extraHabits.length ? ` — ${extraHabits.length}` : ''}`}
+      aria-label={extrasOpen ? 'Wróć do nawyków' : 'Wyzwania'}
+      aria-pressed={extrasOpen}
+      onClick={() => { setMoodOpen(false); setExtrasOpen(o => !o) }}
+    >
+      <IconFlag size={17} />
     </button>
   )
 
@@ -186,11 +208,12 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   useEffect(() => {
     setHeaderExtras?.(
       moodOpen
-        ? <>{moodBtn}{moodExtras}</>
-        : <>{moodBtn}<HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} hasArchive={archivedHabits.length + endedHabits.length > 0} />{addBtn}</>
+        ? <>{moodBtn}{extrasBtn}{moodExtras}</>
+        : <>{moodBtn}{extrasBtn}<HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} hasArchive={archivedHabits.length + endedHabits.length > 0} />{addBtn}</>
     )
     return () => setHeaderExtras?.(null)
-  }, [activeHabits.length, archivedHabits.length, endedHabits.length, todayMood, moodOpen, moodExtras])
+  }, [activeHabits.length, archivedHabits.length, endedHabits.length, extraHabits.length,
+      todayMood, moodOpen, moodExtras, extrasOpen])
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
 
@@ -274,6 +297,25 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
         <Suspense fallback={<div className="list-loading">Ładowanie...</div>}>
           <MoodDashboard user={user} setHeaderExtras={setMoodExtras} />
         </Suspense>
+      </div>
+    )
+  }
+
+  // Wyzwania — tak samo w miejscu treści, bez drugiego paska.
+  if (extrasOpen) {
+    return (
+      <div className="habits-dashboard">
+        <HabitExtras
+          habits={extraHabits}
+          today={TODAY}
+          onToggle={toggleDay}
+          onEdit={(h) => { setEditHabit(h); setShowForm(true) }}
+          onAdd={() => { setEditHabit(null); setShowForm(true) }}
+        />
+        {showForm && (
+          <HabitForm user={user} editData={editHabit}
+            onClose={() => { setShowForm(false); setEditHabit(null) }} />
+        )}
       </div>
     )
   }
@@ -574,9 +616,9 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
         const ctx = { weekAnchor, monthAnchor, year: statYear }
         const { start, end } = statRange(statPeriod, ctx)
         const endClamped = today < end ? today : end
-        const agg = rangeStats(activeHabits, pauses, start, endClamped)
-        const bestStreakAll = activeHabits.reduce((m, h) => Math.max(m, getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)), 0)
-        const buckets = statBuckets(activeHabits, pauses, statPeriod, ctx, dataYears)
+        const agg = rangeStats(requiredActive, pauses, start, endClamped)
+        const bestStreakAll = requiredActive.reduce((m, h) => Math.max(m, getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)), 0)
+        const buckets = statBuckets(requiredActive, pauses, statPeriod, ctx, dataYears)
         const trendTitle  = statPeriod === 'week' ? 'Realizacja dzień po dniu (%)' : statPeriod === 'month' ? 'Kalendarz miesiąca' : 'Realizacja rok po roku (%)'
 
         // Nawigator okresu (‹ etykieta ›)
