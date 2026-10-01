@@ -508,3 +508,45 @@ test('Archiwum pokazuje sie jako os czasu, jedna dla obu ekranow', () => {
   assert.ok(!/differenceInCalendarDays/.test(timeline),
     'matematyka osi nalezy do habitStats, nie do komponentu')
 })
+
+test('Nawyki na czas / ilosc: cel w formularzu, pasek zamiast haczyka', () => {
+  const form    = read('src/components/habits/HabitForm.jsx')
+  const habits  = read('src/components/habits/HabitsDashboard.jsx')
+  const extras  = read('src/components/habits/HabitExtras.jsx')
+  const stepper = read('src/components/habits/AmountStepper.jsx')
+
+  // Formularz zapisuje cel i jednostke; null zdejmuje miare.
+  assert.match(form, /target: mierzone && Number\(target\) > 0 \? Number\(target\) : null/)
+  assert.match(form, /unit: mierzone \?/)
+  assert.match(form, /HABIT_UNITS\.map/, 'brak listy jednostek do wyboru')
+  assert.match(form, /__wlasna/, 'brak wlasnej jednostki')
+
+  // Haczyk nie umie powiedziec "10 z 20 minut" — mierzony nawyk dostaje pasek.
+  for (const [plik, src] of [['HabitsDashboard', habits], ['HabitExtras', extras]]) {
+    assert.match(src, /hasAmountGoal\(h(abit)?\) \?/, `${plik}: brak przelaczenia na pasek`)
+    assert.match(src, /<AmountStepper/, `${plik}: brak AmountStepper`)
+  }
+  // Jeden komponent wpisywania na oba ekrany, nie dwie kopie.
+  assert.match(stepper, /dayAmount/)
+  assert.match(stepper, /dayProgress/)
+})
+
+test('Nawyki na czas: amounts trzymane w zgodzie z completedDates', () => {
+  // completedDates czytaja seria, kalendarze i archiwum. Gdyby zapis amounts ich
+  // nie ruszal, dowieziony cel nie budowalby serii, a kalendarz pokazywalby
+  // pominiety dzien.
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  assert.match(habits, /const setDayAmount = async/)
+  assert.match(habits, /\[`amounts\.\$\{date\}`\]: value > 0 \? value : deleteField\(\)/,
+    'zero musi czyscic pole, nie zostawiac pustego wpisu')
+  assert.match(habits, /completedDates: value >= target && target > 0 \? arrayUnion\(date\) : arrayRemove\(date\)/,
+    'caly cel wpisuje dzien, mniej go zdejmuje')
+  assert.match(habits, /onSetAmount=\{setDayAmount\}/, 'ekran wyzwan nie dostaje zapisu wartosci')
+})
+
+test('Nawyki na czas: sumy "ile na to poszlo" w obu statystykach', () => {
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  assert.match(habits, /amountTotals\(requiredActive, start, endClamped\)/)
+  assert.match(extras, /amountTotals\(habits, start, end\)/)
+})

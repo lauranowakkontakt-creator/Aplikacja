@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { collection, orderBy, query, where, doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore'
+import { collection, orderBy, query, where, doc, updateDoc, arrayUnion, arrayRemove, deleteField } from 'firebase/firestore'
 import { onSnapshot } from '../../utils/subskrypcje'
 import { db } from '../../firebase/config'
 import useFallbackTimeout from '../../utils/useFallbackTimeout'
@@ -24,10 +24,11 @@ import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor 
 import MonthCalendar from './MonthCalendar'
 import HabitExtras from './HabitExtras'
 import HabitTimeline from './HabitTimeline'
+import AmountStepper from './AmountStepper'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
   habitDayKind, dayScore, isRequiredHabit, isOptionalHabit,
-  habitLifecycle } from '../../utils/habitLogic'
+  habitLifecycle, hasAmountGoal, amountTotals } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const SHOW_DAY_RHYTHM = false
@@ -98,6 +99,19 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   // Zmiana dnia — czyścimy ręczne rozwinięcia (każdy dzień startuje „domyślnie":
   // zrobione rutyny zwinięte).
   useEffect(() => { setCollapsedRoutines({}) }, [selectedDay])
+
+  // Zapis wykonania dla nawyku na czas / ilość. `completedDates` zostaje
+  // źródłem prawdy o zaliczonym dniu — czytają je seria, kalendarze i archiwum —
+  // więc trzymamy je w zgodzie z `amounts`: cały cel wpisuje dzień, mniej go
+  // zdejmuje. Zero czyści pole, żeby w bazie nie zostawały puste wpisy.
+  const setDayAmount = async (habit, date, value) => {
+    const ref = doc(db, 'users', user.uid, 'habits', habit.id)
+    const target = Number(habit.target) || 0
+    await updateDoc(ref, {
+      [`amounts.${date}`]: value > 0 ? value : deleteField(),
+      completedDates: value >= target && target > 0 ? arrayUnion(date) : arrayRemove(date),
+    })
+  }
 
   const toggleDay = async (habit, date) => {
     const ref = doc(db, 'users', user.uid, 'habits', habit.id)
@@ -319,6 +333,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
           selectedDay={selectedDay}
           onSelectDay={setSelectedDay}
           onToggle={toggleDay}
+          onSetAmount={setDayAmount}
           onEdit={(h) => { setEditHabit(h); setShowForm(true) }}
           onAdd={() => { setEditHabit(null); setShowForm(true) }}
         />
@@ -459,21 +474,27 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                 </div>
               </div>
 
-              {/* Check — odhaczysz też dodatkowe (dni poza harmonogramem / w pauzie) */}
-              <button
-                onClick={() => !isFut && toggleDay(habit, selectedDay)}
-                disabled={isFut}
-                style={{
-                  width: 32, height: 32, borderRadius: 99, flexShrink: 0,
-                  border: `2px solid ${done ? color : 'var(--border-strong)'}`,
-                  background: done ? color : 'transparent',
-                  display: 'grid', placeItems: 'center',
-                  color: 'var(--bg)', cursor: isFut ? 'default' : 'pointer',
-                  transition: 'all .2s var(--spring)',
-                }}
-              >
-                {done ? <IconCheck size={15} /> : status === 'paused' && getPauseIcon(pauses, selectedDay) ? <span style={{ color: getPauseColor(pauses, selectedDay) || 'var(--text-muted)', display: 'grid', placeItems: 'center' }}><CatIcon categoryId={null} emoji={getPauseIcon(pauses, selectedDay)} size={14} /></span> : ''}
-              </button>
+              {/* Nawyk na czas / ilość dostaje pasek z liczbą, nie haczyk —
+                  haczyk nie umie powiedzieć „10 z 20 minut". */}
+              {hasAmountGoal(habit) ? (
+                <AmountStepper habit={habit} dateStr={selectedDay} onSet={setDayAmount} disabled={isFut} compact />
+              ) : (
+                /* Check — odhaczysz też dodatkowe (dni poza harmonogramem / w pauzie) */
+                <button
+                  onClick={() => !isFut && toggleDay(habit, selectedDay)}
+                  disabled={isFut}
+                  style={{
+                    width: 32, height: 32, borderRadius: 99, flexShrink: 0,
+                    border: `2px solid ${done ? color : 'var(--border-strong)'}`,
+                    background: done ? color : 'transparent',
+                    display: 'grid', placeItems: 'center',
+                    color: 'var(--bg)', cursor: isFut ? 'default' : 'pointer',
+                    transition: 'all .2s var(--spring)',
+                  }}
+                >
+                  {done ? <IconCheck size={15} /> : status === 'paused' && getPauseIcon(pauses, selectedDay) ? <span style={{ color: getPauseColor(pauses, selectedDay) || 'var(--text-muted)', display: 'grid', placeItems: 'center' }}><CatIcon categoryId={null} emoji={getPauseIcon(pauses, selectedDay)} size={14} /></span> : ''}
+                </button>
+              )}
             </div>
 
             {/* Kroki nawyku — odhaczane per dzień */}
@@ -695,6 +716,24 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                 {tile(bestStreakAll, 'Rekord serii', undefined, 'dni')}
               </div>
             </div>
+
+            {/* „Ile na to poszło" — sumy czasu i ilości dla nawyków z celem.
+                Jednostek nie mieszamy: minuty i strony to osobne liczby. */}
+            {amountTotals(requiredActive, start, endClamped).length > 0 && (
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 14,
+                paddingTop: 14, borderTop: '1px solid var(--border)',
+              }}>
+                {amountTotals(requiredActive, start, endClamped).map(t => (
+                  <div key={t.unit}>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--accent)' }}>{t.label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>
+                      na to poszło
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Trend realizacji w czasie — tydzień: słupki, miesiąc: kalendarz, rok: bez wykresu */}

@@ -4,7 +4,9 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats,
   byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind, isRequiredHabit, dayScore,
   habitLifecycle, habitCompletionSummary, isOptionalHabit, optionalProgress,
-  optionalSummary, optionalDayCount, habitOrderUpdates } from '../src/utils/habitLogic.js'
+  optionalSummary, optionalDayCount, habitOrderUpdates, hasAmountGoal, dayAmount,
+  dayProgress, isDayComplete, formatAmount, amountTotals, unitMeta,
+  HABIT_UNITS } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -337,7 +339,10 @@ test('dayScore — nawyk zrobiony poza harmonogramem liczy się na plus', () => 
 })
 
 test('dayScore — dzień bez wymaganych', () => {
-  assert.deepEqual(dayScore([], '2026-08-29', []), { required: 0, doneRequired: 0, doneTotal: 0, extra: 0, pct: 0 })
+  // doneExact to surowa suma postepow (nawyki na czas wnosza ulamki); doneTotal
+  // jest ta sama liczba zaokraglona do pol jednostki pod licznik w UI.
+  assert.deepEqual(dayScore([], '2026-08-29', []),
+    { required: 0, doneRequired: 0, doneTotal: 0, doneExact: 0, extra: 0, pct: 0 })
   // nic nie było wymagane, ale coś zrobione → pełny pasek, nie dzielenie przez zero
   const s = dayScore([{ frequencyDays: [1], completedDates: ['2026-08-29'] }], '2026-08-29', [])
   assert.equal(s.pct, 100)
@@ -536,4 +541,142 @@ test('habitOrderUpdates: puste grupy nie wybuchaja', () => {
   assert.deepEqual(habitOrderUpdates([{ id: 'a' }], []), [{ id: 'a', order: 0 }])
   assert.deepEqual(habitOrderUpdates([], [{ id: 'x' }]), [{ id: 'x', order: 0 }])
   assert.deepEqual(habitOrderUpdates(), [])
+})
+
+// ---------- nawyki na czas i na ilosc ----------
+// Czesc rzeczy mierzy sie czasem albo liczba (20 min medytacji, 30 stron).
+// Polowa normy ma sie liczyc jako polowa dnia, zamiast przepadac.
+
+test('hasAmountGoal: decyduje target, brak = zwykle odhaczanie', () => {
+  assert.ok(hasAmountGoal({ target: 20 }))
+  assert.ok(!hasAmountGoal({}))
+  assert.ok(!hasAmountGoal({ target: 0 }))
+  assert.ok(!hasAmountGoal({ target: null }))
+  assert.ok(!hasAmountGoal(undefined))
+})
+
+test('dayAmount: czyta amounts, a dla odhaczanego daje 1 albo 0', () => {
+  const czas = { target: 20, unit: 'min', amounts: { '2026-10-01': 15 } }
+  assert.equal(dayAmount(czas, '2026-10-01'), 15)
+  assert.equal(dayAmount(czas, '2026-10-02'), 0)
+  // Nawyk bez celu — reszta kodu nie musi rozrozniac tych dwoch swiatow.
+  const zwykly = { completedDates: ['2026-10-01'] }
+  assert.equal(dayAmount(zwykly, '2026-10-01'), 1)
+  assert.equal(dayAmount(zwykly, '2026-10-02'), 0)
+})
+
+test('dayAmount: smieci w danych traktujemy jak zero', () => {
+  const h = { target: 20, amounts: { a: 'duzo', b: -5, c: null, d: NaN } }
+  for (const k of ['a', 'b', 'c', 'd']) assert.equal(dayAmount(h, k), 0)
+})
+
+test('dayProgress: polowa normy to polowa dnia', () => {
+  const h = { target: 20, unit: 'min', amounts: { '2026-10-01': 10 } }
+  assert.equal(dayProgress(h, '2026-10-01'), 0.5)
+})
+
+test('dayProgress: nadwyzka ucieta na 1, zeby nie podbijala sredniej', () => {
+  const h = { target: 20, amounts: { '2026-10-01': 60 } }
+  assert.equal(dayProgress(h, '2026-10-01'), 1)
+})
+
+test('dayProgress: nawyk bez celu dziala jak dotad', () => {
+  const h = { completedDates: ['2026-10-01'] }
+  assert.equal(dayProgress(h, '2026-10-01'), 1)
+  assert.equal(dayProgress(h, '2026-10-02'), 0)
+})
+
+test('isDayComplete: zaliczony tylko cel dowieziony do konca', () => {
+  const h = { target: 20, amounts: { '2026-10-01': 19, '2026-10-02': 20, '2026-10-03': 25 } }
+  assert.ok(!isDayComplete(h, '2026-10-01'), '19 z 20 to jeszcze nie zaliczone')
+  assert.ok(isDayComplete(h, '2026-10-02'))
+  assert.ok(isDayComplete(h, '2026-10-03'))
+})
+
+test('dayScore: nawyk na czas wnosi ulamek dnia', () => {
+  const every = [0, 1, 2, 3, 4, 5, 6]
+  const d = '2026-10-01'
+  const habits = [
+    { frequencyDays: every, completedDates: [d] },                          // 1
+    { frequencyDays: every, target: 20, unit: 'min', amounts: { [d]: 10 } }, // 0,5
+    { frequencyDays: every, completedDates: [] },                           // 0
+  ]
+  const s = dayScore(habits, d)
+  assert.equal(s.required, 3)
+  assert.equal(s.doneTotal, 1.5, 'polowa normy liczy sie jako pol dnia')
+  assert.equal(s.pct, 50)
+})
+
+test('dayScore: licznik zaokraglony do pol jednostki, surowa suma w doneExact', () => {
+  const every = [0, 1, 2, 3, 4, 5, 6]
+  const d = '2026-10-01'
+  // 1/3 normy — "0,33 z 1" czytaloby sie zle na pasku.
+  const habits = [{ frequencyDays: every, target: 30, amounts: { [d]: 10 } }]
+  const s = dayScore(habits, d)
+  assert.equal(s.doneTotal, 0.5)
+  assert.ok(Math.abs(s.doneExact - 1 / 3) < 1e-9)
+  assert.equal(s.pct, 33)
+})
+
+test('rangeStats: czesciowe wykonanie podnosi procent, ale nie licznik udanych dni', () => {
+  const every = [0, 1, 2, 3, 4, 5, 6]
+  const h = { frequencyDays: every, startDate: '2026-10-01', target: 20, unit: 'min',
+    amounts: { '2026-10-01': 20, '2026-10-02': 10 } }
+  const r = rangeStats([h], [], '2026-10-01', '2026-10-02')
+  assert.equal(r.expected, 2)
+  assert.equal(r.done, 1.5, 'pelny dzien + pol dnia')
+  assert.equal(r.pct, 75)
+  assert.equal(r.completions, 1, 'tylko jeden dzien dowieziony do konca')
+})
+
+test('rangeStats: dzien perfekcyjny wymaga calej normy', () => {
+  const every = [0, 1, 2, 3, 4, 5, 6]
+  const h = { frequencyDays: every, startDate: '2026-10-01', target: 20,
+    amounts: { '2026-10-01': 10 } }
+  assert.equal(rangeStats([h], [], '2026-10-01', '2026-10-01').perfectDays, 0)
+  const pelny = { ...h, amounts: { '2026-10-01': 20 } }
+  assert.equal(rangeStats([pelny], [], '2026-10-01', '2026-10-01').perfectDays, 1)
+})
+
+test('formatAmount: czas rozbija sie na godziny i minuty', () => {
+  // "485 min" nic nie mowi, "8 h 5 min" mowi wszystko.
+  assert.equal(formatAmount(485, 'min'), '8 h 5 min')
+  assert.equal(formatAmount(60, 'min'), '1 h')
+  assert.equal(formatAmount(45, 'min'), '45 min')
+  assert.equal(formatAmount(0, 'min'), '0 min')
+})
+
+test('formatAmount: pozostale jednostki to liczba i skrot bez odmiany', () => {
+  assert.equal(formatAmount(30, 'str'), '30 str.')
+  assert.equal(formatAmount(1, 'str'), '1 str.')
+  assert.equal(formatAmount(2.5, 'l'), '2.5 l')
+  // Wlasna jednostka przechodzi bez zmian.
+  assert.equal(formatAmount(7, 'kubki'), '7 kubki')
+})
+
+test('unitMeta: nieznana jednostka nie wybucha, wraca jako wlasna', () => {
+  assert.equal(unitMeta('min').time, true)
+  assert.equal(unitMeta('kubki').short, 'kubki')
+  assert.ok(HABIT_UNITS.every(u => u.id && u.label && u.short))
+})
+
+test('amountTotals: sumuje wykonanie w okresie, jednostek nie miesza', () => {
+  const habits = [
+    { target: 20, unit: 'min', amounts: { '2026-10-01': 20, '2026-10-02': 30, '2026-09-30': 99 } },
+    { target: 10, unit: 'min', amounts: { '2026-10-01': 15 } },
+    { target: 30, unit: 'str', amounts: { '2026-10-01': 40 } },
+    { completedDates: ['2026-10-01'] },  // bez celu — nie wchodzi do sum
+  ]
+  const t = amountTotals(habits, '2026-10-01', '2026-10-31')
+  const minuty = t.find(x => x.unit === 'min')
+  const strony = t.find(x => x.unit === 'str')
+  assert.equal(minuty.total, 65, 'wrzesien poza okresem')
+  assert.equal(minuty.label, '1 h 5 min')
+  assert.equal(strony.total, 40)
+  assert.equal(t.length, 2, 'nawyk bez celu nie tworzy trzeciej jednostki')
+})
+
+test('amountTotals: bez danych zwraca pusta liste', () => {
+  assert.deepEqual(amountTotals([], '2026-10-01', '2026-10-31'), [])
+  assert.deepEqual(amountTotals([{ completedDates: ['2026-10-01'] }], '2026-10-01', '2026-10-31'), [])
 })
