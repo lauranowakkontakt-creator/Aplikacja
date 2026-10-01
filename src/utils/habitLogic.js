@@ -330,3 +330,11 @@ export function optionalDayCount(habits = [], dateStr) {
   for (const h of habits) if ((h?.completedDates || []).includes(dateStr)) n++
   return n
 }
+
+// Numeracja `order` przy zapisie kolejności. Nawyki i wyzwania ustawia się w
+// osobnych zakładkach, ale `order` jest jednym ciągiem w bazie — wyzwania idą
+// PO nawykach, żeby obie grupy miały rozłączne numery. Gdyby każda zakładka
+// numerowała się od zera, przestawienie wyzwań zmieniłoby kolejność nawyków.
+export function habitOrderUpdates(required = [], optional = []) {
+  return [...required, ...optional].map((h, i) => ({ id: h.id, order: i }))
+}

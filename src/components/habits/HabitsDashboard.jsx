@@ -20,13 +20,13 @@ import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, Ic
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
-import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor } from '../../utils/habitStats'
+import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor, habitPeriodLabel } from '../../utils/habitStats'
 import MonthCalendar from './MonthCalendar'
 import HabitExtras from './HabitExtras'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
   habitDayKind, dayScore, isRequiredHabit, isOptionalHabit,
-  habitLifecycle } from '../../utils/habitLogic'
+  habitLifecycle, habitCompletionSummary } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const SHOW_DAY_RHYTHM = false
@@ -128,6 +128,12 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   // byłyby w dwóch miejscach naraz i dalej podbijałyby główne liczby.
   const requiredActive = activeHabits.filter(isRequiredHabit)
   const extraHabits    = activeHabits.filter(isOptionalHabit)
+  // Archiwum w statystykach: pokazujemy karty z historii, ale POZA procentami
+  // okresu. Archiwizacja nie zapisuje daty, wiec nie wiadomo, od kiedy nawyk
+  // przestal obowiazywac — wliczony do rangeStats wygladalby na pominiety w
+  // kazdym dniu po schowaniu i zanizalby biezace miesiace.
+  const archivedRequired = archivedHabits.filter(isRequiredHabit).sort(byHabitOrder)
+  const archivedExtras   = archivedHabits.filter(isOptionalHabit).sort(byHabitOrder)
   const filtered = requiredActive.filter(h => filterCat === 'all' || h.category === filterCat)
 
   // Lata z jakimikolwiek danymi (do nawigacji w statystykach) — zawsze z bieżącym
@@ -307,6 +313,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
       <div className="habits-dashboard">
         <HabitExtras
           habits={extraHabits}
+          archived={archivedExtras}
           today={TODAY}
           selectedDay={selectedDay}
           onSelectDay={setSelectedDay}
@@ -788,6 +795,42 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
               )
             })}
           </div>
+
+          {/* Archiwum — karty z historii, swiadomie POZA procentami wyzej. */}
+          {archivedRequired.length > 0 && (
+            <div style={{ marginTop: 22 }}>
+              {kicker(`Archiwum (${archivedRequired.length})`)}
+              <p style={{ margin: '-4px 0 10px', fontSize: 11, color: 'var(--text-muted)' }}>
+                Schowane nawyki — ich historia zostaje, ale nie liczą się do procentów powyżej.
+              </p>
+              <div data-stagger style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
+                {archivedRequired.map(habit => {
+                  const sumH  = habitCompletionSummary(habit, pauses)
+                  const color = habit.color || 'var(--accent)'
+                  const okres = habitPeriodLabel(sumH.first, sumH.last)
+                  return (
+                    <div key={habit.id} className="card hover" style={{ padding: 14, cursor: 'pointer', opacity: 0.85 }}
+                      onClick={() => { setEditHabit(habit); setShowForm(true) }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                        <span className="habit-emoji" style={{
+                          background: color + '1A', border: `1px solid ${color + '40'}`, color, flexShrink: 0,
+                        }}>
+                          <CatIcon categoryId={null} emoji={habit.emoji} size={15} />
+                        </span>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{habit.name}</div>
+                          {okres && <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>{okres}</div>}
+                        </div>
+                      </div>
+                      <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {sumH.total}x zrobione · rekord {sumH.best} dni
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       ) })()}
 

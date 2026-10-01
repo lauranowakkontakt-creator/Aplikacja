@@ -4,7 +4,7 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats,
   byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind, isRequiredHabit, dayScore,
   habitLifecycle, habitCompletionSummary, isOptionalHabit, optionalProgress,
-  optionalSummary, optionalDayCount } from '../src/utils/habitLogic.js'
+  optionalSummary, optionalDayCount, habitOrderUpdates } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -510,4 +510,30 @@ test('optionalDayCount: liczy wyzwania zaliczone danego dnia', () => {
 test('optionalDayCount: pusta lista i brak pola nie wybuchaja', () => {
   assert.equal(optionalDayCount([], '2026-09-02'), 0)
   assert.equal(optionalDayCount([{}, undefined], '2026-09-02'), 0)
+})
+
+// ---------- kolejnosc: nawyki i wyzwania osobno ----------
+
+test('habitOrderUpdates: wyzwania numeruja sie PO nawykach', () => {
+  const req = [{ id: 'a' }, { id: 'b' }]
+  const opt = [{ id: 'x' }, { id: 'y' }]
+  assert.deepEqual(habitOrderUpdates(req, opt), [
+    { id: 'a', order: 0 }, { id: 'b', order: 1 },
+    { id: 'x', order: 2 }, { id: 'y', order: 3 },
+  ])
+})
+
+test('habitOrderUpdates: numery sa rozlaczne, zadna grupa nie nadpisuje drugiej', () => {
+  // Gdyby kazda zakladka numerowala sie od zera, przestawienie wyzwan
+  // zmienialoby kolejnosc nawykow.
+  const u = habitOrderUpdates([{ id: 'a' }], [{ id: 'x' }])
+  const numery = u.map(x => x.order)
+  assert.equal(new Set(numery).size, numery.length)
+})
+
+test('habitOrderUpdates: puste grupy nie wybuchaja', () => {
+  assert.deepEqual(habitOrderUpdates([], []), [])
+  assert.deepEqual(habitOrderUpdates([{ id: 'a' }], []), [{ id: 'a', order: 0 }])
+  assert.deepEqual(habitOrderUpdates([], [{ id: 'x' }]), [{ id: 'x', order: 0 }])
+  assert.deepEqual(habitOrderUpdates(), [])
 })

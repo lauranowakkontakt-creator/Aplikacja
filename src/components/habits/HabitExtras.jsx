@@ -30,7 +30,7 @@ import MonthCalendar from './MonthCalendar'
 // Dzień jest wspólny z listą dnia Nawyków (ten sam `selectedDay` z modułu), więc
 // przejście tam i z powrotem nie gubi miejsca, w którym jesteś.
 export default function HabitExtras({
-  habits = [], today, selectedDay, onSelectDay, onToggle, onEdit, onAdd,
+  habits = [], archived = [], today, selectedDay, onSelectDay, onToggle, onEdit, onAdd,
 }) {
   const [tab, setTab]       = useState('today')
   const [period, setPeriod] = useState('month')
@@ -85,7 +85,7 @@ export default function HabitExtras({
     }
   }
 
-  if (habits.length === 0) {
+  if (habits.length === 0 && archived.length === 0) {
     return (
       <div className="card" style={{ padding: 22, textAlign: 'center' }}>
         <div style={{ display: 'grid', placeItems: 'center', marginBottom: 10, color: 'var(--text-muted)' }}>
@@ -145,7 +145,11 @@ export default function HabitExtras({
               onClick={() => onSelectDay(format(addDays(selDate, 1), 'yyyy-MM-dd'))}>›</button>
           </div>
 
-          {/* Zwarta lista do odhaczania — jedna linijka na wyzwanie, bez siatek. */}
+          {/* Zwarta lista do odhaczania — jedna linijka na wyzwanie, bez siatek.
+              Archiwalnych tu nie ma: schowanego wyzwania sie nie zalicza. */}
+          {habits.length === 0 && (
+            <div className="list-empty"><p>Wszystkie wyzwania są w archiwum — zobacz Statystyki.</p></div>
+          )}
           {habits.map(h => {
             const done = (h.completedDates || []).includes(selectedDay)
             const color = h.color || 'var(--warn)'
@@ -254,6 +258,41 @@ export default function HabitExtras({
               )
             })}
           </div>
+
+          {/* Archiwum — schowane wyzwania. Historia zostaje, ale kafelki i wykres
+              wyzej ich nie licza: archiwizacja nie zapisuje daty, wiec nie
+              wiadomo, od kiedy wyzwanie przestalo byc aktualne. */}
+          {archived.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 6 }}>
+                Archiwum ({archived.length})
+              </div>
+              <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--text-muted)' }}>
+                Schowane wyzwania — ich historia zostaje, ale nie liczą się do liczb powyżej.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
+                {archived.map(h => {
+                  const p = optionalProgress(h, start, end)
+                  const okres = habitPeriodLabel(p.first, p.last)
+                  return (
+                    <div key={h.id} className="card hover" style={{ padding: 14, cursor: 'pointer', opacity: 0.85 }}
+                      onClick={() => onEdit(h)}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                        {ikona(h, 15)}
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</div>
+                          {okres && <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>{okres}</div>}
+                        </div>
+                      </div>
+                      <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        {p.total}x łącznie
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
