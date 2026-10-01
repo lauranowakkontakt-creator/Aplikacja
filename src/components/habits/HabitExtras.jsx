@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { format, addDays, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { CatIcon, IconFlag, IconCheck, IconPlus, IconStar } from '../Icons'
-import { optionalProgress, optionalSummary } from '../../utils/habitLogic'
+import { optionalProgress, optionalSummary, optionalDayCount } from '../../utils/habitLogic'
 import { habitPeriodLabel, optionalRange, optionalBuckets } from '../../utils/habitStats'
 import { BarChartSVG } from '../ChartPrimitives'
 import StatTiles from '../StatTiles'
 import SegTabs from '../SegTabs'
+import MonthCalendar from './MonthCalendar'
 
 // Ekran „Wyzwania" — cele poboczne. Wchodzi się tu flagą w belce, tak samo jak
 // twarzą w Nastrój: osobny widok W MIEJSCU treści Nawyków, nie nakładka
@@ -39,6 +40,44 @@ export default function HabitExtras({
     : period === 'year'
       ? format(selDate, 'yyyy')
       : format(selDate, 'LLLL yyyy', { locale: pl })
+
+  // Kratka dnia dla JEDNEGO wyzwania — ten sam jezyk wizualny co siatki w
+  // Nawykach, tylko bez planu: wyzwanie nie ma dni „wymaganych", wiec puste
+  // pole nie jest porazka, a jedynie dniem, w ktorym sie nie zdarzylo.
+  const cellForHabit = (habit, color) => (d) => {
+    const isDone = (habit.completedDates || []).includes(d)
+    const future = d > today
+    if (isDone) return { bg: color, border: `1px solid ${color}`, color: '#fff', ring: d === today, title: `${d} — zaliczone` }
+    return {
+      bg: 'transparent',
+      border: future ? '1px dashed var(--border)' : '1px solid var(--border)',
+      color: 'var(--text-muted)',
+      ring: d === today,
+      title: d,
+    }
+  }
+
+  // Kratka zbiorcza — im wiecej wyzwan zaliczonych tego dnia, tym mocniejszy
+  // kolor. Skala liczona do liczby wyzwan, wiec „pelny" dzien to wszystkie.
+  const cellForAll = (d) => {
+    const n = optionalDayCount(habits, d)
+    const future = d > today
+    if (n === 0) {
+      return {
+        bg: 'transparent',
+        border: future ? '1px dashed var(--border)' : '1px solid var(--border)',
+        color: 'var(--text-muted)', ring: d === today, title: future ? d : `${d} — nic`,
+      }
+    }
+    const udzial = Math.min(1, n / Math.max(1, habits.length))
+    return {
+      bg: `color-mix(in oklab, var(--warn) ${Math.round(22 + udzial * 78)}%, var(--surface2))`,
+      border: '1px solid transparent',
+      color: udzial > 0.55 ? '#fff' : 'var(--text)',
+      ring: d === today,
+      title: `${d} — ${n} ${n === 1 ? 'zaliczenie' : 'zaliczenia'}`,
+    }
+  }
 
   if (habits.length === 0) {
     return (
@@ -90,7 +129,8 @@ export default function HabitExtras({
         const color = h.color || 'var(--warn)'
         const okres = habitPeriodLabel(p.first, p.last)
         return (
-          <div key={h.id} className="card" style={{ padding: 14, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div key={h.id} className="card" style={{ padding: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button onClick={() => onEdit(h)} title="Edytuj"
               style={{
                 flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 11, cursor: 'pointer',
@@ -126,6 +166,15 @@ export default function HabitExtras({
               <IconCheck size={17} />
             </button>
           </div>
+
+          {/* Dni, ktore sie udaly — ta sama siatka co w Nawykach. Wypelniona
+              kratka to zaliczony dzien; pusta nie jest porazka, bo wyzwanie
+              nie ma planu dnia. */}
+          <div style={{ marginTop: 12 }}>
+            <MonthCalendar month={selDate} renderCell={cellForHabit(h, color)}
+              cellH={18} gap={3} font={8} />
+          </div>
+          </div>
         )
       })}
 
@@ -144,9 +193,27 @@ export default function HabitExtras({
           { Icon: IconStar,  value: sum.bestDay ? sum.bestDay.count : '—',
             label: sum.bestDay ? `najlepszy ${fmtDzien(sum.bestDay.date)}` : 'brak zaliczeń' },
         ]} />
+        {/* Ten sam podzial co w statystykach Nawykow: miesiac widac jako kalendarz,
+            tydzien i rok jako slupki — w kalendarzu roku kratka bylaby nieczytelna. */}
         <div className="card" style={{ padding: 14, marginTop: 12 }}>
-          <BarChartSVG data={buckets} accent="var(--warn)" height={130}
-            fmt={(v) => `${v} ${v === 1 ? 'raz' : 'razy'}`} />
+          {period === 'month' ? (
+            <>
+              <MonthCalendar month={selDate} renderCell={cellForAll} cellH={30} gap={4} font={11} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10, justifyContent: 'flex-end' }}>
+                <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>mniej</span>
+                {[0, 0.35, 0.6, 0.85, 1].map((v, i) => (
+                  <div key={i} style={{
+                    width: 9, height: 9, borderRadius: 2,
+                    background: v === 0 ? 'var(--surface2)' : `color-mix(in oklab, var(--warn) ${Math.round(22 + v * 78)}%, var(--surface2))`,
+                  }} />
+                ))}
+                <span style={{ fontSize: 8.5, color: 'var(--text-muted)' }}>więcej</span>
+              </div>
+            </>
+          ) : (
+            <BarChartSVG data={buckets} accent="var(--warn)" height={130}
+              fmt={(v) => `${v} ${v === 1 ? 'raz' : 'razy'}`} />
+          )}
         </div>
       </div>
     </div>

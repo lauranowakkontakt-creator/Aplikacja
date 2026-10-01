@@ -4,7 +4,7 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats,
   byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind, isRequiredHabit, dayScore,
   habitLifecycle, habitCompletionSummary, isOptionalHabit, optionalProgress,
-  optionalSummary } from '../src/utils/habitLogic.js'
+  optionalSummary, optionalDayCount } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -494,4 +494,20 @@ test('wyzwanie nie wchodzi do celu dnia, ale widac je jako nadwyzke', () => {
   assert.equal(s.doneRequired, 1)
   assert.equal(s.doneTotal, 2, 'licznik widzi takze zrobione wyzwanie')
   assert.equal(s.extra, 1, 'nadwyzka = zrobione wyzwanie')
+})
+
+test('optionalDayCount: liczy wyzwania zaliczone danego dnia', () => {
+  const habits = [
+    { completedDates: ['2026-09-02', '2026-09-03'] },
+    { completedDates: ['2026-09-02'] },
+    { completedDates: [] },
+  ]
+  assert.equal(optionalDayCount(habits, '2026-09-02'), 2)
+  assert.equal(optionalDayCount(habits, '2026-09-03'), 1)
+  assert.equal(optionalDayCount(habits, '2026-09-04'), 0)
+})
+
+test('optionalDayCount: pusta lista i brak pola nie wybuchaja', () => {
+  assert.equal(optionalDayCount([], '2026-09-02'), 0)
+  assert.equal(optionalDayCount([{}, undefined], '2026-09-02'), 0)
 })

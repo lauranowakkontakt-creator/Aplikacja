@@ -321,3 +321,12 @@ export function optionalSummary(habits = [], start, end) {
   }
   return { done, active, count: habits.length, bestDay }
 }
+
+// Ile wyzwań zaliczono danego dnia — do kratki kalendarza zbiorczego na ekranie
+// Wyzwań. Osobno od dayScore, bo tam kratka znaczy „ile z planu dnia", a
+// wyzwanie planu nie ma: liczy się samo „ile się udało".
+export function optionalDayCount(habits = [], dateStr) {
+  let n = 0
+  for (const h of habits) if ((h?.completedDates || []).includes(dateStr)) n++
+  return n
+}
