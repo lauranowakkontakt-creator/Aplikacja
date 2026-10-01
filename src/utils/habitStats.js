@@ -85,3 +85,27 @@ export function dayAggregate(habits, pauses, dateStr) {
     paused: isPausedDay(dateStr, pauses),
   }
 }
+
+// Etykieta okresu życia nawyku — „kiedy to się działo", pokazywana przy
+// nawykach ukończonych i zarchiwizowanych. Bez niej stary nawyk w archiwum
+// mówił tylko ile razy się udało, a nie z jakich to lat.
+//
+// Granice bierzemy z odhaczeń (pierwsze i ostatnie), nie z startDate/endDate:
+// nawyk schowany do archiwum zwykle nie ma daty końca, a ostatni odhaczony
+// dzień i tak lepiej opisuje, kiedy się skończyło.
+//  - ten sam miesiąc        → „sie 2026"
+//  - ten sam rok            → „mar – lip 2026"
+//  - różne lata             → „sie 2025 – sie 2026"
+//  - jedna granica albo brak → null (nie ma czego pokazać)
+export function habitPeriodLabel(from, to) {
+  if (!from || !to) return null
+  const a = new Date(from + 'T12:00:00'), b = new Date(to + 'T12:00:00')
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null
+  const mies = (d) => format(d, 'LLL', { locale: pl })
+  const rok  = (d) => format(d, 'yyyy')
+  if (rok(a) === rok(b)) {
+    if (mies(a) === mies(b)) return `${mies(a)} ${rok(a)}`
+    return `${mies(a)} – ${mies(b)} ${rok(b)}`
+  }
+  return `${mies(a)} ${rok(a)} – ${mies(b)} ${rok(b)}`
+}
