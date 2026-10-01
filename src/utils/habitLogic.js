@@ -301,10 +301,23 @@ export function optionalProgress(habit, start, end) {
 // `habits` podajemy już przefiltrowane do dodatkowych.
 export function optionalSummary(habits = [], start, end) {
   let done = 0, active = 0
+  // Najlepszy dzień okresu — zamiast serii. Przy wyzwaniu „ile razy" nie ma
+  // ciągu do pilnowania, ale jeden mocny dzień chce się zobaczyć.
+  const perDay = new Map()
   for (const h of habits) {
     const p = optionalProgress(h, start, end)
     done += p.inRange
     if (p.inRange > 0) active++
+    for (const d of h?.completedDates || []) {
+      if (start && end && (d < start || d > end)) continue
+      perDay.set(d, (perDay.get(d) || 0) + 1)
+    }
   }
-  return { done, active, count: habits.length }
+  let bestDay = null
+  // Remis rozstrzygamy na korzyść dnia WCZEŚNIEJSZEGO, żeby ta sama historia
+  // zawsze dawała tę samą odpowiedź (Map trzyma kolejność wstawiania).
+  for (const [date, count] of [...perDay].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
+    if (!bestDay || count > bestDay.count) bestDay = { date, count }
+  }
+  return { done, active, count: habits.length, bestDay }
 }

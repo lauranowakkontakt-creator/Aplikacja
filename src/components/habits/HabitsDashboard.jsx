@@ -308,6 +308,8 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
         <HabitExtras
           habits={extraHabits}
           today={TODAY}
+          selectedDay={selectedDay}
+          onSelectDay={setSelectedDay}
           onToggle={toggleDay}
           onEdit={(h) => { setEditHabit(h); setShowForm(true) }}
           onAdd={() => { setEditHabit(null); setShowForm(true) }}

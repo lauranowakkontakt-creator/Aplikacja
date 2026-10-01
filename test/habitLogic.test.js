@@ -450,7 +450,35 @@ test('optionalSummary: zbiera wyzwania i liczy, ile w ogole ruszylo', () => {
 })
 
 test('optionalSummary: brak wyzwan daje zera, nie NaN', () => {
-  assert.deepEqual(optionalSummary([], '2026-09-01', '2026-09-30'), { done: 0, active: 0, count: 0 })
+  assert.deepEqual(optionalSummary([], '2026-09-01', '2026-09-30'),
+    { done: 0, active: 0, count: 0, bestDay: null })
+})
+
+test('optionalSummary: najlepszy dzien zamiast serii', () => {
+  const habits = [
+    { completedDates: ['2026-09-03', '2026-09-10'] },
+    { completedDates: ['2026-09-10'] },
+    { completedDates: ['2026-09-10'] },
+  ]
+  const s = optionalSummary(habits, '2026-09-01', '2026-09-30')
+  assert.deepEqual(s.bestDay, { date: '2026-09-10', count: 3 })
+})
+
+test('optionalSummary: najlepszy dzien tylko z okresu', () => {
+  // Mocny dzien z sierpnia nie moze wygrac we wrzesniowym podsumowaniu.
+  const habits = [
+    { completedDates: ['2026-08-15', '2026-09-04'] },
+    { completedDates: ['2026-08-15'] },
+    { completedDates: ['2026-08-15'] },
+  ]
+  const s = optionalSummary(habits, '2026-09-01', '2026-09-30')
+  assert.deepEqual(s.bestDay, { date: '2026-09-04', count: 1 })
+})
+
+test('optionalSummary: remis idzie do dnia wczesniejszego, zawsze tak samo', () => {
+  const habits = [{ completedDates: ['2026-09-20'] }, { completedDates: ['2026-09-04'] }]
+  const s = optionalSummary(habits, '2026-09-01', '2026-09-30')
+  assert.deepEqual(s.bestDay, { date: '2026-09-04', count: 1 })
 })
 
 test('wyzwanie nie wchodzi do celu dnia, ale widac je jako nadwyzke', () => {

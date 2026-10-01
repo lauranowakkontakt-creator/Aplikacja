@@ -1,8 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-const { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor, habitPeriodLabel } =
-  await import('../src/utils/habitStats.js')
+const { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor, habitPeriodLabel,
+  optionalRange, optionalBuckets } = await import('../src/utils/habitStats.js')
 const { rangeStats, isRequiredHabit } = await import('../src/utils/habitLogic.js')
 
 const D = (s) => new Date(`${s}T12:00:00`)
@@ -166,4 +166,65 @@ test('rangeStats liczy to, co mu dano — filtrowanie nalezy do wywolujacego', (
   ]
   assert.equal(rangeStats(habits, [], '2026-09-01', '2026-09-01').pct, 50)
   assert.equal(rangeStats(habits.filter(isRequiredHabit), [], '2026-09-01', '2026-09-01').pct, 100)
+})
+
+// ---------- ekran Wyzwan: zakresy i wykres ----------
+// Zakres liczymy od WYBRANEGO dnia, bo ekran ma nawigator dni: cofniecie sie
+// do wrzesnia ma pokazac wrzesien, nie biezacy miesiac.
+
+test('optionalRange: tydzien idzie od poniedzialku do niedzieli', () => {
+  // 2026-09-02 to sroda.
+  assert.deepEqual(optionalRange('week', '2026-09-02'),
+    { start: '2026-08-31', end: '2026-09-06' })
+})
+
+test('optionalRange: miesiac i rok obejmuja caly okres wybranego dnia', () => {
+  assert.deepEqual(optionalRange('month', '2026-09-17'), { start: '2026-09-01', end: '2026-09-30' })
+  assert.deepEqual(optionalRange('year', '2026-09-17'), { start: '2026-01-01', end: '2026-12-31' })
+  // Luty 2028 jest przestepny — koniec miesiaca nie moze byc na sztywno 28.
+  assert.deepEqual(optionalRange('month', '2028-02-10'), { start: '2028-02-01', end: '2028-02-29' })
+})
+
+test('optionalBuckets: wartoscia jest LICZBA zaliczen, nie procent', () => {
+  // Wyzwanie nie ma planu, wiec nie ma z czego liczyc procentu.
+  const habits = [
+    { completedDates: ['2026-09-02', '2026-09-02'] },   // ten sam dzien dwa razy w danych
+    { completedDates: ['2026-09-02', '2026-09-04'] },
+  ]
+  const b = optionalBuckets(habits, 'week', '2026-09-02')
+  const sroda = b.find(x => x.active)
+  assert.equal(sroda.label.length > 0, true)
+  assert.equal(sroda.value, 3, 'trzy zaliczenia w srode')
+  assert.equal(b.reduce((s, x) => s + x.value, 0), 4, 'caly tydzien to cztery zaliczenia')
+})
+
+test('optionalBuckets: tydzien ma 7 slupkow, rok 12', () => {
+  assert.equal(optionalBuckets([], 'week', '2026-09-02').length, 7)
+  assert.equal(optionalBuckets([], 'year', '2026-09-02').length, 12)
+  // Miesiac dzielimy na tygodnie T1..T5 — wrzesien 2026 ma 30 dni.
+  assert.equal(optionalBuckets([], 'month', '2026-09-02').length, 5)
+})
+
+test('optionalBuckets: rok zlicza po miesiacach i zaznacza wybrany', () => {
+  const habits = [{ completedDates: ['2026-03-01', '2026-03-20', '2026-09-05'] }]
+  const b = optionalBuckets(habits, 'year', '2026-09-17')
+  assert.equal(b[2].value, 2, 'marzec')
+  assert.equal(b[8].value, 1, 'wrzesien')
+  assert.equal(b[8].active, true, 'wybrany dzien zaznacza swoj miesiac')
+  assert.equal(b.filter(x => x.active).length, 1)
+})
+
+test('optionalBuckets: dane z innego roku nie wchodza do slupkow', () => {
+  const habits = [{ completedDates: ['2025-09-05', '2026-09-05'] }]
+  const b = optionalBuckets(habits, 'year', '2026-09-17')
+  assert.equal(b[8].value, 1)
+})
+
+test('optionalBuckets: pusta lista daje same zera, bez NaN', () => {
+  for (const okres of ['week', 'month', 'year']) {
+    for (const b of optionalBuckets([], okres, '2026-09-02')) {
+      assert.equal(b.value, 0)
+      assert.ok(Number.isFinite(b.value))
+    }
+  }
 })

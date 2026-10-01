@@ -1,6 +1,7 @@
 import { format, addDays, startOfWeek, startOfMonth, endOfMonth, getDaysInMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { pauseForDay, pauseReasonMeta, rangeStats, dayScore, isPausedDay, isRequiredHabit } from './habitLogic.js'
+import { pauseForDay, pauseReasonMeta, rangeStats, dayScore, isPausedDay, isRequiredHabit,
+  optionalSummary } from './habitLogic.js'
 
 // Statystyki i zakresy dat dla modułu Nawyki.
 //
@@ -113,4 +114,52 @@ export function habitPeriodLabel(from, to) {
     return `${mies(a)} – ${mies(b)} ${rok(b)}`
   }
   return `${mies(a)} ${rok(a)} – ${mies(b)} ${rok(b)}`
+}
+
+// Zakres okresu dla ekranu Wyzwań. Liczymy od WYBRANEGO dnia, nie od dziś —
+// ekran ma nawigator dni, więc cofnięcie się do września ma pokazać statystyki
+// września, a nie bieżącego miesiąca.
+export function optionalRange(period, dayStr) {
+  const d = new Date(dayStr + 'T12:00:00')
+  if (period === 'week') {
+    const s = startOfWeek(d, { weekStartsOn: 1 })
+    return { start: ymd(s), end: ymd(addDays(s, 6)) }
+  }
+  if (period === 'year') return { start: `${format(d, 'yyyy')}-01-01`, end: `${format(d, 'yyyy')}-12-31` }
+  return { start: ymd(startOfMonth(d)), end: ymd(endOfMonth(d)) }
+}
+
+// Kubełki do wykresu na ekranie Wyzwań. W przeciwieństwie do statBuckets
+// wartością jest LICZBA zaliczeń, nie procent: wyzwanie nie ma planu, więc
+// nie ma z czego liczyć procentu — pytanie brzmi „ile razy", nie „ile z ilu".
+//  - week  → 7 dni tygodnia
+//  - month → tygodnie miesiąca (T1..T5)
+//  - year  → 12 miesięcy
+export function optionalBuckets(habits = [], period, dayStr) {
+  const d = new Date(dayStr + 'T12:00:00')
+  const ile = (s, e) => optionalSummary(habits, s, e).done
+  if (period === 'week') {
+    const s = startOfWeek(d, { weekStartsOn: 1 })
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = ymd(addDays(s, i))
+      return { label: format(addDays(s, i), 'EEEEEE', { locale: pl }), value: ile(day, day), active: day === dayStr }
+    })
+  }
+  if (period === 'year') {
+    const rok = format(d, 'yyyy')
+    return Array.from({ length: 12 }, (_, m) => {
+      const first = new Date(Number(rok), m, 1)
+      const start = ymd(startOfMonth(first)), end = ymd(endOfMonth(first))
+      return { label: format(first, 'LLL', { locale: pl }), value: ile(start, end), active: dayStr >= start && dayStr <= end }
+    })
+  }
+  const ms = startOfMonth(d)
+  const total = getDaysInMonth(d)
+  const buckets = []
+  for (let i = 0, wk = 1; i < total; i += 7, wk++) {
+    const start = ymd(addDays(ms, i))
+    const end = ymd(addDays(ms, Math.min(i + 6, total - 1)))
+    buckets.push({ label: `T${wk}`, value: ile(start, end), active: dayStr >= start && dayStr <= end })
+  }
+  return buckets
 }
