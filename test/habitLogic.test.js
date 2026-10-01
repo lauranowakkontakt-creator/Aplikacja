@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   PAUSE_REASONS, pauseReasonMeta, pauseForDay, byHabitOrder, eachDayStr, rangeStats,
   byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind, isRequiredHabit, dayScore,
-  habitLifecycle, habitCompletionSummary } from '../src/utils/habitLogic.js'
+  habitLifecycle, habitCompletionSummary, isOptionalHabit, optionalProgress,
+  optionalSummary } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -393,4 +394,76 @@ test('habitCompletionSummary: nawyk bez odhaczeń nie wybucha', () => {
   assert.equal(s.best, 0)
   assert.equal(s.last, null)
   assert.equal(s.first, '2026-08-01', 'bez odhaczeń zostaje data startu')
+})
+
+// ---------- wyzwania (nawyki dodatkowe) ----------
+// Wyzwanie to cel poboczny: nie wchodzi do celu dnia ani do procentow okresu,
+// nie ma serii. Liczy sie wylacznie to, ile razy sie udalo.
+
+test('isOptionalHabit: tylko jawna flaga czyni wyzwanie', () => {
+  assert.ok(isOptionalHabit({ optional: true }))
+  assert.ok(!isOptionalHabit({ optional: false }))
+  // Brak pola = zwykly nawyk wymagany, inaczej stare nawyki zmienilyby rodzaj.
+  assert.ok(!isOptionalHabit({}))
+  assert.ok(!isOptionalHabit(undefined))
+})
+
+test('optionalProgress: liczy odhaczenia w okresie i w calej historii', () => {
+  const h = { completedDates: ['2026-08-30', '2026-09-02', '2026-09-20', '2026-10-01'] }
+  const p = optionalProgress(h, '2026-09-01', '2026-09-30')
+  assert.equal(p.inRange, 2, 'tylko wrzesien')
+  assert.equal(p.total, 4)
+  assert.equal(p.first, '2026-08-30', 'pierwsze odhaczenie bez wzgledu na okres')
+  assert.equal(p.last, '2026-10-01', 'ostatnie odhaczenie bez wzgledu na okres')
+})
+
+test('optionalProgress: granice okresu sa domkniete z obu stron', () => {
+  const h = { completedDates: ['2026-09-01', '2026-09-30'] }
+  assert.equal(optionalProgress(h, '2026-09-01', '2026-09-30').inRange, 2)
+})
+
+test('optionalProgress: bez okresu liczy wszystko, bez odhaczen nie wybucha', () => {
+  assert.equal(optionalProgress({ completedDates: ['2026-09-02'] }).inRange, 1)
+  const puste = optionalProgress({}, '2026-09-01', '2026-09-30')
+  assert.deepEqual(puste, { inRange: 0, total: 0, first: null, last: null })
+})
+
+test('optionalProgress: nie sortuje w miejscu daty wejsciowej', () => {
+  // Komponent dostaje habit z Firestore i renderuje go dalej — mutacja tablicy
+  // pod spodem zmienialaby kolejnosc danych poza ta funkcja.
+  const dates = ['2026-09-20', '2026-09-02']
+  optionalProgress({ completedDates: dates }, '2026-09-01', '2026-09-30')
+  assert.deepEqual(dates, ['2026-09-20', '2026-09-02'])
+})
+
+test('optionalSummary: zbiera wyzwania i liczy, ile w ogole ruszylo', () => {
+  const habits = [
+    { completedDates: ['2026-09-03', '2026-09-10'] },
+    { completedDates: ['2026-09-04'] },
+    { completedDates: [] },
+    { completedDates: ['2026-08-01'] },           // poza okresem — nie ruszylo
+  ]
+  const s = optionalSummary(habits, '2026-09-01', '2026-09-30')
+  assert.equal(s.done, 3, 'suma odhaczen w okresie')
+  assert.equal(s.active, 2, 'ile wyzwan ma w okresie choc jedno odhaczenie')
+  assert.equal(s.count, 4)
+})
+
+test('optionalSummary: brak wyzwan daje zera, nie NaN', () => {
+  assert.deepEqual(optionalSummary([], '2026-09-01', '2026-09-30'), { done: 0, active: 0, count: 0 })
+})
+
+test('wyzwanie nie wchodzi do celu dnia, ale widac je jako nadwyzke', () => {
+  const every = [0, 1, 2, 3, 4, 5, 6]
+  const day = '2026-09-02'
+  const habits = [
+    { frequencyDays: every, completedDates: [day] },
+    { frequencyDays: every, completedDates: [] },
+    { frequencyDays: every, optional: true, completedDates: [day] },
+  ]
+  const s = dayScore(habits, day)
+  assert.equal(s.required, 2, 'wyzwanie nie podbija mianownika')
+  assert.equal(s.doneRequired, 1)
+  assert.equal(s.doneTotal, 2, 'licznik widzi takze zrobione wyzwanie')
+  assert.equal(s.extra, 1, 'nadwyzka = zrobione wyzwanie')
 })

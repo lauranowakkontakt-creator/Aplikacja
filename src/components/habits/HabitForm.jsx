@@ -240,11 +240,11 @@ export default function HabitForm({ user, onClose, editData }) {
               <button type="button" className={`type-btn ${!optional ? 'active expense' : ''}`}
                 onClick={() => setOptional(false)}>Wymagany</button>
               <button type="button" className={`type-btn ${optional ? 'active expense' : ''}`}
-                onClick={() => setOptional(true)}>Dodatkowy</button>
+                onClick={() => setOptional(true)}>Wyzwanie</button>
             </div>
             <p style={{ margin: '5px 0 0', fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.45 }}>
               {optional
-                ? 'Nie wlicza się do celu dnia. Zrobisz — liczy się na plus, nie zrobisz — nic się nie dzieje.'
+                ? 'Osobny ekran pod flagą w belce. Nie wchodzi do celu dnia ani do procentów okresu i nie ma serii — liczy się tylko, ile razy się udało.'
                 : 'Podstawa dnia — wchodzi do celu „zrobione X z Y".'}
             </p>
           </div>

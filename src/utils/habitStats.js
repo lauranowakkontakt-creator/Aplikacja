@@ -1,6 +1,6 @@
 import { format, addDays, startOfWeek, startOfMonth, endOfMonth, getDaysInMonth } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { pauseForDay, pauseReasonMeta, rangeStats, dayScore, isPausedDay } from './habitLogic.js'
+import { pauseForDay, pauseReasonMeta, rangeStats, dayScore, isPausedDay, isRequiredHabit } from './habitLogic.js'
 
 // Statystyki i zakresy dat dla modułu Nawyki.
 //
@@ -47,7 +47,12 @@ export function statRange(period, ctx) {
 export function statBuckets(habits, pauses, period, ctx, dataYears, now = new Date()) {
   const todayStr = ymd(now)
   const clampEnd = (e) => (e > todayStr ? todayStr : e)
-  const pct = (start, end) => (start > todayStr ? 0 : rangeStats(habits, pauses, start, clampEnd(end)).pct)
+  // Trend realizacji liczymy TYLKO z nawyków wymaganych — tak samo jak cel dnia
+  // w dayScore. Nawyk dodatkowy („wyzwanie") wchodził tu do mianownika i zaniżał
+  // procent za dni, w których po prostu nie było go w planie: cel dnia pokazywał
+  // 100%, a słupek tego samego dnia 60%.
+  const glowne = habits.filter(isRequiredHabit)
+  const pct = (start, end) => (start > todayStr ? 0 : rangeStats(glowne, pauses, start, clampEnd(end)).pct)
   if (period === 'week') {
     const s = startOfWeek(ctx.weekAnchor, { weekStartsOn: 1 })
     return Array.from({ length: 7 }, (_, i) => {

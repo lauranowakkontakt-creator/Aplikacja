@@ -281,10 +281,14 @@ test('Nawyki: cel z wymaganych, licznik ze wszystkiego zrobionego', () => {
   const habits = read('src/components/habits/HabitsDashboard.jsx')
   const form   = read('src/components/habits/HabitForm.jsx')
   assert.match(logic, /export function dayScore/)
-  assert.match(form, /setOptional/, 'brak wyboru wymagany / dodatkowy')
-  // Pulpit i modul licza tak samo — jedna funkcja, nie dwie kopie.
+  assert.match(form, /setOptional/, 'brak wyboru wymagany / wyzwanie')
+  // Pulpit i modul licza tak samo — jedna funkcja, nie dwie kopie. Oba podaja
+  // jej liste BEZ wyzwan: wczesniej Pulpit dostawal wszystkie nawyki, wiec
+  // odhaczone wyzwanie podbijalo mu „zrobione", choc celem nie bylo.
   assert.match(habits, /dayScore\(filtered, TODAY, pauses\)/)
-  assert.match(PULPIT, /dayScore\(habits, today, pauses\)/)
+  assert.match(habits, /requiredActive\s*=\s*activeHabits\.filter\(isRequiredHabit\)/,
+    'lista dnia musi wychodzic od nawykow wymaganych')
+  assert.match(PULPIT, /dayScore\(habits\.filter\(isRequiredHabit\), today, pauses\)/)
   assert.ok(!/function isDueOn/.test(PULPIT), 'Pulpit nie moze miec wlasnej kopii logiki nawykow')
 })
 
@@ -380,4 +384,31 @@ test('Paleta kolorów osób ma jedno źródło', () => {
     if (/const PERSON_COLORS\s*=\s*\[/.test(kod)) wlasneKopie.push(plik.replace(ROOT + '/', ''))
   }
   assert.deepEqual(wlasneKopie, [], 'własne kopie palety zamiast utils/personColors.js')
+})
+
+test('Wyzwania: wlasny ekran pod flaga w belce, obok nastroju', () => {
+  // Wyzwania maja byc tam, gdzie nastroj — przelacznik w belce i widok W MIEJSCU
+  // tresci, nie nakladka (nakladce belka aplikacji zaslaniala wlasny pasek).
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  assert.match(habits, /import HabitExtras from '\.\/HabitExtras'/)
+  assert.match(habits, /if \(extrasOpen\) \{/, 'brak renderu widoku wyzwan')
+  assert.match(habits, /<HabitExtras/)
+  // Dwa widoki nie moga byc otwarte naraz — kazdy przycisk gasi drugi.
+  assert.match(habits, /setMoodOpen\(false\); setExtrasOpen/)
+  assert.match(habits, /setExtrasOpen\(false\); setMoodOpen/)
+  // Na ekranie wyzwan swiadomie NIE MA serii ani rekordu.
+  assert.ok(!/getStreak|getBestStreak|IconFlame/.test(extras),
+    'wyzwania nie maja miec serii — liczy sie „ile razy"')
+  assert.match(extras, /optionalProgress/)
+})
+
+test('Wyzwania: statystyki okresu licza sie bez nich', () => {
+  const stats  = read('src/utils/habitStats.js')
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  // statBuckets dostawal wszystkie nawyki, wiec nieodhaczone wyzwanie zanizalo
+  // slupek trendu, mimo ze cel dnia je pomijal.
+  assert.match(stats, /habits\.filter\(isRequiredHabit\)/, 'trend musi odsiewac wyzwania')
+  assert.match(habits, /rangeStats\(requiredActive, pauses, start, endClamped\)/)
+  assert.match(habits, /statBuckets\(requiredActive,/)
 })

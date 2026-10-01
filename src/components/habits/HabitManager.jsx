@@ -77,7 +77,7 @@ export default function HabitManager({ user, habits = [], categories = [], onClo
             {habit.name}
           </span>
           <span style={{ display: 'block', fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {[cat?.label, freqLabel(habit), habit.optional === true ? 'dodatkowy' : null].filter(Boolean).join(' · ')}
+            {[cat?.label, freqLabel(habit), habit.optional === true ? 'wyzwanie' : null].filter(Boolean).join(' · ')}
           </span>
           {badge && (
             <span className="mono" style={{ display: 'inline-block', marginTop: 4, fontSize: 9.5, letterSpacing: '.04em', textTransform: 'uppercase', color: badge.color }}>
