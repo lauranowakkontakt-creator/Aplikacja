@@ -1,22 +1,35 @@
 import { useState } from 'react'
 import { doc, writeBatch } from 'firebase/firestore'
 import { db } from '../../firebase/config'
+import SegTabs from '../SegTabs'
 import { CatIcon, IconClose, IconArrowUp, IconArrowDown, IconReorder } from '../Icons'
-import { byHabitOrder } from '../../utils/habitLogic'
+import { byHabitOrder, isRequiredHabit, isOptionalHabit, habitOrderUpdates } from '../../utils/habitLogic'
 
 // Ustawianie kolejności, w jakiej nawyki mają się pojawiać (strzałki góra/dół).
 // Zapisuje pole `order` = pozycja na liście dla wszystkich nawyków jednym batchem.
 export default function HabitReorderModal({ user, habits, onClose }) {
-  const [list, setList] = useState(() => [...habits].sort(byHabitOrder))
+  // Nawyki i wyzwania ustawia się OSOBNO: na ekranach też są rozdzielone, więc
+  // jedna wspólna lista kazała przeplatać rzeczy, których nigdy nie widać obok
+  // siebie. Kolejność zapisujemy dalej jednym ciągiem `order` (nawyki, potem
+  // wyzwania) — każda grupa i tak sortuje się tylko wewnątrz siebie.
+  const [grupy, setGrupy] = useState(() => ({
+    required: [...habits].filter(isRequiredHabit).sort(byHabitOrder),
+    optional: [...habits].filter(isOptionalHabit).sort(byHabitOrder),
+  }))
+  const [tab, setTab] = useState('required')
   const [saving, setSaving] = useState(false)
 
+  const maWyzwania = grupy.optional.length > 0
+  const list = maWyzwania ? grupy[tab] : grupy.required
+
   const move = (idx, dir) => {
+    const klucz = maWyzwania ? tab : 'required'
     const to = idx + dir
-    if (to < 0 || to >= list.length) return
-    setList(prev => {
-      const next = [...prev]
+    if (to < 0 || to >= grupy[klucz].length) return
+    setGrupy(prev => {
+      const next = [...prev[klucz]]
       ;[next[idx], next[to]] = [next[to], next[idx]]
-      return next
+      return { ...prev, [klucz]: next }
     })
   }
 
@@ -24,7 +37,11 @@ export default function HabitReorderModal({ user, habits, onClose }) {
     setSaving(true)
     try {
       const batch = writeBatch(db)
-      list.forEach((h, i) => batch.update(doc(db, 'users', user.uid, 'habits', h.id), { order: i }))
+      // Zapisujemy OBIE grupy, nie tylko otwartą zakładkę — inaczej przestawienie
+      // wyzwań przepadałoby po przejściu na nawyki.
+      for (const { id, order } of habitOrderUpdates(grupy.required, grupy.optional)) {
+        batch.update(doc(db, 'users', user.uid, 'habits', id), { order })
+      }
       await batch.commit()
       onClose()
     } catch { setSaving(false) }
@@ -40,8 +57,20 @@ export default function HabitReorderModal({ user, habits, onClose }) {
         <div className="form">
           <p className="pause-info">Ustaw kolejność, w jakiej chcesz robić nawyki — tak będą pokazywane na liście „Dziś", w tygodniu i statystykach.</p>
 
+          {maWyzwania && (
+            <SegTabs
+              items={[
+                { id: 'required', label: `Nawyki (${grupy.required.length})` },
+                { id: 'optional', label: `Wyzwania (${grupy.optional.length})` },
+              ]}
+              active={tab} onChange={setTab} style={{ marginBottom: 12 }}
+            />
+          )}
+
           {list.length === 0 ? (
-            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Brak nawyków do uporządkowania.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+              {maWyzwania && tab === 'optional' ? 'Brak wyzwań do uporządkowania.' : 'Brak nawyków do uporządkowania.'}
+            </p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {list.map((h, i) => {
@@ -61,7 +90,7 @@ export default function HabitReorderModal({ user, habits, onClose }) {
             </div>
           )}
 
-          <button className="btn-save" onClick={handleSave} disabled={saving || list.length === 0} style={{ marginTop: 12 }}>
+          <button className="btn-save" onClick={handleSave} disabled={saving || grupy.required.length + grupy.optional.length === 0} style={{ marginTop: 12 }}>
             {saving ? 'Zapisywanie...' : 'Zapisz kolejność'}
           </button>
         </div>

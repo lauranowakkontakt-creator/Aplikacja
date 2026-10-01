@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
+import SegTabs from '../SegTabs'
 import { CatIcon, IconClose, IconEdit, IconPlus, IconSearch, IconChevronRight } from '../Icons'
 import HabitForm from './HabitForm'
-import { byHabitOrder, habitLifecycle } from '../../utils/habitLogic'
+import { byHabitOrder, habitLifecycle, isRequiredHabit, isOptionalHabit } from '../../utils/habitLogic'
 
 // Lista WSZYSTKICH nawyków do edycji — także tych, które jeszcze nie wystartowały
 // (np. start za tydzień), już się skończyły albo siedzą w archiwum. Wcześniej
@@ -36,11 +37,18 @@ export default function HabitManager({ user, habits = [], categories = [], onClo
   const [search, setSearch]   = useState('')
   const [editing, setEditing] = useState(null)   // nawyk w edycji
   const [adding, setAdding]   = useState(false)  // nowy nawyk
+  const [rodzaj, setRodzaj]   = useState('required')  // nawyki / wyzwania
 
   const today = format(new Date(), 'yyyy-MM-dd')
   const q = search.trim().toLowerCase()
-  const list = [...habits]
-    .filter(h => !q || (h.name || '').toLowerCase().includes(q))
+  // Nawyki i wyzwania trzymamy w osobnych zakladkach — na ekranach tez sa
+  // rozdzielone, wiec wspolna lista mieszala rzeczy, ktorych nigdzie nie widac
+  // obok siebie. Sekcje cyklu zycia (zaplanowane / aktywne / ...) zostaja
+  // wewnatrz kazdej zakladki.
+  const wszystkie = [...habits].filter(h => !q || (h.name || '').toLowerCase().includes(q))
+  const wyzwaniaAll = habits.filter(isOptionalHabit)
+  const list = wszystkie
+    .filter(rodzaj === 'optional' ? isOptionalHabit : isRequiredHabit)
     .sort(byHabitOrder)
 
   const groups = Object.fromEntries(SECTIONS.map(s => [s.id, []]))
@@ -105,6 +113,16 @@ export default function HabitManager({ user, habits = [], categories = [], onClo
             już się skończyły albo są w archiwum. Kliknij nawyk, żeby go zmienić.
           </p>
 
+          {wyzwaniaAll.length > 0 && (
+            <SegTabs
+              items={[
+                { id: 'required', label: `Nawyki (${habits.filter(isRequiredHabit).length})` },
+                { id: 'optional', label: `Wyzwania (${wyzwaniaAll.length})` },
+              ]}
+              active={rodzaj} onChange={setRodzaj} style={{ marginBottom: 12 }}
+            />
+          )}
+
           {habits.length > 6 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <IconSearch size={15} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
@@ -119,7 +137,10 @@ export default function HabitManager({ user, habits = [], categories = [], onClo
 
           {list.length === 0 ? (
             <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-              {habits.length === 0 ? 'Nie masz jeszcze żadnych nawyków.' : 'Nic nie pasuje do szukanej nazwy.'}
+              {habits.length === 0
+                ? 'Nie masz jeszcze żadnych nawyków.'
+                : q ? 'Nic nie pasuje do szukanej nazwy.'
+                  : rodzaj === 'optional' ? 'Nie masz żadnych wyzwań.' : 'Nie masz zwykłych nawyków — same wyzwania.'}
             </p>
           ) : SECTIONS.map(sec => groups[sec.id].length === 0 ? null : (
             <div key={sec.id} style={{ marginBottom: 14 }}>

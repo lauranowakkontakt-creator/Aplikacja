@@ -452,3 +452,42 @@ test('Wyzwania: statystyki okresu licza sie bez nich', () => {
   assert.match(habits, /rangeStats\(requiredActive, pauses, start, endClamped\)/)
   assert.match(habits, /statBuckets\(requiredActive,/)
 })
+
+test('Statystyki: archiwum widac, ale POZA procentami okresu', () => {
+  // Archiwizacja nie zapisuje daty, wiec nie wiadomo, od kiedy nawyk przestal
+  // obowiazywac. Wliczony do rangeStats wygladalby na pominiety w kazdym dniu
+  // po schowaniu i zanizalby biezace miesiace — dlatego tylko karty z historii.
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  assert.match(habits, /archivedRequired\s*=\s*archivedHabits\.filter\(isRequiredHabit\)/)
+  assert.match(habits, /archivedExtras\s*=\s*archivedHabits\.filter\(isOptionalHabit\)/)
+  assert.match(habits, /Archiwum \(\$\{archivedRequired\.length\}\)/, 'brak sekcji archiwum w statystykach')
+  assert.match(habits, /archived=\{archivedExtras\}/, 'ekran wyzwan nie dostaje swojego archiwum')
+  assert.match(extras, /archived\.length > 0 &&/, 'brak sekcji archiwum na ekranie wyzwan')
+  // Agregaty okresu licza sie DALEJ tylko z aktywnych.
+  assert.match(habits, /rangeStats\(requiredActive, pauses, start, endClamped\)/)
+  assert.match(habits, /statBuckets\(requiredActive,/)
+  assert.ok(!/rangeStats\(archived/.test(habits), 'archiwum nie moze wchodzic do procentow')
+})
+
+test('Wyzwania: samo archiwum tez otwiera ekran', () => {
+  // Pusty stan konczyl prace komponentu, wiec przy zerowej liczbie AKTYWNYCH
+  // wyzwan archiwum bylo nieosiagalne.
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  assert.match(extras, /habits\.length === 0 && archived\.length === 0/)
+})
+
+test('Nawyki i wyzwania rozdzielone w edycji i w kolejnosci', () => {
+  const manager = read('src/components/habits/HabitManager.jsx')
+  const reorder = read('src/components/habits/HabitReorderModal.jsx')
+  for (const [plik, src] of [['HabitManager', manager], ['HabitReorderModal', reorder]]) {
+    assert.match(src, /import SegTabs from '\.\.\/SegTabs'/, `${plik}: zakladki przez wspolny SegTabs`)
+    assert.match(src, /isOptionalHabit/, `${plik}: brak podzialu na wyzwania`)
+    assert.match(src, /Wyzwania \(/, `${plik}: brak zakladki Wyzwania`)
+  }
+  // Kolejnosc zapisuje OBIE grupy, nie tylko otwarta zakladke.
+  assert.match(reorder, /habitOrderUpdates\(grupy\.required, grupy\.optional\)/)
+  // Zakladki pokazujemy tylko wtedy, gdy wyzwania w ogole sa — pusta zakladka myli.
+  assert.match(manager, /wyzwaniaAll\.length > 0 &&/)
+  assert.match(reorder, /maWyzwania && \(/)
+})
