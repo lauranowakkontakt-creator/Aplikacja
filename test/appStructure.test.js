@@ -401,6 +401,20 @@ test('Wyzwania: wlasny ekran pod flaga w belce, obok nastroju', () => {
   assert.ok(!/getStreak|getBestStreak|IconFlame/.test(extras),
     'wyzwania nie maja miec serii — liczy sie „ile razy"')
   assert.match(extras, /optionalProgress/)
+  // Dzien jest WSPOLNY z lista dnia Nawykow — inaczej przejscie tam i z powrotem
+  // gubiloby miejsce, w ktorym jestes.
+  assert.match(habits, /selectedDay=\{selectedDay\}/)
+  assert.match(habits, /onSelectDay=\{setSelectedDay\}/)
+  assert.match(extras, /onSelectDay\(format\(subDays/, 'brak cofania dnia')
+  assert.match(extras, /onSelectDay\(format\(addDays/, 'brak przewijania dnia w przod')
+  // W przyszlosc nie wolno — nie da sie zaliczyc czegos, co sie nie stalo.
+  assert.match(extras, /disabled=\{isToday\}/)
+  assert.match(extras, /disabled=\{isFuture\}/)
+  // Statystyki okresu: przelacznik tydzien/miesiac/rok i wykres liczby zaliczen.
+  assert.match(extras, /optionalRange/)
+  assert.match(extras, /optionalBuckets/)
+  assert.match(extras, /<SegTabs/)
+  assert.match(extras, /<BarChartSVG/)
 })
 
 test('Wyzwania: statystyki okresu licza sie bez nich', () => {

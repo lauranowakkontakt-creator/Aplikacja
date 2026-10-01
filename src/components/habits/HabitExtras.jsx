@@ -1,23 +1,44 @@
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { useState } from 'react'
+import { format, addDays, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { CatIcon, IconFlag, IconCheck, IconPlus } from '../Icons'
+import { CatIcon, IconFlag, IconCheck, IconPlus, IconStar } from '../Icons'
 import { optionalProgress, optionalSummary } from '../../utils/habitLogic'
-import { habitPeriodLabel } from '../../utils/habitStats'
+import { habitPeriodLabel, optionalRange, optionalBuckets } from '../../utils/habitStats'
+import { BarChartSVG } from '../ChartPrimitives'
+import StatTiles from '../StatTiles'
+import SegTabs from '../SegTabs'
 
-// Ekran „Dodatkowe" — wyzwania i cele poboczne. Wchodzi się tu flagą w belce,
-// tak samo jak twarzą w Nastrój: osobny widok W MIEJSCU treści Nawyków, nie
-// nakładka (nakładce belka aplikacji zasłaniała własny pasek).
+// Ekran „Wyzwania" — cele poboczne. Wchodzi się tu flagą w belce, tak samo jak
+// twarzą w Nastrój: osobny widok W MIEJSCU treści Nawyków, nie nakładka
+// (nakładce belka aplikacji zasłaniała własny pasek).
 //
 // Czym to się różni od nawyku wymaganego:
 //  - nie wchodzi do celu dnia ani do procentów okresu,
 //  - NIE MA serii ani rekordu — przy wyzwaniu liczy się „ile razy", a przerwa
-//    w ciągu nie jest porażką,
-//  - za to widać przebieg: ile w tym miesiącu, ile łącznie, od kiedy.
-export default function HabitExtras({ habits = [], today, onToggle, onEdit, onAdd }) {
-  const mStart = format(startOfMonth(new Date(today + 'T12:00:00')), 'yyyy-MM-dd')
-  const mEnd   = format(endOfMonth(new Date(today + 'T12:00:00')), 'yyyy-MM-dd')
-  const sum    = optionalSummary(habits, mStart, mEnd)
-  const monthLabel = format(new Date(today + 'T12:00:00'), 'LLLL yyyy', { locale: pl })
+//    w ciągu nie jest porażką; zamiast strike jest licznik i najlepszy dzień,
+//  - wykres pokazuje LICZBĘ zaliczeń, nie procent: nie ma planu, z którego
+//    dałoby się policzyć „ile z ilu".
+//
+// Dzień jest wspólny z listą dnia Nawyków (ten sam `selectedDay` z modułu), więc
+// przejście tam i z powrotem nie gubi miejsca, w którym jesteś.
+export default function HabitExtras({
+  habits = [], today, selectedDay, onSelectDay, onToggle, onEdit, onAdd,
+}) {
+  const [period, setPeriod] = useState('month')
+
+  const selDate  = new Date(selectedDay + 'T12:00:00')
+  const isToday  = selectedDay === today
+  const isFuture = selectedDay > today
+  const dayLabel = format(selDate, 'EEEE, d MMMM', { locale: pl })
+
+  const { start, end } = optionalRange(period, selectedDay)
+  const sum     = optionalSummary(habits, start, end)
+  const buckets = optionalBuckets(habits, period, selectedDay)
+  const okresLabel = period === 'week'
+    ? `${format(new Date(start + 'T12:00:00'), 'd MMM', { locale: pl })} – ${format(new Date(end + 'T12:00:00'), 'd MMM', { locale: pl })}`
+    : period === 'year'
+      ? format(selDate, 'yyyy')
+      : format(selDate, 'LLLL yyyy', { locale: pl })
 
   if (habits.length === 0) {
     return (
@@ -29,7 +50,7 @@ export default function HabitExtras({ habits = [], today, onToggle, onEdit, onAd
         <p style={{ margin: '0 0 14px', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
           Wyzwanie to cel poboczny — nie psuje procentów dnia i nie ma serii.
           Zrobisz, to się liczy; nie zrobisz, nic się nie dzieje.
-          Zakładasz je jak zwykły nawyk, wybierając „Rodzaj: Dodatkowy".
+          Zakładasz je jak zwykły nawyk, wybierając „Rodzaj: Wyzwanie".
         </p>
         <button className="t-btn" onClick={onAdd}
           style={{ width: 'auto', padding: '8px 14px', display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
@@ -39,34 +60,33 @@ export default function HabitExtras({ habits = [], today, onToggle, onEdit, onAd
     )
   }
 
+  const fmtDzien = (d) => format(new Date(d + 'T12:00:00'), 'd MMM', { locale: pl })
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div className="card" style={{
-        padding: 16, display: 'flex', alignItems: 'center', gap: 14,
-        borderTop: '2px solid color-mix(in oklab, var(--warn) 80%, transparent)',
+      {/* Nawigator dnia — ten sam wzorzec co na liście dnia Nawyków. */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 'var(--r)', padding: '10px 14px',
       }}>
-        <div style={{
-          width: 42, height: 42, borderRadius: 12, flexShrink: 0, display: 'grid', placeItems: 'center',
-          background: 'color-mix(in oklab, var(--warn) 14%, transparent)', color: 'var(--warn)',
-        }}>
-          <IconFlag size={20} />
+        <button className="month-btn" style={{ width: 32, height: 32 }}
+          onClick={() => onSelectDay(format(subDays(selDate, 1), 'yyyy-MM-dd'))}>‹</button>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'capitalize' }}>{dayLabel}</div>
+          {isToday && (
+            <div style={{ fontSize: 10, color: 'var(--accent)', letterSpacing: '.08em', textTransform: 'uppercase', marginTop: 2 }}>Dziś</div>
+          )}
         </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase' }}>
-            Wyzwania · {monthLabel}
-          </div>
-          <div style={{ fontSize: 20, fontWeight: 700, marginTop: 3 }}>
-            {sum.done}<span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}> × w tym miesiącu</span>
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-            {sum.active} z {sum.count} ruszyło · bez serii, bez wpływu na cel dnia
-          </div>
-        </div>
+        {/* W przyszłość nie puszczamy — nie da się zaliczyć czegoś, co się nie stało. */}
+        <button className="month-btn" style={{ width: 32, height: 32, opacity: isToday ? 0.3 : 1 }}
+          disabled={isToday}
+          onClick={() => onSelectDay(format(addDays(selDate, 1), 'yyyy-MM-dd'))}>›</button>
       </div>
 
       {habits.map(h => {
-        const p = optionalProgress(h, mStart, mEnd)
-        const done = (h.completedDates || []).includes(today)
+        const p = optionalProgress(h, start, end)
+        const done = (h.completedDates || []).includes(selectedDay)
         const color = h.color || 'var(--warn)'
         const okres = habitPeriodLabel(p.first, p.last)
         return (
@@ -86,16 +106,18 @@ export default function HabitExtras({ habits = [], today, onToggle, onEdit, onAd
                   {h.name}
                 </span>
                 <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
-                  {p.inRange}x w tym miesiącu · {p.total}x łącznie{okres ? ` · ${okres}` : ''}
+                  {p.inRange}x w okresie · {p.total}x łącznie{okres ? ` · ${okres}` : ''}
                 </span>
               </span>
             </button>
             <button
-              onClick={() => onToggle(h, today)}
-              title={done ? 'Odznacz dzisiaj' : 'Zalicz dzisiaj'}
+              onClick={() => !isFuture && onToggle(h, selectedDay)}
+              disabled={isFuture}
+              title={isFuture ? 'Przyszły dzień' : done ? 'Odznacz ten dzień' : 'Zalicz ten dzień'}
               aria-pressed={done}
               style={{
-                width: 38, height: 38, borderRadius: 11, flexShrink: 0, cursor: 'pointer',
+                width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+                cursor: isFuture ? 'default' : 'pointer', opacity: isFuture ? 0.4 : 1,
                 display: 'grid', placeItems: 'center',
                 background: done ? color : 'var(--surface2)',
                 border: `1px solid ${done ? color : 'var(--border)'}`,
@@ -106,6 +128,27 @@ export default function HabitExtras({ habits = [], today, onToggle, onEdit, onAd
           </div>
         )
       })}
+
+      {/* ===== Jak poszło ===== */}
+      <div style={{ marginTop: 4 }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 10 }}>
+          Jak poszło · {okresLabel}
+        </div>
+        <SegTabs
+          items={[{ id: 'week', label: 'Tydzień' }, { id: 'month', label: 'Miesiąc' }, { id: 'year', label: 'Rok' }]}
+          active={period} onChange={setPeriod} style={{ marginBottom: 12 }}
+        />
+        <StatTiles tiles={[
+          { Icon: IconCheck, value: sum.done,  label: 'zaliczeń', color: 'var(--warn)' },
+          { Icon: IconFlag,  value: `${sum.active}/${sum.count}`, label: 'ruszyło' },
+          { Icon: IconStar,  value: sum.bestDay ? sum.bestDay.count : '—',
+            label: sum.bestDay ? `najlepszy ${fmtDzien(sum.bestDay.date)}` : 'brak zaliczeń' },
+        ]} />
+        <div className="card" style={{ padding: 14, marginTop: 12 }}>
+          <BarChartSVG data={buckets} accent="var(--warn)" height={130}
+            fmt={(v) => `${v} ${v === 1 ? 'raz' : 'razy'}`} />
+        </div>
+      </div>
     </div>
   )
 }
