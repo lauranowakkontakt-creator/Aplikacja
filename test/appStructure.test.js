@@ -415,6 +415,16 @@ test('Wyzwania: wlasny ekran pod flaga w belce, obok nastroju', () => {
   assert.match(extras, /optionalBuckets/)
   assert.match(extras, /<SegTabs/)
   assert.match(extras, /<BarChartSVG/)
+  // Dni, ktore sie udaly, pokazujemy TA SAMA siatka co w Nawykach — nie druga
+  // wlasna kopia kalendarza.
+  assert.match(extras, /import MonthCalendar from '\.\/MonthCalendar'/)
+  assert.match(extras, /<MonthCalendar/)
+  assert.match(extras, /renderCell=\{cellForHabit\(h, color\)\}/, 'brak siatki dni przy wyzwaniu')
+  assert.match(extras, /renderCell=\{cellForAll\}/, 'brak kalendarza zbiorczego')
+  // Ten sam podzial co w statystykach Nawykow: miesiac jako kalendarz,
+  // tydzien i rok jako slupki.
+  assert.match(extras, /period === 'month' \?/)
+  assert.ok(!/function MonthCalendar/.test(extras), 'wyzwania nie moga miec wlasnej kopii kalendarza')
 })
 
 test('Wyzwania: statystyki okresu licza sie bez nich', () => {
