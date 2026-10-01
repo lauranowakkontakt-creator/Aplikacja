@@ -8,6 +8,7 @@ import { BarChartSVG } from '../ChartPrimitives'
 import StatTiles from '../StatTiles'
 import SegTabs from '../SegTabs'
 import MonthCalendar from './MonthCalendar'
+import HabitTimeline from './HabitTimeline'
 
 // Ekran „Wyzwania" — cele poboczne. Wchodzi się tu flagą w belce, tak samo jak
 // twarzą w Nastrój: osobny widok W MIEJSCU treści Nawyków, nie nakładka
@@ -259,37 +260,23 @@ export default function HabitExtras({
             })}
           </div>
 
-          {/* Archiwum — schowane wyzwania. Historia zostaje, ale kafelki i wykres
-              wyzej ich nie licza: archiwizacja nie zapisuje daty, wiec nie
+          {/* Archiwum jako OS CZASU — co kiedy trwalo. Kafelki i wykres wyzej
+              dalej go nie licza: archiwizacja nie zapisuje daty, wiec nie
               wiadomo, od kiedy wyzwanie przestalo byc aktualne. */}
           {archived.length > 0 && (
             <div style={{ marginTop: 10 }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 6 }}>
-                Archiwum ({archived.length})
+                Twoja historia ({archived.length})
               </div>
-              <p style={{ margin: '0 0 10px', fontSize: 11, color: 'var(--text-muted)' }}>
-                Schowane wyzwania — ich historia zostaje, ale nie liczą się do liczb powyżej.
+              <p style={{ margin: '0 0 12px', fontSize: 11, color: 'var(--text-muted)' }}>
+                Schowane wyzwania na wspólnej osi — historia zostaje, ale nie liczą się do liczb powyżej.
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
-                {archived.map(h => {
-                  const p = optionalProgress(h, start, end)
-                  const okres = habitPeriodLabel(p.first, p.last)
-                  return (
-                    <div key={h.id} className="card hover" style={{ padding: 14, cursor: 'pointer', opacity: 0.85 }}
-                      onClick={() => onEdit(h)}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                        {ikona(h, 15)}
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.name}</div>
-                          {okres && <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>{okres}</div>}
-                        </div>
-                      </div>
-                      <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {p.total}x łącznie
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="card" style={{ padding: 16 }}>
+                <HabitTimeline habits={archived} accent="var(--warn)"
+                  onPick={(id) => {
+                    const h = archived.find(x => x.id === id)
+                    if (h) onEdit(h)
+                  }} />
               </div>
             </div>
           )}

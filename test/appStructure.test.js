@@ -461,7 +461,7 @@ test('Statystyki: archiwum widac, ale POZA procentami okresu', () => {
   const extras = read('src/components/habits/HabitExtras.jsx')
   assert.match(habits, /archivedRequired\s*=\s*archivedHabits\.filter\(isRequiredHabit\)/)
   assert.match(habits, /archivedExtras\s*=\s*archivedHabits\.filter\(isOptionalHabit\)/)
-  assert.match(habits, /Archiwum \(\$\{archivedRequired\.length\}\)/, 'brak sekcji archiwum w statystykach')
+  assert.match(habits, /Twoja historia \(\$\{archivedRequired\.length\}\)/, 'brak sekcji archiwum w statystykach')
   assert.match(habits, /archived=\{archivedExtras\}/, 'ekran wyzwan nie dostaje swojego archiwum')
   assert.match(extras, /archived\.length > 0 &&/, 'brak sekcji archiwum na ekranie wyzwan')
   // Agregaty okresu licza sie DALEJ tylko z aktywnych.
@@ -490,4 +490,21 @@ test('Nawyki i wyzwania rozdzielone w edycji i w kolejnosci', () => {
   // Zakladki pokazujemy tylko wtedy, gdy wyzwania w ogole sa — pusta zakladka myli.
   assert.match(manager, /wyzwaniaAll\.length > 0 &&/)
   assert.match(reorder, /maWyzwania && \(/)
+})
+
+test('Archiwum pokazuje sie jako os czasu, jedna dla obu ekranow', () => {
+  // Archiwum JEST historia, wiec zamiast kafelkow z liczbami pokazujemy, co
+  // kiedy trwalo. Rysunek i matematyka rozdzielone: skale liczy habitStats.
+  const habits   = read('src/components/habits/HabitsDashboard.jsx')
+  const extras   = read('src/components/habits/HabitExtras.jsx')
+  const timeline = read('src/components/habits/HabitTimeline.jsx')
+  for (const [plik, src] of [['HabitsDashboard', habits], ['HabitExtras', extras]]) {
+    assert.match(src, /import HabitTimeline from '\.\/HabitTimeline'/, `${plik}: brak osi czasu`)
+    assert.match(src, /<HabitTimeline/, `${plik}: os czasu nie jest renderowana`)
+  }
+  assert.match(timeline, /timelineLanes/)
+  assert.match(timeline, /timelineTicks/)
+  // Komponent nie moze sam liczyc skali — inaczej nie da sie tego przetestowac.
+  assert.ok(!/differenceInCalendarDays/.test(timeline),
+    'matematyka osi nalezy do habitStats, nie do komponentu')
 })
