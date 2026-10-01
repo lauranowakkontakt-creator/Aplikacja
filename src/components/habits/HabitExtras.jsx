@@ -2,13 +2,15 @@ import { useState } from 'react'
 import { format, addDays, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { CatIcon, IconFlag, IconCheck, IconPlus, IconStar } from '../Icons'
-import { optionalProgress, optionalSummary, optionalDayCount } from '../../utils/habitLogic'
+import { optionalProgress, optionalSummary, optionalDayCount, hasAmountGoal,
+  amountTotals } from '../../utils/habitLogic'
 import { habitPeriodLabel, optionalRange, optionalBuckets } from '../../utils/habitStats'
 import { BarChartSVG } from '../ChartPrimitives'
 import StatTiles from '../StatTiles'
 import SegTabs from '../SegTabs'
 import MonthCalendar from './MonthCalendar'
 import HabitTimeline from './HabitTimeline'
+import AmountStepper from './AmountStepper'
 
 // Ekran „Wyzwania" — cele poboczne. Wchodzi się tu flagą w belce, tak samo jak
 // twarzą w Nastrój: osobny widok W MIEJSCU treści Nawyków, nie nakładka
@@ -31,7 +33,7 @@ import HabitTimeline from './HabitTimeline'
 // Dzień jest wspólny z listą dnia Nawyków (ten sam `selectedDay` z modułu), więc
 // przejście tam i z powrotem nie gubi miejsca, w którym jesteś.
 export default function HabitExtras({
-  habits = [], archived = [], today, selectedDay, onSelectDay, onToggle, onEdit, onAdd,
+  habits = [], archived = [], today, selectedDay, onSelectDay, onToggle, onSetAmount, onEdit, onAdd,
 }) {
   const [tab, setTab]       = useState('today')
   const [period, setPeriod] = useState('month')
@@ -172,21 +174,26 @@ export default function HabitExtras({
                     </span>
                   </span>
                 </button>
-                <button
-                  onClick={() => !isFuture && onToggle(h, selectedDay)}
-                  disabled={isFuture}
-                  title={isFuture ? 'Przyszły dzień' : done ? 'Odznacz ten dzień' : 'Zalicz ten dzień'}
-                  aria-pressed={done}
-                  style={{
-                    width: 36, height: 36, borderRadius: 11, flexShrink: 0,
-                    cursor: isFuture ? 'default' : 'pointer', opacity: isFuture ? 0.4 : 1,
-                    display: 'grid', placeItems: 'center',
-                    background: done ? color : 'var(--surface2)',
-                    border: `1px solid ${done ? color : 'var(--border)'}`,
-                    color: done ? '#fff' : 'var(--text-muted)',
-                  }}>
-                  <IconCheck size={16} />
-                </button>
+                {/* Wyzwanie na czas / ilosc: pasek z liczba zamiast haczyka. */}
+                {hasAmountGoal(h) ? (
+                  <AmountStepper habit={h} dateStr={selectedDay} onSet={onSetAmount} disabled={isFuture} compact />
+                ) : (
+                  <button
+                    onClick={() => !isFuture && onToggle(h, selectedDay)}
+                    disabled={isFuture}
+                    title={isFuture ? 'Przyszły dzień' : done ? 'Odznacz ten dzień' : 'Zalicz ten dzień'}
+                    aria-pressed={done}
+                    style={{
+                      width: 36, height: 36, borderRadius: 11, flexShrink: 0,
+                      cursor: isFuture ? 'default' : 'pointer', opacity: isFuture ? 0.4 : 1,
+                      display: 'grid', placeItems: 'center',
+                      background: done ? color : 'var(--surface2)',
+                      border: `1px solid ${done ? color : 'var(--border)'}`,
+                      color: done ? '#fff' : 'var(--text-muted)',
+                    }}>
+                    <IconCheck size={16} />
+                  </button>
+                )}
               </div>
             )
           })}
@@ -202,6 +209,19 @@ export default function HabitExtras({
           <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase' }}>
             Jak poszło · {okresLabel}
           </div>
+          {/* „Ile na to poszlo" — sumy czasu i ilosci, kazda jednostka osobno. */}
+          {amountTotals(habits, start, end).length > 0 && (
+            <div className="card" style={{ padding: 14, display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+              {amountTotals(habits, start, end).map(t => (
+                <div key={t.unit}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--warn)' }}>{t.label}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>
+                    w tym okresie
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <StatTiles tiles={[
             { Icon: IconCheck, value: sum.done, label: 'zaliczeń', color: 'var(--warn)' },
             { Icon: IconFlag,  value: `${sum.active}/${sum.count}`, label: 'ruszyło' },

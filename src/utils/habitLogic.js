@@ -36,17 +36,29 @@ export const isRequiredHabit = (habit) => habit?.optional !== true
 export function dayScore(habits = [], dateStr, pauses = []) {
   let required = 0, doneRequired = 0, doneTotal = 0
   for (const h of habits) {
-    const done = (h.completedDates || []).includes(dateStr)
-    if (done) doneTotal++
+    // Nawyk z celem liczbowym wnosi UŁAMEK: 10 z 20 minut to pół dnia. Bez
+    // tego częściowa robota przepadała jako niezrobiona.
+    const done = dayProgress(h, dateStr)
+    doneTotal += done
     if (isRequiredHabit(h) && isHabitDue(h, dateStr, pauses) === 'due') {
       required++
-      if (done) doneRequired++
+      doneRequired += done
     }
   }
   // Procent liczymy z wymaganych i ucinamy na 100 — pasek postępu nie ma
   // sensu powyżej pełna, a sama nadwyżka widać w liczbach.
   const pct = required > 0 ? Math.min(100, Math.round((doneTotal / required) * 100)) : (doneTotal > 0 ? 100 : 0)
-  return { required, doneRequired, doneTotal, extra: Math.max(0, doneTotal - doneRequired), pct }
+  // Licznik zaokrąglamy do pół jednostki: „4,5 z 6" czyta się dobrze, a
+  // „4,37 z 6" już nie. Surowe sumy zostają w doneExact do dalszych rachunków.
+  const pol = (x) => Math.round(x * 2) / 2
+  return {
+    required,
+    doneRequired: pol(doneRequired),
+    doneTotal: pol(doneTotal),
+    doneExact: doneTotal,
+    extra: Math.max(0, pol(doneTotal) - pol(doneRequired)),
+    pct,
+  }
 }
 
 // Jak pokazać dany dzień nawyku. Jeden wspólny słownik stanów dla siatki dni,
@@ -237,20 +249,32 @@ export function rangeStats(habits = [], pauses = [], start, end) {
   for (const d of eachDayStr(start, end)) {
     let dueCount = 0, dueDone = 0
     for (const h of habits) {
-      const isDone = h.completedDates?.includes(d)
-      if (isDone) completions++
+      // Postęp, nie zero-jedynka: nawyk na czas wnosi ułamek dnia.
+      const progress = dayProgress(h, d)
+      // `completions` liczy dni ZALICZONE w całości — to licznik „ile razy się
+      // udało", więc połowa normy się tu nie liczy.
+      if (isDayComplete(h, d)) completions++
       const status = isHabitDue(h, d, pauses)
       if (status === 'due') {
         dueCount++; expected++
-        if (isDone) { done++; dueDone++ }
-      } else if (status === 'paused' && isDone) {
+        done += progress
+        if (progress >= 1) dueDone++
+      } else if (status === 'paused' && progress > 0) {
         // wykonane w trakcie wyjazdu/choroby — liczy się jako zrobione
-        expected++; done++
+        expected++; done += progress
       }
     }
+    // Dzień perfekcyjny = każdy wymagany nawyk dowieziony do końca.
     if (dueCount > 0) { dueDays++; if (dueDone === dueCount) perfectDays++ }
   }
-  return { expected, done, completions, perfectDays, dueDays, pct: expected ? Math.round((done / expected) * 100) : 0 }
+  return {
+    expected,
+    done: Math.round(done * 10) / 10,
+    completions,
+    perfectDays,
+    dueDays,
+    pct: expected ? Math.round((done / expected) * 100) : 0,
+  }
 }
 
 // Podsumowanie ukończonego nawyku — to, co chce się zobaczyć, gdy nawyk
@@ -337,4 +361,93 @@ export function optionalDayCount(habits = [], dateStr) {
 // numerowała się od zera, przestawienie wyzwań zmieniłoby kolejność nawyków.
 export function habitOrderUpdates(required = [], optional = []) {
   return [...required, ...optional].map((h, i) => ({ id: h.id, order: i }))
+}
+
+// ── Nawyki na czas i na ilość ───────────────────────────────────────────────
+// Część rzeczy nie jest „zrobione / nie zrobione", a mierzy się czasem albo
+// liczbą: 20 minut medytacji, 30 stron, 2 litry wody. Taki nawyk trzyma cel
+// dnia w `target`, jednostkę w `unit`, a wykonanie w `amounts` — mapie
+// data → liczba. `completedDates` ZOSTAJE źródłem prawdy o zaliczonym dniu
+// (seria, kalendarze, archiwum), więc nawyki bez celu działają jak dotąd.
+
+// Jednostki do wyboru. Czas trzymamy ZAWSZE w minutach i formatujemy sami —
+// dwie jednostki czasu („min" i „h") kazałyby przeliczać sumy w obie strony.
+// Skróty nie odmieniają się przez przypadki, bo „2 strony / 5 stron / 1 strona"
+// przy dowolnej liczbie i własnej jednostce dawałoby więcej błędów niż pożytku.
+export const HABIT_UNITS = [
+  { id: 'min',   label: 'minuty',       short: 'min',  time: true },
+  { id: 'str',   label: 'strony',       short: 'str.' },
+  { id: 'km',    label: 'kilometry',    short: 'km' },
+  { id: 'l',     label: 'litry',        short: 'l' },
+  { id: 'szt',   label: 'sztuki',       short: 'szt.' },
+  { id: 'powt',  label: 'powtórzenia',  short: 'powt.' },
+]
+
+export const unitMeta = (unit) =>
+  HABIT_UNITS.find(u => u.id === unit) || { id: unit, label: unit, short: unit }
+
+// Czy nawyk ma cel liczbowy. Brak `target` = zwykłe odhaczanie, czyli wszystko,
+// co istniało przed tą funkcją.
+export const hasAmountGoal = (habit) => Number(habit?.target) > 0
+
+// Ile zrobiono danego dnia. Liczba spod `amounts`, a dla nawyku odhaczanego —
+// 1 albo 0, żeby reszta kodu nie musiała rozróżniać tych dwóch światów.
+export function dayAmount(habit, dateStr) {
+  if (hasAmountGoal(habit)) {
+    const v = Number(habit?.amounts?.[dateStr])
+    return Number.isFinite(v) && v > 0 ? v : 0
+  }
+  return (habit?.completedDates || []).includes(dateStr) ? 1 : 0
+}
+
+// Postęp dnia jako 0..1. Dla celu liczbowego połowa normy to połowa dnia —
+// dzięki temu „10 z 20 minut" widać w celu dnia i w procentach okresu, zamiast
+// przepadać jako niezrobione. Ucinamy na 1: nadwyżka nie ma podbijać średniej.
+export function dayProgress(habit, dateStr) {
+  if (!hasAmountGoal(habit)) {
+    return (habit?.completedDates || []).includes(dateStr) ? 1 : 0
+  }
+  const target = Number(habit.target)
+  return Math.max(0, Math.min(1, dayAmount(habit, dateStr) / target))
+}
+
+// Czy dzień jest ZALICZONY, czyli cel osiągnięty w całości. Seria i kalendarze
+// zostają binarne: ciąg ma oznaczać dni, w których norma została dowieziona,
+// a nie dni, w których coś się zaczęło.
+export function isDayComplete(habit, dateStr) {
+  if (!hasAmountGoal(habit)) return (habit?.completedDates || []).includes(dateStr)
+  return dayAmount(habit, dateStr) >= Number(habit.target)
+}
+
+// Format liczby z jednostką. Czas sam rozbija się na godziny i minuty, bo
+// „485 min" nic nie mówi, a „8 h 5 min" mówi wszystko.
+export function formatAmount(value, unit) {
+  const v = Number(value) || 0
+  const meta = unitMeta(unit)
+  if (!meta.time) {
+    const zaokr = Math.round(v * 10) / 10
+    return `${zaokr} ${meta.short}`
+  }
+  const total = Math.round(v)
+  const h = Math.floor(total / 60), m = total % 60
+  if (h === 0) return `${m} min`
+  if (m === 0) return `${h} h`
+  return `${h} h ${m} min`
+}
+
+// Suma wykonania w okresie, w rozbiciu na jednostki — „ile czasu na to poszło".
+// Jednostek nie mieszamy: minuty i strony nie sumują się do jednej liczby.
+export function amountTotals(habits = [], start, end) {
+  const perUnit = new Map()
+  for (const h of habits) {
+    if (!hasAmountGoal(h)) continue
+    const unit = h.unit || 'szt'
+    for (const [d, raw] of Object.entries(h.amounts || {})) {
+      if (start && end && (d < start || d > end)) continue
+      const v = Number(raw)
+      if (!Number.isFinite(v) || v <= 0) continue
+      perUnit.set(unit, (perUnit.get(unit) || 0) + v)
+    }
+  }
+  return [...perUnit].map(([unit, total]) => ({ unit, total, label: formatAmount(total, unit) }))
 }

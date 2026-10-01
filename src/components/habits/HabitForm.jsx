@@ -8,7 +8,7 @@ import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import HabitCategoryManager from './HabitCategoryManager'
 import RoutineManager from './RoutineManager'
-import { byRoutineOrder } from '../../utils/habitLogic'
+import { byRoutineOrder, HABIT_UNITS, unitMeta, formatAmount } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
 export const HABIT_CATEGORIES = [
@@ -54,6 +54,14 @@ export default function HabitForm({ user, onClose, editData }) {
   const [routineId, setRoutineId] = useState(editData?.routineId || null)
   // Wymagany = wchodzi do celu dnia. Dodatkowy = liczy się tylko na plus.
   const [optional, setOptional]   = useState(editData?.optional === true)
+  // Miara: odhaczenie (jak dotad) albo cel liczbowy. Rozpoznajemy po `target`,
+  // zeby istniejace nawyki zostaly tym, czym byly.
+  const [mierzone, setMierzone]   = useState(Number(editData?.target) > 0)
+  const [target, setTarget]       = useState(editData?.target ? String(editData.target) : '')
+  const [unit, setUnit]           = useState(editData?.unit || 'min')
+  const [wlasnaJedn, setWlasnaJedn] = useState(
+    editData?.unit && !HABIT_UNITS.some(u => u.id === editData.unit) ? editData.unit : ''
+  )
   const [routines, setRoutines]   = useState([])
   const [showRoutineMgr, setShowRoutineMgr] = useState(false)
 
@@ -98,6 +106,9 @@ export default function HabitForm({ user, onClose, editData }) {
     setSaving(true)
     const data = {
       name: name.trim(), emoji: iconKey, color, category, frequency, frequencyDays: getFreqDays(), optional,
+      // Cel liczbowy: null zdejmuje miare i nawyk wraca do zwyklego odhaczania.
+      target: mierzone && Number(target) > 0 ? Number(target) : null,
+      unit: mierzone ? (unit === '__wlasna' ? (wlasnaJedn.trim() || 'szt') : unit) : null,
       startDate, endDate: hasEnd && endDate ? endDate : null,
       checklist, routineId: routineId || null,
       updatedAt: Timestamp.now()
@@ -247,6 +258,52 @@ export default function HabitForm({ user, onClose, editData }) {
                 ? 'Osobny ekran pod flagą w belce. Nie wchodzi do celu dnia ani do procentów okresu i nie ma serii — liczy się tylko, ile razy się udało.'
                 : 'Podstawa dnia — wchodzi do celu „zrobione X z Y".'}
             </p>
+          </div>
+
+          {/* Jak mierzysz — odhaczenie albo cel na czas / ilość */}
+          <div className="form-group">
+            <label>Jak mierzysz</label>
+            <div className="type-toggle" style={{ gap: 6 }}>
+              <button type="button" className={`type-btn ${!mierzone ? 'active expense' : ''}`}
+                onClick={() => setMierzone(false)}>Odhaczenie</button>
+              <button type="button" className={`type-btn ${mierzone ? 'active expense' : ''}`}
+                onClick={() => setMierzone(true)}>Czas / ilość</button>
+            </div>
+
+            {!mierzone ? (
+              <p style={{ margin: '5px 0 0', fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                Zwykły haczyk — zrobione albo nie.
+              </p>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <input type="number" className="form-input" inputMode="numeric" min="1" step="1"
+                    value={target} onChange={e => setTarget(e.target.value)}
+                    placeholder="np. 20" style={{ margin: 0, flex: '0 0 96px' }} />
+                  <select className="form-input" value={unit === '__wlasna' || wlasnaJedn ? '__wlasna' : unit}
+                    onChange={e => { setUnit(e.target.value); if (e.target.value !== '__wlasna') setWlasnaJedn('') }}
+                    style={{ margin: 0, flex: 1 }}>
+                    {HABIT_UNITS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
+                    <option value="__wlasna">inna (wpisz)</option>
+                  </select>
+                </div>
+                {(unit === '__wlasna' || wlasnaJedn) && (
+                  <input type="text" className="form-input" value={wlasnaJedn} maxLength={12}
+                    onChange={e => setWlasnaJedn(e.target.value)}
+                    placeholder="np. kubki, rozdziały" style={{ marginTop: 6 }} />
+                )}
+                <p style={{ margin: '6px 0 0', fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.45 }}>
+                  {Number(target) > 0
+                    ? `Cel na dzień: ${formatAmount(Number(target), unit === '__wlasna' ? (wlasnaJedn.trim() || 'szt') : unit)}. Połowa normy liczy się jako pół dnia, a zaliczony jest dzień z całym celem.`
+                    : 'Podaj cel na dzień — np. 20 minut albo 30 stron. Połowa normy będzie się liczyć jako pół dnia.'}
+                </p>
+                {unitMeta(unit).time && (
+                  <p style={{ margin: '4px 0 0', fontSize: 10.5, color: 'var(--text-muted)' }}>
+                    Czas podajesz w minutach; sumy pokazują się jako godziny.
+                  </p>
+                )}
+              </>
+            )}
           </div>
 
           {/* Częstotliwość */}
