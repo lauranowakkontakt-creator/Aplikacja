@@ -418,13 +418,29 @@ test('Wyzwania: wlasny ekran pod flaga w belce, obok nastroju', () => {
   // Dni, ktore sie udaly, pokazujemy TA SAMA siatka co w Nawykach — nie druga
   // wlasna kopia kalendarza.
   assert.match(extras, /import MonthCalendar from '\.\/MonthCalendar'/)
-  assert.match(extras, /<MonthCalendar/)
   assert.match(extras, /renderCell=\{cellForHabit\(h, color\)\}/, 'brak siatki dni przy wyzwaniu')
   assert.match(extras, /renderCell=\{cellForAll\}/, 'brak kalendarza zbiorczego')
   // Ten sam podzial co w statystykach Nawykow: miesiac jako kalendarz,
   // tydzien i rok jako slupki.
-  assert.match(extras, /period === 'month' \?/)
+  assert.match(extras, /period === 'month'/)
   assert.ok(!/function MonthCalendar/.test(extras), 'wyzwania nie moga miec wlasnej kopii kalendarza')
+})
+
+test('Wyzwania: lista dnia jest zwarta, siatki siedza w Statystykach', () => {
+  // Kalendarz pod kazda pozycja listy dnia zjadal caly ekran — na telefonie
+  // trzy wyzwania znaczyly trzy przewiniecia, zeby dojsc do czwartego.
+  // Podzial jest teraz taki jak w Nawykach: lista do odhaczania osobno,
+  // siatki i liczby w drugiej zakladce.
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  assert.match(extras, /items=\{\[\{ id: 'today', label: 'Dziś' \}, \{ id: 'stats', label: 'Statystyki' \}\]\}/,
+    'brak zakladek Dzis / Statystyki')
+  // Nawigator dnia nalezy do zakladki „Dzis", kalendarze do „Statystyk".
+  const dzis  = extras.split("tab === 'stats'")[0]
+  const staty = extras.split("tab === 'stats'")[1] || ''
+  assert.match(dzis, /onSelectDay\(format\(subDays/, 'nawigator dnia musi byc w zakladce Dzis')
+  assert.ok(!/<MonthCalendar/.test(dzis), 'lista dnia nie moze miec kalendarza pod kazda pozycja')
+  assert.match(staty, /<MonthCalendar/, 'siatki dni naleza do Statystyk')
+  assert.match(staty, /<StatTiles/)
 })
 
 test('Wyzwania: statystyki okresu licza sie bez nich', () => {
