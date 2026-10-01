@@ -1,4 +1,5 @@
-import { format, addDays, startOfWeek, startOfMonth, endOfMonth, getDaysInMonth } from 'date-fns'
+import { format, addDays, addMonths, startOfWeek, startOfMonth, endOfMonth, getDaysInMonth,
+  differenceInCalendarDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { pauseForDay, pauseReasonMeta, rangeStats, dayScore, isPausedDay, isRequiredHabit,
   optionalSummary } from './habitLogic.js'
@@ -162,4 +163,90 @@ export function optionalBuckets(habits = [], period, dayStr) {
     buckets.push({ label: `T${wk}`, value: ile(start, end), active: dayStr >= start && dayStr <= end })
   }
   return buckets
+}
+
+// ── Oś czasu archiwum ───────────────────────────────────────────────────────
+// Zamknięte nawyki jako pasy na jednej wspólnej skali: widać na jeden rzut oka,
+// co kiedy trwało, co najdłużej i co się na siebie nałożyło. Dla archiwum to
+// naturalniejsze niż osobne kafelki z liczbami — archiwum JEST historią.
+
+// Granice życia nawyku. Odhaczenia maja pierwszeństwo nad startDate/endDate:
+// pokazujemy, kiedy nawyk naprawdę był robiony, nie kiedy był zaplanowany.
+export function habitSpan(habit) {
+  const dates = [...(habit?.completedDates || [])].sort()
+  const from = dates[0] || habit?.startDate || null
+  const to   = dates[dates.length - 1] || habit?.endDate || habit?.startDate || null
+  if (!from || !to) return null
+  return from <= to ? { from, to } : { from: to, to: from }
+}
+
+const dni = (a, b) => differenceInCalendarDays(new Date(b + 'T12:00:00'), new Date(a + 'T12:00:00'))
+
+// Pasy osi czasu, każdy z pozycją i szerokością w procentach wspólnej skali.
+// `minWidthPct` ratuje krótkie nawyki: jeden dzień na osi dwóch lat to 0,1%,
+// czyli pas niewidoczny — lepiej pokazać kreskę niż nic.
+export function timelineLanes(habits = [], { minWidthPct = 2 } = {}) {
+  const wpisy = habits
+    .map(h => ({ habit: h, span: habitSpan(h) }))
+    .filter(x => x.span)
+  if (wpisy.length === 0) return { from: null, to: null, lanes: [], longest: null }
+
+  const from = wpisy.reduce((m, x) => (x.span.from < m ? x.span.from : m), wpisy[0].span.from)
+  const to   = wpisy.reduce((m, x) => (x.span.to > m ? x.span.to : m), wpisy[0].span.to)
+  const rozpietosc = Math.max(1, dni(from, to) + 1)
+
+  const lanes = wpisy.map(({ habit, span }) => {
+    const trwanie = dni(span.from, span.to) + 1
+    const szer = (trwanie / rozpietosc) * 100
+    const offset = (dni(from, span.from) / rozpietosc) * 100
+    return {
+      id: habit.id,
+      name: habit.name,
+      color: habit.color || null,
+      emoji: habit.emoji || null,
+      from: span.from,
+      to: span.to,
+      days: trwanie,
+      total: (habit.completedDates || []).length,
+      // Pas nie moze wyjsc za prawa krawedz po dociagnieciu do minimum.
+      leftPct: Math.max(0, Math.min(offset, 100 - Math.max(szer, minWidthPct))),
+      widthPct: Math.max(szer, minWidthPct),
+    }
+  })
+  // Najdłużej trwający — podpis pod osią. Remis bierze ten z większą liczbą
+  // odhaczeń, a dalej pierwszy z listy, żeby wynik był zawsze ten sam.
+  const longest = lanes.reduce((best, l) => {
+    if (!best) return l
+    if (l.days !== best.days) return l.days > best.days ? l : best
+    return l.total > best.total ? l : best
+  }, null)
+  return { from, to, lanes, longest }
+}
+
+// Podpisy osi: lata dla długiej historii, miesiące dla krótkiej. Zwracamy
+// pozycje w procentach, żeby komponent nie musiał nic liczyć.
+export function timelineTicks(from, to) {
+  if (!from || !to) return []
+  const rozpietosc = Math.max(1, dni(from, to) + 1)
+  const start = new Date(from + 'T12:00:00')
+  const koniec = new Date(to + 'T12:00:00')
+  const poLatach = rozpietosc > 400
+  const ticks = []
+  let kursor = poLatach ? new Date(start.getFullYear(), 0, 1) : startOfMonth(start)
+  while (kursor <= koniec) {
+    const d = ymd(kursor)
+    const pct = (dni(from, d) / rozpietosc) * 100
+    // Podpis przed początkiem osi (np. 1 stycznia, gdy historia startuje w maju)
+    // zostaje przy lewej krawędzi — inaczej wyjechałby poza wykres.
+    if (pct >= -0.001 || ticks.length === 0) {
+      ticks.push({
+        label: format(kursor, poLatach ? 'yyyy' : 'LLL', { locale: pl }),
+        leftPct: Math.max(0, Math.min(100, pct)),
+      })
+    }
+    kursor = poLatach
+      ? new Date(kursor.getFullYear() + 1, 0, 1)
+      : startOfMonth(addMonths(kursor, 1))
+  }
+  return ticks
 }

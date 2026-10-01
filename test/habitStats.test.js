@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 const { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor, habitPeriodLabel,
-  optionalRange, optionalBuckets } = await import('../src/utils/habitStats.js')
+  optionalRange, optionalBuckets, habitSpan, timelineLanes, timelineTicks } =
+  await import('../src/utils/habitStats.js')
 const { rangeStats, isRequiredHabit } = await import('../src/utils/habitLogic.js')
 
 const D = (s) => new Date(`${s}T12:00:00`)
@@ -227,4 +228,89 @@ test('optionalBuckets: pusta lista daje same zera, bez NaN', () => {
       assert.ok(Number.isFinite(b.value))
     }
   }
+})
+
+// ---------- os czasu archiwum ----------
+
+test('habitSpan: granice bierze z odhaczen, nie z planu', () => {
+  // Pokazujemy, kiedy nawyk NAPRAWDE byl robiony, nie kiedy byl zaplanowany.
+  const h = { startDate: '2026-01-01', endDate: '2026-12-31', completedDates: ['2026-05-10', '2026-03-02'] }
+  assert.deepEqual(habitSpan(h), { from: '2026-03-02', to: '2026-05-10' })
+})
+
+test('habitSpan: bez odhaczen spada na startDate/endDate', () => {
+  assert.deepEqual(habitSpan({ startDate: '2026-01-01', endDate: '2026-02-01' }),
+    { from: '2026-01-01', to: '2026-02-01' })
+  // Sam startDate — nawyk, ktorego nigdy nie odhaczono: punkt, nie przedzial.
+  assert.deepEqual(habitSpan({ startDate: '2026-01-01' }), { from: '2026-01-01', to: '2026-01-01' })
+  assert.equal(habitSpan({}), null)
+  assert.equal(habitSpan(undefined), null)
+})
+
+test('timelineLanes: wspolna skala od najstarszego do najnowszego dnia', () => {
+  const habits = [
+    { id: 'a', name: 'A', completedDates: ['2026-01-01', '2026-01-31'] },
+    { id: 'b', name: 'B', completedDates: ['2026-02-01', '2026-03-02'] },
+  ]
+  const t = timelineLanes(habits)
+  assert.equal(t.from, '2026-01-01')
+  assert.equal(t.to, '2026-03-02')
+  // Pierwszy pas startuje na zerze, drugi za nim.
+  assert.equal(t.lanes[0].leftPct, 0)
+  assert.ok(t.lanes[1].leftPct > t.lanes[0].widthPct - 1)
+  // Zaden pas nie wychodzi za prawa krawedz.
+  for (const l of t.lanes) assert.ok(l.leftPct + l.widthPct <= 100.001, `${l.id} wyjechal za os`)
+})
+
+test('timelineLanes: krotki nawyk dostaje minimalna szerokosc', () => {
+  // Jeden dzien na osi dwoch lat to 0,1% — pas byłby niewidoczny.
+  const habits = [
+    { id: 'dlugi', name: 'D', completedDates: ['2025-01-01', '2026-12-31'] },
+    { id: 'krotki', name: 'K', completedDates: ['2026-06-15'] },
+  ]
+  const t = timelineLanes(habits, { minWidthPct: 2 })
+  const krotki = t.lanes.find(l => l.id === 'krotki')
+  assert.equal(krotki.widthPct, 2)
+  assert.ok(krotki.leftPct + krotki.widthPct <= 100.001)
+})
+
+test('timelineLanes: najdluzszy nawyk wskazany, remis rozstrzygany stabilnie', () => {
+  const habits = [
+    { id: 'a', name: 'A', completedDates: ['2026-01-01', '2026-06-01'] },
+    { id: 'b', name: 'B', completedDates: ['2026-01-01', '2026-03-01'] },
+  ]
+  assert.equal(timelineLanes(habits).longest.id, 'a')
+  // Ten sam czas trwania — wygrywa ten z wieksza liczba odhaczen.
+  const remis = [
+    { id: 'x', name: 'X', completedDates: ['2026-01-01', '2026-02-01'] },
+    { id: 'y', name: 'Y', completedDates: ['2026-01-01', '2026-01-15', '2026-02-01'] },
+  ]
+  assert.equal(timelineLanes(remis).longest.id, 'y')
+})
+
+test('timelineLanes: nawyki bez historii sa pomijane, pusto nie wybucha', () => {
+  const t = timelineLanes([{ id: 'a', name: 'A' }, { id: 'b', name: 'B', completedDates: ['2026-01-01'] }])
+  assert.equal(t.lanes.length, 1)
+  assert.deepEqual(timelineLanes([]), { from: null, to: null, lanes: [], longest: null })
+  assert.deepEqual(timelineLanes(), { from: null, to: null, lanes: [], longest: null })
+})
+
+test('timelineLanes: policzone dni i liczba odhaczen', () => {
+  const t = timelineLanes([{ id: 'a', name: 'A', completedDates: ['2026-01-01', '2026-01-10', '2026-01-05'] }])
+  assert.equal(t.lanes[0].days, 10, 'od 1 do 10 stycznia to 10 dni')
+  assert.equal(t.lanes[0].total, 3)
+})
+
+test('timelineTicks: dluga historia podpisana latami, krotka miesiacami', () => {
+  const lata = timelineTicks('2024-05-01', '2026-08-01')
+  assert.deepEqual(lata.map(t => t.label), ['2024', '2025', '2026'])
+  const miesiace = timelineTicks('2026-03-02', '2026-06-10')
+  assert.deepEqual(miesiace.map(t => t.label), ['mar', 'kwi', 'maj', 'cze'])
+})
+
+test('timelineTicks: podpisy mieszcza sie w osi', () => {
+  for (const t of timelineTicks('2024-05-01', '2026-08-01')) {
+    assert.ok(t.leftPct >= 0 && t.leftPct <= 100, `${t.label} poza osia`)
+  }
+  assert.deepEqual(timelineTicks(null, '2026-01-01'), [])
 })

@@ -20,13 +20,14 @@ import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, Ic
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
-import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor, habitPeriodLabel } from '../../utils/habitStats'
+import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor } from '../../utils/habitStats'
 import MonthCalendar from './MonthCalendar'
 import HabitExtras from './HabitExtras'
+import HabitTimeline from './HabitTimeline'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
   habitDayKind, dayScore, isRequiredHabit, isOptionalHabit,
-  habitLifecycle, habitCompletionSummary } from '../../utils/habitLogic'
+  habitLifecycle } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const SHOW_DAY_RHYTHM = false
@@ -796,38 +797,21 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
             })}
           </div>
 
-          {/* Archiwum — karty z historii, swiadomie POZA procentami wyzej. */}
+          {/* Archiwum jako OS CZASU — archiwum jest historia, wiec zamiast
+              osobnych kafelkow z liczbami pokazujemy, co kiedy trwalo. Dalej
+              swiadomie POZA procentami wyzej. */}
           {archivedRequired.length > 0 && (
             <div style={{ marginTop: 22 }}>
-              {kicker(`Archiwum (${archivedRequired.length})`)}
-              <p style={{ margin: '-4px 0 10px', fontSize: 11, color: 'var(--text-muted)' }}>
-                Schowane nawyki — ich historia zostaje, ale nie liczą się do procentów powyżej.
+              {kicker(`Twoja historia (${archivedRequired.length})`)}
+              <p style={{ margin: '-4px 0 12px', fontSize: 11, color: 'var(--text-muted)' }}>
+                Schowane nawyki na wspólnej osi — ich historia zostaje, ale nie liczą się do procentów powyżej.
               </p>
-              <div data-stagger style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
-                {archivedRequired.map(habit => {
-                  const sumH  = habitCompletionSummary(habit, pauses)
-                  const color = habit.color || 'var(--accent)'
-                  const okres = habitPeriodLabel(sumH.first, sumH.last)
-                  return (
-                    <div key={habit.id} className="card hover" style={{ padding: 14, cursor: 'pointer', opacity: 0.85 }}
-                      onClick={() => { setEditHabit(habit); setShowForm(true) }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                        <span className="habit-emoji" style={{
-                          background: color + '1A', border: `1px solid ${color + '40'}`, color, flexShrink: 0,
-                        }}>
-                          <CatIcon categoryId={null} emoji={habit.emoji} size={15} />
-                        </span>
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{habit.name}</div>
-                          {okres && <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>{okres}</div>}
-                        </div>
-                      </div>
-                      <div className="mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                        {sumH.total}x zrobione · rekord {sumH.best} dni
-                      </div>
-                    </div>
-                  )
-                })}
+              <div className="card" style={{ padding: 16 }}>
+                <HabitTimeline habits={archivedRequired} accent="var(--accent)"
+                  onPick={(id) => {
+                    const h = archivedRequired.find(x => x.id === id)
+                    if (h) { setEditHabit(h); setShowForm(true) }
+                  }} />
               </div>
             </div>
           )}
