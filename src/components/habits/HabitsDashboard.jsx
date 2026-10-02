@@ -905,6 +905,18 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                           </div>
                         </div>
                       )}
+                      {/* Robota ponad norme — przy nawyku na czas czesto
+                          najciekawsza liczba w calym zestawieniu. */}
+                      {miary.over > 0 && (
+                        <div>
+                          <div className="mono" style={{ fontSize: 13, fontWeight: 700, color }}>
+                            +{formatAmount(miary.over, miary.unit)}
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>
+                            ponad cel · {miary.overDays} dni
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   {statPeriod === 'month' ? (

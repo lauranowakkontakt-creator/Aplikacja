@@ -1,5 +1,5 @@
 import { IconCheck, IconPlus } from '../Icons'
-import { dayAmount, dayProgress, formatAmount, nextAmount, amountStep } from '../../utils/habitLogic'
+import { dayAmount, dayProgress, formatAmount, nextAmount, amountStep, amountOver } from '../../utils/habitLogic'
 
 // Zaliczanie nawyku na czas albo ilość — JEDEN przycisk wielkości haczyka.
 //
@@ -17,11 +17,12 @@ export default function AmountStepper({ habit, dateStr, onSet, disabled = false,
   const pct    = Math.round(dayProgress(habit, dateStr) * 100)
   const color  = habit.color || 'var(--accent)'
   const pelne  = target > 0 && teraz >= target
+  const ponad  = amountOver(teraz, target)
 
   const tytul = disabled
     ? 'Przyszły dzień'
-    : pelne
-      ? `${formatAmount(teraz, unit)} — kliknij, żeby wyzerować`
+    : ponad > 0
+      ? `${formatAmount(teraz, unit)} — ${formatAmount(ponad, unit)} ponad cel`
       : `${formatAmount(teraz, unit)} z ${formatAmount(target, unit)} — kliknij, żeby dodać ${formatAmount(amountStep(target), unit)}`
 
   return (
@@ -37,6 +38,9 @@ export default function AmountStepper({ habit, dateStr, onSet, disabled = false,
         // Pierścień postępu: wycinek koła w kolorze nawyku, reszta to tor.
         background: `conic-gradient(${color} ${pct}%, var(--border-strong) 0)`,
         display: 'grid', placeItems: 'center',
+        // Nadwyżka dostaje drugą obwódkę — pierścień jest już pełny, więc sam
+        // postęp nie ma jak pokazać, że poszło więcej, niż było trzeba.
+        boxShadow: ponad > 0 ? `0 0 0 2px color-mix(in oklab, ${color} 45%, transparent)` : 'none',
         transition: 'all .2s var(--spring)',
       }}
     >
@@ -50,9 +54,11 @@ export default function AmountStepper({ habit, dateStr, onSet, disabled = false,
       }}>
         {/* Pusty dzień pokazuje „+", żeby było widać, że przycisk COŚ robi.
             Sam pierścień bez znaku wyglądał jak kontrolka tylko do patrzenia. */}
-        {pelne
-          ? <IconCheck size={size <= 32 ? 14 : 15} />
-          : teraz > 0 ? teraz : <IconPlus size={size <= 32 ? 13 : 14} />}
+        {ponad > 0
+          ? teraz
+          : pelne
+            ? <IconCheck size={size <= 32 ? 14 : 15} />
+            : teraz > 0 ? teraz : <IconPlus size={size <= 32 ? 13 : 14} />}
       </span>
     </button>
   )
