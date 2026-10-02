@@ -649,3 +649,31 @@ test('Analiza dotyczy tego, co robisz teraz — bez ukonczonych', () => {
   assert.ok(!/aggCellFor\(activeHabits\)/.test(habits.split("view === 'stats'")[1] || ''),
     'statystyki nie moga brac activeHabits')
 })
+
+test('Analiza: karta nawyku rozwija historie, a nie formularz', () => {
+  // Klik w karte otwieral edycje — w analizie chce sie zobaczyc, JAK nawyk
+  // szedl, a nie go zmieniac. Edycja siedzi w "Edytuj nawyki".
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  // "view === 'stats'" wystepuje kilka razy (przycisk powrotu, sekcja) — bierzemy
+  // wszystko od OSTATNIEGO wystapienia, czyli wlasciwa sekcje statystyk.
+  const czesci = habits.split("view === 'stats'")
+  const staty = czesci[czesci.length - 1]
+  assert.match(staty, /onClick=\{\(\) => setOpenStat\(rozwiniety \? null : habit\.id\)\}/)
+  assert.ok(!/onClick=\{\(\) => \{ setEditHabit\(habit\); setShowForm\(true\) \}\}/.test(staty),
+    'karta w analizie nie moze otwierac formularza')
+  // Siatka i legenda chowaja sie do rozwiniecia — wczesniej kazda karta niosla
+  // pelna siatke i ekran trzeba bylo przewijac.
+  assert.match(staty, /\{rozwiniety && \(<>/)
+  assert.match(staty, /\{openStat && statPeriod !== 'year' && \(/, 'legenda tylko przy rozwinietej karcie')
+})
+
+test('Statystyki czasu i ilosci widac w obu modulach', () => {
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  for (const [plik, src] of [['HabitsDashboard', habits], ['HabitExtras', extras]]) {
+    assert.match(src, /amountStats\(/, `${plik}: brak statystyk czasu/ilosci`)
+    assert.match(src, /średnio/, `${plik}: brak sredniej`)
+  }
+  // Suma widoczna od razu, bez rozwijania — to ona mowi najwiecej o takim nawyku.
+  assert.match(habits, /miary && miary\.total > 0/)
+})

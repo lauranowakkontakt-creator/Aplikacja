@@ -541,3 +541,39 @@ export function nextAmount(current, target) {
   if (c >= t) return 0
   return Math.min(t, c + amountStep(t))
 }
+
+// Statystyki nawyku mierzonego czasem albo ilością w zadanym okresie.
+// Procent wykonania sam w sobie mówi tu za mało: przy „20 minut dziennie"
+// chce się wiedzieć, ile tego było łącznie, ile wychodziło średnio w dniu, w
+// którym w ogóle usiadłaś, i kiedy poszło najlepiej.
+//  - total     — suma wykonania
+//  - days      — ile dni z czymkolwiek
+//  - fullDays  — ile dni z CAŁYM celem
+//  - avg       — średnia z dni, w których coś było (nie z kalendarza: zera
+//                zaniżałyby ją tym bardziej, im rzadszy nawyk)
+//  - best      — najlepszy dzień { date, value }
+export function amountStats(habit, start, end) {
+  if (!hasAmountGoal(habit)) return null
+  const target = Number(habit.target)
+  const wpisy = Object.entries(habit.amounts || {})
+    .map(([date, raw]) => ({ date, value: Number(raw) }))
+    .filter(({ date, value }) =>
+      Number.isFinite(value) && value > 0 &&
+      (!start || !end || (date >= start && date <= end)))
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+
+  const total = wpisy.reduce((s, w) => s + w.value, 0)
+  const fullDays = wpisy.filter(w => w.value >= target).length
+  // Remis bierze dzień wcześniejszy, żeby ta sama historia zawsze dawała tę
+  // samą odpowiedź.
+  const best = wpisy.reduce((b, w) => (!b || w.value > b.value ? w : b), null)
+  return {
+    unit: habit.unit || 'szt',
+    target,
+    total,
+    days: wpisy.length,
+    fullDays,
+    avg: wpisy.length ? Math.round(total / wpisy.length) : 0,
+    best: best ? { date: best.date, value: best.value } : null,
+  }
+}

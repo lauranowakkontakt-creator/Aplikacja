@@ -7,7 +7,7 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   optionalSummary, optionalDayCount, habitOrderUpdates, hasAmountGoal, dayAmount,
   dayProgress, isDayComplete, formatAmount, amountShortLabel, amountTotals, unitMeta,
   HABIT_UNITS, freshStartSummary, isOptionalActiveOn, optionalDayScore,
-  amountStep, nextAmount } from '../src/utils/habitLogic.js'
+  amountStep, nextAmount, amountStats } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -837,4 +837,43 @@ test('nextAmount: nadwyzka i brak celu nie wybuchaja', () => {
   assert.equal(nextAmount(25, 20), 0, 'wiecej niz cel tez zeruje')
   assert.equal(nextAmount(5, 0), 0)
   assert.equal(nextAmount(undefined, 20), 5)
+})
+
+// ---------- statystyki nawyku na czas / ilosc ----------
+
+test('amountStats: sumuje okres i liczy dni z calym celem', () => {
+  const h = { target: 20, unit: 'min', amounts: {
+    '2026-10-01': 20, '2026-10-02': 10, '2026-10-03': 30, '2026-09-30': 99,
+  } }
+  const s = amountStats(h, '2026-10-01', '2026-10-31')
+  assert.equal(s.total, 60, 'wrzesien poza okresem')
+  assert.equal(s.days, 3)
+  assert.equal(s.fullDays, 2, 'tylko 20 i 30 dowiozly cel')
+  assert.equal(s.unit, 'min')
+})
+
+test('amountStats: srednia liczy sie z dni, w ktorych cos bylo', () => {
+  // Zera z kalendarza zanizalyby ja tym bardziej, im rzadszy nawyk.
+  const h = { target: 20, unit: 'min', amounts: { '2026-10-01': 30, '2026-10-05': 10 } }
+  const s = amountStats(h, '2026-10-01', '2026-10-31')
+  assert.equal(s.avg, 20, '(30+10)/2, a nie /31 dni miesiaca')
+})
+
+test('amountStats: najlepszy dzien, remis do wczesniejszego', () => {
+  const h = { target: 10, amounts: { '2026-10-01': 25, '2026-10-09': 25, '2026-10-05': 10 } }
+  assert.deepEqual(amountStats(h, '2026-10-01', '2026-10-31').best,
+    { date: '2026-10-01', value: 25 })
+})
+
+test('amountStats: nawyk bez celu nie ma takich statystyk', () => {
+  assert.equal(amountStats({ completedDates: ['2026-10-01'] }, '2026-10-01', '2026-10-31'), null)
+})
+
+test('amountStats: pusty okres i smieci nie wybuchaja', () => {
+  const h = { target: 20, amounts: { '2026-10-01': 'duzo', '2026-10-02': -5, '2026-10-03': null } }
+  const s = amountStats(h, '2026-10-01', '2026-10-31')
+  assert.equal(s.total, 0)
+  assert.equal(s.days, 0)
+  assert.equal(s.avg, 0, 'zadnego dzielenia przez zero')
+  assert.equal(s.best, null)
 })

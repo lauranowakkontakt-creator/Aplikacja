@@ -28,7 +28,8 @@ import AmountStepper from './AmountStepper'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
   habitDayKind, dayScore, isRequiredHabit, isOptionalHabit,
-  habitLifecycle, hasAmountGoal, amountTotals, amountShortLabel, dayAmount } from '../../utils/habitLogic'
+  habitLifecycle, hasAmountGoal, amountTotals, amountShortLabel, dayAmount,
+  amountStats, formatAmount } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const SHOW_DAY_RHYTHM = false
@@ -46,6 +47,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   const [filterCat, setFilterCat]   = useState('all')
   const [selectedDay, setSelectedDay] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [showArchive, setShowArchive] = useState(false)  // archiwum spod ⋮, nie z dołu ekranu
+  const [openStat, setOpenStat]       = useState(null)   // rozwinięta karta w statystykach
   const [showFresh, setShowFresh]     = useState(false)
   const [showReorder, setShowReorder] = useState(false)
   const [showRoutineMgr, setShowRoutineMgr] = useState(false)
@@ -775,8 +777,9 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
             </div>
           )}
 
-          {/* Legenda kwadracików */}
-          {filtered.length > 0 && (
+          {/* Legenda kwadracików — tylko przy rozwiniętej karcie, bo tylko wtedy
+              są na ekranie jakieś kwadraciki do objaśnienia. */}
+          {openStat && statPeriod !== 'year' && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px', padding: '0 4px' }}>
               {(() => {
                 const chip = (bg, border, label) => (
@@ -810,9 +813,15 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
               const color  = habit.color || 'var(--accent)'
               const pct    = rangeStats([habit], pauses, start, endClamped).pct
               const fmtShort = (d) => format(new Date(d + 'T12:00:00'), 'd MMM', { locale: pl })
+              // Klik rozwija historię, a nie formularz: w analizie chce się
+              // zobaczyć, jak nawyk szedł, a nie go zmieniać. Edycja siedzi w
+              // „Edytuj nawyki" i na liście dnia.
+              const rozwiniety = openStat === habit.id
+              const miary = amountStats(habit, start, endClamped)
               return (
                 <div key={habit.id} className="card hover" style={{ padding: 16, cursor: 'pointer' }}
-                  onClick={() => { setEditHabit(habit); setShowForm(true) }}>
+                  onClick={() => setOpenStat(rozwiniety ? null : habit.id)}
+                  title={rozwiniety ? 'Zwiń' : 'Pokaż historię nawyku'}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, marginBottom: 14 }}>
                     <div style={{
                       width: 38, height: 38, borderRadius: 11, flexShrink: 0,
@@ -825,6 +834,10 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                       <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{habit.name}</div>
                       {cat && <div className="kicker" style={{ marginTop: 3 }}>{cat.label}</div>}
                     </div>
+                    <IconChevronDown size={15} style={{
+                      color: 'var(--text-muted)', flexShrink: 0,
+                      transform: rozwiniety ? 'rotate(180deg)' : 'none', transition: 'transform .2s',
+                    }} />
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
@@ -834,10 +847,55 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                         <IconFlame size={14} /> <span className="mono" style={{ fontSize: 13 }}>{streak} dni serii</span>
                       </div>
                       <div className="mono" style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 6 }}>rekord: {best} dni</div>
+                      {/* Przy nawyku na czas sam procent mowi za malo — suma to
+                          to, co sie z niego naprawde pamieta. */}
+                      {miary && miary.total > 0 && (
+                        <div className="mono" style={{ fontSize: 11, color, marginTop: 6, fontWeight: 600 }}>
+                          {formatAmount(miary.total, miary.unit)}
+                        </div>
+                      )}
                     </div>
                   </div>
 
-                  {/* Wykonanie — miesiąc jako kalendarz, tydzień/rok jako siatka */}
+                  {/* Historia — pokazuje się po kliknięciu. Wcześniej karta
+                      zawsze niosła pełną siatkę, więc kilkanaście nawyków
+                      znaczyło ekran, przez który trzeba było się przewijać. */}
+                  {rozwiniety && (<>
+                  {miary && (
+                    <div style={{
+                      display: 'flex', flexWrap: 'wrap', gap: 14, marginBottom: 14,
+                      paddingBottom: 12, borderBottom: '1px solid var(--border)',
+                    }}>
+                      <div>
+                        <div className="mono" style={{ fontSize: 13, fontWeight: 700, color }}>
+                          {formatAmount(miary.total, miary.unit)}
+                        </div>
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>łącznie</div>
+                      </div>
+                      <div>
+                        <div className="mono" style={{ fontSize: 13, fontWeight: 700 }}>
+                          {formatAmount(miary.avg, miary.unit)}
+                        </div>
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>średnio w dniu</div>
+                      </div>
+                      <div>
+                        <div className="mono" style={{ fontSize: 13, fontWeight: 700 }}>
+                          {miary.fullDays}<span style={{ fontSize: 10, color: 'var(--text-muted)' }}>/{miary.days}</span>
+                        </div>
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>dni z celem</div>
+                      </div>
+                      {miary.best && (
+                        <div>
+                          <div className="mono" style={{ fontSize: 13, fontWeight: 700, color: 'var(--warn)' }}>
+                            {formatAmount(miary.best.value, miary.unit)}
+                          </div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>
+                            rekord {fmtShort(miary.best.date)}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {statPeriod === 'month' ? (
                     <MonthCalendar month={monthAnchor} renderCell={habitCellFor(habit, color)} cellH={18} gap={3} font={8} />
                   ) : statPeriod === 'year' ? (
@@ -871,6 +929,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                       </div>
                     </>
                   )}
+                  </>)}
                 </div>
               )
             })}
