@@ -464,7 +464,10 @@ export function amountShortLabel(current, target, unit) {
   const c = Number(current) || 0
   const short = unitMeta(unit).short
   if (c <= 0) return `${t} ${short}`
-  if (c >= t) return `${c} ${short}`
+  // Bez celu nie ma do czego porównywać — „5/0 szt." nic nie znaczy.
+  if (t <= 0 || c === t) return `${c} ${short}`
+  // Nadwyżkę pokazujemy jako „35/20 min", a nie samo „35 min" — inaczej nie
+  // widać, że to więcej, niż było trzeba.
   return `${c}/${t} ${short}`
 }
 
@@ -531,15 +534,27 @@ export function amountStep(target) {
   return Math.max(1, Math.round(t / 4))
 }
 
-// Następna wartość po kliknięciu. Jeden przycisk zamiast trzech: dokłada skok,
-// a po osiągnięciu celu wraca do zera — cofnięcie pomyłki to przeklikanie w
-// kółko, nie osobny przycisk „−", który zjadał nazwę nawyku.
+// Następna wartość po kliknięciu. Dokłada skok i NIE zatrzymuje się na celu:
+// robota ponad normę ma się dać zapisać, bo właśnie ona najwięcej mówi o dniu.
+// Wcześniej klik po osiągnięciu celu zerował dzień, więc nadwyżki nie dało się
+// wbić inaczej niż ręcznie. Zerowanie przeniosło się do okna („Wyczyść").
+//
+// Pierwszy klik dociąga do pełnego celu, zamiast go przeskakiwać: przy celu 20
+// i skoku 5 wartość 18 daje 20, a nie 23.
 export function nextAmount(current, target) {
   const t = Number(target) || 0
   const c = Number(current) || 0
-  if (t <= 0) return 0
-  if (c >= t) return 0
-  return Math.min(t, c + amountStep(t))
+  const skok = amountStep(t)
+  if (t <= 0) return c + skok
+  if (c < t) return Math.min(t, c + skok)
+  return c + skok
+}
+
+// Ile ponad cel. Zero, gdy normy jeszcze nie ma — ujemna „nadwyżka" nie ma sensu.
+export function amountOver(current, target) {
+  const t = Number(target) || 0
+  const c = Number(current) || 0
+  return c > t ? c - t : 0
 }
 
 // Statystyki nawyku mierzonego czasem albo ilością w zadanym okresie.
@@ -573,6 +588,10 @@ export function amountStats(habit, start, end) {
     total,
     days: wpisy.length,
     fullDays,
+    // Ile zrobione PONAD normę — przy nawyku na czas to często najciekawsza
+    // liczba: pokazuje dni, w których poszło więcej, niż trzeba było.
+    over: wpisy.reduce((s, w) => s + Math.max(0, w.value - target), 0),
+    overDays: wpisy.filter(w => w.value > target).length,
     avg: wpisy.length ? Math.round(total / wpisy.length) : 0,
     best: best ? { date: best.date, value: best.value } : null,
   }

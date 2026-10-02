@@ -7,7 +7,7 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   optionalSummary, optionalDayCount, habitOrderUpdates, hasAmountGoal, dayAmount,
   dayProgress, isDayComplete, formatAmount, amountShortLabel, amountTotals, unitMeta,
   HABIT_UNITS, freshStartSummary, isOptionalActiveOn, optionalDayScore,
-  amountStep, nextAmount, amountStats } from '../src/utils/habitLogic.js'
+  amountStep, nextAmount, amountStats, amountOver } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -688,7 +688,7 @@ test('amountShortLabel: jednostka pada raz, pusty dzien pokazuje sam cel', () =>
   assert.equal(amountShortLabel(0, 5, 'min'), '5 min')
   assert.equal(amountShortLabel(2, 5, 'min'), '2/5 min')
   assert.equal(amountShortLabel(5, 5, 'min'), '5 min')
-  assert.equal(amountShortLabel(7, 5, 'min'), '7 min', 'nadwyzke pokazujemy wprost')
+  assert.equal(amountShortLabel(7, 5, 'min'), '7/5 min', 'nadwyzke widac wzgledem celu')
   assert.equal(amountShortLabel(10, 30, 'str'), '10/30 str.')
 })
 
@@ -820,23 +820,44 @@ test('amountStep: do pelna zawsze okolo czterech klikniec', () => {
   assert.equal(amountStep(undefined), 1)
 })
 
-test('nextAmount: dokłada skok, po celu wraca do zera', () => {
+test('nextAmount: dokłada skok az do celu', () => {
   assert.equal(nextAmount(0, 20), 5)
   assert.equal(nextAmount(5, 20), 10)
   assert.equal(nextAmount(15, 20), 20)
-  assert.equal(nextAmount(20, 20), 0, 'po pelnym cyklu zerujemy')
 })
 
-test('nextAmount: nie przeskakuje celu', () => {
+test('nextAmount: nie zatrzymuje sie na celu — robote ponad norme da sie zapisac', () => {
+  // Wczesniej klik po osiagnieciu celu zerowal dzien, wiec nadwyzki nie dalo
+  // sie wbic inaczej niz recznie.
+  assert.equal(nextAmount(20, 20), 25)
+  assert.equal(nextAmount(25, 20), 30)
+})
+
+test('nextAmount: pierwszy klik dociaga do pelnego celu, nie przeskakuje', () => {
   // Cel 10, skok 3 (round(10/4)=3): 0-3-6-9-10, nie 12.
   assert.equal(amountStep(10), 3)
   assert.equal(nextAmount(9, 10), 10)
+  // Dopiero od pelnej normy skok jest pelny.
+  assert.equal(nextAmount(10, 10), 13)
 })
 
-test('nextAmount: nadwyzka i brak celu nie wybuchaja', () => {
-  assert.equal(nextAmount(25, 20), 0, 'wiecej niz cel tez zeruje')
-  assert.equal(nextAmount(5, 0), 0)
+test('nextAmount: brak celu i smieci nie wybuchaja', () => {
+  assert.equal(nextAmount(5, 0), 6, 'bez celu skok wynosi 1')
   assert.equal(nextAmount(undefined, 20), 5)
+  assert.equal(nextAmount(null, null), 1)
+})
+
+test('amountOver: liczy tylko to, co ponad norme', () => {
+  assert.equal(amountOver(35, 20), 15)
+  assert.equal(amountOver(20, 20), 0)
+  assert.equal(amountOver(10, 20), 0, 'ujemna nadwyzka nie ma sensu')
+  assert.equal(amountOver(undefined, 20), 0)
+})
+
+test('amountShortLabel: nadwyzke widac jako 35/20, nie samo 35', () => {
+  // Samo "35 min" nie mowi, ze to wiecej, niz bylo trzeba.
+  assert.equal(amountShortLabel(35, 20, 'min'), '35/20 min')
+  assert.equal(amountShortLabel(20, 20, 'min'), '20 min')
 })
 
 // ---------- statystyki nawyku na czas / ilosc ----------
@@ -876,4 +897,14 @@ test('amountStats: pusty okres i smieci nie wybuchaja', () => {
   assert.equal(s.days, 0)
   assert.equal(s.avg, 0, 'zadnego dzielenia przez zero')
   assert.equal(s.best, null)
+})
+
+test('amountStats: nadwyzka ponad norme liczona osobno', () => {
+  const h = { target: 20, unit: 'min', amounts: {
+    '2026-10-01': 35, '2026-10-02': 20, '2026-10-03': 10, '2026-10-04': 50,
+  } }
+  const s = amountStats(h, '2026-10-01', '2026-10-31')
+  assert.equal(s.over, 45, '15 ponad w pierwszym dniu i 30 w czwartym')
+  assert.equal(s.overDays, 2, 'dokladnie rownie z celem to nie nadwyzka')
+  assert.equal(s.total, 115, 'suma liczy calosc, takze nadwyzke')
 })

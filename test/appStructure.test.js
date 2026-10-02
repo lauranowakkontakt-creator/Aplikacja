@@ -703,3 +703,19 @@ test('Statystyki czasu i ilosci widac w obu modulach', () => {
   // Suma widoczna od razu, bez rozwijania — to ona mowi najwiecej o takim nawyku.
   assert.match(habits, /miary && miary\.total > 0/)
 })
+
+test('Czas/ilosc: robote ponad norme da sie zapisac i widac ja', () => {
+  // Klik po osiagnieciu celu zerowal dzien, wiec nadwyzki nie dalo sie wbic
+  // inaczej niz recznie w oknie.
+  const logic   = read('src/utils/habitLogic.js')
+  const stepper = read('src/components/habits/AmountStepper.jsx')
+  const habits  = read('src/components/habits/HabitsDashboard.jsx')
+  assert.ok(!/if \(c >= t\) return 0/.test(logic), 'klik po celu nie moze zerowac dnia')
+  assert.match(logic, /export function amountOver/)
+  // Pierscien jest juz pelny, wiec nadwyzke pokazuje druga obwodka i liczba.
+  assert.match(stepper, /boxShadow: ponad > 0/)
+  assert.match(stepper, /ponad > 0\s*\n?\s*\? teraz/)
+  // W rozwinietej karcie nadwyzka ma wlasny kafelek.
+  assert.match(habits, /miary\.over > 0 &&/)
+  assert.match(habits, /ponad cel · \{miary\.overDays\} dni/)
+})
