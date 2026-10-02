@@ -3,8 +3,9 @@ import { format } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { db } from '../../firebase/config'
 import { CatIcon, IconClose, IconArchive, IconRestore, IconCheck } from '../Icons'
-import { habitCompletionSummary } from '../../utils/habitLogic'
+import { habitCompletionSummary, amountTotals } from '../../utils/habitLogic'
 import { habitPeriodLabel } from '../../utils/habitStats'
+import HabitTimeline from './HabitTimeline'
 
 // Zakończone i archiwum — spod ⋮, nie z dołu ekranu.
 // Nawyk z datą zakończenia znikał z listy dnia bez śladu: nie był
@@ -71,6 +72,11 @@ export default function HabitArchive({ user, habits = [], endedHabits = [], paus
   }
 
   const empty = endedHabits.length === 0 && habits.length === 0
+  // Statystyki zamknietych rzeczy mieszkaja TUTAJ, nie w ogolnych statystykach:
+  // tam mieszaly sie z tym, co robisz teraz, a dotycza czegos, co sie skonczylo.
+  const zamkniete = [...endedHabits, ...habits]
+  const sumy = amountTotals(zamkniete)
+  const odhaczen = zamkniete.reduce((n, h) => n + (h.completedDates || []).length, 0)
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -119,9 +125,36 @@ export default function HabitArchive({ user, habits = [], endedHabits = [], paus
           )}
 
           {!empty && (
-            <p style={{ margin: '2px 0 0', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <IconCheck size={12} /> {endedHabits.length} ukończone · <IconArchive size={12} /> {habits.length} w archiwum
-            </p>
+            <>
+              {/* Oś czasu i sumy — co kiedy trwało i ile tego było. */}
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginTop: 14, marginBottom: 8 }}>
+                Twoja historia
+              </div>
+              <div style={{
+                display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 12,
+                paddingBottom: 12, borderBottom: '1px solid var(--border)',
+              }}>
+                <div>
+                  <div style={{ fontSize: 17, fontWeight: 700 }}>{odhaczen}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>
+                    odhaczeń łącznie
+                  </div>
+                </div>
+                {sumy.map(t => (
+                  <div key={t.unit}>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--accent)' }}>{t.label}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>
+                      na to poszło
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <HabitTimeline habits={zamkniete} />
+
+              <p style={{ margin: '12px 0 0', fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IconCheck size={12} /> {endedHabits.length} ukończone · <IconArchive size={12} /> {habits.length} w archiwum
+              </p>
+            </>
           )}
         </div>
       </div>

@@ -23,7 +23,6 @@ import SegTabs from '../SegTabs'
 import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor } from '../../utils/habitStats'
 import MonthCalendar from './MonthCalendar'
 import HabitExtras from './HabitExtras'
-import HabitTimeline from './HabitTimeline'
 import AmountStepper from './AmountStepper'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
@@ -147,7 +146,6 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   // okresu. Archiwizacja nie zapisuje daty, wiec nie wiadomo, od kiedy nawyk
   // przestal obowiazywac — wliczony do rangeStats wygladalby na pominiety w
   // kazdym dniu po schowaniu i zanizalby biezace miesiace.
-  const archivedRequired = archivedHabits.filter(isRequiredHabit).sort(byHabitOrder)
   const archivedExtras   = archivedHabits.filter(isOptionalHabit).sort(byHabitOrder)
   const filtered = requiredActive.filter(h => filterCat === 'all' || h.category === filterCat)
 
@@ -836,24 +834,6 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
             })}
           </div>
 
-          {/* Archiwum jako OS CZASU — archiwum jest historia, wiec zamiast
-              osobnych kafelkow z liczbami pokazujemy, co kiedy trwalo. Dalej
-              swiadomie POZA procentami wyzej. */}
-          {archivedRequired.length > 0 && (
-            <div style={{ marginTop: 22 }}>
-              {kicker(`Twoja historia (${archivedRequired.length})`)}
-              <p style={{ margin: '-4px 0 12px', fontSize: 11, color: 'var(--text-muted)' }}>
-                Schowane nawyki na wspólnej osi — ich historia zostaje, ale nie liczą się do procentów powyżej.
-              </p>
-              <div className="card" style={{ padding: 16 }}>
-                <HabitTimeline habits={archivedRequired} accent="var(--accent)"
-                  onPick={(id) => {
-                    const h = archivedRequired.find(x => x.id === id)
-                    if (h) { setEditHabit(h); setShowForm(true) }
-                  }} />
-              </div>
-            </div>
-          )}
         </div>
       ) })()}
 

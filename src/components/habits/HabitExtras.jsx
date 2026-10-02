@@ -9,7 +9,6 @@ import { BarChartSVG } from '../ChartPrimitives'
 import StatTiles from '../StatTiles'
 import SegTabs from '../SegTabs'
 import MonthCalendar from './MonthCalendar'
-import HabitTimeline from './HabitTimeline'
 import AmountStepper from './AmountStepper'
 
 // Ekran „Wyzwania" — cele poboczne. Wchodzi się tu flagą w belce, tak samo jak
@@ -151,7 +150,7 @@ export default function HabitExtras({
           {/* Zwarta lista do odhaczania — jedna linijka na wyzwanie, bez siatek.
               Archiwalnych tu nie ma: schowanego wyzwania sie nie zalicza. */}
           {habits.length === 0 && (
-            <div className="list-empty"><p>Wszystkie wyzwania są w archiwum — zobacz Statystyki.</p></div>
+            <div className="list-empty"><p>Wszystkie wyzwania są w archiwum — szukaj ich w ⋮ „Ukończone i archiwum".</p></div>
           )}
           {habits.map(h => {
             const done = (h.completedDates || []).includes(selectedDay)
@@ -280,26 +279,6 @@ export default function HabitExtras({
             })}
           </div>
 
-          {/* Archiwum jako OS CZASU — co kiedy trwalo. Kafelki i wykres wyzej
-              dalej go nie licza: archiwizacja nie zapisuje daty, wiec nie
-              wiadomo, od kiedy wyzwanie przestalo byc aktualne. */}
-          {archived.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 6 }}>
-                Twoja historia ({archived.length})
-              </div>
-              <p style={{ margin: '0 0 12px', fontSize: 11, color: 'var(--text-muted)' }}>
-                Schowane wyzwania na wspólnej osi — historia zostaje, ale nie liczą się do liczb powyżej.
-              </p>
-              <div className="card" style={{ padding: 16 }}>
-                <HabitTimeline habits={archived} accent="var(--warn)"
-                  onPick={(id) => {
-                    const h = archived.find(x => x.id === id)
-                    if (h) onEdit(h)
-                  }} />
-              </div>
-            </div>
-          )}
         </>
       )}
     </div>

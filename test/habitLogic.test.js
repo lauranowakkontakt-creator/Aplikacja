@@ -5,7 +5,7 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   byRoutineOrder, groupByRoutine, habitDayKind, isDoneKind, isRequiredHabit, dayScore,
   habitLifecycle, habitCompletionSummary, isOptionalHabit, optionalProgress,
   optionalSummary, optionalDayCount, habitOrderUpdates, hasAmountGoal, dayAmount,
-  dayProgress, isDayComplete, formatAmount, amountTotals, unitMeta,
+  dayProgress, isDayComplete, formatAmount, amountShortLabel, amountTotals, unitMeta,
   HABIT_UNITS } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
@@ -679,4 +679,20 @@ test('amountTotals: sumuje wykonanie w okresie, jednostek nie miesza', () => {
 test('amountTotals: bez danych zwraca pusta liste', () => {
   assert.deepEqual(amountTotals([], '2026-10-01', '2026-10-31'), [])
   assert.deepEqual(amountTotals([{ completedDates: ['2026-10-01'] }], '2026-10-01', '2026-10-31'), [])
+})
+
+test('amountShortLabel: jednostka pada raz, pusty dzien pokazuje sam cel', () => {
+  // "0 min / 5 min" rozpychalo kontrolke tak, ze nazwa nawyku zostawala
+  // przycieta do "Czas...".
+  assert.equal(amountShortLabel(0, 5, 'min'), '5 min')
+  assert.equal(amountShortLabel(2, 5, 'min'), '2/5 min')
+  assert.equal(amountShortLabel(5, 5, 'min'), '5 min')
+  assert.equal(amountShortLabel(7, 5, 'min'), '7 min', 'nadwyzke pokazujemy wprost')
+  assert.equal(amountShortLabel(10, 30, 'str'), '10/30 str.')
+})
+
+test('amountShortLabel: smieci i brak celu nie wybuchaja', () => {
+  assert.equal(amountShortLabel(undefined, undefined, 'min'), '0 min')
+  assert.equal(amountShortLabel(null, 20, 'min'), '20 min')
+  assert.equal(amountShortLabel(5, 0, 'szt'), '5 szt.')
 })

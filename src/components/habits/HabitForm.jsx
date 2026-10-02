@@ -3,12 +3,12 @@ import { collection, addDoc, updateDoc, deleteDoc, doc, Timestamp, query, orderB
 import { onSnapshot } from '../../utils/subskrypcje'
 import { db } from '../../firebase/config'
 import { format } from 'date-fns'
-import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconArchive, IconRestore, IconEdit, IconPlus } from '../Icons'
+import { ICON_CATALOG, CatIcon, IconClose, IconTrash, IconArchive, IconRestore, IconEdit, IconPlus, IconCheck } from '../Icons'
 import { confirmDialog } from '../ConfirmModal'
 import { toast } from '../Toast'
 import HabitCategoryManager from './HabitCategoryManager'
 import RoutineManager from './RoutineManager'
-import { byRoutineOrder, HABIT_UNITS, unitMeta, formatAmount } from '../../utils/habitLogic'
+import { byRoutineOrder, HABIT_UNITS, unitMeta, formatAmount, habitLifecycle } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
 export const HABIT_CATEGORIES = [
@@ -127,6 +127,24 @@ export default function HabitForm({ user, onClose, editData }) {
     const ok = await confirmDialog({ title: `Usunąć nawyk "${editData.name}"?`, message: "Utracisz całą historię aktywności." })
     if (!ok) return
     await deleteDoc(doc(db, 'users', user.uid, 'habits', editData.id))
+    onClose()
+  }
+
+  // Ukończenie nawyku jednym kliknięciem. Dotąd dawało się to zrobić tylko
+  // okrężnie: wejść w datę zakończenia i ustawić dzisiejszą ręcznie. Pod spodem
+  // to ta sama rzecz (endDate), bo cały moduł — cykl życia, archiwum, oś czasu —
+  // czyta właśnie ją; druga flaga rozjechałaby się z nią przy pierwszej edycji.
+  const handleFinish = async () => {
+    const dzis = format(new Date(), 'yyyy-MM-dd')
+    const skonczony = habitLifecycle(editData, dzis) === 'ended'
+    await updateDoc(doc(db, 'users', user.uid, 'habits', editData.id), {
+      endDate: skonczony ? null : dzis,
+    })
+    // Dzisiejszy dzień jest OSTATNIM dniem nawyku, nie pierwszym po nim — więc
+    // z listy dnia schodzi dopiero jutro i dziś jeszcze da się go odhaczyć.
+    // Bez tej informacji klik w „Ukończ" wygląda, jakby nic nie zrobił.
+    if (skonczony) toast.success('Nawyk wrócił do codzienności.')
+    else toast.success('Nawyk ukończony. Dziś jest jego ostatnim dniem — z listy zejdzie od jutra.')
     onClose()
   }
 
@@ -380,6 +398,15 @@ export default function HabitForm({ user, onClose, editData }) {
           <button type="submit" className="btn-save" disabled={saving}>
             {saving ? 'Zapisywanie...' : editData ? 'Zapisz zmiany' : 'Dodaj nawyk'}
           </button>
+
+          {editData && !editData.archived && (
+            <button type="button" className="btn-outline" style={{ width: '100%', marginTop: 8 }}
+              onClick={handleFinish}>
+              {habitLifecycle(editData, format(new Date(), 'yyyy-MM-dd')) === 'ended'
+                ? <><IconRestore size={14} /> Wznów nawyk</>
+                : <><IconCheck size={14} /> Ukończ nawyk</>}
+            </button>
+          )}
 
           {editData && (
             <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>

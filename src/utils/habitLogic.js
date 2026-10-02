@@ -451,3 +451,16 @@ export function amountTotals(habits = [], start, end) {
   }
   return [...perUnit].map(([unit, total]) => ({ unit, total, label: formatAmount(total, unit) }))
 }
+
+// Krótka etykieta na przycisk w liście dnia. `formatAmount` dwa razy („0 min /
+// 5 min") rozpychało kontrolkę tak, że nazwa nawyku zostawała przycięta do
+// „Czas…". Tutaj jednostka pada RAZ, na końcu, a przy pustym dniu pokazujemy
+// sam cel — zero po lewej nic nie wnosi.
+export function amountShortLabel(current, target, unit) {
+  const t = Number(target) || 0
+  const c = Number(current) || 0
+  const short = unitMeta(unit).short
+  if (c <= 0) return `${t} ${short}`
+  if (c >= t) return `${c} ${short}`
+  return `${c}/${t} ${short}`
+}
