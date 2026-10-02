@@ -521,3 +521,59 @@ export function optionalDayScore(habits = [], dateStr) {
   }
   return { total, done, pct: total > 0 ? Math.round((done / total) * 100) : 0 }
 }
+
+// Skok jednego kliknięcia przy celu liczbowym. Stały skok (np. 5 minut) przy
+// celu 60 znaczyłby dwanaście kliknięć — dlatego liczymy go z celu tak, żeby
+// do pełna było zawsze mniej więcej cztery.
+export function amountStep(target) {
+  const t = Number(target) || 0
+  if (t <= 0) return 1
+  return Math.max(1, Math.round(t / 4))
+}
+
+// Następna wartość po kliknięciu. Jeden przycisk zamiast trzech: dokłada skok,
+// a po osiągnięciu celu wraca do zera — cofnięcie pomyłki to przeklikanie w
+// kółko, nie osobny przycisk „−", który zjadał nazwę nawyku.
+export function nextAmount(current, target) {
+  const t = Number(target) || 0
+  const c = Number(current) || 0
+  if (t <= 0) return 0
+  if (c >= t) return 0
+  return Math.min(t, c + amountStep(t))
+}
+
+// Statystyki nawyku mierzonego czasem albo ilością w zadanym okresie.
+// Procent wykonania sam w sobie mówi tu za mało: przy „20 minut dziennie"
+// chce się wiedzieć, ile tego było łącznie, ile wychodziło średnio w dniu, w
+// którym w ogóle usiadłaś, i kiedy poszło najlepiej.
+//  - total     — suma wykonania
+//  - days      — ile dni z czymkolwiek
+//  - fullDays  — ile dni z CAŁYM celem
+//  - avg       — średnia z dni, w których coś było (nie z kalendarza: zera
+//                zaniżałyby ją tym bardziej, im rzadszy nawyk)
+//  - best      — najlepszy dzień { date, value }
+export function amountStats(habit, start, end) {
+  if (!hasAmountGoal(habit)) return null
+  const target = Number(habit.target)
+  const wpisy = Object.entries(habit.amounts || {})
+    .map(([date, raw]) => ({ date, value: Number(raw) }))
+    .filter(({ date, value }) =>
+      Number.isFinite(value) && value > 0 &&
+      (!start || !end || (date >= start && date <= end)))
+    .sort((a, b) => (a.date < b.date ? -1 : 1))
+
+  const total = wpisy.reduce((s, w) => s + w.value, 0)
+  const fullDays = wpisy.filter(w => w.value >= target).length
+  // Remis bierze dzień wcześniejszy, żeby ta sama historia zawsze dawała tę
+  // samą odpowiedź.
+  const best = wpisy.reduce((b, w) => (!b || w.value > b.value ? w : b), null)
+  return {
+    unit: habit.unit || 'szt',
+    target,
+    total,
+    days: wpisy.length,
+    fullDays,
+    avg: wpisy.length ? Math.round(total / wpisy.length) : 0,
+    best: best ? { date: best.date, value: best.value } : null,
+  }
+}

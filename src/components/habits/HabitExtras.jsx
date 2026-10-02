@@ -3,7 +3,8 @@ import { format, addDays, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { CatIcon, IconFlag, IconCheck, IconPlus, IconStar } from '../Icons'
 import { optionalProgress, optionalSummary, optionalDayCount, hasAmountGoal,
-  amountTotals, isOptionalActiveOn, optionalDayScore, isDayComplete } from '../../utils/habitLogic'
+  amountTotals, isOptionalActiveOn, optionalDayScore, isDayComplete,
+  amountShortLabel, dayAmount, amountStats, formatAmount } from '../../utils/habitLogic'
 import { habitPeriodLabel, optionalRange, optionalBuckets } from '../../utils/habitStats'
 import { BarChartSVG, Ring } from '../ChartPrimitives'
 import StatTiles from '../StatTiles'
@@ -220,13 +221,18 @@ export default function HabitExtras({
                       {h.name}
                     </span>
                     <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {hasAmountGoal(h) && (
+                        <span className="mono" style={{ color, fontWeight: 600 }}>
+                          {amountShortLabel(dayAmount(h, selectedDay), h.target, h.unit)} ·{' '}
+                        </span>
+                      )}
                       {p.inRange}x w okresie · {p.total}x łącznie
                     </span>
                   </span>
                 </button>
                 {/* Wyzwanie na czas / ilosc: pasek z liczba zamiast haczyka. */}
                 {hasAmountGoal(h) ? (
-                  <AmountStepper habit={h} dateStr={selectedDay} onSet={onSetAmount} disabled={isFuture} compact />
+                  <AmountStepper habit={h} dateStr={selectedDay} onSet={onSetAmount} disabled={isFuture} size={36} />
                 ) : (
                   <button
                     onClick={() => !isFuture && onToggle(h, selectedDay)}
@@ -322,6 +328,36 @@ export default function HabitExtras({
                       </div>
                     </div>
                   </div>
+                  {/* Przy wyzwaniu na czas sam licznik dni mowi za malo —
+                      liczy sie, ile tego bylo i ile wychodzilo w dniu. */}
+                  {(() => {
+                    const m = amountStats(h, start, end)
+                    if (!m || m.days === 0) return null
+                    return (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 10 }}>
+                        <div>
+                          <div className="mono" style={{ fontSize: 12.5, fontWeight: 700, color }}>
+                            {formatAmount(m.total, m.unit)}
+                          </div>
+                          <div style={{ fontSize: 8.5, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>łącznie</div>
+                        </div>
+                        <div>
+                          <div className="mono" style={{ fontSize: 12.5, fontWeight: 700 }}>
+                            {formatAmount(m.avg, m.unit)}
+                          </div>
+                          <div style={{ fontSize: 8.5, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>średnio</div>
+                        </div>
+                        {m.best && (
+                          <div>
+                            <div className="mono" style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--warn)' }}>
+                              {formatAmount(m.best.value, m.unit)}
+                            </div>
+                            <div style={{ fontSize: 8.5, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.1em', marginTop: 2 }}>rekord</div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                   {period === 'month'
                     ? <MonthCalendar month={selDate} renderCell={cellForHabit(h, color)} cellH={18} gap={3} font={8} />
                     : okres && <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>{okres}</div>}

@@ -286,7 +286,7 @@ test('Nawyki: cel z wymaganych, licznik ze wszystkiego zrobionego', () => {
   // jej liste BEZ wyzwan: wczesniej Pulpit dostawal wszystkie nawyki, wiec
   // odhaczone wyzwanie podbijalo mu „zrobione", choc celem nie bylo.
   assert.match(habits, /dayScore\(filtered, TODAY, pauses\)/)
-  assert.match(habits, /requiredActive\s*=\s*activeHabits\.filter\(isRequiredHabit\)/,
+  assert.match(habits, /requiredActive\s*=\s*activeHabits\.filter\(\s*\n?\s*h => isRequiredHabit\(h\)/,
     'lista dnia musi wychodzic od nawykow wymaganych')
   assert.match(PULPIT, /dayScore\(habits\.filter\(isRequiredHabit\), today, pauses\)/)
   assert.ok(!/function isDueOn/.test(PULPIT), 'Pulpit nie moze miec wlasnej kopii logiki nawykow')
@@ -547,11 +547,15 @@ test('Nawyki na czas / ilosc: cel w formularzu, pasek zamiast haczyka', () => {
   // Jeden komponent wpisywania na oba ekrany, nie dwie kopie.
   assert.match(stepper, /dayAmount/)
   assert.match(stepper, /dayProgress/)
-  // Kontrolka NIE MOZE sie rozpychac: przy "0 min / 5 min" i elastycznej
-  // szerokosci nazwa nawyku zostawala przycieta do "Czas...".
-  assert.match(stepper, /amountShortLabel/, 'etykieta musi byc skrocona')
-  assert.ok(!/flex: 1, minWidth: compact/.test(stepper), 'pasek nie moze rosnac kosztem nazwy')
-  assert.match(stepper, /flexShrink: 0, opacity/, 'kontrolka ma byc nieskalowalna')
+  // Kontrolka to JEDEN przycisk wielkosci haczyka. Trzy ("-", pasek, "+")
+  // zjadaly tyle szerokosci, ze nazwy zostawaly jako "Czas z B..." i "Psychol...".
+  assert.match(stepper, /nextAmount/, 'klik ma cyklicznie dokladac skok')
+  assert.match(stepper, /conic-gradient/, 'postep pokazuje pierscien')
+  assert.ok(!/title=\{`−/.test(stepper), 'przycisk "−" ma nie wrocic')
+  assert.equal((stepper.match(/<button/g) || []).length, 1, 'dokladnie jeden przycisk')
+  // Liczba stoi PRZY NAZWIE, gdzie jest na nia miejsce.
+  assert.match(habits, /amountShortLabel\(dayAmount\(habit, selectedDay\)/)
+  assert.match(extras, /amountShortLabel\(dayAmount\(h, selectedDay\)/)
 })
 
 test('Nawyki na czas: amounts trzymane w zgodzie z completedDates', () => {
@@ -633,4 +637,43 @@ test('Rok w statystykach to 12 kratek, nie 365 na nawyk', () => {
   assert.match(habits, /habitYearMonths\(habit, statYear, pauses, today\)/)
   // HabitDayGrid zostaje dla tygodnia — tam dzien po dniu ma sens.
   assert.match(habits, /<HabitDayGrid/)
+})
+
+test('Analiza dotyczy tego, co robisz teraz — bez ukonczonych', () => {
+  // Ukonczone zostaja w activeHabits (ukonczenie to endDate, nie archiwizacja),
+  // wiec bez filtra wchodzily do statystyk i kart razem z aktualnymi.
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  assert.match(habits, /isRequiredHabit\(h\) && habitLifecycle\(h, TODAY\) !== 'ended'/)
+  // Kalendarz zbiorczy w statystykach tez — inaczej liczylby zamkniete nawyki.
+  assert.match(habits, /renderCell=\{aggCellFor\(requiredActive\)\}/)
+  assert.ok(!/aggCellFor\(activeHabits\)/.test(habits.split("view === 'stats'")[1] || ''),
+    'statystyki nie moga brac activeHabits')
+})
+
+test('Analiza: karta nawyku rozwija historie, a nie formularz', () => {
+  // Klik w karte otwieral edycje — w analizie chce sie zobaczyc, JAK nawyk
+  // szedl, a nie go zmieniac. Edycja siedzi w "Edytuj nawyki".
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  // "view === 'stats'" wystepuje kilka razy (przycisk powrotu, sekcja) — bierzemy
+  // wszystko od OSTATNIEGO wystapienia, czyli wlasciwa sekcje statystyk.
+  const czesci = habits.split("view === 'stats'")
+  const staty = czesci[czesci.length - 1]
+  assert.match(staty, /onClick=\{\(\) => setOpenStat\(rozwiniety \? null : habit\.id\)\}/)
+  assert.ok(!/onClick=\{\(\) => \{ setEditHabit\(habit\); setShowForm\(true\) \}\}/.test(staty),
+    'karta w analizie nie moze otwierac formularza')
+  // Siatka i legenda chowaja sie do rozwiniecia — wczesniej kazda karta niosla
+  // pelna siatke i ekran trzeba bylo przewijac.
+  assert.match(staty, /\{rozwiniety && \(<>/)
+  assert.match(staty, /\{openStat && statPeriod !== 'year' && \(/, 'legenda tylko przy rozwinietej karcie')
+})
+
+test('Statystyki czasu i ilosci widac w obu modulach', () => {
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  for (const [plik, src] of [['HabitsDashboard', habits], ['HabitExtras', extras]]) {
+    assert.match(src, /amountStats\(/, `${plik}: brak statystyk czasu/ilosci`)
+    assert.match(src, /średnio/, `${plik}: brak sredniej`)
+  }
+  // Suma widoczna od razu, bez rozwijania — to ona mowi najwiecej o takim nawyku.
+  assert.match(habits, /miary && miary\.total > 0/)
 })
