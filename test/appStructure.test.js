@@ -286,7 +286,7 @@ test('Nawyki: cel z wymaganych, licznik ze wszystkiego zrobionego', () => {
   // jej liste BEZ wyzwan: wczesniej Pulpit dostawal wszystkie nawyki, wiec
   // odhaczone wyzwanie podbijalo mu „zrobione", choc celem nie bylo.
   assert.match(habits, /dayScore\(filtered, TODAY, pauses\)/)
-  assert.match(habits, /requiredActive\s*=\s*activeHabits\.filter\(isRequiredHabit\)/,
+  assert.match(habits, /requiredActive\s*=\s*activeHabits\.filter\(\s*\n?\s*h => isRequiredHabit\(h\)/,
     'lista dnia musi wychodzic od nawykow wymaganych')
   assert.match(PULPIT, /dayScore\(habits\.filter\(isRequiredHabit\), today, pauses\)/)
   assert.ok(!/function isDueOn/.test(PULPIT), 'Pulpit nie moze miec wlasnej kopii logiki nawykow')
@@ -547,11 +547,15 @@ test('Nawyki na czas / ilosc: cel w formularzu, pasek zamiast haczyka', () => {
   // Jeden komponent wpisywania na oba ekrany, nie dwie kopie.
   assert.match(stepper, /dayAmount/)
   assert.match(stepper, /dayProgress/)
-  // Kontrolka NIE MOZE sie rozpychac: przy "0 min / 5 min" i elastycznej
-  // szerokosci nazwa nawyku zostawala przycieta do "Czas...".
-  assert.match(stepper, /amountShortLabel/, 'etykieta musi byc skrocona')
-  assert.ok(!/flex: 1, minWidth: compact/.test(stepper), 'pasek nie moze rosnac kosztem nazwy')
-  assert.match(stepper, /flexShrink: 0, opacity/, 'kontrolka ma byc nieskalowalna')
+  // Kontrolka to JEDEN przycisk wielkosci haczyka. Trzy ("-", pasek, "+")
+  // zjadaly tyle szerokosci, ze nazwy zostawaly jako "Czas z B..." i "Psychol...".
+  assert.match(stepper, /nextAmount/, 'klik ma cyklicznie dokladac skok')
+  assert.match(stepper, /conic-gradient/, 'postep pokazuje pierscien')
+  assert.ok(!/title=\{`−/.test(stepper), 'przycisk "−" ma nie wrocic')
+  assert.equal((stepper.match(/<button/g) || []).length, 1, 'dokladnie jeden przycisk')
+  // Liczba stoi PRZY NAZWIE, gdzie jest na nia miejsce.
+  assert.match(habits, /amountShortLabel\(dayAmount\(habit, selectedDay\)/)
+  assert.match(extras, /amountShortLabel\(dayAmount\(h, selectedDay\)/)
 })
 
 test('Nawyki na czas: amounts trzymane w zgodzie z completedDates', () => {
@@ -633,4 +637,15 @@ test('Rok w statystykach to 12 kratek, nie 365 na nawyk', () => {
   assert.match(habits, /habitYearMonths\(habit, statYear, pauses, today\)/)
   // HabitDayGrid zostaje dla tygodnia — tam dzien po dniu ma sens.
   assert.match(habits, /<HabitDayGrid/)
+})
+
+test('Analiza dotyczy tego, co robisz teraz — bez ukonczonych', () => {
+  // Ukonczone zostaja w activeHabits (ukonczenie to endDate, nie archiwizacja),
+  // wiec bez filtra wchodzily do statystyk i kart razem z aktualnymi.
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  assert.match(habits, /isRequiredHabit\(h\) && habitLifecycle\(h, TODAY\) !== 'ended'/)
+  // Kalendarz zbiorczy w statystykach tez — inaczej liczylby zamkniete nawyki.
+  assert.match(habits, /renderCell=\{aggCellFor\(requiredActive\)\}/)
+  assert.ok(!/aggCellFor\(activeHabits\)/.test(habits.split("view === 'stats'")[1] || ''),
+    'statystyki nie moga brac activeHabits')
 })

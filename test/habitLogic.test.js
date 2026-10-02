@@ -6,7 +6,8 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   habitLifecycle, habitCompletionSummary, isOptionalHabit, optionalProgress,
   optionalSummary, optionalDayCount, habitOrderUpdates, hasAmountGoal, dayAmount,
   dayProgress, isDayComplete, formatAmount, amountShortLabel, amountTotals, unitMeta,
-  HABIT_UNITS, freshStartSummary, isOptionalActiveOn, optionalDayScore } from '../src/utils/habitLogic.js'
+  HABIT_UNITS, freshStartSummary, isOptionalActiveOn, optionalDayScore,
+  amountStep, nextAmount } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -804,4 +805,36 @@ test('optionalDayScore: dzien bez zadnych wyzwan daje zera, nie NaN', () => {
   const s = optionalDayScore([{ startDate: '2026-11-01' }], '2026-10-02')
   assert.deepEqual(s, { total: 0, done: 0, pct: 0 })
   assert.deepEqual(optionalDayScore([], '2026-10-02'), { total: 0, done: 0, pct: 0 })
+})
+
+// ---------- jeden przycisk zamiast trzech ----------
+// "-", pasek i "+" zjadaly tyle miejsca, ze nazwy nawykow zostawaly jako
+// "Czas z B..." i "Psychol...".
+
+test('amountStep: do pelna zawsze okolo czterech klikniec', () => {
+  assert.equal(amountStep(20), 5)
+  assert.equal(amountStep(60), 15, 'staly skok 5 znaczylby dwanascie klikniec')
+  assert.equal(amountStep(4), 1)
+  assert.equal(amountStep(1), 1, 'skok nie moze byc zerowy')
+  assert.equal(amountStep(0), 1)
+  assert.equal(amountStep(undefined), 1)
+})
+
+test('nextAmount: dokłada skok, po celu wraca do zera', () => {
+  assert.equal(nextAmount(0, 20), 5)
+  assert.equal(nextAmount(5, 20), 10)
+  assert.equal(nextAmount(15, 20), 20)
+  assert.equal(nextAmount(20, 20), 0, 'po pelnym cyklu zerujemy')
+})
+
+test('nextAmount: nie przeskakuje celu', () => {
+  // Cel 10, skok 3 (round(10/4)=3): 0-3-6-9-10, nie 12.
+  assert.equal(amountStep(10), 3)
+  assert.equal(nextAmount(9, 10), 10)
+})
+
+test('nextAmount: nadwyzka i brak celu nie wybuchaja', () => {
+  assert.equal(nextAmount(25, 20), 0, 'wiecej niz cel tez zeruje')
+  assert.equal(nextAmount(5, 0), 0)
+  assert.equal(nextAmount(undefined, 20), 5)
 })

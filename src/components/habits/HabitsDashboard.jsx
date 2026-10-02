@@ -28,7 +28,7 @@ import AmountStepper from './AmountStepper'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
   habitDayKind, dayScore, isRequiredHabit, isOptionalHabit,
-  habitLifecycle, hasAmountGoal, amountTotals } from '../../utils/habitLogic'
+  habitLifecycle, hasAmountGoal, amountTotals, amountShortLabel, dayAmount } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
 
 const SHOW_DAY_RHYTHM = false
@@ -142,7 +142,12 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   // Nawyki dodatkowe („wyzwania") mieszkają na własnym ekranie pod flagą w
   // nagłówku — obok nastroju. Z listy dnia i ze statystyk są wyjęte: inaczej
   // byłyby w dwóch miejscach naraz i dalej podbijałyby główne liczby.
-  const requiredActive = activeHabits.filter(isRequiredHabit)
+  // Ukończone zostają w `activeHabits` (ukończenie to endDate, nie archiwizacja),
+  // więc bez tego filtra wchodziły do statystyk i kart nawyków razem z tym, co
+  // robisz teraz. Analiza ma dotyczyć aktualnych — historia zamkniętych siedzi
+  // w „Ukończone i archiwum".
+  const requiredActive = activeHabits.filter(
+    h => isRequiredHabit(h) && habitLifecycle(h, TODAY) !== 'ended')
   const extraHabits    = activeHabits.filter(isOptionalHabit)
   // Archiwum w statystykach: pokazujemy karty z historii, ale POZA procentami
   // okresu. Archiwizacja nie zapisuje daty, wiec nie wiadomo, od kiedy nawyk
@@ -477,13 +482,20 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                       {stepDone.length}/{steps.length}
                     </span>
                   )}
+                  {/* Liczba stoi PRZY NAZWIE, nie w kontrolce — tam nie było na
+                      nią miejsca i przycinała nazwę nawyku. */}
+                  {hasAmountGoal(habit) && (
+                    <span className="mono" style={{ fontSize: 10, padding: '1px 7px', borderRadius: 4, background: color + '1c', color, fontWeight: 600 }}>
+                      {amountShortLabel(dayAmount(habit, selectedDay), habit.target, habit.unit)}
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Nawyk na czas / ilość dostaje pasek z liczbą, nie haczyk —
                   haczyk nie umie powiedzieć „10 z 20 minut". */}
               {hasAmountGoal(habit) ? (
-                <AmountStepper habit={habit} dateStr={selectedDay} onSet={setDayAmount} disabled={isFut} compact />
+                <AmountStepper habit={habit} dateStr={selectedDay} onSet={setDayAmount} disabled={isFut} />
               ) : (
                 /* Check — odhaczysz też dodatkowe (dni poza harmonogramem / w pauzie) */
                 <button
@@ -743,7 +755,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
           </div>
 
           {/* Trend realizacji w czasie — tydzień: słupki, miesiąc: kalendarz, rok: bez wykresu */}
-          {activeHabits.length > 0 && statPeriod !== 'year' && (
+          {requiredActive.length > 0 && statPeriod !== 'year' && (
             <div className="card card-hover-glow" style={{ padding: 18 }}>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 {kicker(trendTitle)}
@@ -751,7 +763,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
               </div>
               {statPeriod === 'month' ? (
                 <>
-                  <MonthCalendar month={monthAnchor} renderCell={aggCellFor(activeHabits)} cellH={30} gap={4} font={11} />
+                  <MonthCalendar month={monthAnchor} renderCell={aggCellFor(requiredActive)} cellH={30} gap={4} font={11} />
                   {intensityLegend}
                 </>
               ) : (

@@ -3,7 +3,8 @@ import { format, addDays, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { CatIcon, IconFlag, IconCheck, IconPlus, IconStar } from '../Icons'
 import { optionalProgress, optionalSummary, optionalDayCount, hasAmountGoal,
-  amountTotals, isOptionalActiveOn, optionalDayScore, isDayComplete } from '../../utils/habitLogic'
+  amountTotals, isOptionalActiveOn, optionalDayScore, isDayComplete,
+  amountShortLabel, dayAmount } from '../../utils/habitLogic'
 import { habitPeriodLabel, optionalRange, optionalBuckets } from '../../utils/habitStats'
 import { BarChartSVG, Ring } from '../ChartPrimitives'
 import StatTiles from '../StatTiles'
@@ -220,13 +221,18 @@ export default function HabitExtras({
                       {h.name}
                     </span>
                     <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                      {hasAmountGoal(h) && (
+                        <span className="mono" style={{ color, fontWeight: 600 }}>
+                          {amountShortLabel(dayAmount(h, selectedDay), h.target, h.unit)} ·{' '}
+                        </span>
+                      )}
                       {p.inRange}x w okresie · {p.total}x łącznie
                     </span>
                   </span>
                 </button>
                 {/* Wyzwanie na czas / ilosc: pasek z liczba zamiast haczyka. */}
                 {hasAmountGoal(h) ? (
-                  <AmountStepper habit={h} dateStr={selectedDay} onSet={onSetAmount} disabled={isFuture} compact />
+                  <AmountStepper habit={h} dateStr={selectedDay} onSet={onSetAmount} disabled={isFuture} size={36} />
                 ) : (
                   <button
                     onClick={() => !isFuture && onToggle(h, selectedDay)}

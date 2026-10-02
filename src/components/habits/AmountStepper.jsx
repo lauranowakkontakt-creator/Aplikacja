@@ -1,56 +1,55 @@
-import { IconCheck, IconPlus } from '../Icons'
-import { dayAmount, dayProgress, unitMeta, formatAmount, amountShortLabel } from '../../utils/habitLogic'
+import { IconCheck } from '../Icons'
+import { dayAmount, dayProgress, formatAmount, nextAmount, amountStep } from '../../utils/habitLogic'
 
-// Wpisywanie wykonania dla nawyku na czas albo ilość. Zamiast haczyka: pasek
-// postępu i dwa przyciski. Na telefonie nie ma klawiatury numerycznej w drodze —
-// „−" i „+" robią skok (5 przy minutach, 1 przy sztukach), a kliknięcie w pasek
-// domyka cel od razu, bo „zrobione i tyle" to najczęstszy przypadek.
-export default function AmountStepper({ habit, dateStr, onSet, disabled = false, compact = false }) {
+// Zaliczanie nawyku na czas albo ilość — JEDEN przycisk wielkości haczyka.
+//
+// Wcześniej były trzy („−", pasek z liczbą, „+") i zjadały tyle szerokości, że
+// nazwy zostawały jako „Czas z B…" i „Psychol…". Teraz klik dokłada skok
+// policzony z celu (do pełna zawsze około czterech kliknięć), a po osiągnięciu
+// celu wraca do zera — cofnięcie pomyłki to przeklikanie w kółko.
+//
+// Pierścień pokazuje postęp, więc widać go bez czytania liczby; sama liczba
+// stoi przy nazwie nawyku, gdzie jest na nią miejsce.
+export default function AmountStepper({ habit, dateStr, onSet, disabled = false, size = 32 }) {
   const target = Number(habit.target) || 0
   const unit   = habit.unit || 'szt'
-  const meta   = unitMeta(unit)
-  const skok   = meta.time ? 5 : 1
   const teraz  = dayAmount(habit, dateStr)
   const pct    = Math.round(dayProgress(habit, dateStr) * 100)
   const color  = habit.color || 'var(--accent)'
-  const pelne  = teraz >= target
+  const pelne  = target > 0 && teraz >= target
 
-  const ustaw = (v) => { if (!disabled) onSet(habit, dateStr, Math.max(0, v)) }
+  const tytul = disabled
+    ? 'Przyszły dzień'
+    : pelne
+      ? `${formatAmount(teraz, unit)} — kliknij, żeby wyzerować`
+      : `${formatAmount(teraz, unit)} z ${formatAmount(target, unit)} — kliknij, żeby dodać ${formatAmount(amountStep(target), unit)}`
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, opacity: disabled ? 0.45 : 1 }}>
-      <button type="button" className="icon-btn" disabled={disabled || teraz === 0}
-        title={`−${skok}`} onClick={() => ustaw(teraz - skok)}
-        style={{ width: 26, height: 26, flexShrink: 0, fontSize: 13, lineHeight: 1 }}>−</button>
-
-      {/* Pasek z liczbą w środku — jednocześnie postęp i przycisk „domknij cel". */}
-      <button type="button" disabled={disabled}
-        onClick={() => ustaw(pelne ? 0 : target)}
-        title={pelne ? 'Wyczyść dzień' : `Zalicz cały cel (${formatAmount(target, unit)})`}
-        style={{
-          position: 'relative', flexShrink: 0, width: compact ? 62 : 88, height: 26,
-          borderRadius: 8, overflow: 'hidden', cursor: disabled ? 'default' : 'pointer',
-          background: 'var(--surface2)', border: `1px solid ${pelne ? color : 'var(--border)'}`,
-          padding: 0, fontFamily: 'inherit',
-        }}>
-        <span style={{
-          position: 'absolute', inset: 0, width: `${pct}%`,
-          background: `color-mix(in oklab, ${color} ${pelne ? 100 : 55}%, transparent)`,
-        }} />
-        <span className="mono" style={{
-          position: 'relative', fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap',
-          color: pct > 55 ? '#fff' : 'var(--text)',
-          display: 'grid', placeItems: 'center', height: '100%',
-        }}>
-          {amountShortLabel(teraz, target, unit)}
-        </span>
-      </button>
-
-      <button type="button" className="icon-btn" disabled={disabled}
-        title={`+${skok}`} onClick={() => ustaw(teraz + skok)}
-        style={{ width: 26, height: 26, flexShrink: 0, color: pelne ? color : undefined }}>
-        {pelne ? <IconCheck size={13} /> : <IconPlus size={13} />}
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={() => !disabled && onSet(habit, dateStr, nextAmount(teraz, target))}
+      disabled={disabled}
+      title={tytul}
+      aria-label={tytul}
+      style={{
+        width: size, height: size, borderRadius: 99, flexShrink: 0, padding: 0, border: 'none',
+        cursor: disabled ? 'default' : 'pointer', opacity: disabled ? 0.45 : 1,
+        // Pierścień postępu: wycinek koła w kolorze nawyku, reszta to tor.
+        background: `conic-gradient(${color} ${pct}%, var(--border-strong) 0)`,
+        display: 'grid', placeItems: 'center',
+        transition: 'all .2s var(--spring)',
+      }}
+    >
+      {/* Środek przykrywa pierścień, zostawiając obwódkę grubości 2–3 px. */}
+      <span style={{
+        width: size - 5, height: size - 5, borderRadius: 99,
+        background: pelne ? color : 'var(--bg)',
+        display: 'grid', placeItems: 'center',
+        color: pelne ? 'var(--bg)' : 'var(--text-muted)',
+        fontSize: size <= 32 ? 9 : 10, fontWeight: 700, lineHeight: 1,
+      }}>
+        {pelne ? <IconCheck size={size <= 32 ? 14 : 15} /> : teraz > 0 ? teraz : ''}
+      </span>
+    </button>
   )
 }

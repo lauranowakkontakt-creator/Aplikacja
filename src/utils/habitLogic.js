@@ -521,3 +521,23 @@ export function optionalDayScore(habits = [], dateStr) {
   }
   return { total, done, pct: total > 0 ? Math.round((done / total) * 100) : 0 }
 }
+
+// Skok jednego kliknięcia przy celu liczbowym. Stały skok (np. 5 minut) przy
+// celu 60 znaczyłby dwanaście kliknięć — dlatego liczymy go z celu tak, żeby
+// do pełna było zawsze mniej więcej cztery.
+export function amountStep(target) {
+  const t = Number(target) || 0
+  if (t <= 0) return 1
+  return Math.max(1, Math.round(t / 4))
+}
+
+// Następna wartość po kliknięciu. Jeden przycisk zamiast trzech: dokłada skok,
+// a po osiągnięciu celu wraca do zera — cofnięcie pomyłki to przeklikanie w
+// kółko, nie osobny przycisk „−", który zjadał nazwę nawyku.
+export function nextAmount(current, target) {
+  const t = Number(target) || 0
+  const c = Number(current) || 0
+  if (t <= 0) return 0
+  if (c >= t) return 0
+  return Math.min(t, c + amountStep(t))
+}
