@@ -6,7 +6,7 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   habitLifecycle, habitCompletionSummary, isOptionalHabit, optionalProgress,
   optionalSummary, optionalDayCount, habitOrderUpdates, hasAmountGoal, dayAmount,
   dayProgress, isDayComplete, formatAmount, amountShortLabel, amountTotals, unitMeta,
-  HABIT_UNITS } from '../src/utils/habitLogic.js'
+  HABIT_UNITS, freshStartSummary } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -695,4 +695,56 @@ test('amountShortLabel: smieci i brak celu nie wybuchaja', () => {
   assert.equal(amountShortLabel(undefined, undefined, 'min'), '0 min')
   assert.equal(amountShortLabel(null, 20, 'min'), '20 min')
   assert.equal(amountShortLabel(5, 0, 'szt'), '5 szt.')
+})
+
+// ---------- zamkniecie rozdzialu ("zacznij od nowa") ----------
+
+test('freshStartSummary: zbiera dorobek z calej historii', () => {
+  const every = [0, 1, 2, 3, 4, 5, 6]
+  const habits = [
+    { name: 'A', frequencyDays: every, startDate: '2026-01-01',
+      completedDates: ['2026-01-01', '2026-01-02', '2026-01-03'] },
+    { name: 'B', frequencyDays: every, startDate: '2026-02-01',
+      completedDates: ['2026-02-10'] },
+  ]
+  const s = freshStartSummary(habits)
+  assert.equal(s.count, 2)
+  assert.equal(s.completions, 4, 'suma wszystkich odhaczen')
+  assert.equal(s.best, 3, 'najdluzszy ciag z calego zbioru')
+  assert.equal(s.from, '2026-01-01', 'najstarsze odhaczenie')
+  assert.equal(s.to, '2026-02-10', 'najnowsze odhaczenie')
+})
+
+test('freshStartSummary: dolacza sumy czasu i ilosci', () => {
+  const habits = [
+    { name: 'Medytacja', target: 20, unit: 'min', amounts: { '2026-01-01': 20, '2026-01-02': 45 } },
+    { name: 'Czytanie', target: 10, unit: 'str', amounts: { '2026-01-01': 30 } },
+  ]
+  const s = freshStartSummary(habits)
+  const min = s.totals.find(t => t.unit === 'min')
+  assert.equal(min.label, '1 h 5 min')
+  assert.equal(s.totals.length, 2, 'jednostek nie mieszamy')
+})
+
+test('freshStartSummary: pusto i smieci nie wybuchaja', () => {
+  const pusty = freshStartSummary([])
+  assert.equal(pusty.count, 0)
+  assert.equal(pusty.completions, 0)
+  assert.equal(pusty.best, 0)
+  assert.equal(pusty.from, null)
+  assert.deepEqual(pusty.totals, [])
+  assert.equal(freshStartSummary([null, undefined]).count, 0)
+  assert.equal(freshStartSummary().count, 0)
+})
+
+test('freshStartSummary: nawyk bez odhaczen nie psuje granic okresu', () => {
+  const habits = [
+    { name: 'A', completedDates: ['2026-03-01'] },
+    { name: 'B', startDate: '2020-01-01', completedDates: [] },
+  ]
+  const s = freshStartSummary(habits)
+  // Granice biora sie z ODHACZEN — nawyk, ktorego nigdy nie zrobiono, nie moze
+  // cofac poczatku historii o szesc lat.
+  assert.equal(s.from, '2026-03-01')
+  assert.equal(s.to, '2026-03-01')
 })

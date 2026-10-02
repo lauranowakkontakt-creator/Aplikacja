@@ -464,3 +464,32 @@ export function amountShortLabel(current, target, unit) {
   if (c >= t) return `${c} ${short}`
   return `${c}/${t} ${short}`
 }
+
+// Podsumowanie dorobku przed zamknięciem rozdziału („zacznij od nowa").
+// Zbiera to, co warto zobaczyć, zanim nawyki zejdą do ukończonych: ile tego
+// było, jak długo trwało i jaki był najlepszy ciąg. Liczby biorą się z całej
+// historii, nie z okresu — zamykamy wszystko, co się nazbierało.
+export function freshStartSummary(habits = [], pauses = []) {
+  const lista = habits.filter(Boolean)
+  let completions = 0, best = 0, from = null, to = null
+  for (const h of lista) {
+    const s = habitCompletionSummary(h, pauses)
+    completions += s.total
+    if (s.best > best) best = s.best
+    // Granice bierzemy wprost z odhaczeń, a nie z `s.first` — tam jest fallback
+    // na startDate, więc nawyk założony dawno i nigdy nierobiony cofałby
+    // początek historii o lata.
+    const dates = [...(h.completedDates || [])].sort()
+    const pierwsze = dates[0], ostatnie = dates[dates.length - 1]
+    if (pierwsze && (!from || pierwsze < from)) from = pierwsze
+    if (ostatnie && (!to || ostatnie > to)) to = ostatnie
+  }
+  return {
+    count: lista.length,
+    completions,
+    best,
+    from,
+    to,
+    totals: amountTotals(lista),
+  }
+}

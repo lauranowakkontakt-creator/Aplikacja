@@ -569,3 +569,36 @@ test('Nawyki na czas: sumy "ile na to poszlo" w obu statystykach', () => {
   assert.match(habits, /amountTotals\(requiredActive, start, endClamped\)/)
   assert.match(extras, /amountTotals\(habits, start, end\)/)
 })
+
+test('Kolejnosc ukladamy tylko dla tego, co robisz teraz', () => {
+  // Ukonczone siedza dalej w activeHabits (nie sa zarchiwizowane), wiec bez
+  // filtra wchodzily do ukladania i zajmowaly miejsca, ktorych juz nie uzywasz.
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  assert.match(habits, /reorderable = activeHabits\.filter\(h => habitLifecycle\(h, TODAY\) !== 'ended'\)/)
+  assert.match(habits, /<HabitReorderModal user=\{user\} habits=\{reorderable\}/)
+  assert.match(habits, /canReorder=\{reorderable\.length > 1\}/)
+})
+
+test('Zacznij od nowa: najpierw dorobek, potem zamkniecie', () => {
+  const fresh  = read('src/components/habits/HabitFreshStart.jsx')
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  const menu   = read('src/components/habits/HabitMenu.jsx')
+
+  assert.match(menu, /label: 'Zacznij od nowa'/)
+  assert.match(menu, /canFresh \?/, 'pozycja tylko wtedy, gdy jest co zamykac')
+  assert.match(habits, /<HabitFreshStart/)
+  assert.match(habits, /habits=\{reorderable\}/, 'zamykamy to, co aktywne, nie archiwum')
+
+  // Podsumowanie MUSI byc widoczne przed zamknieciem — inaczej miesiace pracy
+  // znikaja z listy dnia bez jednego zestawienia.
+  assert.match(fresh, /freshStartSummary/)
+  assert.match(fresh, /<HabitTimeline/)
+  assert.match(fresh, /Co masz za sobą/)
+
+  // Zamkniecie to endDate = dzis, czyli to samo co "Ukoncz nawyk" — zadnego
+  // kasowania i kazdy da sie wznowic.
+  assert.match(fresh, /batch\.update\(doc\(db, 'users', user\.uid, 'habits', h\.id\), \{ endDate: dzis \}\)/)
+  assert.ok(!/deleteDoc|archived: true/.test(fresh), 'zamkniecie nie moze kasowac ani archiwizowac')
+  // Wybor jest po stronie uzytkownika — domyslnie wszystko, ale da sie odznaczyc.
+  assert.match(fresh, /new Set\(habits\.map\(h => h\.id\)\)/)
+})
