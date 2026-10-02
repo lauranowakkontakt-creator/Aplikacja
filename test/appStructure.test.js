@@ -543,6 +543,11 @@ test('Nawyki na czas / ilosc: cel w formularzu, pasek zamiast haczyka', () => {
   // Jeden komponent wpisywania na oba ekrany, nie dwie kopie.
   assert.match(stepper, /dayAmount/)
   assert.match(stepper, /dayProgress/)
+  // Kontrolka NIE MOZE sie rozpychac: przy "0 min / 5 min" i elastycznej
+  // szerokosci nazwa nawyku zostawala przycieta do "Czas...".
+  assert.match(stepper, /amountShortLabel/, 'etykieta musi byc skrocona')
+  assert.ok(!/flex: 1, minWidth: compact/.test(stepper), 'pasek nie moze rosnac kosztem nazwy')
+  assert.match(stepper, /flexShrink: 0, opacity/, 'kontrolka ma byc nieskalowalna')
 })
 
 test('Nawyki na czas: amounts trzymane w zgodzie z completedDates', () => {
