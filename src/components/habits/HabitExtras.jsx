@@ -11,6 +11,7 @@ import StatTiles from '../StatTiles'
 import SegTabs from '../SegTabs'
 import MonthCalendar from './MonthCalendar'
 import AmountStepper from './AmountStepper'
+import AmountSheet from './AmountSheet'
 
 // Ekran „Wyzwania" — cele poboczne. Wchodzi się tu flagą w belce, tak samo jak
 // twarzą w Nastrój: osobny widok W MIEJSCU treści Nawyków, nie nakładka
@@ -36,6 +37,7 @@ export default function HabitExtras({
   habits = [], archived = [], today, selectedDay, onSelectDay, onToggle, onSetAmount, onEdit, onAdd,
 }) {
   const [tab, setTab]       = useState('today')
+  const [amountFor, setAmountFor] = useState(null)   // wyzwanie w oknie „ile dziś"
   const [period, setPeriod] = useState('month')
 
   const selDate  = new Date(selectedDay + 'T12:00:00')
@@ -136,6 +138,10 @@ export default function HabitExtras({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {amountFor && (
+        <AmountSheet habit={amountFor} dateStr={selectedDay} onSet={onSetAmount}
+          onClose={() => setAmountFor(null)} />
+      )}
       <SegTabs
         items={[{ id: 'today', label: 'Dziś' }, { id: 'stats', label: 'Statystyki' }]}
         active={tab} onChange={setTab}
@@ -222,10 +228,20 @@ export default function HabitExtras({
                     </span>
                     <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                       {hasAmountGoal(h) && (
-                        <span className="mono" style={{ color, fontWeight: 600 }}>
-                          {amountShortLabel(dayAmount(h, selectedDay), h.target, h.unit)} ·{' '}
-                        </span>
+                        /* Klik w liczbę otwiera precyzyjne ustawianie — „−", „+"
+                           i pole, na które w karcie nie ma miejsca. */
+                        <button type="button" className="mono"
+                          onClick={(e) => { e.stopPropagation(); if (!isFuture) setAmountFor(h) }}
+                          title="Ustaw dokładnie"
+                          style={{
+                            color, fontWeight: 600, background: 'none', border: 'none', padding: 0,
+                            font: 'inherit', cursor: isFuture ? 'default' : 'pointer',
+                            textDecoration: 'underline', textDecorationStyle: 'dotted',
+                          }}>
+                          {amountShortLabel(dayAmount(h, selectedDay), h.target, h.unit)}
+                        </button>
                       )}
+                      {hasAmountGoal(h) && ' · '}
                       {p.inRange}x w okresie · {p.total}x łącznie
                     </span>
                   </span>
