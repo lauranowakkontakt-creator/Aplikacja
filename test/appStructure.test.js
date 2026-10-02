@@ -453,18 +453,20 @@ test('Wyzwania: statystyki okresu licza sie bez nich', () => {
   assert.match(habits, /statBuckets\(requiredActive,/)
 })
 
-test('Statystyki: archiwum widac, ale POZA procentami okresu', () => {
-  // Archiwizacja nie zapisuje daty, wiec nie wiadomo, od kiedy nawyk przestal
-  // obowiazywac. Wliczony do rangeStats wygladalby na pominiety w kazdym dniu
-  // po schowaniu i zanizalby biezace miesiace — dlatego tylko karty z historii.
-  const habits = read('src/components/habits/HabitsDashboard.jsx')
-  const extras = read('src/components/habits/HabitExtras.jsx')
-  assert.match(habits, /archivedRequired\s*=\s*archivedHabits\.filter\(isRequiredHabit\)/)
-  assert.match(habits, /archivedExtras\s*=\s*archivedHabits\.filter\(isOptionalHabit\)/)
-  assert.match(habits, /Twoja historia \(\$\{archivedRequired\.length\}\)/, 'brak sekcji archiwum w statystykach')
-  assert.match(habits, /archived=\{archivedExtras\}/, 'ekran wyzwan nie dostaje swojego archiwum')
-  assert.match(extras, /archived\.length > 0 &&/, 'brak sekcji archiwum na ekranie wyzwan')
-  // Agregaty okresu licza sie DALEJ tylko z aktywnych.
+test('Statystyki ogolne nie mieszaja sie z tym, co zamkniete', () => {
+  // Zamkniete nawyki dotycza czegos, co sie skonczylo — w ogolnych statystykach
+  // mieszaly sie z tym, co robisz teraz. Ich liczby i os czasu mieszkaja w
+  // "Ukonczone i archiwum".
+  const habits  = read('src/components/habits/HabitsDashboard.jsx')
+  const extras  = read('src/components/habits/HabitExtras.jsx')
+  const archive = read('src/components/habits/HabitArchive.jsx')
+  for (const [plik, src] of [['HabitsDashboard', habits], ['HabitExtras', extras]]) {
+    assert.ok(!/<HabitTimeline/.test(src), `${plik}: os czasu nalezy do archiwum, nie do statystyk`)
+    assert.ok(!/Twoja historia/.test(src), `${plik}: sekcja historii nalezy do archiwum`)
+  }
+  assert.match(archive, /<HabitTimeline/, 'archiwum musi pokazywac os czasu')
+  assert.match(archive, /Twoja historia/)
+  // Agregaty okresu dalej licza sie tylko z aktywnych.
   assert.match(habits, /rangeStats\(requiredActive, pauses, start, endClamped\)/)
   assert.match(habits, /statBuckets\(requiredActive,/)
   assert.ok(!/rangeStats\(archived/.test(habits), 'archiwum nie moze wchodzic do procentow')
@@ -492,21 +494,33 @@ test('Nawyki i wyzwania rozdzielone w edycji i w kolejnosci', () => {
   assert.match(reorder, /maWyzwania && \(/)
 })
 
-test('Archiwum pokazuje sie jako os czasu, jedna dla obu ekranow', () => {
-  // Archiwum JEST historia, wiec zamiast kafelkow z liczbami pokazujemy, co
-  // kiedy trwalo. Rysunek i matematyka rozdzielone: skale liczy habitStats.
-  const habits   = read('src/components/habits/HabitsDashboard.jsx')
-  const extras   = read('src/components/habits/HabitExtras.jsx')
+test('Archiwum: os czasu liczona w habitStats, nie w komponencie', () => {
+  const archive  = read('src/components/habits/HabitArchive.jsx')
   const timeline = read('src/components/habits/HabitTimeline.jsx')
-  for (const [plik, src] of [['HabitsDashboard', habits], ['HabitExtras', extras]]) {
-    assert.match(src, /import HabitTimeline from '\.\/HabitTimeline'/, `${plik}: brak osi czasu`)
-    assert.match(src, /<HabitTimeline/, `${plik}: os czasu nie jest renderowana`)
-  }
+  assert.match(archive, /import HabitTimeline from '\.\/HabitTimeline'/)
+  // Zamkniete = ukonczone + zarchiwizowane, jedna wspolna os.
+  assert.match(archive, /zamkniete = \[\.\.\.endedHabits, \.\.\.habits\]/)
+  assert.match(archive, /amountTotals\(zamkniete\)/, 'brak sum "na to poszlo" w archiwum')
   assert.match(timeline, /timelineLanes/)
   assert.match(timeline, /timelineTicks/)
   // Komponent nie moze sam liczyc skali — inaczej nie da sie tego przetestowac.
   assert.ok(!/differenceInCalendarDays/.test(timeline),
     'matematyka osi nalezy do habitStats, nie do komponentu')
+})
+
+test('Nawyk mozna ukonczyc jednym klikniecieem, bez grzebania w dacie', () => {
+  // Dotad dawalo sie to zrobic tylko okreznie: wejsc w date zakonczenia i
+  // ustawic dzisiejsza recznie.
+  const form = read('src/components/habits/HabitForm.jsx')
+  assert.match(form, /const handleFinish = async/)
+  assert.match(form, /Ukończ nawyk/)
+  assert.match(form, /Wznów nawyk/, 'ukonczenie musi byc odwracalne')
+  // Pod spodem to endDate, bo cykl zycia, archiwum i os czasu czytaja wlasnie ja.
+  assert.match(form, /endDate: skonczony \? null : dzis/)
+  assert.ok(!/completed: true/.test(form), 'druga flaga rozjechalaby sie z endDate')
+  // endDate = DZIS znaczy "dzis jest ostatnim dniem", wiec nawyk schodzi z listy
+  // dopiero jutro. Bez komunikatu klik w "Ukoncz" wyglada, jakby nic nie zrobil.
+  assert.match(form, /ostatnim dniem/, 'brak wyjasnienia, ze nawyk zejdzie od jutra')
 })
 
 test('Nawyki na czas / ilosc: cel w formularzu, pasek zamiast haczyka', () => {
