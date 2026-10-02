@@ -25,6 +25,7 @@ import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor,
 import MonthCalendar from './MonthCalendar'
 import HabitExtras from './HabitExtras'
 import AmountStepper from './AmountStepper'
+import AmountSheet from './AmountSheet'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
   habitDayKind, dayScore, isRequiredHabit, isOptionalHabit,
@@ -48,6 +49,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   const [selectedDay, setSelectedDay] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [showArchive, setShowArchive] = useState(false)  // archiwum spod ⋮, nie z dołu ekranu
   const [openStat, setOpenStat]       = useState(null)   // rozwinięta karta w statystykach
+  const [amountFor, setAmountFor]     = useState(null)   // nawyk w oknie „ile dziś" 
   const [showFresh, setShowFresh]     = useState(false)
   const [showReorder, setShowReorder] = useState(false)
   const [showRoutineMgr, setShowRoutineMgr] = useState(false)
@@ -487,9 +489,18 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                   {/* Liczba stoi PRZY NAZWIE, nie w kontrolce — tam nie było na
                       nią miejsca i przycinała nazwę nawyku. */}
                   {hasAmountGoal(habit) && (
-                    <span className="mono" style={{ fontSize: 10, padding: '1px 7px', borderRadius: 4, background: color + '1c', color, fontWeight: 600 }}>
+                    /* Klik w liczbę otwiera precyzyjne ustawianie: tam jest „−",
+                       „+" i pole, na które w karcie nie ma miejsca. */
+                    <button type="button" className="mono"
+                      onClick={(e) => { e.stopPropagation(); if (!isFut) setAmountFor({ habit, date: selectedDay }) }}
+                      title="Ustaw dokładnie"
+                      style={{
+                        fontSize: 10, padding: '1px 7px', borderRadius: 4, background: color + '1c',
+                        color, fontWeight: 600, border: `1px solid ${color}33`, cursor: isFut ? 'default' : 'pointer',
+                        fontFamily: 'inherit',
+                      }}>
                       {amountShortLabel(dayAmount(habit, selectedDay), habit.target, habit.unit)}
-                    </span>
+                    </button>
                   )}
                 </div>
               </div>
@@ -941,6 +952,10 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
       {showPause && <PauseForm user={user} onClose={() => setShowPause(false)} />}
       {showRoutineMgr && <RoutineManager user={user} onClose={() => setShowRoutineMgr(false)} />}
       {showReorder && <HabitReorderModal user={user} habits={reorderable} onClose={() => setShowReorder(false)} />}
+      {amountFor && (
+        <AmountSheet habit={amountFor.habit} dateStr={amountFor.date} onSet={setDayAmount}
+          onClose={() => setAmountFor(null)} />
+      )}
       {showFresh && (
         <HabitFreshStart user={user} habits={reorderable} pauses={pauses} onClose={() => setShowFresh(false)} />
       )}

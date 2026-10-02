@@ -1,4 +1,4 @@
-import { IconCheck } from '../Icons'
+import { IconCheck, IconPlus } from '../Icons'
 import { dayAmount, dayProgress, formatAmount, nextAmount, amountStep } from '../../utils/habitLogic'
 
 // Zaliczanie nawyku na czas albo ilość — JEDEN przycisk wielkości haczyka.
@@ -48,7 +48,11 @@ export default function AmountStepper({ habit, dateStr, onSet, disabled = false,
         color: pelne ? 'var(--bg)' : 'var(--text-muted)',
         fontSize: size <= 32 ? 9 : 10, fontWeight: 700, lineHeight: 1,
       }}>
-        {pelne ? <IconCheck size={size <= 32 ? 14 : 15} /> : teraz > 0 ? teraz : ''}
+        {/* Pusty dzień pokazuje „+", żeby było widać, że przycisk COŚ robi.
+            Sam pierścień bez znaku wyglądał jak kontrolka tylko do patrzenia. */}
+        {pelne
+          ? <IconCheck size={size <= 32 ? 14 : 15} />
+          : teraz > 0 ? teraz : <IconPlus size={size <= 32 ? 13 : 14} />}
       </span>
     </button>
   )

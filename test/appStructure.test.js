@@ -553,9 +553,35 @@ test('Nawyki na czas / ilosc: cel w formularzu, pasek zamiast haczyka', () => {
   assert.match(stepper, /conic-gradient/, 'postep pokazuje pierscien')
   assert.ok(!/title=\{`−/.test(stepper), 'przycisk "−" ma nie wrocic')
   assert.equal((stepper.match(/<button/g) || []).length, 1, 'dokladnie jeden przycisk')
-  // Liczba stoi PRZY NAZWIE, gdzie jest na nia miejsce.
+  // Liczba stoi PRZY NAZWIE, gdzie jest na nia miejsce — i jest KLIKALNA,
+  // bo tam siedzi precyzyjne ustawianie ("-", "+", pole).
   assert.match(habits, /amountShortLabel\(dayAmount\(habit, selectedDay\)/)
   assert.match(extras, /amountShortLabel\(dayAmount\(h, selectedDay\)/)
+  assert.match(habits, /setAmountFor\(\{ habit, date: selectedDay \}\)/)
+  assert.match(extras, /setAmountFor\(h\)/)
+  // Pusty dzien pokazuje "+", inaczej pierscien wyglada jak kontrolka tylko do
+  // patrzenia i nie widac, ze cokolwiek da sie dodac.
+  assert.match(stepper, /<IconPlus/)
+})
+
+test('Czas/ilosc: dodawanie I odejmowanie jest mozliwe', () => {
+  // Po zwinieciu kontrolki do jednego przycisku zostalo samo dodawanie skoku —
+  // nie dalo sie odjac ani wpisac konkretnej liczby.
+  const sheet  = read('src/components/habits/AmountSheet.jsx')
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  assert.match(sheet, /setWartosc\(w => Math\.max\(0, w - skok\)\)/, 'brak odejmowania')
+  assert.match(sheet, /setWartosc\(w => w \+ skok\)/, 'brak dodawania')
+  assert.match(sheet, /type="number"/, 'brak pola na konkretna liczbe')
+  assert.match(sheet, /Cały cel/)
+  assert.match(sheet, /Wyczyść/)
+  // Okno jest podpiete w obu modulach, nie tylko w Nawykach.
+  for (const [plik, src] of [['HabitsDashboard', habits], ['HabitExtras', extras]]) {
+    assert.match(src, /<AmountSheet/, `${plik}: brak okna ustawiania`)
+  }
+  // Klik w liczbe nie moze przy okazji odpalac tego, co jest pod spodem.
+  assert.match(habits, /e\.stopPropagation\(\)/)
+  assert.match(extras, /e\.stopPropagation\(\)/)
 })
 
 test('Nawyki na czas: amounts trzymane w zgodzie z completedDates', () => {
