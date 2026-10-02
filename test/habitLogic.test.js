@@ -6,7 +6,7 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   habitLifecycle, habitCompletionSummary, isOptionalHabit, optionalProgress,
   optionalSummary, optionalDayCount, habitOrderUpdates, hasAmountGoal, dayAmount,
   dayProgress, isDayComplete, formatAmount, amountShortLabel, amountTotals, unitMeta,
-  HABIT_UNITS, freshStartSummary } from '../src/utils/habitLogic.js'
+  HABIT_UNITS, freshStartSummary, isOptionalActiveOn, optionalDayScore } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -747,4 +747,61 @@ test('freshStartSummary: nawyk bez odhaczen nie psuje granic okresu', () => {
   // cofac poczatku historii o szesc lat.
   assert.equal(s.from, '2026-03-01')
   assert.equal(s.to, '2026-03-01')
+})
+
+// ---------- wyzwanie nie istnieje przed swoim startem ----------
+// Logika wyzwan nie znala startDate, wiec kalendarz rysowal caly miesiac, a
+// tydzien wchodzil w poprzedni: wyzwanie zalozone w pazdzierniku pokazywalo
+// wrzesien tak, jakby bylo wtedy pomijane.
+
+test('isOptionalActiveOn: przed startem wyzwania jeszcze nie bylo', () => {
+  const h = { startDate: '2026-10-01' }
+  assert.ok(!isOptionalActiveOn(h, '2026-09-30'), 'wrzesien jest przed startem')
+  assert.ok(isOptionalActiveOn(h, '2026-10-01'), 'dzien startu juz sie liczy')
+  assert.ok(isOptionalActiveOn(h, '2026-10-15'))
+})
+
+test('isOptionalActiveOn: po dacie konca wyzwania juz nie ma', () => {
+  const h = { startDate: '2026-10-01', endDate: '2026-10-31' }
+  assert.ok(isOptionalActiveOn(h, '2026-10-31'), 'dzien konca to jeszcze ostatni dzien')
+  assert.ok(!isOptionalActiveOn(h, '2026-11-01'))
+})
+
+test('isOptionalActiveOn: bez dat wyzwanie istnieje zawsze', () => {
+  assert.ok(isOptionalActiveOn({}, '2026-10-01'))
+  assert.ok(!isOptionalActiveOn({}, null), 'bez daty nie ma czego sprawdzac')
+})
+
+test('optionalDayCount: dzien przed startem nie liczy sie wcale', () => {
+  const habits = [
+    { startDate: '2026-10-01', completedDates: ['2026-09-20', '2026-10-02'] },
+  ]
+  // Odhaczenie sprzed startu (np. po zmianie daty) nie moze wracac na wykres.
+  assert.equal(optionalDayCount(habits, '2026-09-20'), 0)
+  assert.equal(optionalDayCount(habits, '2026-10-02'), 1)
+})
+
+test('optionalDayScore: mianownik to wyzwania, ktore tego dnia istnialy', () => {
+  const habits = [
+    { startDate: '2026-10-01', completedDates: ['2026-10-02'] },
+    { startDate: '2026-10-01', completedDates: [] },
+    { startDate: '2026-11-01', completedDates: [] },   // jeszcze nie istnieje
+  ]
+  const s = optionalDayScore(habits, '2026-10-02')
+  assert.equal(s.total, 2, 'listopadowe wyzwanie nie wchodzi do pazdziernika')
+  assert.equal(s.done, 1)
+  assert.equal(s.pct, 50)
+})
+
+test('optionalDayScore: wyzwanie na czas zalicza sie dopiero po calym celu', () => {
+  const habits = [{ startDate: '2026-10-01', target: 20, unit: 'min', amounts: { '2026-10-02': 10 } }]
+  assert.equal(optionalDayScore(habits, '2026-10-02').done, 0, 'polowa normy to jeszcze nie zaliczone')
+  const pelne = [{ startDate: '2026-10-01', target: 20, amounts: { '2026-10-02': 20 } }]
+  assert.equal(optionalDayScore(pelne, '2026-10-02').done, 1)
+})
+
+test('optionalDayScore: dzien bez zadnych wyzwan daje zera, nie NaN', () => {
+  const s = optionalDayScore([{ startDate: '2026-11-01' }], '2026-10-02')
+  assert.deepEqual(s, { total: 0, done: 0, pct: 0 })
+  assert.deepEqual(optionalDayScore([], '2026-10-02'), { total: 0, done: 0, pct: 0 })
 })

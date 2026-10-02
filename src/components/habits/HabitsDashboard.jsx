@@ -21,7 +21,7 @@ import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, Ic
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
-import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor } from '../../utils/habitStats'
+import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor, habitYearMonths } from '../../utils/habitStats'
 import MonthCalendar from './MonthCalendar'
 import HabitExtras from './HabitExtras'
 import AmountStepper from './AmountStepper'
@@ -828,6 +828,28 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                   {/* Wykonanie — miesiąc jako kalendarz, tydzień/rok jako siatka */}
                   {statPeriod === 'month' ? (
                     <MonthCalendar month={monthAnchor} renderCell={habitCellFor(habit, color)} cellH={18} gap={3} font={8} />
+                  ) : statPeriod === 'year' ? (
+                    /* Rok w 12 kratkach. Siatka dzien po dniu dawala tu 365 kratek
+                       NA NAWYK — przy kilkunastu nawykach ponad cztery tysiace
+                       elementow i zacinajace sie przewijanie. Pojedynczy dzien i
+                       tak byl przy tej skali nieczytelny. */
+                    <div style={{ display: 'flex', gap: 3 }}>
+                      {habitYearMonths(habit, statYear, pauses, today).map((m, i) => (
+                        <div key={i} title={m.pct === null ? `${m.label} — brak danych` : `${m.label} — ${m.pct}% (${m.done}x)`}
+                          style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            height: 22, borderRadius: 4,
+                            background: m.pct === null
+                              ? 'transparent'
+                              : `color-mix(in oklab, ${color} ${Math.max(10, m.pct)}%, var(--surface2))`,
+                            border: m.pct === null ? '1px dashed var(--border)' : `1px solid ${color}40`,
+                          }} />
+                          <div style={{ fontSize: 7.5, textAlign: 'center', color: 'var(--text-muted)', marginTop: 3 }}>
+                            {m.label.slice(0, 1)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <>
                       <HabitDayGrid habit={habit} pauses={pauses} start={start} end={end} today={today} color={color} />

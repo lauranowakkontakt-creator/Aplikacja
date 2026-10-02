@@ -438,7 +438,11 @@ test('Wyzwania: lista dnia jest zwarta, siatki siedza w Statystykach', () => {
   const dzis  = extras.split("tab === 'stats'")[0]
   const staty = extras.split("tab === 'stats'")[1] || ''
   assert.match(dzis, /onSelectDay\(format\(subDays/, 'nawigator dnia musi byc w zakladce Dzis')
-  assert.ok(!/<MonthCalendar/.test(dzis), 'lista dnia nie moze miec kalendarza pod kazda pozycja')
+  // Kalendarz w zakladce "Dzis" jest JEDEN, w hero — tak samo jak w Nawykach.
+  // Zakazana jest siatka pod kazda pozycja listy, bo to ona zjadala ekran.
+  const lista = dzis.split('Zwarta lista do odhaczania')[1] || ''
+  assert.ok(!/<MonthCalendar/.test(lista), 'lista dnia nie moze miec kalendarza pod kazda pozycja')
+  assert.equal((dzis.match(/<MonthCalendar/g) || []).length, 1, 'w hero jeden kalendarz, nie wiecej')
   assert.match(staty, /<MonthCalendar/, 'siatki dni naleza do Statystyk')
   assert.match(staty, /<StatTiles/)
 })
@@ -601,4 +605,32 @@ test('Zacznij od nowa: najpierw dorobek, potem zamkniecie', () => {
   assert.ok(!/deleteDoc|archived: true/.test(fresh), 'zamkniecie nie moze kasowac ani archiwizowac')
   // Wybor jest po stronie uzytkownika — domyslnie wszystko, ale da sie odznaczyc.
   assert.match(fresh, /new Set\(habits\.map\(h => h\.id\)\)/)
+})
+
+test('Wyzwania: ekran wyglada jak Nawyki — hero z postepem i kalendarzem', () => {
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  const dzis = extras.split("tab === 'stats'")[0]
+  assert.match(dzis, /<Ring value=\{dzien\.pct\}/, 'brak pierscienia postepu dnia')
+  assert.match(dzis, /Wyzwania dnia/)
+  assert.match(dzis, /className="g2-br"/, 'hero ma ten sam uklad dwoch kart co Nawyki')
+  // Seria swiadomie NIE wraca — przy wyzwaniu przerwa w ciagu nie jest porazka.
+  assert.ok(!/getStreak|IconFlame/.test(extras), 'wyzwania nie maja serii')
+})
+
+test('Wyzwania nie istnieja przed swoim startem', () => {
+  // Wyzwanie zalozone w pazdzierniku pokazywalo wrzesien tak, jakby byl pomijany.
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  assert.match(extras, /isOptionalActiveOn/, 'kratki musza znac zycie wyzwania')
+  assert.match(extras, /poza wyzwaniem/)
+  assert.match(extras, /poza wyzwaniami/)
+})
+
+test('Rok w statystykach to 12 kratek, nie 365 na nawyk', () => {
+  // 365 kratek NA NAWYK dawalo przy kilkunastu nawykach ponad cztery tysiace
+  // elementow i zacinajace sie przewijanie na telefonie.
+  const habits = read('src/components/habits/HabitsDashboard.jsx')
+  assert.match(habits, /statPeriod === 'year' \?/)
+  assert.match(habits, /habitYearMonths\(habit, statYear, pauses, today\)/)
+  // HabitDayGrid zostaje dla tygodnia — tam dzien po dniu ma sens.
+  assert.match(habits, /<HabitDayGrid/)
 })

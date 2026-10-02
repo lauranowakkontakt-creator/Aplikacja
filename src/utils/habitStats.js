@@ -250,3 +250,25 @@ export function timelineTicks(from, to) {
   }
   return ticks
 }
+
+// Rok nawyku w 12 kratkach — po jednej na miesiąc, z procentem wykonania.
+// Siatka dzień po dniu dawała przy roku 365 kratek NA NAWYK (przy kilkunastu
+// nawykach grubo ponad cztery tysiące elementów), co dławiło przewijanie na
+// telefonie. Przy takiej skali pojedynczy dzień i tak był nieczytelny — to, co
+// się widzi, to układ miesięcy.
+export function habitYearMonths(habit, year, pauses = [], today = ymd(new Date())) {
+  return Array.from({ length: 12 }, (_, m) => {
+    const first = new Date(year, m, 1)
+    const start = ymd(startOfMonth(first))
+    const end   = ymd(endOfMonth(first))
+    // Przyszłych miesięcy nie liczymy — pokazałyby 0% jak porażkę.
+    if (start > today) return { label: format(first, 'LLL', { locale: pl }), pct: null, future: true }
+    const r = rangeStats([habit], pauses, start, end > today ? today : end)
+    return {
+      label: format(first, 'LLL', { locale: pl }),
+      pct: r.expected > 0 ? r.pct : null,
+      done: r.completions,
+      future: false,
+    }
+  })
+}

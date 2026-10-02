@@ -351,7 +351,10 @@ export function optionalSummary(habits = [], start, end) {
 // wyzwanie planu nie ma: liczy się samo „ile się udało".
 export function optionalDayCount(habits = [], dateStr) {
   let n = 0
-  for (const h of habits) if ((h?.completedDates || []).includes(dateStr)) n++
+  for (const h of habits) {
+    if (!isOptionalActiveOn(h, dateStr)) continue
+    if ((h?.completedDates || []).includes(dateStr)) n++
+  }
   return n
 }
 
@@ -492,4 +495,29 @@ export function freshStartSummary(habits = [], pauses = []) {
     to,
     totals: amountTotals(lista),
   }
+}
+
+// Czy wyzwanie w ogóle ISTNIAŁO danego dnia. Logika wyzwań nie znała startDate
+// ani endDate, więc kalendarz rysował cały miesiąc, a tydzień wchodził w
+// poprzedni: wyzwanie założone w październiku pokazywało wrzesień tak, jakby
+// było wtedy pomijane. Dzień przed startem to nie porażka — wtedy tej rzeczy
+// jeszcze nie było.
+export function isOptionalActiveOn(habit, dateStr) {
+  if (!dateStr) return false
+  if (habit?.startDate && dateStr < habit.startDate) return false
+  if (habit?.endDate && dateStr > habit.endDate) return false
+  return true
+}
+
+// Postęp dnia dla wyzwań: ile zaliczonych z tych, które tego dnia istniały.
+// Osobno od dayScore, bo tam mianownik bierze się z harmonogramu („due"), a
+// wyzwanie planu dnia nie ma — liczy się samo to, czy już istniało.
+export function optionalDayScore(habits = [], dateStr) {
+  let total = 0, done = 0
+  for (const h of habits) {
+    if (!isOptionalActiveOn(h, dateStr)) continue
+    total++
+    if (isDayComplete(h, dateStr)) done++
+  }
+  return { total, done, pct: total > 0 ? Math.round((done / total) * 100) : 0 }
 }
