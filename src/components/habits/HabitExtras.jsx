@@ -3,9 +3,9 @@ import { format, addDays, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { CatIcon, IconFlag, IconCheck, IconPlus, IconStar } from '../Icons'
 import { optionalProgress, optionalSummary, optionalDayCount, hasAmountGoal,
-  amountTotals } from '../../utils/habitLogic'
+  amountTotals, isOptionalActiveOn, optionalDayScore, isDayComplete } from '../../utils/habitLogic'
 import { habitPeriodLabel, optionalRange, optionalBuckets } from '../../utils/habitStats'
-import { BarChartSVG } from '../ChartPrimitives'
+import { BarChartSVG, Ring } from '../ChartPrimitives'
 import StatTiles from '../StatTiles'
 import SegTabs from '../SegTabs'
 import MonthCalendar from './MonthCalendar'
@@ -43,6 +43,7 @@ export default function HabitExtras({
   const dayLabel = format(selDate, 'EEEE, d MMMM', { locale: pl })
 
   const { start, end } = optionalRange(period, selectedDay)
+  const dzien = optionalDayScore(habits, selectedDay)
   const sum     = optionalSummary(habits, start, end)
   const okresLabel = period === 'week'
     ? `${format(new Date(start + 'T12:00:00'), 'd MMM', { locale: pl })} – ${format(new Date(end + 'T12:00:00'), 'd MMM', { locale: pl })}`
@@ -55,8 +56,16 @@ export default function HabitExtras({
   // Kratka dnia dla JEDNEGO wyzwania. Wypełniona = zaliczone; pusta to tylko
   // dzień, w którym się nie zdarzyło, dlatego bez obwódek „pominięte”.
   const cellForHabit = (habit, color) => (d) => {
-    const isDone = (habit.completedDates || []).includes(d)
-    if (isDone) return { bg: color, border: `1px solid ${color}`, color: '#fff', ring: d === today, title: `${d} — zaliczone` }
+    // Dzień przed startem wyzwania (albo po jego końcu) to nie porażka — wtedy
+    // tej rzeczy jeszcze nie było. Bez tego wyzwanie założone w październiku
+    // pokazywało wrzesień tak, jakby był pomijany.
+    if (!isOptionalActiveOn(habit, d)) {
+      return { bg: 'transparent', border: '1px solid transparent', color: 'var(--text-muted)',
+        ring: false, title: `${d} — poza wyzwaniem` }
+    }
+    if (isDayComplete(habit, d)) {
+      return { bg: color, border: `1px solid ${color}`, color: '#fff', ring: d === today, title: `${d} — zaliczone` }
+    }
     return {
       bg: 'transparent',
       border: d > today ? '1px dashed var(--border)' : '1px solid var(--border)',
@@ -70,6 +79,12 @@ export default function HabitExtras({
   // kolor. Skalę liczymy do liczby wyzwań, więc „pełny” dzień to wszystkie.
   const cellForAll = (d) => {
     const n = optionalDayCount(habits, d)
+    // Dzień, w którym żadne wyzwanie jeszcze nie istniało, zostaje pusty bez
+    // ramki — inaczej wyglądałby jak dzień bez wyniku.
+    if (!habits.some(h => isOptionalActiveOn(h, d))) {
+      return { bg: 'transparent', border: '1px solid transparent', color: 'var(--text-muted)',
+        ring: d === today, title: `${d} — poza wyzwaniami` }
+    }
     if (n === 0) {
       return {
         bg: 'transparent',
@@ -127,6 +142,42 @@ export default function HabitExtras({
 
       {tab === 'today' && (
         <>
+          {/* Hero — ten sam układ co na liście dnia Nawyków: postęp dnia obok
+              mini-kalendarza miesiąca. Wyzwania mają wyglądać jak nawyki;
+              różni je to, co liczymy, nie to, jak to wygląda. */}
+          <div className="g2-br" data-stagger style={{ gap: 12, alignItems: 'start' }}>
+            <div className="card card-hover-glow" style={{
+              padding: 18, display: 'flex', alignItems: 'center', gap: 16,
+              borderTop: '2px solid color-mix(in oklab, var(--warn) 80%, transparent)',
+              background: 'linear-gradient(140deg, var(--surface) 45%, color-mix(in oklab, var(--warn) 7%, var(--surface)) 100%)',
+            }}>
+              <Ring value={dzien.pct} size={88} thickness={8} color="var(--warn)" label="dziś" />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-sub)', textTransform: 'capitalize', marginBottom: 6 }}>
+                  {dayLabel}
+                </div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Wyzwania dnia
+                </div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
+                  <span style={{ fontSize: 30, fontWeight: 700, lineHeight: 1 }}>{dzien.done}</span>
+                  <span style={{ fontSize: 15, color: 'var(--text-muted)' }}>/ {dzien.total}</span>
+                </div>
+                {/* Bez serii — przy wyzwaniu przerwa w ciagu nie jest porazka. */}
+                <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 6 }}>
+                  {sum.done}x w tym okresie
+                </div>
+              </div>
+            </div>
+
+            <div className="card card-hover-glow" style={{ padding: 16 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '.18em', textTransform: 'uppercase', marginBottom: 10 }}>
+                Kalendarz
+              </div>
+              <MonthCalendar month={selDate} renderCell={cellForAll} cellH={20} font={8.5} maxWidth={266} />
+            </div>
+          </div>
+
           {/* Nawigator dnia — ten sam wzorzec co na liście dnia Nawyków. */}
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',

@@ -8,6 +8,7 @@ import { pl } from 'date-fns/locale'
 import HabitForm, { HABIT_CATEGORIES, DEFAULT_HABIT_CATEGORIES } from './HabitForm'
 import PauseForm from './PauseForm'
 import HabitReorderModal from './HabitReorderModal'
+import HabitFreshStart from './HabitFreshStart'
 import HabitDayGrid from './HabitDayGrid'
 import HabitMenu from './HabitMenu'
 import HabitManager from './HabitManager'
@@ -20,7 +21,7 @@ import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, Ic
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
-import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor } from '../../utils/habitStats'
+import { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor, habitYearMonths } from '../../utils/habitStats'
 import MonthCalendar from './MonthCalendar'
 import HabitExtras from './HabitExtras'
 import AmountStepper from './AmountStepper'
@@ -45,6 +46,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   const [filterCat, setFilterCat]   = useState('all')
   const [selectedDay, setSelectedDay] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [showArchive, setShowArchive] = useState(false)  // archiwum spod ⋮, nie z dołu ekranu
+  const [showFresh, setShowFresh]     = useState(false)
   const [showReorder, setShowReorder] = useState(false)
   const [showRoutineMgr, setShowRoutineMgr] = useState(false)
   const [showManager, setShowManager] = useState(false)  // lista wszystkich nawyków do edycji
@@ -147,6 +149,10 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   // przestal obowiazywac — wliczony do rangeStats wygladalby na pominiety w
   // kazdym dniu po schowaniu i zanizalby biezace miesiace.
   const archivedExtras   = archivedHabits.filter(isOptionalHabit).sort(byHabitOrder)
+  // Kolejność układa się dla tego, co robisz TERAZ. Ukończone siedzą dalej w
+  // `activeHabits` (nie są zarchiwizowane), więc bez tego filtra wchodziły do
+  // układania razem z resztą i zajmowały miejsca, których już nie używasz.
+  const reorderable = activeHabits.filter(h => habitLifecycle(h, TODAY) !== 'ended')
   const filtered = requiredActive.filter(h => filterCat === 'all' || h.category === filterCat)
 
   // Lata z jakimikolwiek danymi (do nawigacji w statystykach) — zawsze z bieżącym
@@ -182,6 +188,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
     else if (id === 'reorder') setShowReorder(true)
     else if (id === 'routines') setShowRoutineMgr(true)
     else if (id === 'archive') setShowArchive(true)
+    else if (id === 'fresh') setShowFresh(true)
   }
   const addBtn = (
     <button className="hdr-btn accent" onClick={() => { setEditHabit(null); setShowForm(true) }} title="Nowy nawyk">
@@ -228,10 +235,11 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
     setHeaderExtras?.(
       moodOpen
         ? <>{moodBtn}{extrasBtn}{moodExtras}</>
-        : <>{moodBtn}{extrasBtn}<HabitMenu onAction={handleMenu} canReorder={activeHabits.length > 1} hasArchive={archivedHabits.length + endedHabits.length > 0} />{addBtn}</>
+        : <>{moodBtn}{extrasBtn}<HabitMenu onAction={handleMenu} canReorder={reorderable.length > 1} hasArchive={archivedHabits.length + endedHabits.length > 0}
+            canFresh={reorderable.length > 0} />{addBtn}</>
     )
     return () => setHeaderExtras?.(null)
-  }, [activeHabits.length, archivedHabits.length, endedHabits.length, extraHabits.length,
+  }, [activeHabits.length, archivedHabits.length, endedHabits.length, extraHabits.length, reorderable.length,
       todayMood, moodOpen, moodExtras, extrasOpen])
 
   if (loading) return <div className="list-loading">Ładowanie...</div>
@@ -820,6 +828,28 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                   {/* Wykonanie — miesiąc jako kalendarz, tydzień/rok jako siatka */}
                   {statPeriod === 'month' ? (
                     <MonthCalendar month={monthAnchor} renderCell={habitCellFor(habit, color)} cellH={18} gap={3} font={8} />
+                  ) : statPeriod === 'year' ? (
+                    /* Rok w 12 kratkach. Siatka dzien po dniu dawala tu 365 kratek
+                       NA NAWYK — przy kilkunastu nawykach ponad cztery tysiace
+                       elementow i zacinajace sie przewijanie. Pojedynczy dzien i
+                       tak byl przy tej skali nieczytelny. */
+                    <div style={{ display: 'flex', gap: 3 }}>
+                      {habitYearMonths(habit, statYear, pauses, today).map((m, i) => (
+                        <div key={i} title={m.pct === null ? `${m.label} — brak danych` : `${m.label} — ${m.pct}% (${m.done}x)`}
+                          style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            height: 22, borderRadius: 4,
+                            background: m.pct === null
+                              ? 'transparent'
+                              : `color-mix(in oklab, ${color} ${Math.max(10, m.pct)}%, var(--surface2))`,
+                            border: m.pct === null ? '1px dashed var(--border)' : `1px solid ${color}40`,
+                          }} />
+                          <div style={{ fontSize: 7.5, textAlign: 'center', color: 'var(--text-muted)', marginTop: 3 }}>
+                            {m.label.slice(0, 1)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <>
                       <HabitDayGrid habit={habit} pauses={pauses} start={start} end={end} today={today} color={color} />
@@ -839,7 +869,10 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
 
       {showPause && <PauseForm user={user} onClose={() => setShowPause(false)} />}
       {showRoutineMgr && <RoutineManager user={user} onClose={() => setShowRoutineMgr(false)} />}
-      {showReorder && <HabitReorderModal user={user} habits={activeHabits} onClose={() => setShowReorder(false)} />}
+      {showReorder && <HabitReorderModal user={user} habits={reorderable} onClose={() => setShowReorder(false)} />}
+      {showFresh && (
+        <HabitFreshStart user={user} habits={reorderable} pauses={pauses} onClose={() => setShowFresh(false)} />
+      )}
       {showArchive && (
         <HabitArchive user={user} habits={archivedHabits} endedHabits={endedHabits} pauses={pauses}
           onEdit={(h) => { setShowArchive(false); setEditHabit(h); setShowForm(true) }}

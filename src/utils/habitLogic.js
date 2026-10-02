@@ -351,7 +351,10 @@ export function optionalSummary(habits = [], start, end) {
 // wyzwanie planu nie ma: liczy się samo „ile się udało".
 export function optionalDayCount(habits = [], dateStr) {
   let n = 0
-  for (const h of habits) if ((h?.completedDates || []).includes(dateStr)) n++
+  for (const h of habits) {
+    if (!isOptionalActiveOn(h, dateStr)) continue
+    if ((h?.completedDates || []).includes(dateStr)) n++
+  }
   return n
 }
 
@@ -463,4 +466,58 @@ export function amountShortLabel(current, target, unit) {
   if (c <= 0) return `${t} ${short}`
   if (c >= t) return `${c} ${short}`
   return `${c}/${t} ${short}`
+}
+
+// Podsumowanie dorobku przed zamknięciem rozdziału („zacznij od nowa").
+// Zbiera to, co warto zobaczyć, zanim nawyki zejdą do ukończonych: ile tego
+// było, jak długo trwało i jaki był najlepszy ciąg. Liczby biorą się z całej
+// historii, nie z okresu — zamykamy wszystko, co się nazbierało.
+export function freshStartSummary(habits = [], pauses = []) {
+  const lista = habits.filter(Boolean)
+  let completions = 0, best = 0, from = null, to = null
+  for (const h of lista) {
+    const s = habitCompletionSummary(h, pauses)
+    completions += s.total
+    if (s.best > best) best = s.best
+    // Granice bierzemy wprost z odhaczeń, a nie z `s.first` — tam jest fallback
+    // na startDate, więc nawyk założony dawno i nigdy nierobiony cofałby
+    // początek historii o lata.
+    const dates = [...(h.completedDates || [])].sort()
+    const pierwsze = dates[0], ostatnie = dates[dates.length - 1]
+    if (pierwsze && (!from || pierwsze < from)) from = pierwsze
+    if (ostatnie && (!to || ostatnie > to)) to = ostatnie
+  }
+  return {
+    count: lista.length,
+    completions,
+    best,
+    from,
+    to,
+    totals: amountTotals(lista),
+  }
+}
+
+// Czy wyzwanie w ogóle ISTNIAŁO danego dnia. Logika wyzwań nie znała startDate
+// ani endDate, więc kalendarz rysował cały miesiąc, a tydzień wchodził w
+// poprzedni: wyzwanie założone w październiku pokazywało wrzesień tak, jakby
+// było wtedy pomijane. Dzień przed startem to nie porażka — wtedy tej rzeczy
+// jeszcze nie było.
+export function isOptionalActiveOn(habit, dateStr) {
+  if (!dateStr) return false
+  if (habit?.startDate && dateStr < habit.startDate) return false
+  if (habit?.endDate && dateStr > habit.endDate) return false
+  return true
+}
+
+// Postęp dnia dla wyzwań: ile zaliczonych z tych, które tego dnia istniały.
+// Osobno od dayScore, bo tam mianownik bierze się z harmonogramu („due"), a
+// wyzwanie planu dnia nie ma — liczy się samo to, czy już istniało.
+export function optionalDayScore(habits = [], dateStr) {
+  let total = 0, done = 0
+  for (const h of habits) {
+    if (!isOptionalActiveOn(h, dateStr)) continue
+    total++
+    if (isDayComplete(h, dateStr)) done++
+  }
+  return { total, done, pct: total > 0 ? Math.round((done / total) * 100) : 0 }
 }

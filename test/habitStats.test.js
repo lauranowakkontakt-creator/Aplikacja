@@ -2,8 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 const { ymd, statRange, statBuckets, dayAggregate, getPauseIcon, getPauseColor, habitPeriodLabel,
-  optionalRange, optionalBuckets, habitSpan, timelineLanes, timelineTicks } =
-  await import('../src/utils/habitStats.js')
+  optionalRange, optionalBuckets, habitSpan, timelineLanes, timelineTicks,
+  habitYearMonths } = await import('../src/utils/habitStats.js')
 const { rangeStats, isRequiredHabit } = await import('../src/utils/habitLogic.js')
 
 const D = (s) => new Date(`${s}T12:00:00`)
@@ -313,4 +313,42 @@ test('timelineTicks: podpisy mieszcza sie w osi', () => {
     assert.ok(t.leftPct >= 0 && t.leftPct <= 100, `${t.label} poza osia`)
   }
   assert.deepEqual(timelineTicks(null, '2026-01-01'), [])
+})
+
+// ---------- rok jako 12 kratek, nie 365 ----------
+// Siatka dzien po dniu dawala przy roku 365 kratek NA NAWYK — przy kilkunastu
+// nawykach ponad cztery tysiace elementow, co dlawilo przewijanie na telefonie.
+
+test('habitYearMonths: zawsze 12 miesiecy z etykietami', () => {
+  const m = habitYearMonths({ frequencyDays: [0,1,2,3,4,5,6], startDate: '2026-01-01', completedDates: [] },
+    2026, [], '2026-12-31')
+  assert.equal(m.length, 12)
+  assert.equal(m[0].label, 'sty')
+  assert.equal(m[11].label, 'gru')
+})
+
+test('habitYearMonths: procent liczy sie z faktycznego wykonania', () => {
+  const every = [0,1,2,3,4,5,6]
+  const h = { frequencyDays: every, startDate: '2026-01-01',
+    completedDates: ['2026-01-01', '2026-01-02'] }
+  const m = habitYearMonths(h, 2026, [], '2026-01-02')
+  // Do 2 stycznia bylo 2 dni i oba zrobione.
+  assert.equal(m[0].pct, 100)
+  assert.equal(m[0].done, 2)
+})
+
+test('habitYearMonths: przyszle miesiace nie udaja porazki', () => {
+  const h = { frequencyDays: [0,1,2,3,4,5,6], startDate: '2026-01-01', completedDates: [] }
+  const m = habitYearMonths(h, 2026, [], '2026-03-15')
+  assert.equal(m[3].pct, null, 'kwiecien jeszcze nie byl')
+  assert.equal(m[3].future, true)
+  assert.equal(m[2].future, false, 'marzec trwa, wiec sie liczy')
+})
+
+test('habitYearMonths: miesiac bez wymagan to brak danych, nie zero', () => {
+  // Nawyk zaczety w marcu nie moze pokazywac stycznia jako 0%.
+  const h = { frequencyDays: [0,1,2,3,4,5,6], startDate: '2026-03-01', completedDates: [] }
+  const m = habitYearMonths(h, 2026, [], '2026-12-31')
+  assert.equal(m[0].pct, null, 'styczen przed startem')
+  assert.equal(m[2].pct, 0, 'marzec juz obowiazywal')
 })

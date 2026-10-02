@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { IconPause, IconReorder, IconMoreVert, IconChart, IconClock, IconEdit, IconArchive } from '../Icons'
+import { IconPause, IconReorder, IconMoreVert, IconChart, IconClock, IconEdit, IconArchive, IconRepeat } from '../Icons'
 
 // Menu „trzy kropki" dla Nawyków — spójne wizualnie z BudgetMenu (te same klasy CSS).
 // Kryje opcje Pauza i Kolejność, żeby nagłówek był czysty (tylko + i ⋮).
-export default function HabitMenu({ onAction, canReorder = true, hasArchive = false }) {
+export default function HabitMenu({ onAction, canReorder = true, hasArchive = false, canFresh = false }) {
   const [open, setOpen] = useState(false)
   const ref = useRef()
 
@@ -23,6 +23,8 @@ export default function HabitMenu({ onAction, canReorder = true, hasArchive = fa
     ...(canReorder ? [{ id: 'reorder', Icon: IconReorder, label: 'Kolejność nawyków' }] : []),
     // Ukończone + archiwum tylko wtedy, gdy jest co pokazać — pusta pozycja w menu myli.
     ...(hasArchive ? [{ id: 'archive', Icon: IconArchive, label: 'Ukończone i archiwum' }] : []),
+    // Zamknięcie rozdziału ma sens tylko wtedy, gdy jest co zamykać.
+    ...(canFresh ? [{ id: 'fresh', Icon: IconRepeat, label: 'Zacznij od nowa' }] : []),
   ]
 
   const handle = (id) => { onAction(id); setOpen(false) }
