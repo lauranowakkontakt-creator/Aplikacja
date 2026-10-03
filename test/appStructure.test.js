@@ -466,10 +466,9 @@ test('Statystyki ogolne nie mieszaja sie z tym, co zamkniete', () => {
   const archive = read('src/components/habits/HabitArchive.jsx')
   for (const [plik, src] of [['HabitsDashboard', habits], ['HabitExtras', extras]]) {
     assert.ok(!/<HabitTimeline/.test(src), `${plik}: os czasu nalezy do archiwum, nie do statystyk`)
-    assert.ok(!/Twoja historia/.test(src), `${plik}: sekcja historii nalezy do archiwum`)
+    assert.ok(!/<HabitTimeline/.test(src), `${plik}: historia nalezy do archiwum`)
   }
   assert.match(archive, /<HabitTimeline/, 'archiwum musi pokazywac os czasu')
-  assert.match(archive, /Twoja historia/)
   // Agregaty okresu dalej licza sie tylko z aktywnych.
   assert.match(habits, /rangeStats\(requiredActive, pauses, start, endClamped\)/)
   assert.match(habits, /statBuckets\(requiredActive,/)
@@ -745,4 +744,25 @@ test('Okno ustawiania mowi, co zapisze', () => {
   const sheet = read('src/components/habits/AmountSheet.jsx')
   assert.match(sheet, /Zapisz \$\{formatAmount\(wartosc, unit\)\}/)
   assert.match(sheet, /Zapisz — nic dziś/, 'po "Wyczysc" widac, ze zapisze zero')
+})
+
+test('Ukonczone i archiwum: dorobek na gorze, pozycje pod spodem', () => {
+  // Os czasu byla doklejona na SAMYM DOLE, pod dwiema listami, wiec trzeba bylo
+  // sie do niej przewijac — a to po nia sie tu wchodzi.
+  const archive = read('src/components/habits/HabitArchive.jsx')
+  const osIdx = archive.indexOf('<HabitTimeline')
+  const listaIdx = archive.indexOf('{lista.map(pozycja)}')
+  assert.ok(osIdx > 0 && listaIdx > 0)
+  assert.ok(osIdx < listaIdx, 'podsumowanie i os czasu musza byc PRZED lista pozycji')
+
+  // Dwa stany tej samej rzeczy rozdziela przelacznik, nie dwie sekcje pod soba.
+  assert.match(archive, /<SegTabs/)
+  assert.match(archive, /Ukończone \(\$\{ukonczone\.length\}\)/)
+  assert.match(archive, /Archiwum \(\$\{schowane\.length\}\)/)
+  // Najswiezsze u gory — lista bez porzadku byla nie do przegladniecia.
+  assert.match(archive, /sort\(byRecentlyClosed\)/)
+  // Nawyk na czas pokazuje tez, ile go bylo.
+  assert.match(archive, /amountStats\(h\)/)
+  // Akcje jako ikony: przy kilku pozycjach napisy robily ze sciane tekstu.
+  assert.ok(!/smallBtn/.test(archive), 'stare przyciski z napisami maja zniknac')
 })
