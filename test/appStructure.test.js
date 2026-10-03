@@ -579,9 +579,10 @@ test('Czas/ilosc: dodawanie I odejmowanie jest mozliwe', () => {
   for (const [plik, src] of [['HabitsDashboard', habits], ['HabitExtras', extras]]) {
     assert.match(src, /<AmountSheet/, `${plik}: brak okna ustawiania`)
   }
-  // Klik w liczbe nie moze przy okazji odpalac tego, co jest pod spodem.
+  // W liscie dnia chip siedzi w karcie, wiec klik nie moze przy okazji odpalac
+  // tego, co jest pod spodem. Na ekranie wyzwan chip stoi OBOK przycisku z
+  // nazwa (patrz test o buttonie w buttonie), wiec nie ma czego zatrzymywac.
   assert.match(habits, /e\.stopPropagation\(\)/)
-  assert.match(extras, /e\.stopPropagation\(\)/)
 })
 
 test('Nawyki na czas: amounts trzymane w zgodzie z completedDates', () => {
@@ -718,4 +719,30 @@ test('Czas/ilosc: robote ponad norme da sie zapisac i widac ja', () => {
   // W rozwinietej karcie nadwyzka ma wlasny kafelek.
   assert.match(habits, /miary\.over > 0 &&/)
   assert.match(habits, /ponad cel · \{miary\.overDays\} dni/)
+})
+
+test('Liczba otwierajaca okno nie moze byc buttonem w buttonie', () => {
+  // Na ekranie wyzwan chip siedzial WEWNATRZ przycisku z nazwa. Button w
+  // buttonie to nieprawidlowy HTML — przegladarka przebudowuje drzewo i klik
+  // nie dociera tam, gdzie powinien, wiec okna nie dalo sie otworzyc, a przez
+  // to nie bylo jak odjac ani wyczyscic dnia.
+  const extras = read('src/components/habits/HabitExtras.jsx')
+  const lista = (extras.split('Zwarta lista do odhaczania')[1] || '').split("tab === 'stats'")[0]
+  const otwarcie = lista.indexOf('setAmountFor(h)')
+  const nazwa = lista.indexOf('onClick={() => onEdit(h)}')
+  assert.ok(otwarcie > 0 && nazwa > 0, 'oba przyciski musza byc w liscie')
+  // Przycisk z liczba zaczyna sie PO zamknieciu przycisku z nazwa.
+  const koniecNazwy = lista.indexOf('</button>', nazwa)
+  assert.ok(otwarcie > koniecNazwy, 'chip musi byc OBOK przycisku nazwy, nie w srodku')
+  // Jest wyraznie przyciskiem, nie etykieta — inaczej nikt nie zgadnie, ze klika.
+  for (const [plik, src] of [['HabitExtras', extras], ['HabitsDashboard', read('src/components/habits/HabitsDashboard.jsx')]]) {
+    assert.match(src, /title="Ustaw dokładnie \(odejmij, wpisz, wyczyść\)"/, `${plik}: chip ma mowic, co robi`)
+    assert.match(src, /<IconEdit size=\{1[01]\} \/>/, `${plik}: chip ma ikone`)
+  }
+})
+
+test('Okno ustawiania mowi, co zapisze', () => {
+  const sheet = read('src/components/habits/AmountSheet.jsx')
+  assert.match(sheet, /Zapisz \$\{formatAmount\(wartosc, unit\)\}/)
+  assert.match(sheet, /Zapisz — nic dziś/, 'po "Wyczysc" widac, ze zapisze zero')
 })

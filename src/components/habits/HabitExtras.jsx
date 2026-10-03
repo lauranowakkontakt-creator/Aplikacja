@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { format, addDays, subDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
-import { CatIcon, IconFlag, IconCheck, IconPlus, IconStar } from '../Icons'
+import { CatIcon, IconFlag, IconCheck, IconPlus, IconStar, IconEdit } from '../Icons'
 import { optionalProgress, optionalSummary, optionalDayCount, hasAmountGoal,
   amountTotals, isOptionalActiveOn, optionalDayScore, isDayComplete,
   amountShortLabel, dayAmount, amountStats, formatAmount } from '../../utils/habitLogic'
@@ -227,26 +227,28 @@ export default function HabitExtras({
                       {h.name}
                     </span>
                     <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                      {hasAmountGoal(h) && (
-                        /* Klik w liczbę otwiera precyzyjne ustawianie — „−", „+"
-                           i pole, na które w karcie nie ma miejsca. */
-                        <button type="button" className="mono"
-                          onClick={(e) => { e.stopPropagation(); if (!isFuture) setAmountFor(h) }}
-                          title="Ustaw dokładnie"
-                          style={{
-                            color, fontWeight: 600, background: 'none', border: 'none', padding: 0,
-                            font: 'inherit', cursor: isFuture ? 'default' : 'pointer',
-                            textDecoration: 'underline', textDecorationStyle: 'dotted',
-                          }}>
-                          {amountShortLabel(dayAmount(h, selectedDay), h.target, h.unit)}
-                        </button>
-                      )}
-                      {hasAmountGoal(h) && ' · '}
                       {p.inRange}x w okresie · {p.total}x łącznie
                     </span>
                   </span>
                 </button>
-                {/* Wyzwanie na czas / ilosc: pasek z liczba zamiast haczyka. */}
+                {/* Liczba jest OSOBNYM przyciskiem, obok — nie w środku przycisku
+                    z nazwą. Button w buttonie to nieprawidłowy HTML: przeglądarka
+                    przebudowuje drzewo i klik nie dociera tam, gdzie powinien. */}
+                {hasAmountGoal(h) && (
+                  <button type="button" className="mono" disabled={isFuture}
+                    onClick={() => setAmountFor(h)}
+                    title="Ustaw dokładnie (odejmij, wpisz, wyczyść)"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0,
+                      fontSize: 10.5, fontWeight: 600, padding: '4px 8px', borderRadius: 7,
+                      background: color + '1c', border: `1px solid ${color}44`, color,
+                      cursor: isFuture ? 'default' : 'pointer', opacity: isFuture ? 0.45 : 1,
+                      fontFamily: 'inherit',
+                    }}>
+                    <IconEdit size={11} />
+                    {amountShortLabel(dayAmount(h, selectedDay), h.target, h.unit)}
+                  </button>
+                )}
                 {hasAmountGoal(h) ? (
                   <AmountStepper habit={h} dateStr={selectedDay} onSet={onSetAmount} disabled={isFuture} size={36} />
                 ) : (

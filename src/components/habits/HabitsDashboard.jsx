@@ -17,7 +17,7 @@ import RoutineManager from './RoutineManager'
 // Nastrój nie jest już osobną apką — mieszka w Nawykach, otwierany z kafelka.
 // Leniwie, żeby wejście w Nawyki nie ciągnęło kodu wykresów nastroju.
 const MoodDashboard = lazy(() => import('../mood/MoodDashboard'))
-import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronLeft, IconChevronRight, IconPlus, IconMood, IconFlag, IconClose } from '../Icons'
+import { CatIcon, IconFlame, IconStar, IconCheck, IconPause, IconChevronDown, IconChevronLeft, IconChevronRight, IconPlus, IconMood, IconFlag, IconEdit, IconClose } from '../Icons'
 import { Ring, BarChartSVG } from '../ChartPrimitives'
 import DayPath from '../DayPath'
 import SegTabs from '../SegTabs'
@@ -491,14 +491,17 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                   {hasAmountGoal(habit) && (
                     /* Klik w liczbę otwiera precyzyjne ustawianie: tam jest „−",
                        „+" i pole, na które w karcie nie ma miejsca. */
-                    <button type="button" className="mono"
-                      onClick={(e) => { e.stopPropagation(); if (!isFut) setAmountFor({ habit, date: selectedDay }) }}
-                      title="Ustaw dokładnie"
+                    <button type="button" className="mono" disabled={isFut}
+                      onClick={(e) => { e.stopPropagation(); setAmountFor({ habit, date: selectedDay }) }}
+                      title="Ustaw dokładnie (odejmij, wpisz, wyczyść)"
                       style={{
-                        fontSize: 10, padding: '1px 7px', borderRadius: 4, background: color + '1c',
-                        color, fontWeight: 600, border: `1px solid ${color}33`, cursor: isFut ? 'default' : 'pointer',
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 10, padding: '2px 7px', borderRadius: 6, background: color + '1c',
+                        color, fontWeight: 600, border: `1px solid ${color}44`,
+                        cursor: isFut ? 'default' : 'pointer', opacity: isFut ? 0.45 : 1,
                         fontFamily: 'inherit',
                       }}>
+                      <IconEdit size={10} />
                       {amountShortLabel(dayAmount(habit, selectedDay), habit.target, habit.unit)}
                     </button>
                   )}
