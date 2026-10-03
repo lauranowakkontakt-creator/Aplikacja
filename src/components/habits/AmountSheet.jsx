@@ -79,7 +79,11 @@ export default function AmountSheet({ habit, dateStr, onSet, onClose }) {
             </button>
           </div>
 
-          <button className="btn-save" onClick={() => zapisz(wartosc)}>Zapisz</button>
+          {/* Przycisk mówi, CO zapisze — po „Wyczyść" widać, że zapisze zero,
+              zamiast zostawiać wątpliwość, czy zmiana w ogóle weszła. */}
+          <button className="btn-save" onClick={() => zapisz(wartosc)}>
+            {wartosc > 0 ? `Zapisz ${formatAmount(wartosc, unit)}` : 'Zapisz — nic dziś'}
+          </button>
         </div>
       </div>
     </div>
