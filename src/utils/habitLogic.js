@@ -596,3 +596,26 @@ export function amountStats(habit, start, end) {
     best: best ? { date: best.date, value: best.value } : null,
   }
 }
+
+// Sortowanie zamkniętych nawyków: najświeższe u góry. Liczy się ostatni ślad —
+// data zakończenia albo ostatnie odhaczenie, zależnie od tego, co późniejsze.
+// Nawyk schowany do archiwum zwykle nie ma endDate, więc samo sortowanie po
+// niej wrzucałoby go na koniec listy bez względu na to, jak długo był robiony.
+export function lastTrace(habit) {
+  const dates = [...(habit?.completedDates || [])].sort()
+  const ostatnie = dates[dates.length - 1] || null
+  const koniec = habit?.endDate || null
+  if (!ostatnie) return koniec
+  if (!koniec) return ostatnie
+  return koniec > ostatnie ? koniec : ostatnie
+}
+
+export function byRecentlyClosed(a, b) {
+  const x = lastTrace(a), y = lastTrace(b)
+  // Nawyki bez żadnego śladu lądują na końcu — nie ma czym ich umiejscowić.
+  if (!x && !y) return (a?.name || '').localeCompare(b?.name || '', 'pl')
+  if (!x) return 1
+  if (!y) return -1
+  if (x === y) return (a?.name || '').localeCompare(b?.name || '', 'pl')
+  return x > y ? -1 : 1
+}

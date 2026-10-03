@@ -7,7 +7,7 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   optionalSummary, optionalDayCount, habitOrderUpdates, hasAmountGoal, dayAmount,
   dayProgress, isDayComplete, formatAmount, amountShortLabel, amountTotals, unitMeta,
   HABIT_UNITS, freshStartSummary, isOptionalActiveOn, optionalDayScore,
-  amountStep, nextAmount, amountStats, amountOver } from '../src/utils/habitLogic.js'
+  amountStep, nextAmount, amountStats, amountOver, lastTrace, byRecentlyClosed } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -907,4 +907,33 @@ test('amountStats: nadwyzka ponad norme liczona osobno', () => {
   assert.equal(s.over, 45, '15 ponad w pierwszym dniu i 30 w czwartym')
   assert.equal(s.overDays, 2, 'dokladnie rownie z celem to nie nadwyzka')
   assert.equal(s.total, 115, 'suma liczy calosc, takze nadwyzke')
+})
+
+// ---------- porzadek w "Ukonczone i archiwum" ----------
+
+test('lastTrace: ostatni slad to pozniejsza z dwoch dat', () => {
+  assert.equal(lastTrace({ endDate: '2026-09-30', completedDates: ['2026-10-05'] }), '2026-10-05')
+  assert.equal(lastTrace({ endDate: '2026-10-20', completedDates: ['2026-10-05'] }), '2026-10-20')
+  // Nawyk schowany do archiwum zwykle nie ma endDate.
+  assert.equal(lastTrace({ completedDates: ['2026-10-05', '2026-01-01'] }), '2026-10-05')
+  assert.equal(lastTrace({ endDate: '2026-10-20' }), '2026-10-20')
+  assert.equal(lastTrace({}), null)
+})
+
+test('byRecentlyClosed: najswiezsze u gory', () => {
+  const lista = [
+    { name: 'Stary', completedDates: ['2025-01-01'] },
+    { name: 'Nowy', completedDates: ['2026-10-01'] },
+    { name: 'Sredni', endDate: '2026-05-01' },
+  ].sort(byRecentlyClosed)
+  assert.deepEqual(lista.map(h => h.name), ['Nowy', 'Sredni', 'Stary'])
+})
+
+test('byRecentlyClosed: bez sladu na koniec, remis alfabetycznie', () => {
+  const lista = [
+    { name: 'Bez sladu' },
+    { name: 'Zebra', completedDates: ['2026-10-01'] },
+    { name: 'Alfa', completedDates: ['2026-10-01'] },
+  ].sort(byRecentlyClosed)
+  assert.deepEqual(lista.map(h => h.name), ['Alfa', 'Zebra', 'Bez sladu'])
 })
