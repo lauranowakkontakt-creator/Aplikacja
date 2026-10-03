@@ -7,7 +7,8 @@ import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isCh
   optionalSummary, optionalDayCount, habitOrderUpdates, hasAmountGoal, dayAmount,
   dayProgress, isDayComplete, formatAmount, amountShortLabel, amountTotals, unitMeta,
   HABIT_UNITS, freshStartSummary, isOptionalActiveOn, optionalDayScore,
-  amountStep, nextAmount, amountStats, amountOver, lastTrace, byRecentlyClosed } from '../src/utils/habitLogic.js'
+  amountStep, nextAmount, amountStats, amountOver, lastTrace, byRecentlyClosed,
+  habitDoneDates } from '../src/utils/habitLogic.js'
 
 test('byRoutineOrder: sortuje wg order, remis wg createdAt', () => {
   const a = { id: 'a', order: 2 }, b = { id: 'b', order: 0 }, c = { id: 'c', order: 1 }
@@ -872,6 +873,61 @@ test('nextAmount: nawyk na minuty dokłada piatki', () => {
   // Cel 10 minut: dwa kliki do pelna, zamiast czterech po trzy minuty.
   assert.equal(nextAmount(0, 10, 'min'), 5)
   assert.equal(nextAmount(5, 10, 'min'), 10)
+})
+
+// ---------- zaliczenie dnia przelicza sie z wpisanych liczb ----------
+// `completedDates` zapisuje sie w chwili klikania, wiec po PODNIESIENIU celu
+// kalendarz w statystykach swiecil dzien jako zrobiony, choc przy nowej normie
+// zrobiony nie byl.
+
+test('isDayComplete: po zmianie celu liczy sie wpisana liczba, nie stare odhaczenie', () => {
+  // 15 minut bylo calym celem, gdy cel wynosil 15 — po podniesieniu do 30 to
+  // dopiero polowa.
+  const habit = { target: 30, unit: 'min', amounts: { '2026-10-02': 15 }, completedDates: ['2026-10-02'] }
+  assert.equal(isDayComplete(habit, '2026-10-02'), false)
+  assert.equal(dayProgress(habit, '2026-10-02'), 0.5)
+  // Obnizenie celu dziala tak samo — dzien zalicza sie sam, bez przeklikiwania.
+  const nizszy = { target: 10, unit: 'min', amounts: { '2026-10-02': 15 }, completedDates: [] }
+  assert.equal(isDayComplete(nizszy, '2026-10-02'), true)
+})
+
+test('isDayComplete: dzien bez wpisanej liczby zostaje przy starym odhaczeniu', () => {
+  // Nawyk dostal cel liczbowy POZNIEJ: dni odhaczone wczesniej nie maja zadnej
+  // liczby i nie moga sie przez to wyzerowac.
+  const habit = { target: 20, unit: 'min', amounts: {}, completedDates: ['2026-09-01'] }
+  assert.equal(isDayComplete(habit, '2026-09-01'), true)
+  assert.equal(dayProgress(habit, '2026-09-01'), 1)
+  assert.equal(isDayComplete(habit, '2026-09-02'), false)
+})
+
+test('habitDoneDates: lista zaliczonych dni liczy sie z amounts', () => {
+  const habit = {
+    target: 20, unit: 'min',
+    amounts: { '2026-10-01': 20, '2026-10-02': 5, '2026-10-03': 45 },
+    completedDates: ['2026-10-01', '2026-10-02', '2026-09-30'],
+  }
+  // 2026-10-02 wypada (5 z 20), 2026-10-03 wchodzi mimo braku odhaczenia,
+  // a 2026-09-30 zostaje — nie ma tam wpisanej liczby.
+  assert.deepEqual(habitDoneDates(habit), ['2026-09-30', '2026-10-01', '2026-10-03'])
+})
+
+test('habitDoneDates: nawyk bez celu to posortowane odhaczenia i nowa tablica', () => {
+  const dates = ['2026-10-03', '2026-10-01']
+  const habit = { completedDates: dates }
+  assert.deepEqual(habitDoneDates(habit), ['2026-10-01', '2026-10-03'])
+  assert.deepEqual(dates, ['2026-10-03', '2026-10-01'], 'nie sortujemy danych z bazy w miejscu')
+  assert.deepEqual(habitDoneDates({}), [])
+})
+
+test('rangeStats: podniesiony cel odbiera zaliczenie staremu dniu', () => {
+  const habit = {
+    frequencyDays: [0, 1, 2, 3, 4, 5, 6], target: 30, unit: 'min',
+    amounts: { '2026-10-01': 15, '2026-10-02': 30 },
+    completedDates: ['2026-10-01', '2026-10-02'],
+  }
+  const s = rangeStats([habit], [], '2026-10-01', '2026-10-02')
+  assert.equal(s.completions, 1, 'tylko dzien z pelna nowa norma')
+  assert.equal(s.perfectDays, 1)
 })
 
 test('amountOver: liczy tylko to, co ponad norme', () => {

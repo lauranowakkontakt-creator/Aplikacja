@@ -1,4 +1,5 @@
-import { isHabitDue, pauseForDay, pauseReasonMeta, eachDayStr, habitDayKind } from '../../utils/habitLogic'
+import { isHabitDue, pauseForDay, pauseReasonMeta, eachDayStr, habitDayKind,
+  habitDoneDates } from '../../utils/habitLogic'
 
 // Siatka małych kwadracików — jeden na każdy dzień zakresu [start..end].
 // Kolor mówi, co się działo danego dnia (spójny język z siatką tygodnia):
@@ -15,7 +16,10 @@ export default function HabitDayGrid({ habit, pauses = [], start, end, today, co
   const cell = size || (days.length <= 7 ? 20 : days.length <= 31 ? 14 : days.length <= 92 ? 10 : 8)
   const gap  = cell >= 18 ? 5 : cell >= 12 ? 4 : cell >= 9 ? 3 : 2
   const radius = cell >= 12 ? 4 : 2
-  const done = new Set(habit.completedDates || [])
+  // Dni zaliczone liczymy, a nie czytamy z zapisanej listy — przy nawyku na
+  // czas zapisane odhaczenia nie wiedzą o późniejszej zmianie celu i kratka
+  // świeciła się na dzień, który przy nowej normie zrobiony nie jest.
+  const done = new Set(habitDoneDates(habit))
   const deep = `color-mix(in oklab, ${color} 58%, #000)`
 
   return (

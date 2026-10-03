@@ -75,7 +75,7 @@ export function dayScore(habits = [], dateStr, pauses = []) {
 export function habitDayKind({ habit, dateStr, pauses = [], today, isDone }) {
   const done = isDone !== undefined
     ? isDone
-    : (habit?.completedDates || []).includes(dateStr)
+    : isDayComplete(habit, dateStr)
   const status = isHabitDue(habit, dateStr, pauses)
   const paused = status === 'paused'
   if (dateStr > today) return paused ? 'future-paused' : 'future'
@@ -281,7 +281,7 @@ export function rangeStats(habits = [], pauses = [], start, end) {
 // zniknął z listy dnia: ile razy się udało, jak długa była najlepsza seria
 // i w jakim okresie to trwało. Bez tego zakończony nawyk przepadał bez śladu.
 export function habitCompletionSummary(habit, pauses = []) {
-  const dates = [...(habit?.completedDates || [])].sort()
+  const dates = habitDoneDates(habit)
   return {
     total: dates.length,
     first: dates[0] || habit?.startDate || null,
@@ -309,7 +309,7 @@ export const isOptionalHabit = (habit) => habit?.optional === true
 //  - first   — pierwsze odhaczenie (null, gdy żadnego)
 //  - last    — ostatnie odhaczenie (null, gdy żadnego)
 export function optionalProgress(habit, start, end) {
-  const dates = [...(habit?.completedDates || [])].sort()
+  const dates = habitDoneDates(habit)
   const inRange = (start && end)
     ? dates.filter(d => d >= start && d <= end).length
     : dates.length
@@ -332,7 +332,7 @@ export function optionalSummary(habits = [], start, end) {
     const p = optionalProgress(h, start, end)
     done += p.inRange
     if (p.inRange > 0) active++
-    for (const d of h?.completedDates || []) {
+    for (const d of habitDoneDates(h)) {
       if (start && end && (d < start || d > end)) continue
       perDay.set(d, (perDay.get(d) || 0) + 1)
     }
@@ -353,7 +353,7 @@ export function optionalDayCount(habits = [], dateStr) {
   let n = 0
   for (const h of habits) {
     if (!isOptionalActiveOn(h, dateStr)) continue
-    if ((h?.completedDates || []).includes(dateStr)) n++
+    if (isDayComplete(h, dateStr)) n++
   }
   return n
 }
@@ -370,8 +370,11 @@ export function habitOrderUpdates(required = [], optional = []) {
 // Część rzeczy nie jest „zrobione / nie zrobione", a mierzy się czasem albo
 // liczbą: 20 minut medytacji, 30 stron, 2 litry wody. Taki nawyk trzyma cel
 // dnia w `target`, jednostkę w `unit`, a wykonanie w `amounts` — mapie
-// data → liczba. `completedDates` ZOSTAJE źródłem prawdy o zaliczonym dniu
-// (seria, kalendarze, archiwum), więc nawyki bez celu działają jak dotąd.
+// data → liczba. Nawyk BEZ celu liczbowego działa jak dotąd, czyli zaliczenie
+// dnia trzyma `completedDates`; przy celu liczbowym zaliczenie PRZELICZA się z
+// `amounts` (patrz `habitDoneDates`), bo zapisana lista nie wie o późniejszej
+// zmianie celu. `completedDates` zapisujemy tam dalej, żeby stare dane i
+// nawyki bez celu nie przestały działać.
 
 // Jednostki do wyboru. Czas trzymamy ZAWSZE w minutach i formatujemy sami —
 // dwie jednostki czasu („min" i „h") kazałyby przeliczać sumy w obie strony.
@@ -403,11 +406,21 @@ export function dayAmount(habit, dateStr) {
   return (habit?.completedDates || []).includes(dateStr) ? 1 : 0
 }
 
+// Czy dzień ma WPISANĄ liczbę. Osobno od `dayAmount`, bo zero i brak wpisu to
+// dwie różne rzeczy: przy braku wpisu wracamy do starego odhaczenia.
+const hasAmountEntry = (habit, dateStr) =>
+  Number.isFinite(Number(habit?.amounts?.[dateStr])) && Number(habit?.amounts?.[dateStr]) > 0
+
 // Postęp dnia jako 0..1. Dla celu liczbowego połowa normy to połowa dnia —
 // dzięki temu „10 z 20 minut" widać w celu dnia i w procentach okresu, zamiast
 // przepadać jako niezrobione. Ucinamy na 1: nadwyżka nie ma podbijać średniej.
 export function dayProgress(habit, dateStr) {
   if (!hasAmountGoal(habit)) {
+    return (habit?.completedDates || []).includes(dateStr) ? 1 : 0
+  }
+  // Dzień bez wpisanej liczby, ale odhaczony — nawyk dostał cel liczbowy
+  // PÓŹNIEJ, a stare odhaczenia nie mają się przez to wyzerować.
+  if (!hasAmountEntry(habit, dateStr)) {
     return (habit?.completedDates || []).includes(dateStr) ? 1 : 0
   }
   const target = Number(habit.target)
@@ -417,9 +430,37 @@ export function dayProgress(habit, dateStr) {
 // Czy dzień jest ZALICZONY, czyli cel osiągnięty w całości. Seria i kalendarze
 // zostają binarne: ciąg ma oznaczać dni, w których norma została dowieziona,
 // a nie dni, w których coś się zaczęło.
+//
+// Liczymy to ZAWSZE z wpisanej liczby, nigdy z zapisanego wcześniej
+// odhaczenia: `completedDates` powstaje w chwili klikania, więc po zmianie celu
+// zostawało nieaktualne i kalendarz w statystykach pokazywał dzień jako
+// zrobiony, choć 15 minut przy nowym celu 30 to już tylko połowa.
 export function isDayComplete(habit, dateStr) {
   if (!hasAmountGoal(habit)) return (habit?.completedDates || []).includes(dateStr)
+  if (!hasAmountEntry(habit, dateStr)) return (habit?.completedDates || []).includes(dateStr)
   return dayAmount(habit, dateStr) >= Number(habit.target)
+}
+
+// Dni zaliczone — jedna lista dla serii, kalendarzy, siatek i archiwum.
+// Dla nawyku odhaczanego to po prostu `completedDates`, a dla nawyku na czas
+// albo ilość lista jest PRZELICZANA z wpisanych liczb, żeby nigdzie nie
+// świeciło zaliczenie, którego dziś już nie ma.
+export function habitDoneDates(habit) {
+  const odhaczone = habit?.completedDates || []
+  // Zawsze posortowane i zawsze nowa tablica: wołający biorą stąd pierwszą i
+  // ostatnią datę, a sortowanie w miejscu mieszałoby dane z bazy.
+  if (!hasAmountGoal(habit)) return [...odhaczone].sort()
+  const amounts = habit?.amounts || {}
+  const target = Number(habit.target)
+  const dni = new Set()
+  for (const [d, raw] of Object.entries(amounts)) {
+    const v = Number(raw)
+    if (Number.isFinite(v) && v > 0 && v >= target) dni.add(d)
+  }
+  // Odhaczenia z czasów przed celem liczbowym zostają — ale tylko tam, gdzie
+  // nie ma wpisanej liczby, bo wpisana liczba jest ważniejsza.
+  for (const d of odhaczone) if (!hasAmountEntry(habit, d)) dni.add(d)
+  return [...dni].sort()
 }
 
 // Format liczby z jednostką. Czas sam rozbija się na godziny i minuty, bo
@@ -485,7 +526,7 @@ export function freshStartSummary(habits = [], pauses = []) {
     // Granice bierzemy wprost z odhaczeń, a nie z `s.first` — tam jest fallback
     // na startDate, więc nawyk założony dawno i nigdy nierobiony cofałby
     // początek historii o lata.
-    const dates = [...(h.completedDates || [])].sort()
+    const dates = habitDoneDates(h)
     const pierwsze = dates[0], ostatnie = dates[dates.length - 1]
     if (pierwsze && (!from || pierwsze < from)) from = pierwsze
     if (ostatnie && (!to || ostatnie > to)) to = ostatnie
@@ -609,7 +650,7 @@ export function amountStats(habit, start, end) {
 // Nawyk schowany do archiwum zwykle nie ma endDate, więc samo sortowanie po
 // niej wrzucałoby go na koniec listy bez względu na to, jak długo był robiony.
 export function lastTrace(habit) {
-  const dates = [...(habit?.completedDates || [])].sort()
+  const dates = habitDoneDates(habit)
   const ostatnie = dates[dates.length - 1] || null
   const koniec = habit?.endDate || null
   if (!ostatnie) return koniec

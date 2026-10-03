@@ -28,7 +28,7 @@ import AmountStepper from './AmountStepper'
 import AmountSheet from './AmountSheet'
 import { isPausedDay, isHabitDue, getStreak, getBestStreak, toggleStepDone, isChecklistComplete,
   pauseForDay, pauseReasonMeta, byHabitOrder, rangeStats, byRoutineOrder, groupByRoutine,
-  habitDayKind, dayScore, isRequiredHabit, isOptionalHabit,
+  habitDayKind, dayScore, isRequiredHabit, isOptionalHabit, habitDoneDates, isDayComplete,
   habitLifecycle, hasAmountGoal, amountTotals, amountShortLabel, dayAmount,
   amountStats, formatAmount } from '../../utils/habitLogic'
 import { bladSubskrypcji } from '../../utils/polaczenie'
@@ -167,7 +167,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
   // Lata z jakimikolwiek danymi (do nawigacji w statystykach) — zawsze z bieżącym
   const dataYears = (() => {
     const s = new Set([new Date().getFullYear()])
-    habits.forEach(h => (h.completedDates || []).forEach(d => s.add(+d.slice(0, 4))))
+    habits.forEach(h => habitDoneDates(h).forEach(d => s.add(+d.slice(0, 4))))
     return [...s].sort((a, b) => a - b)
   })()
 
@@ -181,12 +181,12 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
 
   // Overall streak — max streak across all habits
   const maxStreak = filtered.length > 0
-    ? Math.max(...filtered.map(h => getStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)))
+    ? Math.max(...filtered.map(h => getStreak(habitDoneDates(h), h.frequencyDays, pauses, h.startDate)))
     : 0
 
   // Rekord — najlepsza seria historycznie (kafelek „Postęp dnia")
   const recordStreak = filtered.length > 0
-    ? Math.max(...filtered.map(h => getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)))
+    ? Math.max(...filtered.map(h => getBestStreak(habitDoneDates(h), h.frequencyDays, pauses, h.startDate)))
     : 0
 
   // Akcje z menu „⋮": Analiza / Pauza / Kolejność
@@ -288,7 +288,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
 
   // Komórka kalendarza — pojedynczy nawyk (zrobione / dodatkowo / pauza / pominięte)
   const habitCellFor = (habit, color) => (d) => {
-    const isDone = habit.completedDates?.includes(d)
+    const isDone = isDayComplete(habit, d)
     const status = isHabitDue(habit, d, pauses)
     const future = d > TODAY, isToday = d === TODAY
     const deep = `color-mix(in oklab, ${color} 58%, #000)`
@@ -438,8 +438,8 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
         const goFwd   = () => setSelectedDay(format(addDays(selDateObj, 1), 'yyyy-MM-dd'))
 
         const renderCard = ({ h: habit, status }) => {
-          const done    = habit.completedDates?.includes(selectedDay)
-          const streak  = getStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)
+          const done    = isDayComplete(habit, selectedDay)
+          const streak  = getStreak(habitDoneDates(habit), habit.frequencyDays, pauses, habit.startDate)
           const isExtra = status !== 'due'
           const cat     = allCategories.find(c => c.id === habit.category)
           const color   = habit.color || 'var(--accent)'
@@ -564,7 +564,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
 
         const rytmSteps = SHOW_DAY_RHYTHM ? mandatory.map(({ h }) => ({
           key: h.id, emoji: h.emoji, color: h.color || 'var(--accent)',
-          done: h.completedDates?.includes(selectedDay), title: h.name,
+          done: isDayComplete(h, selectedDay), title: h.name,
         })) : []
 
         return (
@@ -611,7 +611,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
                   <div style={{ marginBottom: extra.length > 0 ? 18 : 0 }}>
                     {kicker('Na dziś')}
                     {(() => {
-                      const isItemDone = (x) => x.h.completedDates?.includes(selectedDay)
+                      const isItemDone = (x) => isDayComplete(x.h, selectedDay)
                       // Zrobione „rzeczy" na dół (stabilnie — reszta kolejności zostaje).
                       const sortedMandatory = [...mandatory].sort((a, b) => (isItemDone(a) ? 1 : 0) - (isItemDone(b) ? 1 : 0))
                       // Nagłówki sekcji pokazujemy tylko, gdy realnie dzielą dzień na
@@ -682,7 +682,7 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
         const { start, end } = statRange(statPeriod, ctx)
         const endClamped = today < end ? today : end
         const agg = rangeStats(requiredActive, pauses, start, endClamped)
-        const bestStreakAll = requiredActive.reduce((m, h) => Math.max(m, getBestStreak(h.completedDates, h.frequencyDays, pauses, h.startDate)), 0)
+        const bestStreakAll = requiredActive.reduce((m, h) => Math.max(m, getBestStreak(habitDoneDates(h), h.frequencyDays, pauses, h.startDate)), 0)
         const buckets = statBuckets(requiredActive, pauses, statPeriod, ctx, dataYears)
         const trendTitle  = statPeriod === 'week' ? 'Realizacja dzień po dniu (%)' : statPeriod === 'month' ? 'Kalendarz miesiąca' : 'Realizacja rok po roku (%)'
 
@@ -821,8 +821,8 @@ export default function HabitsDashboard({ user, setHeaderExtras }) {
             {filtered.length === 0 ? (
               <div className="list-empty"><p>Brak nawyków</p></div>
             ) : filtered.map(habit => {
-              const streak = getStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)
-              const best   = getBestStreak(habit.completedDates, habit.frequencyDays, pauses, habit.startDate)
+              const streak = getStreak(habitDoneDates(habit), habit.frequencyDays, pauses, habit.startDate)
+              const best   = getBestStreak(habitDoneDates(habit), habit.frequencyDays, pauses, habit.startDate)
               const cat    = allCategories.find(c => c.id === habit.category)
               const color  = habit.color || 'var(--accent)'
               const pct    = rangeStats([habit], pauses, start, endClamped).pct

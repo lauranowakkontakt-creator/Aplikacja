@@ -3,7 +3,7 @@ import { writeBatch, doc } from 'firebase/firestore'
 import { format } from 'date-fns'
 import { db } from '../../firebase/config'
 import { CatIcon, IconClose, IconCheck, IconFlame, IconStar } from '../Icons'
-import { freshStartSummary, isOptionalHabit } from '../../utils/habitLogic'
+import { freshStartSummary, isOptionalHabit, habitDoneDates } from '../../utils/habitLogic'
 import { habitPeriodLabel } from '../../utils/habitStats'
 import HabitTimeline from './HabitTimeline'
 import { toast } from '../Toast'
@@ -141,7 +141,7 @@ export default function HabitFreshStart({ user, habits = [], pauses = [], onClos
                         {h.name}
                       </span>
                       <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
-                        {isOptionalHabit(h) ? 'wyzwanie · ' : ''}{(h.completedDates || []).length}x
+                        {isOptionalHabit(h) ? 'wyzwanie · ' : ''}{habitDoneDates(h).length}x
                       </span>
                     </button>
                   )

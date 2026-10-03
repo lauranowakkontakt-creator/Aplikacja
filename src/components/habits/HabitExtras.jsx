@@ -211,7 +211,7 @@ export default function HabitExtras({
             <div className="list-empty"><p>Wszystkie wyzwania są w archiwum — szukaj ich w ⋮ „Ukończone i archiwum".</p></div>
           )}
           {habits.map(h => {
-            const done = (h.completedDates || []).includes(selectedDay)
+            const done = isDayComplete(h, selectedDay)
             const color = h.color || 'var(--warn)'
             const p = optionalProgress(h, start, end)
             return (

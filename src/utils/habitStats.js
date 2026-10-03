@@ -2,7 +2,7 @@ import { format, addDays, addMonths, startOfWeek, startOfMonth, endOfMonth, getD
   differenceInCalendarDays } from 'date-fns'
 import { pl } from 'date-fns/locale'
 import { pauseForDay, pauseReasonMeta, rangeStats, dayScore, isPausedDay, isRequiredHabit,
-  optionalSummary } from './habitLogic.js'
+  optionalSummary, habitDoneDates } from './habitLogic.js'
 
 // Statystyki i zakresy dat dla modułu Nawyki.
 //
@@ -173,7 +173,7 @@ export function optionalBuckets(habits = [], period, dayStr) {
 // Granice życia nawyku. Odhaczenia maja pierwszeństwo nad startDate/endDate:
 // pokazujemy, kiedy nawyk naprawdę był robiony, nie kiedy był zaplanowany.
 export function habitSpan(habit) {
-  const dates = [...(habit?.completedDates || [])].sort()
+  const dates = habitDoneDates(habit)
   const from = dates[0] || habit?.startDate || null
   const to   = dates[dates.length - 1] || habit?.endDate || habit?.startDate || null
   if (!from || !to) return null
@@ -207,7 +207,7 @@ export function timelineLanes(habits = [], { minWidthPct = 2 } = {}) {
       from: span.from,
       to: span.to,
       days: trwanie,
-      total: (habit.completedDates || []).length,
+      total: habitDoneDates(habit).length,
       // Pas nie moze wyjsc za prawa krawedz po dociagnieciu do minimum.
       leftPct: Math.max(0, Math.min(offset, 100 - Math.max(szer, minWidthPct))),
       widthPct: Math.max(szer, minWidthPct),

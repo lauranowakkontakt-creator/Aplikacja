@@ -5,7 +5,8 @@ import { pl } from 'date-fns/locale'
 import { db } from '../../firebase/config'
 import { CatIcon, IconClose, IconArchive, IconRestore, IconCheck, IconFlame } from '../Icons'
 import { habitCompletionSummary, amountTotals, amountStats, formatAmount,
-  hasAmountGoal, byRecentlyClosed, lastTrace, isOptionalHabit } from '../../utils/habitLogic'
+  hasAmountGoal, byRecentlyClosed, lastTrace, isOptionalHabit,
+  habitDoneDates } from '../../utils/habitLogic'
 import { habitPeriodLabel } from '../../utils/habitStats'
 import HabitTimeline from './HabitTimeline'
 import SegTabs from '../SegTabs'
@@ -36,7 +37,7 @@ export default function HabitArchive({ user, habits = [], endedHabits = [], paus
   const lista = tab === 'ended' ? ukonczone : schowane
 
   const sumy = amountTotals(zamkniete)
-  const odhaczen = zamkniete.reduce((n, h) => n + (h.completedDates || []).length, 0)
+  const odhaczen = zamkniete.reduce((n, h) => n + habitDoneDates(h).length, 0)
   const rekord = zamkniete.reduce((m, h) => Math.max(m, habitCompletionSummary(h, pauses).best), 0)
 
   const liczba = (wartosc, opis, kolor, Icon) => (
