@@ -11,7 +11,7 @@ import { formatAmount, amountStep, unitMeta, dayAmount } from '../../utils/habit
 export default function AmountSheet({ habit, dateStr, onSet, onClose }) {
   const target = Number(habit.target) || 0
   const unit   = habit.unit || 'szt'
-  const skok   = amountStep(target)
+  const skok   = amountStep(target, unit)
   const color  = habit.color || 'var(--accent)'
   const [wartosc, setWartosc] = useState(() => dayAmount(habit, dateStr))
 

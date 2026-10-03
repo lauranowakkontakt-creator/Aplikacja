@@ -847,6 +847,33 @@ test('nextAmount: brak celu i smieci nie wybuchaja', () => {
   assert.equal(nextAmount(null, null), 1)
 })
 
+test('amountStep: minuty chodza w piatkach, nie po jednej', () => {
+  // Cel 10 minut dawal skok 3 (round(10/4)) i klikanie minuta po minucie.
+  assert.equal(amountStep(10, 'min'), 5)
+  assert.equal(amountStep(4, 'min'), 5, 'mala norma tez nie schodzi pod 5 minut')
+  assert.equal(amountStep(20, 'min'), 5)
+  assert.equal(amountStep(60, 'min'), 15, 'przy duzym celu nadal okolo czterech klikniec')
+  assert.equal(amountStep(90, 'min'), 25, 'skok zostaje wielokrotnoscia piatki')
+  assert.equal(amountStep(0, 'min'), 5)
+})
+
+test('amountStep: pozostale jednostki licza sie po staremu', () => {
+  assert.equal(amountStep(10, 'str'), 3)
+  assert.equal(amountStep(4, 'szt'), 1)
+})
+
+test('nextAmount: nawyk na minuty dokłada piatki', () => {
+  assert.equal(nextAmount(0, 20, 'min'), 5)
+  assert.equal(nextAmount(5, 20, 'min'), 10)
+  // Pierwszy klik nadal dociaga do pelnej normy, zamiast ja przeskakiwac.
+  assert.equal(nextAmount(18, 20, 'min'), 20)
+  // A ponad norme idzie pelnym skokiem.
+  assert.equal(nextAmount(20, 20, 'min'), 25)
+  // Cel 10 minut: dwa kliki do pelna, zamiast czterech po trzy minuty.
+  assert.equal(nextAmount(0, 10, 'min'), 5)
+  assert.equal(nextAmount(5, 10, 'min'), 10)
+})
+
 test('amountOver: liczy tylko to, co ponad norme', () => {
   assert.equal(amountOver(35, 20), 15)
   assert.equal(amountOver(20, 20), 0)

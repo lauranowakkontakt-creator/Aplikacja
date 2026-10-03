@@ -528,9 +528,16 @@ export function optionalDayScore(habits = [], dateStr) {
 // Skok jednego kliknięcia przy celu liczbowym. Stały skok (np. 5 minut) przy
 // celu 60 znaczyłby dwanaście kliknięć — dlatego liczymy go z celu tak, żeby
 // do pełna było zawsze mniej więcej cztery.
-export function amountStep(target) {
+//
+// Minuty są wyjątkiem: skok liczony z celu wychodził przy małej normie na
+// jedną minutę, a klikanie minuta po minucie nie ma sensu — czas chodzi w
+// piątkach. Dlatego dla `min` zaokrąglamy skok do pełnych pięciu minut i nigdy
+// nie schodzimy niżej (przy celu 10 minut skok to 5, nie 3).
+export function amountStep(target, unit) {
   const t = Number(target) || 0
-  if (t <= 0) return 1
+  const czas = unitMeta(unit).time === true
+  if (t <= 0) return czas ? 5 : 1
+  if (czas) return Math.max(5, Math.round(t / 4 / 5) * 5)
   return Math.max(1, Math.round(t / 4))
 }
 
@@ -541,10 +548,10 @@ export function amountStep(target) {
 //
 // Pierwszy klik dociąga do pełnego celu, zamiast go przeskakiwać: przy celu 20
 // i skoku 5 wartość 18 daje 20, a nie 23.
-export function nextAmount(current, target) {
+export function nextAmount(current, target, unit) {
   const t = Number(target) || 0
   const c = Number(current) || 0
-  const skok = amountStep(t)
+  const skok = amountStep(t, unit)
   if (t <= 0) return c + skok
   if (c < t) return Math.min(t, c + skok)
   return c + skok

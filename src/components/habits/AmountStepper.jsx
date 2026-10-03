@@ -23,12 +23,12 @@ export default function AmountStepper({ habit, dateStr, onSet, disabled = false,
     ? 'Przyszły dzień'
     : ponad > 0
       ? `${formatAmount(teraz, unit)} — ${formatAmount(ponad, unit)} ponad cel`
-      : `${formatAmount(teraz, unit)} z ${formatAmount(target, unit)} — kliknij, żeby dodać ${formatAmount(amountStep(target), unit)}`
+      : `${formatAmount(teraz, unit)} z ${formatAmount(target, unit)} — kliknij, żeby dodać ${formatAmount(amountStep(target, unit), unit)}`
 
   return (
     <button
       type="button"
-      onClick={() => !disabled && onSet(habit, dateStr, nextAmount(teraz, target))}
+      onClick={() => !disabled && onSet(habit, dateStr, nextAmount(teraz, target, unit))}
       disabled={disabled}
       title={tytul}
       aria-label={tytul}
